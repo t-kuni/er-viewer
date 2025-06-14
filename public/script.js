@@ -173,11 +173,11 @@ class ERViewer {
             } else {
                 const errorText = await response.text();
                 console.error(`Reverse engineering failed: ${response.status} ${response.statusText}`, errorText);
-                alert('リバースエンジニアリングに失敗しました');
+                this.showError('リバースエンジニアリングに失敗しました', `${response.status}: ${errorText}`);
             }
         } catch (error) {
             console.error('Error during reverse engineering:', error);
-            alert('リバースエンジニアリングエラー');
+            this.showError('リバースエンジニアリング中にエラーが発生しました', error.message);
         } finally {
             this.hideLoading();
         }
@@ -191,10 +191,13 @@ class ERViewer {
                 body: JSON.stringify(this.layoutData)
             });
             if (response.ok) {
-                alert('レイアウトを保存しました');
+                this.showSuccess('レイアウトを保存しました');
+            } else {
+                this.showError('レイアウトの保存に失敗しました');
             }
         } catch (error) {
             console.error('Error saving layout:', error);
+            this.showError('レイアウト保存中にエラーが発生しました', error.message);
         }
     }
 
@@ -215,7 +218,7 @@ class ERViewer {
 
     renderEntities(container) {
         this.erData.entities.forEach((entity, index) => {
-            const position = entity.position || { x: 50 + (index % 4) * 200, y: 50 + Math.floor(index / 4) * 150 };
+            const position = entity.position || this.calculateClusteredPosition(entity, index);
             
             const entityGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             entityGroup.setAttribute('class', 'entity');
@@ -274,8 +277,10 @@ class ERViewer {
             const fromPos = fromEntity.position || { x: 50, y: 50 };
             const toPos = toEntity.position || { x: 50, y: 50 };
 
-            const fromCenter = { x: fromPos.x + 90, y: fromPos.y + 40 };
-            const toCenter = { x: toPos.x + 90, y: toPos.y + 40 };
+            // Calculate optimal connection points on entity edges
+            const fromBounds = this.getEntityBounds(fromEntity);
+            const toBounds = this.getEntityBounds(toEntity);
+            const connectionPoints = this.findOptimalConnectionPoints(fromBounds, toBounds);
 
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('class', 'relationship');
@@ -284,7 +289,7 @@ class ERViewer {
             path.setAttribute('data-from-column', rel.fromColumn);
             path.setAttribute('data-to-column', rel.toColumn);
             
-            const pathData = this.createPolylinePath(fromCenter, toCenter);
+            const pathData = this.createPolylinePath(connectionPoints.from, connectionPoints.to);
             path.setAttribute('d', pathData);
             
             container.appendChild(path);
@@ -343,8 +348,445 @@ class ERViewer {
     }
 
     createPolylinePath(from, to) {
+        const path = this.findSmartPath(from, to);
+        return this.pathPointsToSVG(path);
+    }
+
+    findSmartPath(from, to) {
+        const entityBounds = this.getAllEntityBounds();
+        
+        // Try direct L-shaped path first
+        const directPath = this.createLShapedPath(from, to);
+        if (!this.pathIntersectsEntities(directPath, entityBounds)) {
+            return directPath;
+        }
+
+        // If direct path intersects, find alternative route
+        return this.findAlternativePath(from, to, entityBounds);
+    }
+
+    createLShapedPath(from, to) {
         const midX = (from.x + to.x) / 2;
-        return `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
+        return [
+            { x: from.x, y: from.y },
+            { x: midX, y: from.y },
+            { x: midX, y: to.y },
+            { x: to.x, y: to.y }
+        ];
+    }
+
+    findAlternativePath(from, to, entityBounds) {
+        // Try different routing strategies
+        const strategies = [
+            () => this.routeAroundEntities(from, to, entityBounds, 'horizontal'),
+            () => this.routeAroundEntities(from, to, entityBounds, 'vertical'),
+            () => this.routeWithOffset(from, to, entityBounds, 50),
+            () => this.routeWithOffset(from, to, entityBounds, -50)
+        ];
+
+        for (const strategy of strategies) {
+            const path = strategy();
+            if (path && !this.pathIntersectsEntities(path, entityBounds)) {
+                return path;
+            }
+        }
+
+        // Fallback to simple L-shaped path if no smart route found
+        return this.createLShapedPath(from, to);
+    }
+
+    routeAroundEntities(from, to, entityBounds, direction) {
+        const padding = 20;
+        
+        if (direction === 'horizontal') {
+            // Route horizontally first, then vertically around obstacles
+            const intermediateY = from.y;
+            const clearX = this.findClearHorizontalPath(from.x, to.x, intermediateY, entityBounds, padding);
+            
+            return [
+                { x: from.x, y: from.y },
+                { x: clearX, y: from.y },
+                { x: clearX, y: to.y },
+                { x: to.x, y: to.y }
+            ];
+        } else {
+            // Route vertically first, then horizontally around obstacles
+            const intermediateX = from.x;
+            const clearY = this.findClearVerticalPath(from.y, to.y, intermediateX, entityBounds, padding);
+            
+            return [
+                { x: from.x, y: from.y },
+                { x: from.x, y: clearY },
+                { x: to.x, y: clearY },
+                { x: to.x, y: to.y }
+            ];
+        }
+    }
+
+    routeWithOffset(from, to, entityBounds, offset) {
+        const midX = (from.x + to.x) / 2 + offset;
+        const midY = (from.y + to.y) / 2 + offset;
+        
+        return [
+            { x: from.x, y: from.y },
+            { x: midX, y: from.y },
+            { x: midX, y: midY },
+            { x: to.x, y: midY },
+            { x: to.x, y: to.y }
+        ];
+    }
+
+    findClearHorizontalPath(startX, endX, y, entityBounds, padding) {
+        const minX = Math.min(startX, endX);
+        const maxX = Math.max(startX, endX);
+        
+        // Check for entities that intersect with the horizontal line
+        for (const bounds of entityBounds) {
+            if (y >= bounds.top - padding && y <= bounds.bottom + padding &&
+                bounds.left <= maxX + padding && bounds.right >= minX - padding) {
+                // Entity blocks the path, route around it
+                if (startX < endX) {
+                    return bounds.right + padding;
+                } else {
+                    return bounds.left - padding;
+                }
+            }
+        }
+        
+        return (startX + endX) / 2;
+    }
+
+    findClearVerticalPath(startY, endY, x, entityBounds, padding) {
+        const minY = Math.min(startY, endY);
+        const maxY = Math.max(startY, endY);
+        
+        // Check for entities that intersect with the vertical line
+        for (const bounds of entityBounds) {
+            if (x >= bounds.left - padding && x <= bounds.right + padding &&
+                bounds.top <= maxY + padding && bounds.bottom >= minY - padding) {
+                // Entity blocks the path, route around it
+                if (startY < endY) {
+                    return bounds.bottom + padding;
+                } else {
+                    return bounds.top - padding;
+                }
+            }
+        }
+        
+        return (startY + endY) / 2;
+    }
+
+    getAllEntityBounds() {
+        if (!this.erData || !this.erData.entities) return [];
+        
+        return this.erData.entities.map(entity => {
+            return this.getEntityBounds(entity);
+        });
+    }
+
+    getEntityBounds(entity) {
+        const pos = entity.position || { x: 50, y: 50 };
+        const headerHeight = 30;
+        const rowHeight = 20;
+        const bottomPadding = 8;
+        const width = 180;
+        const height = headerHeight + entity.columns.length * rowHeight + bottomPadding;
+        
+        return {
+            left: pos.x,
+            top: pos.y,
+            right: pos.x + width,
+            bottom: pos.y + height,
+            centerX: pos.x + width / 2,
+            centerY: pos.y + height / 2,
+            width: width,
+            height: height
+        };
+    }
+
+    findOptimalConnectionPoints(fromBounds, toBounds) {
+        // Determine which edges to connect based on relative positions
+        const fromCenter = { x: fromBounds.centerX, y: fromBounds.centerY };
+        const toCenter = { x: toBounds.centerX, y: toBounds.centerY };
+        
+        // Calculate the angle between centers to determine optimal connection sides
+        const dx = toCenter.x - fromCenter.x;
+        const dy = toCenter.y - fromCenter.y;
+        
+        // Get edge points for both entities
+        const fromEdges = this.getEntityEdgePoints(fromBounds);
+        const toEdges = this.getEntityEdgePoints(toBounds);
+        
+        // Find the closest edge points
+        let bestDistance = Infinity;
+        let bestFromPoint = fromEdges.right;
+        let bestToPoint = toEdges.left;
+        
+        for (const fromEdge of Object.values(fromEdges)) {
+            for (const toEdge of Object.values(toEdges)) {
+                const distance = Math.sqrt(
+                    Math.pow(toEdge.x - fromEdge.x, 2) + 
+                    Math.pow(toEdge.y - fromEdge.y, 2)
+                );
+                
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestFromPoint = fromEdge;
+                    bestToPoint = toEdge;
+                }
+            }
+        }
+        
+        return {
+            from: bestFromPoint,
+            to: bestToPoint
+        };
+    }
+
+    getEntityEdgePoints(bounds) {
+        const margin = 5; // Small margin from the exact edge for visual clarity
+        
+        return {
+            top: { x: bounds.centerX, y: bounds.top - margin },
+            bottom: { x: bounds.centerX, y: bounds.bottom + margin },
+            left: { x: bounds.left - margin, y: bounds.centerY },
+            right: { x: bounds.right + margin, y: bounds.centerY }
+        };
+    }
+
+    pathIntersectsEntities(pathPoints, entityBounds) {
+        if (!pathPoints || pathPoints.length < 2) return false;
+        
+        for (let i = 0; i < pathPoints.length - 1; i++) {
+            const start = pathPoints[i];
+            const end = pathPoints[i + 1];
+            
+            for (const bounds of entityBounds) {
+                if (this.lineIntersectsRectangle(start, end, bounds)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    lineIntersectsRectangle(start, end, rect) {
+        // Check if line segment intersects with rectangle
+        return (
+            this.lineIntersectsLine(start, end, {x: rect.left, y: rect.top}, {x: rect.right, y: rect.top}) ||
+            this.lineIntersectsLine(start, end, {x: rect.right, y: rect.top}, {x: rect.right, y: rect.bottom}) ||
+            this.lineIntersectsLine(start, end, {x: rect.right, y: rect.bottom}, {x: rect.left, y: rect.bottom}) ||
+            this.lineIntersectsLine(start, end, {x: rect.left, y: rect.bottom}, {x: rect.left, y: rect.top}) ||
+            this.pointInRectangle(start, rect) ||
+            this.pointInRectangle(end, rect)
+        );
+    }
+
+    lineIntersectsLine(p1, p2, p3, p4) {
+        const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+        if (denom === 0) return false;
+        
+        const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+        const ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
+        
+        return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+    }
+
+    pointInRectangle(point, rect) {
+        return point.x >= rect.left && point.x <= rect.right && 
+               point.y >= rect.top && point.y <= rect.bottom;
+    }
+
+    pathPointsToSVG(pathPoints) {
+        if (!pathPoints || pathPoints.length === 0) return '';
+        
+        let path = `M ${pathPoints[0].x} ${pathPoints[0].y}`;
+        for (let i = 1; i < pathPoints.length; i++) {
+            path += ` L ${pathPoints[i].x} ${pathPoints[i].y}`;
+        }
+        return path;
+    }
+
+    calculateClusteredPosition(entity, index) {
+        // If this is the initial load and all entities are at default position, apply clustering
+        if (this.shouldApplyInitialClustering()) {
+            return this.getInitialClusteredPosition(entity, index);
+        }
+        
+        // Fallback to grid layout for single entities
+        return { x: 50 + (index % 4) * 200, y: 50 + Math.floor(index / 4) * 150 };
+    }
+
+    shouldApplyInitialClustering() {
+        if (!this.erData || !this.erData.entities) return false;
+        
+        // Check if most entities are at the default position (indicating initial load)
+        const defaultPositions = this.erData.entities.filter(entity => {
+            const pos = entity.position;
+            return !pos || (pos.x === 50 && pos.y === 50);
+        });
+        
+        return defaultPositions.length >= this.erData.entities.length * 0.8; // 80% at default position
+    }
+
+    getInitialClusteredPosition(entity, index) {
+        if (!this.relationshipClusters) {
+            this.relationshipClusters = this.buildRelationshipClusters();
+        }
+        
+        const cluster = this.findEntityCluster(entity.name);
+        return this.calculateClusterPosition(cluster, entity.name);
+    }
+
+    buildRelationshipClusters() {
+        const clusters = [];
+        const processedEntities = new Set();
+        
+        // Build connected components based on relationships
+        this.erData.entities.forEach(entity => {
+            if (processedEntities.has(entity.name)) return;
+            
+            const cluster = this.findConnectedEntities(entity.name, processedEntities);
+            if (cluster.length > 0) {
+                clusters.push(cluster);
+            }
+        });
+        
+        // Sort clusters by size (larger clusters get better positions)
+        clusters.sort((a, b) => b.length - a.length);
+        
+        return clusters;
+    }
+
+    findConnectedEntities(startEntity, processedEntities, visited = new Set()) {
+        if (visited.has(startEntity) || processedEntities.has(startEntity)) {
+            return [];
+        }
+        
+        visited.add(startEntity);
+        processedEntities.add(startEntity);
+        
+        const cluster = [startEntity];
+        
+        // Find all directly connected entities
+        const relationships = this.erData.relationships || [];
+        const connectedEntities = new Set();
+        
+        relationships.forEach(rel => {
+            if (rel.from === startEntity && !visited.has(rel.to)) {
+                connectedEntities.add(rel.to);
+            } else if (rel.to === startEntity && !visited.has(rel.from)) {
+                connectedEntities.add(rel.from);
+            }
+        });
+        
+        // Recursively find all entities in this connected component
+        connectedEntities.forEach(connectedEntity => {
+            cluster.push(...this.findConnectedEntities(connectedEntity, processedEntities, visited));
+        });
+        
+        return cluster;
+    }
+
+    findEntityCluster(entityName) {
+        if (!this.relationshipClusters) return null;
+        
+        for (let i = 0; i < this.relationshipClusters.length; i++) {
+            if (this.relationshipClusters[i].includes(entityName)) {
+                return { index: i, entities: this.relationshipClusters[i] };
+            }
+        }
+        
+        return null;
+    }
+
+    calculateClusterPosition(cluster, entityName) {
+        if (!cluster) {
+            // Single entity with no relationships - place in available space
+            return this.findAvailableSpace();
+        }
+        
+        const clusterIndex = cluster.index;
+        const entityIndex = cluster.entities.indexOf(entityName);
+        
+        // Calculate cluster base position
+        const clustersPerRow = 2;
+        const clusterSpacing = { x: 600, y: 400 };
+        const baseX = 100 + (clusterIndex % clustersPerRow) * clusterSpacing.x;
+        const baseY = 100 + Math.floor(clusterIndex / clustersPerRow) * clusterSpacing.y;
+        
+        // Arrange entities within cluster using force-directed approach
+        return this.calculateEntityPositionInCluster(cluster.entities, entityName, baseX, baseY);
+    }
+
+    calculateEntityPositionInCluster(clusterEntities, entityName, baseX, baseY) {
+        const entityIndex = clusterEntities.indexOf(entityName);
+        
+        if (clusterEntities.length === 1) {
+            return { x: baseX, y: baseY };
+        }
+        
+        // For small clusters, use predefined patterns
+        if (clusterEntities.length <= 4) {
+            return this.getSmallClusterPosition(entityIndex, clusterEntities.length, baseX, baseY);
+        }
+        
+        // For larger clusters, use circular arrangement
+        return this.getCircularClusterPosition(entityIndex, clusterEntities.length, baseX, baseY);
+    }
+
+    getSmallClusterPosition(entityIndex, clusterSize, baseX, baseY) {
+        const spacing = 220; // Space between entities
+        
+        switch (clusterSize) {
+            case 2:
+                return entityIndex === 0 
+                    ? { x: baseX, y: baseY }
+                    : { x: baseX + spacing, y: baseY };
+            
+            case 3:
+                const trianglePositions = [
+                    { x: baseX, y: baseY },
+                    { x: baseX + spacing, y: baseY },
+                    { x: baseX + spacing/2, y: baseY + spacing * 0.866 }
+                ];
+                return trianglePositions[entityIndex];
+            
+            case 4:
+                const squarePositions = [
+                    { x: baseX, y: baseY },
+                    { x: baseX + spacing, y: baseY },
+                    { x: baseX, y: baseY + spacing },
+                    { x: baseX + spacing, y: baseY + spacing }
+                ];
+                return squarePositions[entityIndex];
+            
+            default:
+                return { x: baseX, y: baseY };
+        }
+    }
+
+    getCircularClusterPosition(entityIndex, clusterSize, baseX, baseY) {
+        const radius = Math.max(150, clusterSize * 30);
+        const angle = (entityIndex / clusterSize) * 2 * Math.PI;
+        
+        return {
+            x: baseX + radius * Math.cos(angle),
+            y: baseY + radius * Math.sin(angle)
+        };
+    }
+
+    findAvailableSpace() {
+        // Find space not occupied by clusters
+        const occupiedSpaces = this.relationshipClusters ? this.relationshipClusters.length : 0;
+        const clustersPerRow = 2;
+        const clusterSpacing = { x: 600, y: 400 };
+        
+        const x = 100 + (occupiedSpaces % clustersPerRow) * clusterSpacing.x + 300;
+        const y = 100 + Math.floor(occupiedSpaces / clustersPerRow) * clusterSpacing.y;
+        
+        return { x, y };
     }
 
     handleWheel(e) {
@@ -1132,12 +1574,55 @@ class ERViewer {
         };
     }
 
-    showLoading(message) {
+    showLoading(message, showProgress = false) {
+        // Remove existing loading indicator
+        this.hideLoading();
+        
         const loading = document.createElement('div');
-        loading.className = 'loading';
-        loading.textContent = message;
+        loading.className = 'loading-overlay';
         loading.id = 'loading';
+        
+        const loadingContent = document.createElement('div');
+        loadingContent.className = 'loading-content';
+        
+        const spinner = document.createElement('div');
+        spinner.className = 'spinner';
+        
+        const messageElement = document.createElement('div');
+        messageElement.className = 'loading-message';
+        messageElement.textContent = message;
+        
+        loadingContent.appendChild(spinner);
+        loadingContent.appendChild(messageElement);
+        
+        if (showProgress) {
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            progressBar.id = 'progress-bar';
+            
+            const progressFill = document.createElement('div');
+            progressFill.className = 'progress-fill';
+            progressFill.id = 'progress-fill';
+            
+            progressBar.appendChild(progressFill);
+            loadingContent.appendChild(progressBar);
+        }
+        
+        loading.appendChild(loadingContent);
         document.body.appendChild(loading);
+    }
+
+    updateLoadingProgress(percentage, message = null) {
+        const progressFill = document.getElementById('progress-fill');
+        const messageElement = document.querySelector('.loading-message');
+        
+        if (progressFill) {
+            progressFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+        }
+        
+        if (message && messageElement) {
+            messageElement.textContent = message;
+        }
     }
 
     hideLoading() {
@@ -1145,6 +1630,84 @@ class ERViewer {
         if (loading) {
             loading.remove();
         }
+    }
+
+    showToast(message, type = 'info', duration = 5000) {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        
+        const icon = document.createElement('div');
+        icon.className = 'toast-icon';
+        icon.textContent = this.getToastIcon(type);
+        
+        const messageElement = document.createElement('div');
+        messageElement.className = 'toast-message';
+        messageElement.textContent = message;
+        
+        const closeButton = document.createElement('button');
+        closeButton.className = 'toast-close';
+        closeButton.textContent = '×';
+        closeButton.onclick = () => this.removeToast(toast);
+        
+        toast.appendChild(icon);
+        toast.appendChild(messageElement);
+        toast.appendChild(closeButton);
+        
+        // Add to container
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                this.removeToast(toast);
+            }, duration);
+        }
+        
+        return toast;
+    }
+
+    getToastIcon(type) {
+        const icons = {
+            success: '✓',
+            error: '⚠',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+        return icons[type] || icons.info;
+    }
+
+    removeToast(toast) {
+        if (toast && toast.parentNode) {
+            toast.classList.add('toast-removing');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }
+    }
+
+    showError(message, details = null) {
+        console.error('Application Error:', message, details);
+        this.showToast(message, 'error');
+        
+        if (details) {
+            console.error('Error details:', details);
+        }
+    }
+
+    showSuccess(message) {
+        this.showToast(message, 'success');
+    }
+
+    showWarning(message) {
+        this.showToast(message, 'warning');
     }
 
     async showBuildInfo() {

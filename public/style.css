@@ -80,11 +80,13 @@ main {
 }
 
 .entity:hover {
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3));
+    transition: filter 0.2s ease-in-out;
 }
 
 .entity.highlighted {
-    filter: drop-shadow(0 0 10px #3498db);
+    filter: drop-shadow(0 0 15px #3498db) drop-shadow(0 0 25px rgba(52, 152, 219, 0.4));
+    transition: filter 0.2s ease-in-out;
 }
 
 .entity-rect {
@@ -121,7 +123,18 @@ main {
 .highlighted-column {
     fill: #f39c12 !important;
     font-weight: bold;
-    filter: drop-shadow(0 0 5px rgba(243, 156, 18, 0.8));
+    filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.9)) drop-shadow(0 0 15px rgba(243, 156, 18, 0.5));
+    font-size: 13px !important;
+    animation: glow-column 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-column {
+    0% {
+        filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.9)) drop-shadow(0 0 15px rgba(243, 156, 18, 0.5));
+    }
+    100% {
+        filter: drop-shadow(0 0 12px rgba(243, 156, 18, 1)) drop-shadow(0 0 20px rgba(243, 156, 18, 0.7));
+    }
 }
 
 .relationship {
@@ -134,12 +147,28 @@ main {
 
 .relationship:hover {
     stroke: #3498db;
-    stroke-width: 3;
+    stroke-width: 4;
+    filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.6));
+    transition: all 0.2s ease-in-out;
 }
 
 .relationship.highlighted {
     stroke: #e74c3c;
-    stroke-width: 3;
+    stroke-width: 4;
+    filter: drop-shadow(0 0 10px rgba(231, 76, 60, 0.7));
+    stroke-dasharray: none;
+    animation: pulse-line 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-line {
+    0% {
+        stroke-width: 4;
+        filter: drop-shadow(0 0 10px rgba(231, 76, 60, 0.7));
+    }
+    100% {
+        stroke-width: 5;
+        filter: drop-shadow(0 0 15px rgba(231, 76, 60, 0.9));
+    }
 }
 
 .sidebar {

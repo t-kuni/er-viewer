@@ -1495,11 +1495,13 @@ class ERViewer {
         const entity = document.querySelector(`[data-table="${tableName}"]`);
         if (entity) {
             entity.classList.add('highlighted');
+            entity.style.zIndex = '1000';
             
             // Get all relationships connected to this entity
             const relationships = document.querySelectorAll(`[data-from="${tableName}"], [data-to="${tableName}"]`);
             relationships.forEach(rel => {
                 rel.classList.add('highlighted');
+                rel.style.zIndex = '999';
                 
                 // Highlight the related entities as well
                 const fromTable = rel.getAttribute('data-from');
@@ -1510,6 +1512,25 @@ class ERViewer {
                 const relatedEntity = document.querySelector(`[data-table="${relatedTable}"]`);
                 if (relatedEntity) {
                     relatedEntity.classList.add('highlighted');
+                    relatedEntity.style.zIndex = '998';
+                }
+                
+                // Highlight the related columns
+                const fromColumn = rel.getAttribute('data-from-column');
+                const toColumn = rel.getAttribute('data-to-column');
+                
+                if (fromColumn) {
+                    const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .column[data-column="${fromColumn}"]`);
+                    if (fromColumnElement) {
+                        fromColumnElement.classList.add('highlighted-column');
+                    }
+                }
+                
+                if (toColumn) {
+                    const toColumnElement = document.querySelector(`[data-table="${toTable}"] .column[data-column="${toColumn}"]`);
+                    if (toColumnElement) {
+                        toColumnElement.classList.add('highlighted-column');
+                    }
                 }
             });
         }
@@ -1521,8 +1542,23 @@ class ERViewer {
         const fromColumn = relationshipElement.getAttribute('data-from-column');
         const toColumn = relationshipElement.getAttribute('data-to-column');
 
-        // Highlight the relationship line itself
+        // Highlight the relationship line itself with enhanced z-index
         relationshipElement.classList.add('highlighted');
+        relationshipElement.style.zIndex = '1001';
+
+        // Highlight the connected entities with stronger emphasis
+        const fromEntity = document.querySelector(`[data-table="${fromTable}"]`);
+        const toEntity = document.querySelector(`[data-table="${toTable}"]`);
+        
+        if (fromEntity) {
+            fromEntity.classList.add('highlighted');
+            fromEntity.style.zIndex = '1000';
+        }
+        
+        if (toEntity) {
+            toEntity.classList.add('highlighted');
+            toEntity.style.zIndex = '1000';
+        }
 
         // Highlight the specific columns in both entities
         if (fromTable && fromColumn) {
@@ -1541,7 +1577,10 @@ class ERViewer {
     }
 
     clearHighlights() {
-        document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+        document.querySelectorAll('.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+            el.style.zIndex = '';
+        });
         document.querySelectorAll('.highlighted-column').forEach(el => el.classList.remove('highlighted-column'));
     }
 

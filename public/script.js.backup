@@ -1507,16 +1507,18 @@ class ERViewer {
     highlightEntity(tableName) {
         const entity = document.querySelector(`[data-table="${tableName}"]`);
         if (entity) {
+            // Highlight the main entity with strongest emphasis
             entity.classList.add('highlighted');
-            entity.style.zIndex = '1000';
+            entity.style.zIndex = '1002';
             
             // Get all relationships connected to this entity
             const relationships = document.querySelectorAll(`[data-from="${tableName}"], [data-to="${tableName}"]`);
             relationships.forEach(rel => {
+                // Highlight relationship lines with enhanced effect
                 rel.classList.add('highlighted');
-                rel.style.zIndex = '999';
+                rel.style.zIndex = '1001';
                 
-                // Highlight the related entities as well
+                // Highlight the related entities with secondary emphasis
                 const fromTable = rel.getAttribute('data-from');
                 const toTable = rel.getAttribute('data-to');
                 
@@ -1524,11 +1526,11 @@ class ERViewer {
                 const relatedTable = fromTable === tableName ? toTable : fromTable;
                 const relatedEntity = document.querySelector(`[data-table="${relatedTable}"]`);
                 if (relatedEntity) {
-                    relatedEntity.classList.add('highlighted');
-                    relatedEntity.style.zIndex = '998';
+                    relatedEntity.classList.add('highlighted-related');
+                    relatedEntity.style.zIndex = '1000';
                 }
                 
-                // Highlight the related columns
+                // Highlight the related columns with enhanced visibility
                 const fromColumn = rel.getAttribute('data-from-column');
                 const toColumn = rel.getAttribute('data-to-column');
                 
@@ -1555,22 +1557,22 @@ class ERViewer {
         const fromColumn = relationshipElement.getAttribute('data-from-column');
         const toColumn = relationshipElement.getAttribute('data-to-column');
 
-        // Highlight the relationship line itself with enhanced z-index
+        // Highlight the relationship line itself with strongest emphasis
         relationshipElement.classList.add('highlighted');
-        relationshipElement.style.zIndex = '1001';
+        relationshipElement.style.zIndex = '1003';
 
-        // Highlight the connected entities with stronger emphasis
+        // Highlight both connected entities with strong emphasis for relationship hover
         const fromEntity = document.querySelector(`[data-table="${fromTable}"]`);
         const toEntity = document.querySelector(`[data-table="${toTable}"]`);
         
         if (fromEntity) {
-            fromEntity.classList.add('highlighted');
-            fromEntity.style.zIndex = '1000';
+            fromEntity.classList.add('highlighted-related');
+            fromEntity.style.zIndex = '1002';
         }
         
         if (toEntity) {
-            toEntity.classList.add('highlighted');
-            toEntity.style.zIndex = '1000';
+            toEntity.classList.add('highlighted-related');
+            toEntity.style.zIndex = '1002';
         }
 
         // Highlight the specific columns in both entities
@@ -1592,6 +1594,10 @@ class ERViewer {
     clearHighlights() {
         document.querySelectorAll('.highlighted').forEach(el => {
             el.classList.remove('highlighted');
+            el.style.zIndex = '';
+        });
+        document.querySelectorAll('.highlighted-related').forEach(el => {
+            el.classList.remove('highlighted-related');
             el.style.zIndex = '';
         });
         document.querySelectorAll('.highlighted-column').forEach(el => el.classList.remove('highlighted-column'));

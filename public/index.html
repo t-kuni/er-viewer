@@ -11,10 +11,10 @@
         <header>
             <h1>ER Diagram Viewer</h1>
             <div class="controls">
-                <button id="reverse-btn">リバースエンジニア</button>
-                <button id="save-btn">レイアウト保存</button>
+                <button id="reverse-engineer">リバースエンジニア</button>
+                <button id="save-layout">レイアウト保存</button>
                 <button id="load-btn">データ読み込み</button>
-                <button id="build-info-btn">ビルド情報</button>
+                <button id="build-info">ビルド情報</button>
             </div>
         </header>
         
@@ -42,8 +42,8 @@
         </main>
         
         <div id="toolbar" class="toolbar">
-            <button id="add-rectangle-btn">矩形追加</button>
-            <button id="add-text-btn">テキスト追加</button>
+            <button id="add-rectangle">矩形追加</button>
+            <button id="add-text">テキスト追加</button>
         </div>
         
         <!-- Build Info Modal -->
@@ -51,7 +51,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>ビルド情報</h3>
-                    <button id="close-build-info-modal" class="close-btn">&times;</button>
+                    <button id="close-build-info" class="close-btn">&times;</button>
                 </div>
                 <div id="build-info-content" class="modal-body">
                     <p>ビルド情報を読み込み中...</p>
@@ -60,7 +60,7 @@
         </div>
     </div>
     
-    <script src="script.js"></script>
+    <script type="module" src="js/app.js"></script>
     
     <!-- LiveReload script for development -->
     <script>

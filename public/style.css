@@ -85,8 +85,33 @@ main {
 }
 
 .entity.highlighted {
-    filter: drop-shadow(0 0 15px #3498db) drop-shadow(0 0 25px rgba(52, 152, 219, 0.4));
+    filter: drop-shadow(0 0 20px #e74c3c) drop-shadow(0 0 35px rgba(231, 76, 60, 0.6)) drop-shadow(0 0 50px rgba(231, 76, 60, 0.3));
     transition: filter 0.2s ease-in-out;
+    animation: glow-entity 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow-entity {
+    0% {
+        filter: drop-shadow(0 0 20px #e74c3c) drop-shadow(0 0 35px rgba(231, 76, 60, 0.6)) drop-shadow(0 0 50px rgba(231, 76, 60, 0.3));
+    }
+    100% {
+        filter: drop-shadow(0 0 25px #e74c3c) drop-shadow(0 0 45px rgba(231, 76, 60, 0.8)) drop-shadow(0 0 65px rgba(231, 76, 60, 0.4));
+    }
+}
+
+.entity.highlighted-related {
+    filter: drop-shadow(0 0 12px #3498db) drop-shadow(0 0 20px rgba(52, 152, 219, 0.5));
+    transition: filter 0.2s ease-in-out;
+    animation: glow-related-entity 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes glow-related-entity {
+    0% {
+        filter: drop-shadow(0 0 12px #3498db) drop-shadow(0 0 20px rgba(52, 152, 219, 0.5));
+    }
+    100% {
+        filter: drop-shadow(0 0 16px #3498db) drop-shadow(0 0 28px rgba(52, 152, 219, 0.7));
+    }
 }
 
 .entity-rect {

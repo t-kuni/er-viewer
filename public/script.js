@@ -26,6 +26,15 @@ class ERViewer {
         document.getElementById('close-sidebar').addEventListener('click', () => this.closeSidebar());
         document.getElementById('add-rectangle-btn').addEventListener('click', () => this.addRectangle());
         document.getElementById('add-text-btn').addEventListener('click', () => this.addText());
+        document.getElementById('build-info-btn').addEventListener('click', () => this.showBuildInfo());
+        document.getElementById('close-build-info-modal').addEventListener('click', () => this.hideBuildInfo());
+        
+        // Close modal when clicking outside
+        document.getElementById('build-info-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'build-info-modal') {
+                this.hideBuildInfo();
+            }
+        });
 
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -393,6 +402,83 @@ class ERViewer {
         if (loading) {
             loading.remove();
         }
+    }
+
+    async showBuildInfo() {
+        const modal = document.getElementById('build-info-modal');
+        const content = document.getElementById('build-info-content');
+        
+        try {
+            content.innerHTML = '<p>ビルド情報を読み込み中...</p>';
+            modal.classList.add('show');
+            
+            const response = await fetch('/api/build-info');
+            const buildInfo = await response.json();
+            
+            const formatDate = (dateString) => {
+                if (dateString === 'unknown' || dateString === 'ビルド情報なし') {
+                    return dateString;
+                }
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleString('ja-JP', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                } catch {
+                    return dateString;
+                }
+            };
+            
+            content.innerHTML = `
+                <div class="build-info-item">
+                    <span class="build-info-label">アプリケーション名:</span>
+                    <span class="build-info-value">${buildInfo.name}</span>
+                </div>
+                <div class="build-info-item">
+                    <span class="build-info-label">バージョン:</span>
+                    <span class="build-info-value version">${buildInfo.version}</span>
+                </div>
+                <div class="build-info-item">
+                    <span class="build-info-label">ビルド日時:</span>
+                    <span class="build-info-value">${buildInfo.buildDate || formatDate(buildInfo.buildTime)}</span>
+                </div>
+                <div class="build-info-item">
+                    <span class="build-info-label">Git コミット:</span>
+                    <span class="build-info-value commit">${buildInfo.git.commitShort}</span>
+                </div>
+                <div class="build-info-item">
+                    <span class="build-info-label">Git ブランチ:</span>
+                    <span class="build-info-value">${buildInfo.git.branch}</span>
+                </div>
+                ${buildInfo.git.tag ? `
+                <div class="build-info-item">
+                    <span class="build-info-label">Git タグ:</span>
+                    <span class="build-info-value">${buildInfo.git.tag}</span>
+                </div>
+                ` : ''}
+                <div class="build-info-item">
+                    <span class="build-info-label">Node.js バージョン:</span>
+                    <span class="build-info-value">${buildInfo.nodeVersion}</span>
+                </div>
+                <div class="build-info-item">
+                    <span class="build-info-label">プラットフォーム:</span>
+                    <span class="build-info-value">${buildInfo.platform} (${buildInfo.arch})</span>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading build info:', error);
+            content.innerHTML = '<p style="color: #e74c3c;">ビルド情報の読み込みに失敗しました。</p>';
+        }
+    }
+
+    hideBuildInfo() {
+        const modal = document.getElementById('build-info-modal');
+        modal.classList.remove('show');
     }
 }
 

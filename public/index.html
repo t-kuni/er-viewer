@@ -14,6 +14,7 @@
                 <button id="reverse-btn">リバースエンジニア</button>
                 <button id="save-btn">レイアウト保存</button>
                 <button id="load-btn">データ読み込み</button>
+                <button id="build-info-btn">ビルド情報</button>
             </div>
         </header>
         
@@ -44,8 +45,36 @@
             <button id="add-rectangle-btn">矩形追加</button>
             <button id="add-text-btn">テキスト追加</button>
         </div>
+        
+        <!-- Build Info Modal -->
+        <div id="build-info-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>ビルド情報</h3>
+                    <button id="close-build-info-modal" class="close-btn">&times;</button>
+                </div>
+                <div id="build-info-content" class="modal-body">
+                    <p>ビルド情報を読み込み中...</p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script src="script.js"></script>
+    
+    <!-- LiveReload script for development -->
+    <script>
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            (function() {
+                const script = document.createElement('script');
+                script.src = 'http://localhost:35729/livereload.js?snipver=1';
+                script.async = true;
+                script.onerror = function() {
+                    console.log('LiveReload not available');
+                };
+                document.head.appendChild(script);
+            })();
+        }
+    </script>
 </body>
 </html>

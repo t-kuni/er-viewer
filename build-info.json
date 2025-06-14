@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "name": "er-viewer",
+  "buildTime": "2025-06-14T12:18:51.801Z",
+  "buildTimestamp": 1749903531802,
+  "buildDate": "2025/06/14 21:18:51",
+  "git": {
+    "commit": "d13493d3b7f80d1eaf5887a3e9518fbac963d644",
+    "commitShort": "d13493d3",
+    "branch": "main",
+    "tag": null
+  },
+  "nodeVersion": "v22.12.0",
+  "platform": "linux",
+  "arch": "x64"
+}

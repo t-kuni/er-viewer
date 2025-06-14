@@ -6,12 +6,15 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - NODE_ENV=development
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=${DB_USER:-root}
       - DB_PASSWORD=${DB_PASSWORD:-password}
       - DB_NAME=${DB_NAME:-test}
     volumes:
+      - ./:/app
+      - /app/node_modules
       - ./data:/app/data
     depends_on:
       - mysql

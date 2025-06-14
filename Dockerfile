@@ -5,13 +5,19 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
 
+# Copy source code
 COPY . .
 
+# Generate build info
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Use nodemon for development with hot reload
+CMD ["npm", "run", "dev"]

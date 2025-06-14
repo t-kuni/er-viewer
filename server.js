@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const DatabaseManager = require('./lib/database');
 const StorageManager = require('./lib/storage');
+const Logger = require('./lib/logger');
 
 // Development hot reload setup
 let livereload, chokidar;
@@ -22,17 +23,21 @@ app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();
 const storageManager = new StorageManager();
+const logger = new Logger();
 
 app.get('/api/er-data', async (req, res) => {
     try {
+        await logger.info('Loading ER data requested');
         const erData = await storageManager.loadERData();
         if (erData) {
+            await logger.info('ER data loaded successfully');
             res.json(erData);
         } else {
+            await logger.warn('No ER data found');
             res.status(404).json({ error: 'No ER data found' });
         }
     } catch (error) {
-        console.error('Error loading ER data:', error);
+        await logger.error('Error loading ER data', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -117,12 +122,96 @@ app.get('/api/build-info', (req, res) => {
     }
 });
 
+// Client-side log collection endpoint
+app.post('/api/logs', async (req, res) => {
+    const { level, message, timestamp, url, line, column, stack, userAgent } = req.body;
+    
+    const logExtra = {
+        url,
+        line,
+        column,
+        stack,
+        userAgent,
+        ip: req.ip || req.connection.remoteAddress
+    };
+    
+    // Format log output based on level
+    const logMessage = `[CLIENT ${level.toUpperCase()}] ${message}`;
+    const details = url ? ` (${url}:${line}:${column})` : '';
+    
+    switch (level) {
+        case 'error':
+            console.error(`${logMessage}${details}`);
+            if (stack) console.error('Stack:', stack);
+            await logger.logClient('error', message, logExtra);
+            break;
+        case 'warn':
+            console.warn(`${logMessage}${details}`);
+            await logger.logClient('warn', message, logExtra);
+            break;
+        case 'info':
+            console.info(`${logMessage}${details}`);
+            await logger.logClient('info', message, logExtra);
+            break;
+        default:
+            console.log(`${logMessage}${details}`);
+            await logger.logClient('info', message, logExtra);
+    }
+    
+    res.json({ success: true });
+});
+
+// Log file access endpoints
+app.get('/api/logs/server', async (req, res) => {
+    try {
+        const lines = parseInt(req.query.lines) || 100;
+        const logs = await logger.getServerLogs(lines);
+        res.json({ logs, type: 'server' });
+    } catch (error) {
+        console.error('Error reading server logs:', error);
+        res.status(500).json({ error: 'Failed to read server logs' });
+    }
+});
+
+app.get('/api/logs/client', async (req, res) => {
+    try {
+        const lines = parseInt(req.query.lines) || 100;
+        const logs = await logger.getClientLogs(lines);
+        res.json({ logs, type: 'client' });
+    } catch (error) {
+        console.error('Error reading client logs:', error);
+        res.status(500).json({ error: 'Failed to read client logs' });
+    }
+});
+
+app.get('/api/logs/error', async (req, res) => {
+    try {
+        const lines = parseInt(req.query.lines) || 100;
+        const logs = await logger.getErrorLogs(lines);
+        res.json({ logs, type: 'error' });
+    } catch (error) {
+        console.error('Error reading error logs:', error);
+        res.status(500).json({ error: 'Failed to read error logs' });
+    }
+});
+
+app.get('/api/logs/all', async (req, res) => {
+    try {
+        const lines = parseInt(req.query.lines) || 100;
+        const logs = await logger.getAllLogs(lines);
+        res.json({ logs, type: 'all' });
+    } catch (error) {
+        console.error('Error reading all logs:', error);
+        res.status(500).json({ error: 'Failed to read all logs' });
+    }
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(port, () => {
-    console.log(`ER Viewer server running on port ${port}`);
+app.listen(port, async () => {
+    await logger.info(`ER Viewer server running on port ${port}`);
     
     // Setup livereload in development mode
     if (process.env.NODE_ENV === 'development') {
@@ -151,6 +240,6 @@ app.listen(port, () => {
             liveReloadServer.refresh(filePath);
         });
         
-        console.log('LiveReload server running on port 35729');
+        await logger.info('LiveReload server running on port 35729');
     }
 });

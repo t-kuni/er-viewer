@@ -30,8 +30,11 @@ app.get('/api/er-data', async (req, res) => {
         await logger.info('Loading ER data requested');
         const erData = await storageManager.loadERData();
         if (erData) {
-            await logger.info('ER data loaded successfully');
-            res.json(erData);
+            // Merge with layout data to ensure positions are preserved
+            const layoutData = await storageManager.loadLayoutData();
+            const mergedData = await storageManager.mergeERDataWithLayout(erData, layoutData);
+            await logger.info('ER data loaded and merged with layout successfully');
+            res.json(mergedData);
         } else {
             await logger.warn('No ER data found');
             res.status(404).json({ error: 'No ER data found' });

@@ -2,3 +2,5 @@
 * SPEC.mdからブレークダウンした詳細なタスクがTASK.mdに記載されています。完了したタスクはチェックをいれてください。
 * タスクが完了や中断する場合は `notify-send "タイトル" "メッセージ"` でアラートを出して下さい
 * 差分確認： `git add -A && GIT_PAGER=cat git diff HEAD`
+* サーバー起動： `docker compose up -d`
+* サーバー起動状態確認： `docker compose ps`

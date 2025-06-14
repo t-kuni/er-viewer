@@ -46,7 +46,7 @@
 ## 3. Entity Positioning (エンティティの配置をGUI上で操作)
 
 ### 3.1 Manual Positioning
-- [x] **Drag and Drop** - Move entities by dragging
+- [x] **Drag and Drop** - Move entities by draggingaaa
 - [x] **Position Persistence** - Save entity positions
 - [x] **Visual Feedback** - Show drag state with cursor changes
 

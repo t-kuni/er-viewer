@@ -283,13 +283,10 @@ class ERViewer {
             
             if (!fromEntity || !toEntity) return;
 
-            const fromPos = fromEntity.position || { x: 50, y: 50 };
-            const toPos = toEntity.position || { x: 50, y: 50 };
-
-            // Calculate optimal connection points on entity edges
+            // Calculate optimal connection points on entity edges using column information
             const fromBounds = this.getEntityBounds(fromEntity);
             const toBounds = this.getEntityBounds(toEntity);
-            const connectionPoints = this.findOptimalConnectionPoints(fromBounds, toBounds);
+            const connectionPoints = this.findOptimalConnectionPoints(fromBounds, toBounds, rel);
 
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('class', 'relationship');
@@ -513,15 +510,78 @@ class ERViewer {
         };
     }
 
-    findOptimalConnectionPoints(fromBounds, toBounds) {
-        // Determine which edges to connect based on relative positions
-        const fromCenter = { x: fromBounds.centerX, y: fromBounds.centerY };
-        const toCenter = { x: toBounds.centerX, y: toBounds.centerY };
+    findOptimalConnectionPoints(fromBounds, toBounds, relationship) {
+        // If column information is available, use column-level connection points
+        if (relationship && relationship.fromColumn && relationship.toColumn) {
+            return this.getColumnConnectionPoints(fromBounds, toBounds, relationship);
+        }
         
-        // Calculate the angle between centers to determine optimal connection sides
-        const dx = toCenter.x - fromCenter.x;
-        const dy = toCenter.y - fromCenter.y;
+        // Fallback to entity-level connection points
+        return this.getEntityConnectionPoints(fromBounds, toBounds);
+    }
+
+    getColumnConnectionPoints(fromBounds, toBounds, relationship) {
+        const fromColumnPoint = this.getColumnPosition(fromBounds, relationship.from, relationship.fromColumn);
+        const toColumnPoint = this.getColumnPosition(toBounds, relationship.to, relationship.toColumn);
         
+        if (!fromColumnPoint || !toColumnPoint) {
+            // Fallback to entity-level points if column positions can't be determined
+            return this.getEntityConnectionPoints(fromBounds, toBounds);
+        }
+        
+        // Determine which side of the entity to connect from/to based on column positions
+        const fromConnectionPoint = this.getColumnConnectionPoint(fromBounds, fromColumnPoint, toBounds);
+        const toConnectionPoint = this.getColumnConnectionPoint(toBounds, toColumnPoint, fromBounds);
+        
+        return {
+            from: fromConnectionPoint,
+            to: toConnectionPoint
+        };
+    }
+
+    getColumnPosition(entityBounds, entityName, columnName) {
+        // Find the entity in the data
+        const entity = this.erData.entities.find(e => e.name === entityName);
+        if (!entity) return null;
+        
+        // Find the column index
+        const columnIndex = entity.columns.findIndex(col => col.name === columnName);
+        if (columnIndex === -1) return null;
+        
+        // Calculate column position within the entity
+        const headerHeight = 30;
+        const rowHeight = 20;
+        const columnY = entityBounds.top + headerHeight + (columnIndex + 1) * rowHeight - rowHeight/2;
+        
+        return {
+            x: entityBounds.centerX,
+            y: columnY,
+            columnIndex: columnIndex
+        };
+    }
+
+    getColumnConnectionPoint(entityBounds, columnPosition, targetBounds) {
+        const margin = 5;
+        
+        // Determine which side to connect from based on target position
+        const toTargetCenter = targetBounds.centerX - entityBounds.centerX;
+        
+        if (toTargetCenter > 0) {
+            // Target is to the right, connect from right edge
+            return {
+                x: entityBounds.right + margin,
+                y: columnPosition.y
+            };
+        } else {
+            // Target is to the left, connect from left edge
+            return {
+                x: entityBounds.left - margin,
+                y: columnPosition.y
+            };
+        }
+    }
+
+    getEntityConnectionPoints(fromBounds, toBounds) {
         // Get edge points for both entities
         const fromEdges = this.getEntityEdgePoints(fromBounds);
         const toEdges = this.getEntityEdgePoints(toBounds);

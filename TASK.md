@@ -28,12 +28,31 @@ Based on SPEC.md requirements and current implementation analysis.
   - Priority: Medium
   - Estimate: 6-8 hours
 
+### 2.4 Entity Display Enhancement
+- [ ] **Column Icon Display** - Show icons for different column types for better visibility
+  - Currently: Column names displayed without visual indicators
+  - Required: Column type icons (PK, FK, etc.) displayed to the left of column names
+  - Priority: Medium
+  - Estimate: 3-4 hours
+- [ ] **Dynamic Entity Width Adjustment** - Adjust entity width based on table and column name lengths
+  - Currently: Fixed entity width
+  - Required: Dynamic width calculation based on content
+  - Priority: Medium
+  - Estimate: 2-3 hours
+
 ### 2.3 Hover Effects
 - [ ] **Column-Level Relationship Highlighting** - Highlight specific columns on relationship hover
   - Currently: Only highlights relationship line
   - Required: Highlight source and target columns
   - Priority: Medium
   - Estimate: 4-5 hours
+
+### 2.5 DDL Sidebar Enhancement
+- [ ] **DDL Syntax Highlighting** - Add syntax highlighting to DDL display in right sidebar
+  - Currently: Plain text DDL display
+  - Required: SQL syntax highlighting for better readability
+  - Priority: Medium
+  - Estimate: 3-4 hours
 
 
 
@@ -124,13 +143,13 @@ Based on SPEC.md requirements and current implementation analysis.
 
 ## Summary
 
-**Total Requirements**: 45 tasks
-**Completed**: 31 tasks (69%) - moved to TASK_DONE.md
+**Total Requirements**: 48 tasks
+**Completed**: 31 tasks (65%) - moved to TASK_DONE.md
 **In Progress**: 0 tasks  
-**Not Started**: 14 tasks (31%)
+**Not Started**: 17 tasks (35%)
 
 **High Priority Remaining**: 0 tasks (0 hours)
-**Medium Priority Remaining**: 8 tasks (~37-48 hours)  
+**Medium Priority Remaining**: 11 tasks (~45-56 hours)  
 **Low Priority Remaining**: 6 tasks (~30-40 hours)
 
 **Core Functionality Status**: ✅ Complete (all essential features working)

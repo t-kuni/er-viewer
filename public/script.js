@@ -217,12 +217,20 @@ class ERViewer {
         svg.innerHTML = svg.innerHTML.split('<defs>')[0] + '<defs>' + svg.innerHTML.split('</defs>')[1];
 
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('id', 'main-group');
         g.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.scale})`);
         svg.appendChild(g);
 
         this.renderRelationships(g);
         this.renderCustomElements(g);
         this.renderEntities(g);
+    }
+
+    updateTransform() {
+        const mainGroup = document.getElementById('main-group');
+        if (mainGroup) {
+            mainGroup.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.scale})`);
+        }
     }
 
     renderEntities(container) {
@@ -857,7 +865,7 @@ class ERViewer {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         this.scale = Math.max(0.1, Math.min(3, this.scale * delta));
-        this.renderER();
+        this.updateTransform();
     }
 
     handleMouseDown(e) {
@@ -921,7 +929,7 @@ class ERViewer {
             this.panX += dx;
             this.panY += dy;
             this.lastPanPoint = { x: e.clientX, y: e.clientY };
-            this.renderER();
+            this.updateTransform();
         } else if (this.isResizing && this.resizeTarget) {
             const rect = this.canvas.getBoundingClientRect();
             const svgPoint = this.screenToSVG(e.clientX - rect.left, e.clientY - rect.top);
@@ -947,8 +955,6 @@ class ERViewer {
                         entity.position = { x: newX, y: newY };
                     }
                 }
-                
-                this.renderER();
             } else if (this.dragTarget.classList.contains('custom-rectangle')) {
                 const newX = svgPoint.x - this.dragOffset.x;
                 const newY = svgPoint.y - this.dragOffset.y;
@@ -987,6 +993,8 @@ class ERViewer {
     }
 
     handleMouseUp(e) {
+        const wasEntityDragging = this.isDragging && this.dragTarget && this.dragTarget.classList.contains('entity');
+        
         this.isDragging = false;
         this.dragTarget = null;
         this.isPanning = false;
@@ -994,6 +1002,11 @@ class ERViewer {
         this.resizeHandle = null;
         this.resizeTarget = null;
         this.canvas.style.cursor = 'default';
+        
+        // エンティティドラッグ完了時のみリレーション線を再描画
+        if (wasEntityDragging) {
+            this.renderER();
+        }
     }
 
     handleClick(e) {

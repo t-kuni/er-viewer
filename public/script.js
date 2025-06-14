@@ -93,6 +93,9 @@ class ERViewer {
         this.dragOffset = { x: 0, y: 0 };
         this.isPanning = false;
         this.selectedAnnotation = null;
+        this.isResizing = false;
+        this.resizeHandle = null;
+        this.resizeTarget = null;
         this.lastPanPoint = { x: 0, y: 0 };
         
         this.initEventListeners();
@@ -222,7 +225,8 @@ class ERViewer {
             const width = 180;
             const headerHeight = 30;
             const rowHeight = 20;
-            const height = headerHeight + entity.columns.length * rowHeight;
+            const bottomPadding = 8;
+            const height = headerHeight + entity.columns.length * rowHeight + bottomPadding;
 
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('class', 'entity-rect');
@@ -286,6 +290,10 @@ class ERViewer {
 
     renderCustomElements(container) {
         this.layoutData.rectangles.forEach((rect, index) => {
+            // Create group for rectangle and resize handles
+            const rectGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            rectGroup.setAttribute('class', 'rectangle-group');
+
             const rectElement = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rectElement.setAttribute('class', 'custom-rectangle');
             rectElement.setAttribute('x', rect.x);
@@ -294,9 +302,27 @@ class ERViewer {
             rectElement.setAttribute('height', rect.height);
             rectElement.setAttribute('data-type', 'rectangle');
             rectElement.setAttribute('data-index', index);
-            if (rect.stroke) rectElement.setAttribute('stroke', rect.stroke);
-            if (rect.fill) rectElement.setAttribute('fill', rect.fill);
-            container.appendChild(rectElement);
+            if (rect.stroke) {
+                rectElement.style.stroke = rect.stroke;
+                console.log(`Setting stroke for rectangle ${index}:`, rect.stroke);
+            }
+            if (rect.fill) {
+                rectElement.style.fill = rect.fill;
+                console.log(`Setting fill for rectangle ${index}:`, rect.fill);
+            }
+            rectGroup.appendChild(rectElement);
+
+            // Add resize handles when selected
+            if (this.selectedAnnotation && 
+                this.selectedAnnotation.getAttribute('data-index') == index && 
+                this.selectedAnnotation.getAttribute('data-type') === 'rectangle') {
+                this.addResizeHandles(rectGroup, rect, index);
+                // Update selected annotation reference to new element
+                this.selectedAnnotation = rectElement;
+                rectElement.classList.add('selected');
+            }
+
+            container.appendChild(rectGroup);
         });
 
         this.layoutData.texts.forEach((text, index) => {
@@ -326,7 +352,21 @@ class ERViewer {
     }
 
     handleMouseDown(e) {
+        const resizeHandle = e.target.closest('.resize-handle');
         const target = e.target.closest('.entity, .custom-rectangle, .custom-text');
+
+        if (resizeHandle) {
+            e.preventDefault();
+            this.isResizing = true;
+            this.resizeHandle = resizeHandle;
+            this.resizeTarget = {
+                index: parseInt(resizeHandle.getAttribute('data-rect-index')),
+                type: resizeHandle.getAttribute('data-handle-type')
+            };
+            const rect = this.canvas.getBoundingClientRect();
+            this.dragOffset = this.screenToSVG(e.clientX - rect.left, e.clientY - rect.top);
+            return;
+        }
         
         if (e.button === 1 || (e.button === 0 && e.code === 'Space')) {
             this.isPanning = true;
@@ -347,6 +387,20 @@ class ERViewer {
                         y: svgPoint.y - parseFloat(match[2])
                     };
                 }
+            } else if (target.classList.contains('custom-rectangle')) {
+                const x = parseFloat(target.getAttribute('x'));
+                const y = parseFloat(target.getAttribute('y'));
+                this.dragOffset = {
+                    x: svgPoint.x - x,
+                    y: svgPoint.y - y
+                };
+            } else if (target.classList.contains('custom-text')) {
+                const x = parseFloat(target.getAttribute('x'));
+                const y = parseFloat(target.getAttribute('y'));
+                this.dragOffset = {
+                    x: svgPoint.x - x,
+                    y: svgPoint.y - y
+                };
             }
         }
     }
@@ -359,6 +413,10 @@ class ERViewer {
             this.panY += dy;
             this.lastPanPoint = { x: e.clientX, y: e.clientY };
             this.renderER();
+        } else if (this.isResizing && this.resizeTarget) {
+            const rect = this.canvas.getBoundingClientRect();
+            const svgPoint = this.screenToSVG(e.clientX - rect.left, e.clientY - rect.top);
+            this.handleResize(svgPoint);
         } else if (this.isDragging && this.dragTarget) {
             const rect = this.canvas.getBoundingClientRect();
             const svgPoint = this.screenToSVG(e.clientX - rect.left, e.clientY - rect.top);
@@ -382,6 +440,28 @@ class ERViewer {
                 }
                 
                 this.renderER();
+            } else if (this.dragTarget.classList.contains('custom-rectangle')) {
+                const newX = svgPoint.x - this.dragOffset.x;
+                const newY = svgPoint.y - this.dragOffset.y;
+                this.dragTarget.setAttribute('x', newX);
+                this.dragTarget.setAttribute('y', newY);
+                
+                const index = parseInt(this.dragTarget.getAttribute('data-index'));
+                if (this.layoutData.rectangles[index]) {
+                    this.layoutData.rectangles[index].x = newX;
+                    this.layoutData.rectangles[index].y = newY;
+                }
+            } else if (this.dragTarget.classList.contains('custom-text')) {
+                const newX = svgPoint.x - this.dragOffset.x;
+                const newY = svgPoint.y - this.dragOffset.y;
+                this.dragTarget.setAttribute('x', newX);
+                this.dragTarget.setAttribute('y', newY);
+                
+                const index = parseInt(this.dragTarget.getAttribute('data-index'));
+                if (this.layoutData.texts[index]) {
+                    this.layoutData.texts[index].x = newX;
+                    this.layoutData.texts[index].y = newY;
+                }
             }
         } else {
             const target = e.target.closest('.entity, .relationship');
@@ -401,6 +481,9 @@ class ERViewer {
         this.isDragging = false;
         this.dragTarget = null;
         this.isPanning = false;
+        this.isResizing = false;
+        this.resizeHandle = null;
+        this.resizeTarget = null;
         this.canvas.style.cursor = 'default';
     }
 
@@ -460,6 +543,27 @@ class ERViewer {
         menu.style.zIndex = '2000';
         menu.style.minWidth = '120px';
 
+        // Add edit properties option for rectangles
+        if (this.selectedAnnotation && this.selectedAnnotation.classList.contains('custom-rectangle')) {
+            const editItem = document.createElement('div');
+            editItem.textContent = 'プロパティ編集';
+            editItem.style.padding = '8px 12px';
+            editItem.style.cursor = 'pointer';
+            editItem.style.borderRadius = '4px';
+            editItem.addEventListener('mouseenter', () => {
+                editItem.style.backgroundColor = '#f0f0f0';
+            });
+            editItem.addEventListener('mouseleave', () => {
+                editItem.style.backgroundColor = 'transparent';
+            });
+            editItem.addEventListener('click', () => {
+                this.editRectangleProperties();
+                menu.remove();
+            });
+
+            menu.appendChild(editItem);
+        }
+
         const deleteItem = document.createElement('div');
         deleteItem.textContent = '削除';
         deleteItem.style.padding = '8px 12px';
@@ -511,6 +615,226 @@ class ERViewer {
         if (menu) {
             menu.remove();
         }
+    }
+
+    editRectangleProperties() {
+        if (!this.selectedAnnotation || !this.selectedAnnotation.classList.contains('custom-rectangle')) return;
+
+        const index = parseInt(this.selectedAnnotation.getAttribute('data-index'));
+        const rect = this.layoutData.rectangles[index];
+        if (!rect) return;
+
+        // Create properties modal
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.zIndex = '3000';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
+        const dialog = document.createElement('div');
+        dialog.style.backgroundColor = '#ffffff';
+        dialog.style.padding = '20px';
+        dialog.style.borderRadius = '8px';
+        dialog.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+        dialog.style.minWidth = '300px';
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 20px 0;">矩形のプロパティ</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">線の色:</label>
+                <input type="color" id="stroke-color" value="${rect.stroke || '#3498db'}" style="width: 100%; height: 40px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">塗りつぶしの色:</label>
+                <input type="color" id="fill-color" value="${this.extractColorFromFill(rect.fill) || '#3498db'}" style="width: 100%; height: 40px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px;">透明度:</label>
+                <input type="range" id="opacity" min="0" max="100" value="${this.extractOpacityFromFill(rect.fill) || 10}" style="width: 100%;">
+                <span id="opacity-value">${this.extractOpacityFromFill(rect.fill) || 10}%</span>
+            </div>
+            <div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                サイズ変更: 矩形を選択して端をドラッグしてください
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="cancel-btn" style="padding: 8px 16px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">キャンセル</button>
+                <button id="save-btn" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // Opacity slider handler
+        const opacitySlider = dialog.querySelector('#opacity');
+        const opacityValue = dialog.querySelector('#opacity-value');
+        opacitySlider.addEventListener('input', (e) => {
+            opacityValue.textContent = e.target.value + '%';
+        });
+
+        // Button handlers
+        dialog.querySelector('#cancel-btn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        dialog.querySelector('#save-btn').addEventListener('click', () => {
+            const strokeColor = dialog.querySelector('#stroke-color').value;
+            const fillColor = dialog.querySelector('#fill-color').value;
+            const opacity = dialog.querySelector('#opacity').value / 100;
+
+            // Update rectangle properties
+            rect.stroke = strokeColor;
+            rect.fill = this.hexToRgba(fillColor, opacity);
+
+            console.log('Updated rectangle properties:', rect);
+
+            // Store selection info to restore after render
+            const selectedIndex = this.selectedAnnotation ? this.selectedAnnotation.getAttribute('data-index') : null;
+            const selectedType = this.selectedAnnotation ? this.selectedAnnotation.getAttribute('data-type') : null;
+
+            this.renderER();
+
+            // Restore selection after render
+            if (selectedIndex !== null && selectedType === 'rectangle') {
+                const newSelectedElement = document.querySelector(`[data-index="${selectedIndex}"][data-type="rectangle"]`);
+                if (newSelectedElement) {
+                    this.selectedAnnotation = newSelectedElement;
+                    newSelectedElement.classList.add('selected');
+                }
+            }
+
+            document.body.removeChild(modal);
+        });
+
+        // Click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+
+    hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    extractColorFromFill(fill) {
+        if (!fill) return null;
+        const match = fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+            const r = parseInt(match[1]).toString(16).padStart(2, '0');
+            const g = parseInt(match[2]).toString(16).padStart(2, '0');
+            const b = parseInt(match[3]).toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+        }
+        return fill;
+    }
+
+    extractOpacityFromFill(fill) {
+        if (!fill) return null;
+        const match = fill.match(/rgba?\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
+        if (match) {
+            return Math.round(parseFloat(match[1]) * 100);
+        }
+        return null;
+    }
+
+    addResizeHandles(rectGroup, rect, index) {
+        const handleSize = 6;
+        const x = rect.x;
+        const y = rect.y;
+        const width = rect.width;
+        const height = rect.height;
+
+        // Corner handles
+        const corners = [
+            { x: x - handleSize/2, y: y - handleSize/2, cursor: 'nw-resize', type: 'nw' },
+            { x: x + width - handleSize/2, y: y - handleSize/2, cursor: 'ne-resize', type: 'ne' },
+            { x: x + width - handleSize/2, y: y + height - handleSize/2, cursor: 'se-resize', type: 'se' },
+            { x: x - handleSize/2, y: y + height - handleSize/2, cursor: 'sw-resize', type: 'sw' }
+        ];
+
+        // Edge handles
+        const edges = [
+            { x: x + width/2 - handleSize/2, y: y - handleSize/2, cursor: 'n-resize', type: 'n' },
+            { x: x + width - handleSize/2, y: y + height/2 - handleSize/2, cursor: 'e-resize', type: 'e' },
+            { x: x + width/2 - handleSize/2, y: y + height - handleSize/2, cursor: 's-resize', type: 's' },
+            { x: x - handleSize/2, y: y + height/2 - handleSize/2, cursor: 'w-resize', type: 'w' }
+        ];
+
+        [...corners, ...edges].forEach(handle => {
+            const handleElement = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            handleElement.setAttribute('class', 'resize-handle');
+            handleElement.setAttribute('x', handle.x);
+            handleElement.setAttribute('y', handle.y);
+            handleElement.setAttribute('width', handleSize);
+            handleElement.setAttribute('height', handleSize);
+            handleElement.setAttribute('fill', '#3498db');
+            handleElement.setAttribute('stroke', '#2980b9');
+            handleElement.setAttribute('stroke-width', 1);
+            handleElement.setAttribute('data-handle-type', handle.type);
+            handleElement.setAttribute('data-rect-index', index);
+            handleElement.style.cursor = handle.cursor;
+            rectGroup.appendChild(handleElement);
+        });
+    }
+
+    handleResize(currentPoint) {
+        const rect = this.layoutData.rectangles[this.resizeTarget.index];
+        if (!rect) return;
+
+        const handleType = this.resizeTarget.type;
+        const originalRect = { ...rect };
+
+        const minSize = 20;
+
+        switch (handleType) {
+            case 'nw':
+                rect.width = Math.max(minSize, originalRect.width + (originalRect.x - currentPoint.x));
+                rect.height = Math.max(minSize, originalRect.height + (originalRect.y - currentPoint.y));
+                rect.x = originalRect.x + originalRect.width - rect.width;
+                rect.y = originalRect.y + originalRect.height - rect.height;
+                break;
+            case 'ne':
+                rect.width = Math.max(minSize, currentPoint.x - originalRect.x);
+                rect.height = Math.max(minSize, originalRect.height + (originalRect.y - currentPoint.y));
+                rect.y = originalRect.y + originalRect.height - rect.height;
+                break;
+            case 'se':
+                rect.width = Math.max(minSize, currentPoint.x - originalRect.x);
+                rect.height = Math.max(minSize, currentPoint.y - originalRect.y);
+                break;
+            case 'sw':
+                rect.width = Math.max(minSize, originalRect.width + (originalRect.x - currentPoint.x));
+                rect.height = Math.max(minSize, currentPoint.y - originalRect.y);
+                rect.x = originalRect.x + originalRect.width - rect.width;
+                break;
+            case 'n':
+                rect.height = Math.max(minSize, originalRect.height + (originalRect.y - currentPoint.y));
+                rect.y = originalRect.y + originalRect.height - rect.height;
+                break;
+            case 'e':
+                rect.width = Math.max(minSize, currentPoint.x - originalRect.x);
+                break;
+            case 's':
+                rect.height = Math.max(minSize, currentPoint.y - originalRect.y);
+                break;
+            case 'w':
+                rect.width = Math.max(minSize, originalRect.width + (originalRect.x - currentPoint.x));
+                rect.x = originalRect.x + originalRect.width - rect.width;
+                break;
+        }
+
+        this.renderER();
     }
 
     async showTableDetails(tableName) {

@@ -41,10 +41,17 @@ Based on SPEC.md requirements and current implementation analysis.
   - Estimate: 2-3 hours
 
 ### 2.3 Hover Effects
-- [ ] **Column-Level Relationship Highlighting** - Highlight specific columns on relationship hover
-  - Currently: Only highlights relationship line
-  - Required: Highlight source and target columns
-  - Priority: Medium
+- [ ] **Enhanced Entity Hover Highlighting** - Stronger entity and relationship highlighting with column emphasis
+  - Currently: Basic entity highlighting
+  - Required: Entity hover highlights the entity, all its relationships, and connected entities + related columns
+  - Additional: Temporary z-index boost for emphasized visibility
+  - Priority: High
+  - Estimate: 5-6 hours
+- [ ] **Enhanced Relationship Hover Highlighting** - Stronger relationship and column highlighting
+  - Currently: Basic relationship line highlighting
+  - Required: Relationship hover highlights the line and both connected columns
+  - Additional: Temporary z-index boost for emphasized visibility
+  - Priority: High
   - Estimate: 4-5 hours
 
 ### 2.5 DDL Sidebar Enhancement
@@ -148,8 +155,8 @@ Based on SPEC.md requirements and current implementation analysis.
 **In Progress**: 0 tasks  
 **Not Started**: 17 tasks (35%)
 
-**High Priority Remaining**: 0 tasks (0 hours)
-**Medium Priority Remaining**: 11 tasks (~45-56 hours)  
+**High Priority Remaining**: 2 tasks (~9-11 hours)
+**Medium Priority Remaining**: 10 tasks (~41-50 hours)  
 **Low Priority Remaining**: 6 tasks (~30-40 hours)
 
 **Core Functionality Status**: ✅ Complete (all essential features working)
@@ -158,6 +165,6 @@ Based on SPEC.md requirements and current implementation analysis.
 
 ## Next Steps Recommendation
 
-1. **Phase 1 (High Priority)**: Complete hover effects and annotation editing
-2. **Phase 2 (Medium Priority)**: Smart positioning and line routing
+1. **Phase 1 (High Priority)**: Enhanced hover effects with stronger highlighting and z-index boost
+2. **Phase 2 (Medium Priority)**: Smart positioning, line routing, and annotation editing
 3. **Phase 3 (Polish)**: UI improvements and performance optimization

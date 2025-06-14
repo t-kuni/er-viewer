@@ -205,9 +205,9 @@ class ERViewer {
         g.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.scale})`);
         svg.appendChild(g);
 
+        this.renderRelationships(g);
         this.renderCustomElements(g);
         this.renderEntities(g);
-        this.renderRelationships(g);
     }
 
     renderEntities(container) {

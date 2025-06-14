@@ -128,6 +128,7 @@ app.listen(port, () => {
     if (process.env.NODE_ENV === 'development') {
         const liveReloadServer = livereload.createServer({
             port: 35729,
+            host: '0.0.0.0',
             exts: ['html', 'css', 'js'],
             applyJSLive: true,
             applyCSSLive: true

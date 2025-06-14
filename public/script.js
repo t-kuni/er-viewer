@@ -92,6 +92,7 @@ class ERViewer {
         this.dragTarget = null;
         this.dragOffset = { x: 0, y: 0 };
         this.isPanning = false;
+        this.selectedAnnotation = null;
         this.lastPanPoint = { x: 0, y: 0 };
         
         this.initEventListeners();
@@ -120,11 +121,15 @@ class ERViewer {
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+        this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
         
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
                 this.canvas.style.cursor = 'grab';
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                this.deleteSelectedAnnotation();
             }
         });
         
@@ -407,6 +412,107 @@ class ERViewer {
         }
     }
 
+    handleDoubleClick(e) {
+        const textElement = e.target.closest('.custom-text');
+        if (textElement) {
+            const index = parseInt(textElement.getAttribute('data-index'));
+            this.editText(index, textElement);
+        }
+    }
+
+    handleContextMenu(e) {
+        const annotation = e.target.closest('.custom-rectangle, .custom-text');
+        if (annotation) {
+            e.preventDefault();
+            this.selectAnnotation(annotation);
+            this.showContextMenu(e.clientX, e.clientY);
+        }
+    }
+
+    selectAnnotation(element) {
+        // Clear previous selection
+        if (this.selectedAnnotation) {
+            this.selectedAnnotation.classList.remove('selected');
+        }
+        
+        // Select new annotation
+        this.selectedAnnotation = element;
+        element.classList.add('selected');
+    }
+
+    showContextMenu(x, y) {
+        // Remove existing context menu
+        const existing = document.getElementById('context-menu');
+        if (existing) {
+            existing.remove();
+        }
+
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.id = 'context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.backgroundColor = '#ffffff';
+        menu.style.border = '1px solid #ccc';
+        menu.style.borderRadius = '4px';
+        menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        menu.style.zIndex = '2000';
+        menu.style.minWidth = '120px';
+
+        const deleteItem = document.createElement('div');
+        deleteItem.textContent = '削除';
+        deleteItem.style.padding = '8px 12px';
+        deleteItem.style.cursor = 'pointer';
+        deleteItem.style.borderRadius = '4px';
+        deleteItem.addEventListener('mouseenter', () => {
+            deleteItem.style.backgroundColor = '#f0f0f0';
+        });
+        deleteItem.addEventListener('mouseleave', () => {
+            deleteItem.style.backgroundColor = 'transparent';
+        });
+        deleteItem.addEventListener('click', () => {
+            this.deleteSelectedAnnotation();
+            menu.remove();
+        });
+
+        menu.appendChild(deleteItem);
+        document.body.appendChild(menu);
+
+        // Remove menu when clicking elsewhere
+        const removeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', removeMenu);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', removeMenu);
+        }, 0);
+    }
+
+    deleteSelectedAnnotation() {
+        if (!this.selectedAnnotation) return;
+
+        const type = this.selectedAnnotation.getAttribute('data-type');
+        const index = parseInt(this.selectedAnnotation.getAttribute('data-index'));
+
+        if (type === 'rectangle') {
+            this.layoutData.rectangles.splice(index, 1);
+        } else if (type === 'text') {
+            this.layoutData.texts.splice(index, 1);
+        }
+
+        this.selectedAnnotation = null;
+        this.renderER();
+
+        // Remove context menu if exists
+        const menu = document.getElementById('context-menu');
+        if (menu) {
+            menu.remove();
+        }
+    }
+
     async showTableDetails(tableName) {
         try {
             const response = await fetch(`/api/table/${tableName}/ddl`);
@@ -432,8 +538,22 @@ class ERViewer {
         if (entity) {
             entity.classList.add('highlighted');
             
+            // Get all relationships connected to this entity
             const relationships = document.querySelectorAll(`[data-from="${tableName}"], [data-to="${tableName}"]`);
-            relationships.forEach(rel => rel.classList.add('highlighted'));
+            relationships.forEach(rel => {
+                rel.classList.add('highlighted');
+                
+                // Highlight the related entities as well
+                const fromTable = rel.getAttribute('data-from');
+                const toTable = rel.getAttribute('data-to');
+                
+                // Highlight the other entity in each relationship
+                const relatedTable = fromTable === tableName ? toTable : fromTable;
+                const relatedEntity = document.querySelector(`[data-table="${relatedTable}"]`);
+                if (relatedEntity) {
+                    relatedEntity.classList.add('highlighted');
+                }
+            });
         }
     }
 
@@ -467,6 +587,64 @@ class ERViewer {
             this.layoutData.texts.push(textObj);
             this.renderER();
         }
+    }
+
+    editText(index, textElement) {
+        const textObj = this.layoutData.texts[index];
+        if (!textObj) return;
+
+        // Create an input element for inline editing
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = textObj.content;
+        input.style.position = 'absolute';
+        input.style.fontSize = textObj.size + 'px';
+        input.style.color = textObj.color;
+        input.style.backgroundColor = '#ffffff';
+        input.style.border = '1px solid #ccc';
+        input.style.padding = '2px 4px';
+        input.style.zIndex = '1000';
+
+        // Calculate position relative to the canvas
+        const rect = this.canvas.getBoundingClientRect();
+        const svgPoint = this.canvas.createSVGPoint();
+        svgPoint.x = textObj.x;
+        svgPoint.y = textObj.y;
+        const screenPoint = svgPoint.matrixTransform(this.canvas.getScreenCTM());
+        
+        input.style.left = (rect.left + screenPoint.x) + 'px';
+        input.style.top = (rect.top + screenPoint.y - textObj.size) + 'px';
+
+        // Hide the original text element
+        textElement.style.opacity = '0';
+
+        // Add input to DOM
+        document.body.appendChild(input);
+        input.focus();
+        input.select();
+
+        // Handle input completion
+        const finishEditing = () => {
+            const newText = input.value.trim();
+            if (newText && newText !== textObj.content) {
+                textObj.content = newText;
+                this.renderER();
+            }
+            textElement.style.opacity = '1';
+            document.body.removeChild(input);
+        };
+
+        // Event listeners for finishing edit
+        input.addEventListener('blur', finishEditing);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                finishEditing();
+            } else if (e.key === 'Escape') {
+                textElement.style.opacity = '1';
+                document.body.removeChild(input);
+            }
+        });
     }
 
     screenToSVG(screenX, screenY) {

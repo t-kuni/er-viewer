@@ -49,7 +49,7 @@ Based on SPEC.md requirements and current implementation analysis.
 ### 2.3 Hover Effects
 - [x] **Entity Hover** - Highlight entity on hover
 - [x] **Relationship Hover** - Highlight relationship lines on hover
-- [ ] **Related Entity Highlighting** - Highlight connected entities on entity hover
+- [x] **Related Entity Highlighting** - Highlight connected entities on entity hover
   - Currently: Only highlights the hovered entity itself
   - Required: Highlight entire relationship chain
   - Priority: High
@@ -127,14 +127,14 @@ Based on SPEC.md requirements and current implementation analysis.
   - Required: Drag and drop for repositioning
   - Priority: Medium
   - Estimate: 2-3 hours
-- [ ] **Text Editing** - Edit text content after creation
+- [x] **Text Editing** - Edit text content after creation
   - Currently: No editing capability
   - Required: Double-click to edit text
   - Priority: High
   - Estimate: 3-4 hours
 
 ### 5.3 Annotation Management
-- [ ] **Delete Annotations** - Remove rectangles and text
+- [x] **Delete Annotations** - Remove rectangles and text
   - Currently: No deletion capability
   - Required: Right-click context menu or delete key
   - Priority: High
@@ -199,11 +199,11 @@ Based on SPEC.md requirements and current implementation analysis.
 ## Summary
 
 **Total Requirements**: 45 tasks
-**Completed**: 28 tasks (62%)
+**Completed**: 31 tasks (69%)
 **In Progress**: 0 tasks  
-**Not Started**: 17 tasks (38%)
+**Not Started**: 14 tasks (31%)
 
-**High Priority Remaining**: 3 tasks (~10-12 hours)
+**High Priority Remaining**: 0 tasks (0 hours)
 **Medium Priority Remaining**: 8 tasks (~37-48 hours)  
 **Low Priority Remaining**: 6 tasks (~30-40 hours)
 

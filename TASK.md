@@ -103,11 +103,11 @@ Based on SPEC.md requirements and current implementation analysis.
 ### 5.1 Rectangle Annotations
 - [x] **Basic Rectangle Drawing** - Add rectangles to diagram
 - [x] **Rectangle Persistence** - Save rectangles in layout data
-- [ ] **Rectangle Property Editing** - Edit line color, fill color, size
+- [ ] **Rectangle Property Editing** - Edit line color, fill color, size, position interactively
   - Currently: Fixed styling
-  - Required: Color picker and size adjustment UI
+  - Required: Interactive color picker, size adjustment UI, and position editing
   - Priority: Medium
-  - Estimate: 5-6 hours
+  - Estimate: 6-8 hours
 - [ ] **Rectangle Repositioning** - Drag rectangles after creation
   - Currently: Fixed position after creation
   - Required: Drag and drop for repositioning
@@ -117,11 +117,11 @@ Based on SPEC.md requirements and current implementation analysis.
 ### 5.2 Text Annotations
 - [x] **Basic Text Drawing** - Add text annotations to diagram
 - [x] **Text Persistence** - Save text in layout data
-- [ ] **Text Property Editing** - Edit color, size, font
+- [ ] **Text Property Editing** - Edit color, size interactively
   - Currently: Fixed styling
-  - Required: Property panel for text customization
+  - Required: Interactive property panel for text customization
   - Priority: Medium
-  - Estimate: 4-5 hours
+  - Estimate: 5-6 hours
 - [ ] **Text Repositioning** - Drag text after creation
   - Currently: Fixed position after creation
   - Required: Drag and drop for repositioning
@@ -204,7 +204,7 @@ Based on SPEC.md requirements and current implementation analysis.
 **Not Started**: 17 tasks (38%)
 
 **High Priority Remaining**: 3 tasks (~10-12 hours)
-**Medium Priority Remaining**: 8 tasks (~35-45 hours)  
+**Medium Priority Remaining**: 8 tasks (~37-48 hours)  
 **Low Priority Remaining**: 6 tasks (~30-40 hours)
 
 **Core Functionality Status**: ✅ Complete (all essential features working)

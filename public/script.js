@@ -168,6 +168,15 @@ class ERViewer {
             if (response.ok) {
                 this.erData = await response.json();
                 this.layoutData = this.erData.layout || { entities: {}, rectangles: [], texts: [] };
+                
+                // Clear existing positions to force clustering
+                this.erData.entities.forEach(entity => {
+                    entity.position = null;
+                });
+                
+                // Reset clustering cache to force recalculation
+                this.relationshipClusters = null;
+                
                 console.log('Reverse engineering completed successfully');
                 this.renderER();
             } else {
@@ -621,13 +630,8 @@ class ERViewer {
     shouldApplyInitialClustering() {
         if (!this.erData || !this.erData.entities) return false;
         
-        // Check if most entities are at the default position (indicating initial load)
-        const defaultPositions = this.erData.entities.filter(entity => {
-            const pos = entity.position;
-            return !pos || (pos.x === 50 && pos.y === 50);
-        });
-        
-        return defaultPositions.length >= this.erData.entities.length * 0.8; // 80% at default position
+        // Always apply clustering on initial reverse engineering
+        return true;
     }
 
     getInitialClusteredPosition(entity, index) {

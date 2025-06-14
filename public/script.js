@@ -252,7 +252,8 @@ class ERViewer {
 
             entity.columns.forEach((column, colIndex) => {
                 const columnText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                columnText.setAttribute('class', `entity-column ${column.key === 'PRI' ? 'primary-key' : ''} ${(entity.foreignKeys || []).some(fk => fk.column === column.name) ? 'foreign-key' : ''}`);
+                columnText.setAttribute('class', `entity-column column ${column.key === 'PRI' ? 'primary-key' : ''} ${(entity.foreignKeys || []).some(fk => fk.column === column.name) ? 'foreign-key' : ''}`);
+                columnText.setAttribute('data-column', column.name);
                 columnText.setAttribute('x', 10);
                 columnText.setAttribute('y', headerHeight + (colIndex + 1) * rowHeight - 5);
                 columnText.textContent = `${column.name}: ${column.type}`;
@@ -280,6 +281,8 @@ class ERViewer {
             path.setAttribute('class', 'relationship');
             path.setAttribute('data-from', rel.from);
             path.setAttribute('data-to', rel.to);
+            path.setAttribute('data-from-column', rel.fromColumn);
+            path.setAttribute('data-to-column', rel.toColumn);
             
             const pathData = this.createPolylinePath(fromCenter, toCenter);
             path.setAttribute('d', pathData);
@@ -471,7 +474,7 @@ class ERViewer {
                 if (target.classList.contains('entity')) {
                     this.highlightEntity(target.getAttribute('data-table'));
                 } else if (target.classList.contains('relationship')) {
-                    target.classList.add('highlighted');
+                    this.highlightRelationshipColumns(target);
                 }
             }
         }
@@ -558,6 +561,27 @@ class ERViewer {
             });
             editItem.addEventListener('click', () => {
                 this.editRectangleProperties();
+                menu.remove();
+            });
+
+            menu.appendChild(editItem);
+        }
+
+        // Add edit properties option for text
+        if (this.selectedAnnotation && this.selectedAnnotation.classList.contains('custom-text')) {
+            const editItem = document.createElement('div');
+            editItem.textContent = 'プロパティ編集';
+            editItem.style.padding = '8px 12px';
+            editItem.style.cursor = 'pointer';
+            editItem.style.borderRadius = '4px';
+            editItem.addEventListener('mouseenter', () => {
+                editItem.style.backgroundColor = '#f0f0f0';
+            });
+            editItem.addEventListener('mouseleave', () => {
+                editItem.style.backgroundColor = 'transparent';
+            });
+            editItem.addEventListener('click', () => {
+                this.editTextProperties();
                 menu.remove();
             });
 
@@ -703,6 +727,110 @@ class ERViewer {
             // Restore selection after render
             if (selectedIndex !== null && selectedType === 'rectangle') {
                 const newSelectedElement = document.querySelector(`[data-index="${selectedIndex}"][data-type="rectangle"]`);
+                if (newSelectedElement) {
+                    this.selectedAnnotation = newSelectedElement;
+                    newSelectedElement.classList.add('selected');
+                }
+            }
+
+            document.body.removeChild(modal);
+        });
+
+        // Click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+
+    editTextProperties() {
+        if (!this.selectedAnnotation || !this.selectedAnnotation.classList.contains('custom-text')) return;
+
+        const index = parseInt(this.selectedAnnotation.getAttribute('data-index'));
+        const textObj = this.layoutData.texts[index];
+        if (!textObj) return;
+
+        // Create properties modal
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.zIndex = '3000';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
+        const dialog = document.createElement('div');
+        dialog.style.backgroundColor = '#ffffff';
+        dialog.style.padding = '20px';
+        dialog.style.borderRadius = '8px';
+        dialog.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+        dialog.style.minWidth = '300px';
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 20px 0;">テキストのプロパティ</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">テキスト内容:</label>
+                <input type="text" id="text-content" value="${textObj.content || ''}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">文字色:</label>
+                <input type="color" id="text-color" value="${textObj.color || '#2c3e50'}" style="width: 100%; height: 40px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px;">文字サイズ:</label>
+                <input type="range" id="text-size" min="8" max="72" value="${textObj.size || 14}" style="width: 100%;">
+                <span id="size-value">${textObj.size || 14}px</span>
+            </div>
+            <div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+                位置変更: テキストをドラッグして移動できます
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="cancel-btn" style="padding: 8px 16px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">キャンセル</button>
+                <button id="save-btn" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // Size slider handler
+        const sizeSlider = dialog.querySelector('#text-size');
+        const sizeValue = dialog.querySelector('#size-value');
+        sizeSlider.addEventListener('input', (e) => {
+            sizeValue.textContent = e.target.value + 'px';
+        });
+
+        // Button handlers
+        dialog.querySelector('#cancel-btn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        dialog.querySelector('#save-btn').addEventListener('click', () => {
+            const content = dialog.querySelector('#text-content').value;
+            const color = dialog.querySelector('#text-color').value;
+            const size = parseInt(dialog.querySelector('#text-size').value);
+
+            // Update text properties
+            textObj.content = content;
+            textObj.color = color;
+            textObj.size = size;
+
+            console.log('Updated text properties:', textObj);
+
+            // Store selection info to restore after render
+            const selectedIndex = this.selectedAnnotation ? this.selectedAnnotation.getAttribute('data-index') : null;
+            const selectedType = this.selectedAnnotation ? this.selectedAnnotation.getAttribute('data-type') : null;
+
+            this.renderER();
+
+            // Restore selection after render
+            if (selectedIndex !== null && selectedType === 'text') {
+                const newSelectedElement = document.querySelector(`[data-index="${selectedIndex}"][data-type="text"]`);
                 if (newSelectedElement) {
                     this.selectedAnnotation = newSelectedElement;
                     newSelectedElement.classList.add('selected');
@@ -881,8 +1009,34 @@ class ERViewer {
         }
     }
 
+    highlightRelationshipColumns(relationshipElement) {
+        const fromTable = relationshipElement.getAttribute('data-from');
+        const toTable = relationshipElement.getAttribute('data-to');
+        const fromColumn = relationshipElement.getAttribute('data-from-column');
+        const toColumn = relationshipElement.getAttribute('data-to-column');
+
+        // Highlight the relationship line itself
+        relationshipElement.classList.add('highlighted');
+
+        // Highlight the specific columns in both entities
+        if (fromTable && fromColumn) {
+            const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .column[data-column="${fromColumn}"]`);
+            if (fromColumnElement) {
+                fromColumnElement.classList.add('highlighted-column');
+            }
+        }
+
+        if (toTable && toColumn) {
+            const toColumnElement = document.querySelector(`[data-table="${toTable}"] .column[data-column="${toColumn}"]`);
+            if (toColumnElement) {
+                toColumnElement.classList.add('highlighted-column');
+            }
+        }
+    }
+
     clearHighlights() {
         document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+        document.querySelectorAll('.highlighted-column').forEach(el => el.classList.remove('highlighted-column'));
     }
 
     addRectangle() {

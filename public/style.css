@@ -118,6 +118,12 @@ main {
     text-decoration: underline;
 }
 
+.highlighted-column {
+    fill: #f39c12 !important;
+    font-weight: bold;
+    filter: drop-shadow(0 0 5px rgba(243, 156, 18, 0.8));
+}
+
 .relationship {
     stroke: #666;
     stroke-width: 2;

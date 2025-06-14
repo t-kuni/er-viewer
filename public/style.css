@@ -1,0 +1,267 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.controls button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.controls button:hover {
+    background-color: #2980b9;
+}
+
+main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+#canvas-container {
+    flex: 1;
+    position: relative;
+    background-color: white;
+    overflow: hidden;
+}
+
+#er-canvas {
+    cursor: grab;
+    user-select: none;
+}
+
+#er-canvas:active {
+    cursor: grabbing;
+}
+
+.entity {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.entity:hover {
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.entity.highlighted {
+    filter: drop-shadow(0 0 10px #3498db);
+}
+
+.entity-rect {
+    fill: white;
+    stroke: #34495e;
+    stroke-width: 2;
+    rx: 4;
+}
+
+.entity-title {
+    fill: #2c3e50;
+    font-weight: bold;
+    font-size: 14px;
+    dominant-baseline: middle;
+    text-anchor: middle;
+}
+
+.entity-column {
+    fill: #34495e;
+    font-size: 12px;
+    dominant-baseline: middle;
+}
+
+.entity-column.primary-key {
+    font-weight: bold;
+    fill: #e74c3c;
+}
+
+.entity-column.foreign-key {
+    fill: #3498db;
+    text-decoration: underline;
+}
+
+.relationship {
+    stroke: #666;
+    stroke-width: 2;
+    fill: none;
+    marker-end: url(#arrowhead);
+    transition: all 0.2s ease;
+}
+
+.relationship:hover {
+    stroke: #3498db;
+    stroke-width: 3;
+}
+
+.relationship.highlighted {
+    stroke: #e74c3c;
+    stroke-width: 3;
+}
+
+.sidebar {
+    width: 300px;
+    background-color: white;
+    border-left: 1px solid #ddd;
+    padding: 1rem;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-header h3 {
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+#close-sidebar {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #95a5a6;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#close-sidebar:hover {
+    color: #e74c3c;
+}
+
+#sidebar-content {
+    line-height: 1.6;
+}
+
+.ddl-content {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.toolbar {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1000;
+}
+
+.toolbar button {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.toolbar button:hover {
+    background-color: #229954;
+}
+
+.custom-rectangle {
+    fill: rgba(52, 152, 219, 0.1);
+    stroke: #3498db;
+    stroke-width: 2;
+    stroke-dasharray: 5,5;
+    cursor: move;
+}
+
+.custom-text {
+    fill: #2c3e50;
+    font-size: 14px;
+    cursor: move;
+    user-select: none;
+}
+
+.loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0,0,0,0.8);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    z-index: 2000;
+}
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .sidebar {
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1500;
+    }
+}

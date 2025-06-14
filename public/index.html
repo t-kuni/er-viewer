@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ER Diagram Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>ER Diagram Viewer</h1>
+            <div class="controls">
+                <button id="reverse-btn">リバースエンジニア</button>
+                <button id="save-btn">レイアウト保存</button>
+                <button id="load-btn">データ読み込み</button>
+            </div>
+        </header>
+        
+        <main>
+            <div id="canvas-container">
+                <svg id="er-canvas" width="100%" height="100%">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            
+            <div id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <h3>テーブル詳細</h3>
+                    <button id="close-sidebar">&times;</button>
+                </div>
+                <div id="sidebar-content">
+                    <p>テーブルをクリックして詳細を表示</p>
+                </div>
+            </div>
+        </main>
+        
+        <div id="toolbar" class="toolbar">
+            <button id="add-rectangle-btn">矩形追加</button>
+            <button id="add-text-btn">テキスト追加</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

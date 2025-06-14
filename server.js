@@ -44,14 +44,16 @@ app.get('/api/er-data', async (req, res) => {
 
 app.post('/api/reverse-engineer', async (req, res) => {
     try {
+        await logger.info('Starting reverse engineering process');
         await dbManager.connect();
         const newERData = await dbManager.generateERData();
         const mergedData = await storageManager.performIncrementalUpdate(newERData);
         await dbManager.disconnect();
+        await logger.info('Reverse engineering completed successfully');
         
         res.json(mergedData);
     } catch (error) {
-        console.error('Error during reverse engineering:', error);
+        await logger.error('Error during reverse engineering', error);
         res.status(500).json({ error: 'Failed to reverse engineer database' });
     }
 });

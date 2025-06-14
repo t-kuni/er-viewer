@@ -243,7 +243,7 @@ class ERViewer {
 
             entity.columns.forEach((column, colIndex) => {
                 const columnText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                columnText.setAttribute('class', `entity-column ${column.key === 'PRI' ? 'primary-key' : ''} ${entity.foreignKeys.some(fk => fk.column === column.name) ? 'foreign-key' : ''}`);
+                columnText.setAttribute('class', `entity-column ${column.key === 'PRI' ? 'primary-key' : ''} ${(entity.foreignKeys || []).some(fk => fk.column === column.name) ? 'foreign-key' : ''}`);
                 columnText.setAttribute('x', 10);
                 columnText.setAttribute('y', headerHeight + (colIndex + 1) * rowHeight - 5);
                 columnText.textContent = `${column.name}: ${column.type}`;

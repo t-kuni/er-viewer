@@ -182,11 +182,34 @@ function hideLoading() {
 }
 
 function showError(message, details) {
-    alert(`エラー: ${message}${details ? '\n詳細: ' + details : ''}`);
+    showNotification(`エラー: ${message}${details ? '\n詳細: ' + details : ''}`, 'error');
 }
 
 function showSuccess(message) {
-    alert(message);
+    showNotification(message, 'success');
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Add to DOM
+    document.body.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
 }
 
 // Export for global access if needed

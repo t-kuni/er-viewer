@@ -26,8 +26,13 @@ export class UIController {
         const highlightedDDL = this.applySyntaxHighlighting(ddl);
         this.sidebarContent.innerHTML = `
             <h4>${tableName}</h4>
-            <pre class="ddl-content syntax-highlighted"><code>${highlightedDDL}</code></pre>
+            <pre class="ddl-content syntax-highlighted"><code></code></pre>
         `;
+        
+        // Insert highlighted HTML properly
+        const codeElement = this.sidebarContent.querySelector('code');
+        codeElement.innerHTML = highlightedDDL;
+        
         this.sidebar.classList.add('open');
         console.log('Sidebar should now be open');
     }
@@ -198,8 +203,7 @@ export class UIController {
      * @param {string} details - Error details
      */
     showError(message, details) {
-        // TODO: Replace with better notification system
-        alert(`エラー: ${message}${details ? '\n詳細: ' + details : ''}`);
+        this.showNotification(`エラー: ${message}${details ? '\n詳細: ' + details : ''}`, 'error');
     }
     
     /**
@@ -207,8 +211,34 @@ export class UIController {
      * @param {string} message - Success message
      */
     showSuccess(message) {
-        // TODO: Replace with better notification system
-        alert(message);
+        this.showNotification(message, 'success');
+    }
+    
+    /**
+     * Show notification
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type (info, success, error)
+     */
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // Add to DOM
+        document.body.appendChild(notification);
+        
+        // Trigger animation
+        setTimeout(() => notification.classList.add('show'), 10);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 4000);
     }
     
     /**
@@ -256,46 +286,70 @@ export class UIController {
         
         let highlighted = ddl;
         
-        // Escape HTML
+        // Store original text for entity escaping
+        const original = highlighted;
+        
+        // Step 1: Mark special tokens to protect them from further processing
+        const tokens = [];
+        let tokenId = 0;
+        
+        // Mark and store comments first (highest priority)
+        highlighted = highlighted.replace(
+            /--(.*)$/gm,
+            (match) => {
+                const token = `__TOKEN_${tokenId++}__`;
+                tokens[token] = `<span class="sql-comment">${match}</span>`;
+                return token;
+            }
+        );
+        
+        highlighted = highlighted.replace(
+            /\/\*([\s\S]*?)\*\//g,
+            (match) => {
+                const token = `__TOKEN_${tokenId++}__`;
+                tokens[token] = `<span class="sql-comment">${match}</span>`;
+                return token;
+            }
+        );
+        
+        // Mark and store strings
+        highlighted = highlighted.replace(
+            /'([^']*)'/g,
+            (match, content) => {
+                const token = `__TOKEN_${tokenId++}__`;
+                tokens[token] = `<span class="sql-string">'${content}'</span>`;
+                return token;
+            }
+        );
+        
+        highlighted = highlighted.replace(
+            /"([^"]*)"/g,
+            (match, content) => {
+                const token = `__TOKEN_${tokenId++}__`;
+                tokens[token] = `<span class="sql-identifier">"${content}"</span>`;
+                return token;
+            }
+        );
+        
+        highlighted = highlighted.replace(
+            /`([^`]*)`/g,
+            (match, content) => {
+                const token = `__TOKEN_${tokenId++}__`;
+                tokens[token] = `<span class="sql-identifier">\`${content}\`</span>`;
+                return token;
+            }
+        );
+        
+        // Escape HTML in the remaining text
         highlighted = highlighted
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
         
-        // Highlight strings (single quotes)
-        highlighted = highlighted.replace(
-            /'([^']*)'/g,
-            '<span class="sql-string">\'$1\'</span>'
-        );
-        
-        // Highlight strings (double quotes for identifiers)
-        highlighted = highlighted.replace(
-            /"([^"]*)"/g,
-            '<span class="sql-identifier">"$1"</span>'
-        );
-        
-        // Highlight backticks (MySQL style identifiers)
-        highlighted = highlighted.replace(
-            /`([^`]*)`/g,
-            '<span class="sql-identifier">`$1`</span>'
-        );
-        
         // Highlight numbers
         highlighted = highlighted.replace(
             /\b(\d+(?:\.\d+)?)\b/g,
             '<span class="sql-number">$1</span>'
-        );
-        
-        // Highlight comments (single line)
-        highlighted = highlighted.replace(
-            /--(.*)$/gm,
-            '<span class="sql-comment">--$1</span>'
-        );
-        
-        // Highlight comments (multi-line)
-        highlighted = highlighted.replace(
-            /\/\*([\s\S]*?)\*\//g,
-            '<span class="sql-comment">/*$1*/</span>'
         );
         
         // Highlight keywords (case-insensitive)
@@ -316,10 +370,14 @@ export class UIController {
             highlighted = highlighted.replace(regex, '<span class="sql-function">$1</span>');
         });
         
-        // Highlight operators
+        // Highlight operators (simple pattern)
         highlighted = highlighted.replace(
-            /([=<>!]+|[+\-*/])/g,
-            '<span class="sql-operator">$1</span>'
+            /\s([=<>!]+)\s/g,
+            ' <span class="sql-operator">$1</span> '
+        );
+        highlighted = highlighted.replace(
+            /\s([+\-*/])\s/g,
+            ' <span class="sql-operator">$1</span> '
         );
         
         // Highlight parentheses and commas
@@ -327,6 +385,11 @@ export class UIController {
             /([(),;])/g,
             '<span class="sql-punctuation">$1</span>'
         );
+        
+        // Restore the protected tokens
+        Object.keys(tokens).forEach(token => {
+            highlighted = highlighted.replace(token, tokens[token]);
+        });
         
         return highlighted;
     }

@@ -46,7 +46,8 @@ export class MouseHandler {
         const target = e.target.closest('.entity, .custom-rectangle, .custom-text, .resize-handle');
         
         if (e.button === 0) { // Left click
-            if (e.code === 'Space' || e.target === this.viewer.canvas) {
+            if ((this.viewer.keyboardHandler.isSpacePressed && e.target === this.viewer.canvas) || 
+                (!target && this.viewer.keyboardHandler.isSpacePressed)) {
                 this.isPanning = true;
                 this.lastPanPoint = { x: e.clientX, y: e.clientY };
                 this.viewer.canvas.style.cursor = 'grabbing';
@@ -76,6 +77,11 @@ export class MouseHandler {
                     this.viewer.selectAnnotation(target);
                 }
             }
+        } else if (e.button === 1) { // Middle click (wheel button)
+            e.preventDefault();
+            this.isPanning = true;
+            this.lastPanPoint = { x: e.clientX, y: e.clientY };
+            this.viewer.canvas.style.cursor = 'grabbing';
         }
     }
 

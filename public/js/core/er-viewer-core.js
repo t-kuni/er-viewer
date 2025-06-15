@@ -266,8 +266,8 @@ export class ERViewerCore {
         const currentState = this.stateManager.getState();
         const newLayoutData = { ...currentState.layoutData };
         
-        if (!newLayoutData.annotations) {
-            newLayoutData.annotations = { rectangles: [], texts: [] };
+        if (!newLayoutData.rectangles) {
+            newLayoutData.rectangles = [];
         }
         
         const newRect = {
@@ -280,7 +280,7 @@ export class ERViewerCore {
             strokeWidth: 2
         };
         
-        newLayoutData.annotations.rectangles.push(newRect);
+        newLayoutData.rectangles.push(newRect);
         this.stateManager.updateLayoutData(newLayoutData);
         console.log('Rectangle added at:', x, y);
     }
@@ -297,20 +297,19 @@ export class ERViewerCore {
         const currentState = this.stateManager.getState();
         const newLayoutData = { ...currentState.layoutData };
         
-        if (!newLayoutData.annotations) {
-            newLayoutData.annotations = { rectangles: [], texts: [] };
+        if (!newLayoutData.texts) {
+            newLayoutData.texts = [];
         }
         
         const newText = {
             x: x,
             y: y,
-            text: text,
-            fontSize: 14,
-            fill: '#333333',
-            fontFamily: 'Arial, sans-serif'
+            content: text,
+            color: '#2c3e50',
+            size: 14
         };
         
-        newLayoutData.annotations.texts.push(newText);
+        newLayoutData.texts.push(newText);
         this.stateManager.updateLayoutData(newLayoutData);
         console.log('Text added at:', x, y, 'with text:', text);
     }

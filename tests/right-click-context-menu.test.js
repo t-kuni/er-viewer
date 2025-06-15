@@ -153,14 +153,14 @@ describe('Right-click Context Menu', () => {
     describe('State Management Integration', () => {
         test('should add rectangle to state when creating via context menu', () => {
             const initialState = stateManager.getState();
-            const initialRectangles = initialState.layoutData?.annotations?.rectangles?.length || 0;
+            const initialRectangles = initialState.layoutData?.rectangles?.length || 0;
 
             // Simulate adding rectangle directly to state
             const currentState = stateManager.getState();
             const newLayoutData = { ...currentState.layoutData };
             
-            if (!newLayoutData.annotations) {
-                newLayoutData.annotations = { rectangles: [], texts: [] };
+            if (!newLayoutData.rectangles) {
+                newLayoutData.rectangles = [];
             }
             
             const newRect = {
@@ -173,15 +173,15 @@ describe('Right-click Context Menu', () => {
                 strokeWidth: 2
             };
             
-            newLayoutData.annotations.rectangles.push(newRect);
+            newLayoutData.rectangles.push(newRect);
             stateManager.updateLayoutData(newLayoutData);
 
             const newState = stateManager.getState();
-            const newRectangles = newState.layoutData?.annotations?.rectangles?.length || 0;
+            const newRectangles = newState.layoutData?.rectangles?.length || 0;
             
             expect(newRectangles).toBe(initialRectangles + 1);
             
-            const addedRectangle = newState.layoutData.annotations.rectangles[newRectangles - 1];
+            const addedRectangle = newState.layoutData.rectangles[newRectangles - 1];
             expect(addedRectangle.x).toBe(300);
             expect(addedRectangle.y).toBe(200);
             expect(addedRectangle.width).toBe(100);
@@ -190,37 +190,36 @@ describe('Right-click Context Menu', () => {
 
         test('should add text to state when creating via context menu', () => {
             const initialState = stateManager.getState();
-            const initialTexts = initialState.layoutData?.annotations?.texts?.length || 0;
+            const initialTexts = initialState.layoutData?.texts?.length || 0;
 
             // Simulate adding text directly to state
             const currentState = stateManager.getState();
             const newLayoutData = { ...currentState.layoutData };
             
-            if (!newLayoutData.annotations) {
-                newLayoutData.annotations = { rectangles: [], texts: [] };
+            if (!newLayoutData.texts) {
+                newLayoutData.texts = [];
             }
             
             const newText = {
                 x: 400,
                 y: 300,
-                text: 'Test context menu text',
-                fontSize: 14,
-                fill: '#333333',
-                fontFamily: 'Arial, sans-serif'
+                content: 'Test context menu text',
+                color: '#2c3e50',
+                size: 14
             };
             
-            newLayoutData.annotations.texts.push(newText);
+            newLayoutData.texts.push(newText);
             stateManager.updateLayoutData(newLayoutData);
 
             const newState = stateManager.getState();
-            const newTexts = newState.layoutData?.annotations?.texts?.length || 0;
+            const newTexts = newState.layoutData?.texts?.length || 0;
             
             expect(newTexts).toBe(initialTexts + 1);
             
-            const addedText = newState.layoutData.annotations.texts[newTexts - 1];
+            const addedText = newState.layoutData.texts[newTexts - 1];
             expect(addedText.x).toBe(400);
             expect(addedText.y).toBe(300);
-            expect(addedText.text).toBe('Test context menu text');
+            expect(addedText.content).toBe('Test context menu text');
         });
     });
 

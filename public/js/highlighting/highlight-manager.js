@@ -38,7 +38,7 @@ export class HighlightManager {
                 const toColumn = rel.getAttribute('data-to-column');
                 
                 if (fromColumn) {
-                    const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .column[data-column="${fromColumn}"]`);
+                    const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .entity-column[data-column="${fromColumn}"]`);
                     if (fromColumnElement) {
                         fromColumnElement.classList.add('highlighted-column');
                         this.currentHighlights.add(fromColumnElement);
@@ -46,7 +46,7 @@ export class HighlightManager {
                 }
                 
                 if (toColumn) {
-                    const toColumnElement = document.querySelector(`[data-table="${toTable}"] .column[data-column="${toColumn}"]`);
+                    const toColumnElement = document.querySelector(`[data-table="${toTable}"] .entity-column[data-column="${toColumn}"]`);
                     if (toColumnElement) {
                         toColumnElement.classList.add('highlighted-column');
                         this.currentHighlights.add(toColumnElement);
@@ -85,7 +85,7 @@ export class HighlightManager {
 
         // Highlight the specific columns in both entities
         if (fromTable && fromColumn) {
-            const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .column[data-column="${fromColumn}"]`);
+            const fromColumnElement = document.querySelector(`[data-table="${fromTable}"] .entity-column[data-column="${fromColumn}"]`);
             if (fromColumnElement) {
                 fromColumnElement.classList.add('highlighted-column');
                 this.currentHighlights.add(fromColumnElement);
@@ -93,7 +93,7 @@ export class HighlightManager {
         }
 
         if (toTable && toColumn) {
-            const toColumnElement = document.querySelector(`[data-table="${toTable}"] .column[data-column="${toColumn}"]`);
+            const toColumnElement = document.querySelector(`[data-table="${toTable}"] .entity-column[data-column="${toColumn}"]`);
             if (toColumnElement) {
                 toColumnElement.classList.add('highlighted-column');
                 this.currentHighlights.add(toColumnElement);

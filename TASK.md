@@ -320,3 +320,22 @@ Based on SPEC.md requirements and current implementation analysis.
   - Benefit: 問題のあるコードのコミット防止
   - Priority: Low (後回し)
   - Estimate: 1-2 hours
+
+## 10. 新規発見バグ (New Bugs Found - 2025-06-15)
+
+### 10.1 Annotation機能のバグ
+- [ ] **矩形追加機能の動作不良** - 「矩形追加」ボタンで矩形が作成されない
+  - Currently: 「矩形追加」ボタンをクリックしても何も表示されず、フィードバックもない
+  - Expected: 矩形が描画され、位置や色を編集できる
+  - Tested: 2025-06-15 ブラウザテストで確認
+  - Priority: Medium
+  - Estimate: 3-4 hours
+
+### 10.2 UI操作性のバグ
+- [ ] **サイドバー閉じるボタンの操作性問題** - 「×」ボタンがクリックできない
+  - Currently: サイドバーの「×」ボタンがツールバーに干渉されてクリックできない
+  - Expected: サイドバーを閉じることができる
+  - Error: TimeoutError - ツールバーがpointer eventsを遮っている
+  - Tested: 2025-06-15 ブラウザテストで確認
+  - Priority: Medium
+  - Estimate: 2-3 hours

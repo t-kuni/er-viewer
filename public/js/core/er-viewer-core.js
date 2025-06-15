@@ -22,12 +22,12 @@ export class ERViewerCore {
         this.stateManager = new StateManager();
         this.coordinateTransform = new CoordinateTransform();
         this.canvasRenderer = new CanvasRenderer(this.canvas, this.coordinateTransform);
-        this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform);
+        this.highlightManager = new HighlightManager();
+        this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform, this.highlightManager);
         this.uiController = new UIController(this.stateManager);
         this.annotationController = new AnnotationController(this.stateManager, this.coordinateTransform);
         
         // Initialize feature modules
-        this.highlightManager = new HighlightManager();
         this.clusteringEngine = new ClusteringEngine();
         this.smartRouting = new SmartRouting();
         this.connectionPoints = new ConnectionPoints();

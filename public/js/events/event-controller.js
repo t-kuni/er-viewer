@@ -3,10 +3,11 @@
  * Handles all canvas events, interaction modes, and event delegation
  */
 export class EventController {
-    constructor(canvas, stateManager, coordinateTransform) {
+    constructor(canvas, stateManager, coordinateTransform, highlightManager) {
         this.canvas = canvas;
         this.stateManager = stateManager;
         this.coordinateTransform = coordinateTransform;
+        this.highlightManager = highlightManager;
         
         // Event delegation map
         this.eventHandlers = new Map();
@@ -621,8 +622,26 @@ export class EventController {
      * @param {MouseEvent} event - Mouse event
      */
     handleHover(event) {
-        // Implement hover highlighting logic
-        // This could be delegated to the HighlightManager
+        let hoverTarget = null;
+        
+        // Check if hovering over an entity
+        if (event.target && event.target.closest) {
+            const entityElement = event.target.closest('.entity');
+            if (entityElement) {
+                hoverTarget = entityElement;
+            } else {
+                // Check if hovering over a relationship
+                const relationshipElement = event.target.closest('.relationship');
+                if (relationshipElement) {
+                    hoverTarget = relationshipElement;
+                }
+            }
+        }
+        
+        // Delegate to highlight manager
+        if (this.highlightManager) {
+            this.highlightManager.handleHover(hoverTarget);
+        }
     }
 
     /**

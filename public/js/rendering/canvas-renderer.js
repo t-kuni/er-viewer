@@ -3,11 +3,15 @@
  * Handles all SVG drawing operations and visual presentation
  */
 import { SVGUtils } from '../utils/svg-utils.js';
+import { SmartRouting } from '../pathfinding/smart-routing.js';
+import { ConnectionPoints } from '../pathfinding/connection-points.js';
 
 export class CanvasRenderer {
     constructor(canvas, coordinateTransform) {
         this.canvas = canvas;
         this.coordinateTransform = coordinateTransform;
+        this.smartRouting = new SmartRouting();
+        this.connectionPoints = new ConnectionPoints();
         
         // Rendering configuration
         this.config = {
@@ -327,9 +331,17 @@ export class CanvasRenderer {
         
         if (!fromPos || !toPos) return null;
         
-        // Calculate connection points (simplified)
-        const fromPoint = { x: fromPos.x + 75, y: fromPos.y + 40 };
-        const toPoint = { x: toPos.x + 75, y: toPos.y + 40 };
+        // Get entity bounds for smart routing
+        const entityBounds = this.calculateEntityBounds(entityPositions);
+        this.smartRouting.setEntityBounds(entityBounds);
+        
+        // Calculate optimal connection points
+        const fromEntityBounds = this.getEntityBounds(relationship.from, entityPositions);
+        const toEntityBounds = this.getEntityBounds(relationship.to, entityPositions);
+        
+        const connectionPoints = this.connectionPoints.findOptimalConnectionPoints(
+            fromEntityBounds, toEntityBounds, relationship.fromColumn, relationship.toColumn
+        );
         
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('class', 'relationship');
@@ -338,8 +350,8 @@ export class CanvasRenderer {
         path.setAttribute('data-from-column', relationship.fromColumn);
         path.setAttribute('data-to-column', relationship.toColumn);
         
-        // Create simple straight line path
-        const pathData = `M ${fromPoint.x} ${fromPoint.y} L ${toPoint.x} ${toPoint.y}`;
+        // Create smart polyline path (horizontal/vertical only)
+        const pathData = this.smartRouting.createPolylinePath(connectionPoints.from, connectionPoints.to);
         path.setAttribute('d', pathData);
         path.setAttribute('stroke', '#666666');
         path.setAttribute('stroke-width', this.config.relationship.strokeWidth);
@@ -475,5 +487,68 @@ export class CanvasRenderer {
         
         filter.appendChild(feDropShadow);
         defs.appendChild(filter);
+    }
+
+    /**
+     * Calculate bounds for all entities
+     * @param {Object} entityPositions - Entity positions
+     * @returns {Array} Array of entity bounds
+     */
+    calculateEntityBounds(entityPositions) {
+        const bounds = [];
+        for (const [entityName, position] of Object.entries(entityPositions)) {
+            const dimensions = this.getEntityDimensions(entityName);
+            bounds.push({
+                left: position.x,
+                top: position.y,
+                right: position.x + dimensions.width,
+                bottom: position.y + dimensions.height
+            });
+        }
+        return bounds;
+    }
+
+    /**
+     * Get bounds for a specific entity
+     * @param {string} entityName - Entity name
+     * @param {Object} entityPositions - Entity positions
+     * @returns {Object} Entity bounds
+     */
+    getEntityBounds(entityName, entityPositions) {
+        const position = entityPositions[entityName];
+        const dimensions = this.getEntityDimensions(entityName);
+        return {
+            left: position.x,
+            top: position.y,
+            right: position.x + dimensions.width,
+            bottom: position.y + dimensions.height,
+            width: dimensions.width,
+            height: dimensions.height
+        };
+    }
+
+    /**
+     * Get dimensions for an entity by name
+     * @param {string} entityName - Entity name
+     * @returns {Object} Entity dimensions
+     */
+    getEntityDimensions(entityName) {
+        // Try to find existing entity element to get actual dimensions
+        const entityElement = document.querySelector(`[data-table="${entityName}"]`);
+        if (entityElement) {
+            const rect = entityElement.querySelector('rect');
+            if (rect) {
+                return {
+                    width: parseFloat(rect.getAttribute('width')),
+                    height: parseFloat(rect.getAttribute('height'))
+                };
+            }
+        }
+        
+        // Fallback to default dimensions
+        return {
+            width: this.config.entity.minWidth,
+            height: this.config.entity.minHeight
+        };
     }
 }

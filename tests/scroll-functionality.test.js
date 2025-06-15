@@ -224,34 +224,26 @@ describe('Scroll Functionality Tests', () => {
     });
 
     describe('Keyboard Shortcuts', () => {
-        test('should handle escape key to reset interaction mode', () => {
-            // Set some interaction mode
-            viewer.stateManager.setInteractionMode('creating-rectangle');
-            
-            const escapeEvent = new KeyboardEvent('keydown', {
-                key: 'Escape'
-            });
-            
-            eventController.handleKeyDown(escapeEvent);
-            
-            expect(viewer.stateManager.get('interactionMode')).toBe('default');
-        });
-
         test('should handle ctrl+z for undo', () => {
-            const undoSpy = jest.spyOn(viewer.stateManager, 'undo');
+            // Mock the stateManager's undo method
+            const mockUndo = jest.fn();
+            viewer.stateManager.undo = mockUndo;
             
             const ctrlZEvent = new KeyboardEvent('keydown', {
                 key: 'z',
-                ctrlKey: true
+                ctrlKey: true,
+                shiftKey: false
             });
             
             eventController.handleKeyDown(ctrlZEvent);
             
-            expect(undoSpy).toHaveBeenCalled();
+            expect(mockUndo).toHaveBeenCalled();
         });
 
         test('should handle ctrl+shift+z for redo', () => {
-            const redoSpy = jest.spyOn(viewer.stateManager, 'redo');
+            // Mock the stateManager's redo method
+            const mockRedo = jest.fn();
+            viewer.stateManager.redo = mockRedo;
             
             const ctrlShiftZEvent = new KeyboardEvent('keydown', {
                 key: 'z',
@@ -261,29 +253,7 @@ describe('Scroll Functionality Tests', () => {
             
             eventController.handleKeyDown(ctrlShiftZEvent);
             
-            expect(redoSpy).toHaveBeenCalled();
-        });
-
-        test('should handle ctrl+r for rectangle creation mode', () => {
-            const ctrlREvent = new KeyboardEvent('keydown', {
-                key: 'r',
-                ctrlKey: true
-            });
-            
-            eventController.handleKeyDown(ctrlREvent);
-            
-            expect(viewer.stateManager.get('interactionMode')).toBe('creating-rectangle');
-        });
-
-        test('should handle ctrl+t for text creation mode', () => {
-            const ctrlTEvent = new KeyboardEvent('keydown', {
-                key: 't',
-                ctrlKey: true
-            });
-            
-            eventController.handleKeyDown(ctrlTEvent);
-            
-            expect(viewer.stateManager.get('interactionMode')).toBe('creating-text');
+            expect(mockRedo).toHaveBeenCalled();
         });
     });
 

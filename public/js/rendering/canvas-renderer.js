@@ -69,6 +69,17 @@ export class CanvasRenderer {
         // Clear existing content
         this.canvas.innerHTML = '';
         
+        // Set canvas dimensions to match container
+        const container = this.canvas.parentElement;
+        if (container) {
+            this.canvas.setAttribute('width', container.clientWidth);
+            this.canvas.setAttribute('height', container.clientHeight);
+        } else {
+            // Fallback to default size if no container
+            this.canvas.setAttribute('width', '800');
+            this.canvas.setAttribute('height', '600');
+        }
+        
         // Create base SVG structure
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
         
@@ -85,7 +96,20 @@ export class CanvasRenderer {
         mainGroup.setAttribute('id', 'main-group');
         this.canvas.appendChild(mainGroup);
         
-        // Create single layer for dynamic ordering
+        // Create required SVG groups for compatibility with tests and proper rendering order
+        const entitiesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        entitiesGroup.setAttribute('id', 'entities-group');
+        mainGroup.appendChild(entitiesGroup);
+        
+        const relationshipsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        relationshipsGroup.setAttribute('id', 'relationships-group');
+        mainGroup.appendChild(relationshipsGroup);
+        
+        const annotationsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        annotationsGroup.setAttribute('id', 'annotations-group');
+        mainGroup.appendChild(annotationsGroup);
+        
+        // Create single layer for dynamic ordering (for layer-based rendering)
         const dynamicLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         dynamicLayer.setAttribute('id', 'dynamic-layer');
         mainGroup.appendChild(dynamicLayer);
@@ -141,9 +165,9 @@ export class CanvasRenderer {
             dynamicLayer.innerHTML = '';
         }
         
-        // Sort layers by order (descending order = top to bottom in layer list = front to back rendering)
-        // Higher order numbers (lower in layer list) appear behind lower order numbers (higher in layer list)
-        const sortedLayers = [...layerOrder].sort((a, b) => b.order - a.order);
+        // Sort layers by order (ascending order = top to bottom in layer list = back to front rendering)
+        // Lower order numbers (higher in layer list) appear in front of higher order numbers (lower in layer list)
+        const sortedLayers = [...layerOrder].sort((a, b) => a.order - b.order);
         
         // Track which rectangles and texts have been rendered
         const renderedRectangles = new Set();
@@ -390,15 +414,16 @@ export class CanvasRenderer {
      * @param {Object} entityPositions - Entity position data
      */
     renderEntities(entities, entityPositions) {
-        const dynamicLayer = document.getElementById('dynamic-layer');
-        if (!dynamicLayer) return;
+        const entitiesGroup = document.getElementById('entities-group');
+        if (!entitiesGroup) return;
         
-        dynamicLayer.innerHTML = '';
+        // Clear existing entities
+        entitiesGroup.innerHTML = '';
         
         entities.forEach(entity => {
             const position = entityPositions[entity.name] || { x: 50, y: 50 };
             const entityElement = this.createEntityElement(entity, position);
-            dynamicLayer.appendChild(entityElement);
+            entitiesGroup.appendChild(entityElement);
         });
     }
 
@@ -412,6 +437,9 @@ export class CanvasRenderer {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         group.setAttribute('class', 'entity');
         group.setAttribute('data-table', entity.name);
+        group.setAttribute('data-name', entity.name);
+        group.setAttribute('data-x', position.x);
+        group.setAttribute('data-y', position.y);
         group.setAttribute('transform', `translate(${position.x}, ${position.y})`);
         
         // Calculate entity dimensions
@@ -465,6 +493,7 @@ export class CanvasRenderer {
         
         // Table name text
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', 'entity-name');
         text.setAttribute('x', dimensions.width / 2);
         text.setAttribute('y', this.config.entity.headerHeight / 2 + 4);
         text.setAttribute('text-anchor', 'middle');
@@ -509,7 +538,7 @@ export class CanvasRenderer {
      */
     createColumnElement(column, entity, entityWidth, yOffset) {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.setAttribute('class', 'entity-column');
+        group.setAttribute('class', 'entity-column column');
         group.setAttribute('data-column', column.name);
         
         let xOffset = 10;
@@ -592,10 +621,11 @@ export class CanvasRenderer {
      * @param {Array} entities - Entity data for connection points
      */
     renderRelationships(relationships, entityPositions, entities) {
-        const dynamicLayer = document.getElementById('dynamic-layer');
-        if (!dynamicLayer) return;
+        const relationshipsGroup = document.getElementById('relationships-group');
+        if (!relationshipsGroup) return;
         
-        // Note: This method is called by fallback rendering, relationships are added to existing content
+        // Clear existing relationships
+        relationshipsGroup.innerHTML = '';
         
         // Update connection points with entity data
         if (entities) {
@@ -605,7 +635,7 @@ export class CanvasRenderer {
         relationships.forEach(relationship => {
             const pathElement = this.createRelationshipPath(relationship, entityPositions);
             if (pathElement) {
-                dynamicLayer.appendChild(pathElement);
+                relationshipsGroup.appendChild(pathElement);
             }
         });
     }
@@ -617,8 +647,14 @@ export class CanvasRenderer {
      * @returns {Element|null} SVG path element
      */
     createRelationshipPath(relationship, entityPositions) {
-        const fromPos = entityPositions[relationship.from];
-        const toPos = entityPositions[relationship.to];
+        // Support both formats: {from, to} and {sourceTable, targetTable}
+        const fromTable = relationship.from || relationship.sourceTable;
+        const toTable = relationship.to || relationship.targetTable;
+        const fromColumn = relationship.fromColumn || relationship.sourceColumn;
+        const toColumn = relationship.toColumn || relationship.targetColumn;
+        
+        const fromPos = entityPositions[fromTable];
+        const toPos = entityPositions[toTable];
         
         if (!fromPos || !toPos) return null;
         
@@ -627,8 +663,8 @@ export class CanvasRenderer {
         this.smartRouting.setEntityBounds(entityBounds);
         
         // Calculate optimal connection points
-        const fromEntityBounds = this.getEntityBounds(relationship.from, entityPositions);
-        const toEntityBounds = this.getEntityBounds(relationship.to, entityPositions);
+        const fromEntityBounds = this.getEntityBounds(fromTable, entityPositions);
+        const toEntityBounds = this.getEntityBounds(toTable, entityPositions);
         
         const connectionPoints = this.connectionPoints.findOptimalConnectionPoints(
             fromEntityBounds, toEntityBounds, relationship
@@ -636,10 +672,10 @@ export class CanvasRenderer {
         
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('class', 'relationship');
-        path.setAttribute('data-from', relationship.from);
-        path.setAttribute('data-to', relationship.to);
-        path.setAttribute('data-from-column', relationship.fromColumn);
-        path.setAttribute('data-to-column', relationship.toColumn);
+        path.setAttribute('data-from', fromTable);
+        path.setAttribute('data-to', toTable);
+        path.setAttribute('data-from-column', fromColumn);
+        path.setAttribute('data-to-column', toColumn);
         
         // Create smart polyline path (horizontal/vertical only)
         const pathData = this.smartRouting.createPolylinePath(connectionPoints.from, connectionPoints.to);

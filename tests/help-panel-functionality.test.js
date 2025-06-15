@@ -73,10 +73,8 @@ describe('Help Panel Functionality', () => {
         
         // Check for shortcut keys section
         expect(helpPanelHTML).toContain('ショートカットキー');
-        expect(helpPanelHTML).toContain('<strong>Ctrl+R:</strong>');
-        expect(helpPanelHTML).toContain('<strong>Ctrl+T:</strong>');
-        expect(helpPanelHTML).toContain('<strong>Esc:</strong>');
-        expect(helpPanelHTML).toContain('<strong>Delete:</strong>');
+        expect(helpPanelHTML).toContain('<strong>Ctrl+Z:</strong>');
+        expect(helpPanelHTML).toContain('<strong>Shift+Ctrl+Z:</strong>');
     });
 
     test('should have correct CSS classes in HTML structure', () => {

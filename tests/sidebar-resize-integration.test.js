@@ -337,7 +337,7 @@ describe('Sidebar Resize Integration Tests', () => {
     expect(localStorage.setItem).toHaveBeenCalledWith('sidebar-width', '700px');
   });
 
-  test('should properly clean up after resize cancellation', () => {
+  test('should properly clean up after resize completion', () => {
     // Start resize
     const mouseDownEvent = new MouseEvent('mousedown', {
       clientX: 500,
@@ -358,14 +358,15 @@ describe('Sidebar Resize Integration Tests', () => {
     });
     eventController.handleMouseMove(mouseMoveEvent);
     
-    // Simulate escape key to cancel
-    const escapeEvent = new KeyboardEvent('keydown', {
-      key: 'Escape',
+    // Complete resize with mouse up
+    const mouseUpEvent = new MouseEvent('mouseup', {
+      clientX: 400,
+      clientY: 300,
       bubbles: true
     });
-    eventController.handleKeyDown(escapeEvent);
+    eventController.handleMouseUp(mouseUpEvent);
     
-    // Check that resize mode is cancelled
+    // Check that resize mode is completed
     expect(stateManager.getState().interactionMode).toBe('default');
     expect(resizeHandle.classList.contains('dragging')).toBe(false);
     expect(document.body.style.cursor).toBe('');

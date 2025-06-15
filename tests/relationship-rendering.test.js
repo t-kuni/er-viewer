@@ -35,7 +35,7 @@ describe('Relationship Rendering Tests', () => {
                         <path d="M0,0 L0,6 L9,3 z" fill="#666666"/>
                     </marker>
                 </defs>
-                <g id="relationship-layer"></g>
+                <g id="relationships-group"></g>
             </svg>
         `;
         
@@ -50,16 +50,16 @@ describe('Relationship Rendering Tests', () => {
     test('should render relationships with proper SVG paths', () => {
         const relationships = [
             {
-                from: 'users',
-                to: 'posts',
-                fromColumn: 'id',
-                toColumn: 'user_id'
+                sourceTable: 'users',
+                targetTable: 'posts',
+                sourceColumn: 'id',
+                targetColumn: 'user_id'
             },
             {
-                from: 'categories',
-                to: 'posts',
-                fromColumn: 'id',
-                toColumn: 'category_id'
+                sourceTable: 'categories',
+                targetTable: 'posts',
+                sourceColumn: 'id',
+                targetColumn: 'category_id'
             }
         ];
 
@@ -69,11 +69,11 @@ describe('Relationship Rendering Tests', () => {
             'categories': { x: 500, y: 100 }
         };
 
-        const entities = {
-            'users': { columns: [{ name: 'id', type: 'int' }] },
-            'posts': { columns: [{ name: 'user_id', type: 'int' }, { name: 'category_id', type: 'int' }] },
-            'categories': { columns: [{ name: 'id', type: 'int' }] }
-        };
+        const entities = [
+            { name: 'users', columns: [{ name: 'id', type: 'int' }] },
+            { name: 'posts', columns: [{ name: 'user_id', type: 'int' }, { name: 'category_id', type: 'int' }] },
+            { name: 'categories', columns: [{ name: 'id', type: 'int' }] }
+        ];
 
         canvasRenderer.renderRelationships(relationships, entityPositions, entities);
 
@@ -122,15 +122,15 @@ describe('Relationship Rendering Tests', () => {
     test('should handle missing entity positions gracefully', () => {
         const relationships = [
             {
-                from: 'nonexistent1',
-                to: 'nonexistent2',
-                fromColumn: 'id',
-                toColumn: 'user_id'
+                sourceTable: 'nonexistent1',
+                targetTable: 'nonexistent2',
+                sourceColumn: 'id',
+                targetColumn: 'user_id'
             }
         ];
 
         const entityPositions = {};
-        const entities = {};
+        const entities = [];
 
         // Should not throw error
         expect(() => {
@@ -145,10 +145,10 @@ describe('Relationship Rendering Tests', () => {
     test('should set proper SVG attributes for relationship paths', () => {
         const relationships = [
             {
-                from: 'users',
-                to: 'posts',
-                fromColumn: 'id',
-                toColumn: 'user_id'
+                sourceTable: 'users',
+                targetTable: 'posts',
+                sourceColumn: 'id',
+                targetColumn: 'user_id'
             }
         ];
 
@@ -157,10 +157,10 @@ describe('Relationship Rendering Tests', () => {
             'posts': { x: 300, y: 100 }
         };
 
-        const entities = {
-            'users': { columns: [{ name: 'id', type: 'int' }] },
-            'posts': { columns: [{ name: 'user_id', type: 'int' }] }
-        };
+        const entities = [
+            { name: 'users', columns: [{ name: 'id', type: 'int' }] },
+            { name: 'posts', columns: [{ name: 'user_id', type: 'int' }] }
+        ];
 
         canvasRenderer.renderRelationships(relationships, entityPositions, entities);
 

@@ -68,6 +68,17 @@ describe('Text Annotation Functionality Tests', () => {
     afterEach(() => {
         document.body.removeChild(canvas);
         eventController.removeEventListeners();
+        
+        // Clean up any remaining dialog elements
+        const dialogs = document.querySelectorAll('div[style*="position: fixed"]');
+        dialogs.forEach(dialog => {
+            if (dialog.parentNode) {
+                dialog.parentNode.removeChild(dialog);
+            }
+        });
+        
+        // Reset DOM state
+        document.body.innerHTML = '';
     });
 
     describe('Text Creation', () => {
@@ -406,22 +417,16 @@ describe('Text Annotation Functionality Tests', () => {
             expect(saveButton).toBeTruthy();
             saveButton.click();
 
-            // Wait for async operations and check state directly
-            setTimeout(() => {
-                try {
-                    const currentState = stateManager.getState();
-                    const updatedText = currentState.layoutData.texts[0];
-                    
-                    expect(updatedText.content).toBe('Updated Text');
-                    expect(updatedText.color).toBe('#ff0000');
-                    expect(updatedText.size).toBe(18);
-                    expect(updatedText.x).toBe(150);
-                    expect(updatedText.y).toBe(200);
-                    done();
-                } catch (error) {
-                    done(error);
-                }
-            }, 10);
+            // Check state immediately after save (should be synchronous)
+            const currentState = stateManager.getState();
+            const updatedText = currentState.layoutData.texts[0];
+            
+            expect(updatedText.content).toBe('Updated Text');
+            expect(updatedText.color).toBe('#ff0000');
+            expect(updatedText.size).toBe(18);
+            expect(updatedText.x).toBe(150);
+            expect(updatedText.y).toBe(200);
+            done();
         });
     });
 

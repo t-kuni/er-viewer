@@ -385,17 +385,6 @@ export class EventController {
         // Handle global shortcuts - prevent default first for custom shortcuts
         if (event.ctrlKey || event.metaKey) {
             switch (event.key) {
-                case 'r':
-                    event.preventDefault();
-                    event.stopPropagation();
-                    console.log('Ctrl+R pressed - entering rectangle creation mode');
-                    this.stateManager.setInteractionMode('creating-rectangle');
-                    return;
-                case 't':
-                    event.preventDefault();
-                    event.stopPropagation();
-                    this.stateManager.setInteractionMode('creating-text');
-                    return;
                 case 'z':
                     event.preventDefault();
                     if (event.shiftKey) {
@@ -405,17 +394,6 @@ export class EventController {
                     }
                     return;
             }
-        }
-        
-        // Handle other shortcuts
-        switch (event.key) {
-            case 'Escape':
-                this.handleEscape();
-                break;
-            case 'Delete':
-            case 'Backspace':
-                this.handleDelete();
-                break;
         }
     }
 

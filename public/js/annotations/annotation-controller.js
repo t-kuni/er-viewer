@@ -167,7 +167,10 @@ export class AnnotationController {
                 y: parseFloat(document.getElementById('text-y').value)
             };
             
-            const newLayoutData = { ...currentState.layoutData };
+            // Get fresh state to avoid stale reference
+            const freshState = this.stateManager.getState();
+            const newLayoutData = { ...freshState.layoutData };
+            newLayoutData.texts = [...newLayoutData.texts];
             newLayoutData.texts[index] = updatedText;
             this.stateManager.updateLayoutData(newLayoutData);
             

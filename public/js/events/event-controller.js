@@ -173,21 +173,27 @@ export class EventController {
                 if (resizeHandle) {
                     this.startRectangleResizing(event, resizeHandle);
                 } else {
-                    // Check if user clicked on a rectangle or rectangle group
-                    const rectangleElement = event.target && event.target.closest ? (
-                        event.target.closest('.annotation-rectangle') || 
-                        event.target.closest('.annotation-rectangle-group')
-                    ) : null;
-                    if (rectangleElement) {
-                        this.startRectangleDragging(event, rectangleElement);
+                    // Check if user clicked on a text annotation
+                    const textElement = event.target && event.target.closest ? event.target.closest('.annotation-text') : null;
+                    if (textElement) {
+                        this.startTextDragging(event, textElement);
                     } else {
-                        // Check if user clicked on an entity
-                        const entityElement = event.target && event.target.closest ? event.target.closest('.entity') : null;
-                        if (entityElement) {
-                            this.startEntityDragging(event, entityElement);
+                        // Check if user clicked on a rectangle or rectangle group
+                        const rectangleElement = event.target && event.target.closest ? (
+                            event.target.closest('.annotation-rectangle') || 
+                            event.target.closest('.annotation-rectangle-group')
+                        ) : null;
+                        if (rectangleElement) {
+                            this.startRectangleDragging(event, rectangleElement);
                         } else {
-                            this.clearRectangleSelection();
-                            this.startPanning(event);
+                            // Check if user clicked on an entity
+                            const entityElement = event.target && event.target.closest ? event.target.closest('.entity') : null;
+                            if (entityElement) {
+                                this.startEntityDragging(event, entityElement);
+                            } else {
+                                this.clearRectangleSelection();
+                                this.startPanning(event);
+                            }
                         }
                     }
                 }
@@ -223,6 +229,9 @@ export class EventController {
             case 'dragging-entity':
                 this.handleEntityDragging(event);
                 break;
+            case 'dragging-text':
+                this.handleTextDragging(event);
+                break;
             case 'dragging-rectangle':
                 this.handleRectangleDragging(event);
                 break;
@@ -253,6 +262,9 @@ export class EventController {
                 break;
             case 'dragging-entity':
                 this.endEntityDragging(event);
+                break;
+            case 'dragging-text':
+                this.endTextDragging(event);
                 break;
             case 'dragging-rectangle':
                 this.endRectangleDragging(event);
@@ -294,11 +306,20 @@ export class EventController {
             return;
         }
         
-        // Handle entity clicks
+        // Handle entity clicks (prioritize entities over text annotations)
         if (event.target && event.target.closest) {
             const entityElement = event.target.closest('.entity');
             if (entityElement) {
                 this.handleEntityClick(event, entityElement);
+                return;
+            }
+        }
+        
+        // Handle text clicks
+        if (event.target && event.target.closest) {
+            const textElement = event.target.closest('.annotation-text');
+            if (textElement) {
+                this.handleTextClick(event, textElement);
                 return;
             }
         }
@@ -800,8 +821,36 @@ export class EventController {
      * @param {MouseEvent} event - Mouse event
      */
     startTextCreation(event) {
-        // TODO: Implement text creation functionality
-        console.log('Text creation not implemented yet');
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        console.log('Starting text creation at:', svgPoint);
+        
+        // Prompt user for text input
+        const textContent = prompt('テキストを入力してください:');
+        if (textContent && textContent.trim()) {
+            // Create text annotation
+            const textAnnotation = {
+                x: svgPoint.x,
+                y: svgPoint.y,
+                content: textContent.trim(),
+                color: '#2c3e50',
+                size: 14
+            };
+            
+            // Add text to layout data
+            const currentState = this.stateManager.getState();
+            const newLayoutData = { ...currentState.layoutData };
+            if (!newLayoutData.texts) {
+                newLayoutData.texts = [];
+            }
+            newLayoutData.texts.push(textAnnotation);
+            
+            this.stateManager.updateLayoutData(newLayoutData);
+            console.log('Text annotation created:', textAnnotation);
+        }
+        
         this.stateManager.setInteractionMode('default');
     }
 
@@ -829,6 +878,94 @@ export class EventController {
         
         this.stateManager.updateLayoutData(newLayoutData);
         this.stateManager.setInteractionMode('default');
+    }
+
+    // Text interaction handlers
+
+    /**
+     * Start text dragging
+     * @param {MouseEvent} event - Mouse event
+     * @param {Element} textElement - Text DOM element
+     */
+    startTextDragging(event, textElement) {
+        const textIndex = parseInt(textElement.getAttribute('data-index'));
+        const currentState = this.stateManager.getState();
+        const textData = currentState.layoutData.texts && currentState.layoutData.texts[textIndex];
+        
+        if (!textData) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        this.stateManager.setInteractionMode('dragging-text', {
+            textIndex,
+            startPosition: { x: textData.x, y: textData.y },
+            startMouse: svgPoint,
+            offset: {
+                x: svgPoint.x - textData.x,
+                y: svgPoint.y - textData.y
+            }
+        });
+        
+        // Select the text
+        this.stateManager.setState({ selectedAnnotation: { type: 'text', index: textIndex } });
+    }
+
+    /**
+     * Handle text dragging movement
+     * @param {MouseEvent} event - Mouse event
+     */
+    handleTextDragging(event) {
+        const dragState = this.stateManager.get('dragState');
+        if (!dragState) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        const newPosition = {
+            x: svgPoint.x - dragState.offset.x,
+            y: svgPoint.y - dragState.offset.y
+        };
+        
+        // Update text position in layout data
+        const currentState = this.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        if (newLayoutData.texts && newLayoutData.texts[dragState.textIndex]) {
+            newLayoutData.texts = [...newLayoutData.texts];
+            newLayoutData.texts[dragState.textIndex] = {
+                ...newLayoutData.texts[dragState.textIndex],
+                x: newPosition.x,
+                y: newPosition.y
+            };
+            
+            this.stateManager.updateLayoutData(newLayoutData);
+        }
+    }
+
+    /**
+     * End text dragging
+     * @param {MouseEvent} event - Mouse event
+     */
+    endTextDragging(event) {
+        this.stateManager.setInteractionMode('default');
+    }
+
+    /**
+     * Handle text click
+     * @param {MouseEvent} event - Mouse event
+     * @param {Element} textElement - Text DOM element
+     */
+    handleTextClick(event, textElement) {
+        const textIndex = parseInt(textElement.getAttribute('data-index'));
+        console.log('Text clicked:', textIndex);
+        
+        // Select the text
+        this.stateManager.setState({ selectedAnnotation: { type: 'text', index: textIndex } });
+        
+        // Emit custom event for text click
+        this.emit('text-click', { textIndex, event });
     }
 
     // Event-specific handlers

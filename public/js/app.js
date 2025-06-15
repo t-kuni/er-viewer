@@ -157,6 +157,9 @@ function addText() {
         };
         const currentState = erViewer.stateManager.getState();
         const newLayoutData = { ...currentState.layoutData };
+        if (!newLayoutData.texts) {
+            newLayoutData.texts = [];
+        }
         newLayoutData.texts.push(textObj);
         erViewer.stateManager.updateLayoutData(newLayoutData);
     }

@@ -192,8 +192,12 @@ export class MouseHandler {
     }
 
     handleContextMenu(e) {
-        e.preventDefault();
-        if (this.viewer.selectedAnnotation) {
+        console.log('handleContextMenu called', e.target);
+        const annotation = e.target.closest('.custom-rectangle, .custom-text');
+        console.log('Found annotation:', annotation);
+        if (annotation) {
+            e.preventDefault();
+            this.viewer.selectAnnotation(annotation);
             this.viewer.showContextMenu(e.clientX, e.clientY);
         }
     }

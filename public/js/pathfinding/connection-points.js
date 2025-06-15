@@ -55,7 +55,7 @@ export class ConnectionPoints {
         const columnY = entityBounds.top + headerHeight + (columnIndex + 1) * rowHeight - rowHeight/2;
         
         return {
-            x: entityBounds.centerX,
+            x: entityBounds.centerX || (entityBounds.left + entityBounds.width / 2),
             y: columnY,
             columnIndex: columnIndex
         };
@@ -65,7 +65,9 @@ export class ConnectionPoints {
         const margin = 5;
         
         // Determine which side to connect from based on target position
-        const toTargetCenter = targetBounds.centerX - entityBounds.centerX;
+        const targetCenterX = targetBounds.centerX || (targetBounds.left + targetBounds.width / 2);
+        const entityCenterX = entityBounds.centerX || (entityBounds.left + entityBounds.width / 2);
+        const toTargetCenter = targetCenterX - entityCenterX;
         
         if (toTargetCenter > 0) {
             // Target is to the right, connect from right edge
@@ -112,12 +114,14 @@ export class ConnectionPoints {
 
     getEntityEdgePoints(bounds) {
         const margin = 5; // Small margin from the exact edge for visual clarity
+        const centerX = bounds.centerX || (bounds.left + bounds.width / 2);
+        const centerY = bounds.centerY || (bounds.top + bounds.height / 2);
         
         return {
-            top: { x: bounds.centerX, y: bounds.top - margin },
-            bottom: { x: bounds.centerX, y: bounds.bottom + margin },
-            left: { x: bounds.left - margin, y: bounds.centerY },
-            right: { x: bounds.right + margin, y: bounds.centerY }
+            top: { x: centerX, y: bounds.top - margin },
+            bottom: { x: centerX, y: bounds.bottom + margin },
+            left: { x: bounds.left - margin, y: centerY },
+            right: { x: bounds.right + margin, y: centerY }
         };
     }
 

@@ -94,8 +94,8 @@ export class CanvasRenderer {
         this.initializeCanvas();
         
         // Render in correct order for proper layering
-        this.renderRelationships(erData.relationships, layoutData.entities);
         this.renderEntities(erData.entities, layoutData.entities);
+        this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
         this.renderAnnotations(layoutData.rectangles, layoutData.texts);
     }
 
@@ -304,12 +304,18 @@ export class CanvasRenderer {
      * Render relationships between entities
      * @param {Array} relationships - Relationship data
      * @param {Object} entityPositions - Entity position data
+     * @param {Array} entities - Entity data for connection points
      */
-    renderRelationships(relationships, entityPositions) {
+    renderRelationships(relationships, entityPositions, entities) {
         const relationshipGroup = document.getElementById('relationship-layer');
         if (!relationshipGroup) return;
         
         relationshipGroup.innerHTML = '';
+        
+        // Update connection points with entity data
+        if (entities) {
+            this.connectionPoints.setERData({ entities });
+        }
         
         relationships.forEach(relationship => {
             const pathElement = this.createRelationshipPath(relationship, entityPositions);
@@ -340,7 +346,7 @@ export class CanvasRenderer {
         const toEntityBounds = this.getEntityBounds(relationship.to, entityPositions);
         
         const connectionPoints = this.connectionPoints.findOptimalConnectionPoints(
-            fromEntityBounds, toEntityBounds, relationship.fromColumn, relationship.toColumn
+            fromEntityBounds, toEntityBounds, relationship
         );
         
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -523,7 +529,9 @@ export class CanvasRenderer {
             right: position.x + dimensions.width,
             bottom: position.y + dimensions.height,
             width: dimensions.width,
-            height: dimensions.height
+            height: dimensions.height,
+            centerX: position.x + dimensions.width / 2,
+            centerY: position.y + dimensions.height / 2
         };
     }
 

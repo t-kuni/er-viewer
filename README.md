@@ -80,3 +80,10 @@ open http://localhost:3000
 ```
 claude --mcp-config mcp-servers.json
 ```
+
+### 5. コンテナイメージ更新
+
+```
+docker build -t tkuni83/er-viewer .
+docker push tkuni83/er-viewer
+```

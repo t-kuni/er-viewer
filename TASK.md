@@ -313,21 +313,7 @@ Based on SPEC.md requirements and current implementation analysis.
   - Priority: Low
   - Estimate: 6-8 hours
 
-### 8.6 開発ツールの改善（最優先）
-- [ ] **Linter/Formatterの導入** - コード品質の自動化
-  - Currently: コードスタイルの統一なし
-  - Required: ESLint/Prettier等の導入、プリコミットフック設定
-  - Benefit: コード品質担保、チーム開発での一貫性
-  - Priority: Critical
-  - Estimate: 2-3 hours
-
-- [ ] **プリコミットフックの設定** - Husky + lint-staged でコード品質チェック自動化
-  - Currently: コミット前のチェック機能なし
-  - Required: Husky, lint-staged導入、Git hooks設定
-  - Benefit: 問題のあるコードのコミット防止
-  - Priority: Critical
-  - Estimate: 1-2 hours
-
+### 8.6 開発ツールの改善
 - [ ] **Build pipelineの改善** - モダンなビルドツールの導入
   - Currently: 単純なスクリプト実行
   - Required: Webpack/Vite等でのバンドル最適化
@@ -341,10 +327,10 @@ Based on SPEC.md requirements and current implementation analysis.
 **In Progress**: 0 tasks  
 **Not Started**: 34 tasks (47%)
 
-**Critical Priority**: 12 tasks (~80-100 hours) - **Canvas・テストコードリファクタリング（緊急）**
+**Critical Priority**: 10 tasks (~77-95 hours) - **Canvas・テストコードリファクタリング（緊急）**
 **High Priority Remaining**: 4 tasks (~20-26 hours)
 **Medium Priority Remaining**: 16 tasks (~69-80 hours)  
-**Low Priority Remaining**: 10 tasks (~50-65 hours)
+**Low Priority Remaining**: 12 tasks (~53-68 hours) - Lint関連タスクを後回しに変更
 
 **Core Functionality Status**: ✅ Complete (all essential features working)
 **Enhancement Status**: ⚠️ Partial (user experience improvements needed)
@@ -365,3 +351,20 @@ Based on SPEC.md requirements and current implementation analysis.
    - テスト環境構築・エラーハンドリング改善・Smart positioning, line routing
 
 4. **Phase 4 (Architecture)**: API separation, component architecture, build pipeline
+
+## 9. 後回しタスク (Deferred Tasks)
+
+### 9.1 開発ツール（Lint関連）
+- [ ] **Linter/Formatterの導入** - コード品質の自動化
+  - Currently: コードスタイルの統一なし
+  - Required: ESLint/Prettier等の導入、プリコミットフック設定
+  - Benefit: コード品質担保、チーム開発での一貫性
+  - Priority: Low (後回し)
+  - Estimate: 2-3 hours
+
+- [ ] **プリコミットフックの設定** - Husky + lint-staged でコード品質チェック自動化
+  - Currently: コミット前のチェック機能なし
+  - Required: Husky, lint-staged導入、Git hooks設定
+  - Benefit: 問題のあるコードのコミット防止
+  - Priority: Low (後回し)
+  - Estimate: 1-2 hours

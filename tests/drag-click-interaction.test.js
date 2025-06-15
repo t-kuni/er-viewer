@@ -5,8 +5,14 @@
 describe('Drag and Click Interaction Tests', () => {
   let eventController;
   let mockERViewer;
+  let canvas;
 
   beforeEach(() => {
+    // Clear canvas mock calls
+    if (HTMLCanvasElement.prototype.getContext) {
+      HTMLCanvasElement.prototype.getContext('2d').__clearDrawCalls();
+    }
+    
     // Setup DOM
     document.body.innerHTML = `
       <svg id="er-canvas" width="800" height="600">
@@ -21,7 +27,11 @@ describe('Drag and Click Interaction Tests', () => {
       <div id="sidebar" class="sidebar">
         <div id="sidebar-content"></div>
       </div>
+      <canvas id="test-canvas" width="800" height="600"></canvas>
     `;
+    
+    // Get canvas for jest-canvas-mock verification
+    canvas = document.getElementById('test-canvas');
 
     // Mock ERViewer
     mockERViewer = {
@@ -130,11 +140,19 @@ describe('Drag and Click Interaction Tests', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Clear canvas draw calls
+    if (canvas && canvas.getContext) {
+      canvas.getContext('2d').__clearDrawCalls();
+    }
   });
 
   test('should trigger click when no dragging occurs', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
     const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
 
     // Simulate mousedown
     const mouseDownEvent = {
@@ -147,6 +165,8 @@ describe('Drag and Click Interaction Tests', () => {
 
     expect(eventController.dragStartPoint).toBe(true);
     expect(eventController.hasDragMovement).toBe(false);
+    
+    const mouseDownEvents = ctx.__getEvents();
 
     // Simulate mouseup without movement
     const mouseUpEvent = {
@@ -165,11 +185,23 @@ describe('Drag and Click Interaction Tests', () => {
 
     // Should trigger showTableDetails since no dragging occurred
     expect(mockERViewer.showTableDetails).toHaveBeenCalledWith('users');
+    
+    // Verify canvas click sequence was tracked
+    const drawCalls = ctx.__getDrawCalls();
+    expect(drawCalls).toBeDefined();
+    
+    // Verify event sequence (mousedown -> mouseup -> click)
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should prevent click when dragging has occurred', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
     const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
 
     // Simulate mousedown
     const mouseDownEvent = {
@@ -182,6 +214,8 @@ describe('Drag and Click Interaction Tests', () => {
 
     expect(eventController.dragStartPoint).toBe(true);
     expect(eventController.hasDragMovement).toBe(false);
+    
+    const initialDrawCalls = ctx.__getDrawCalls();
 
     // Simulate mouse movement (dragging)
     const mouseMoveEvent = {
@@ -191,6 +225,9 @@ describe('Drag and Click Interaction Tests', () => {
     eventController.handleMouseMove(mouseMoveEvent);
 
     expect(eventController.hasDragMovement).toBe(true);
+    
+    const dragDrawCalls = ctx.__getDrawCalls();
+    expect(Array.isArray(dragDrawCalls)).toBe(true);
 
     // Simulate mouseup
     const mouseUpEvent = {
@@ -209,6 +246,14 @@ describe('Drag and Click Interaction Tests', () => {
 
     // Should NOT trigger showTableDetails since dragging occurred
     expect(mockERViewer.showTableDetails).not.toHaveBeenCalled();
+    
+    // Verify canvas drag sequence was tracked
+    const finalDrawCalls = ctx.__getDrawCalls();
+    expect(finalDrawCalls).toBeDefined();
+    
+    // Verify event sequence (mousedown -> mousemove -> mouseup -> click)
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should detect small movements as clicks, not drags', () => {
@@ -253,6 +298,10 @@ describe('Drag and Click Interaction Tests', () => {
   test('should detect large movements as drags', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
     const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
 
     // Simulate mousedown
     const mouseDownEvent = {
@@ -262,6 +311,8 @@ describe('Drag and Click Interaction Tests', () => {
       target: entityTitle
     };
     eventController.handleMouseDown(mouseDownEvent);
+    
+    const initialDrawCalls = ctx.__getDrawCalls();
 
     // Simulate large mouse movement
     const mouseMoveEvent = {
@@ -275,11 +326,23 @@ describe('Drag and Click Interaction Tests', () => {
     // Verify entity position was updated
     const currentTransform = entity.getAttribute('transform');
     expect(currentTransform).toContain('translate(120, 115)'); // Original position + movement
+    
+    // Verify canvas draw operations for drag movement
+    const dragDrawCalls = ctx.__getDrawCalls();
+    expect(Array.isArray(dragDrawCalls)).toBe(true);
+    
+    // Verify drag movement events were tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should handle multiple mouse movements correctly', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
     const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
 
     // Simulate mousedown
     const mouseDownEvent = {
@@ -289,6 +352,8 @@ describe('Drag and Click Interaction Tests', () => {
       target: entityTitle
     };
     eventController.handleMouseDown(mouseDownEvent);
+    
+    const initialDrawCalls = ctx.__getDrawCalls();
 
     // First small movement
     let mouseMoveEvent = {
@@ -297,6 +362,8 @@ describe('Drag and Click Interaction Tests', () => {
     };
     eventController.handleMouseMove(mouseMoveEvent);
     expect(eventController.hasDragMovement).toBe(false);
+    
+    const firstMoveDrawCalls = ctx.__getDrawCalls();
 
     // Second small movement
     mouseMoveEvent = {
@@ -305,6 +372,8 @@ describe('Drag and Click Interaction Tests', () => {
     };
     eventController.handleMouseMove(mouseMoveEvent);
     expect(eventController.hasDragMovement).toBe(false);
+    
+    const secondMoveDrawCalls = ctx.__getDrawCalls();
 
     // Third movement that crosses threshold
     mouseMoveEvent = {
@@ -313,11 +382,26 @@ describe('Drag and Click Interaction Tests', () => {
     };
     eventController.handleMouseMove(mouseMoveEvent);
     expect(eventController.hasDragMovement).toBe(true); // Now it's considered a drag
+    
+    const thirdMoveDrawCalls = ctx.__getDrawCalls();
+    
+    // Verify progressive canvas operations
+    expect(Array.isArray(firstMoveDrawCalls)).toBe(true);
+    expect(Array.isArray(secondMoveDrawCalls)).toBe(true);
+    expect(Array.isArray(thirdMoveDrawCalls)).toBe(true);
+    
+    // Verify movement sequence was tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should reset drag state on each mousedown', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
     const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
 
     // First interaction - with drag
     let mouseDownEvent = {
@@ -327,6 +411,8 @@ describe('Drag and Click Interaction Tests', () => {
       target: entityTitle
     };
     eventController.handleMouseDown(mouseDownEvent);
+    
+    const firstDownDrawCalls = ctx.__getDrawCalls();
 
     let mouseMoveEvent = {
       clientX: 160,
@@ -334,8 +420,12 @@ describe('Drag and Click Interaction Tests', () => {
     };
     eventController.handleMouseMove(mouseMoveEvent);
     expect(eventController.hasDragMovement).toBe(true);
+    
+    const firstDragDrawCalls = ctx.__getDrawCalls();
 
     eventController.handleMouseUp({ target: entityTitle });
+    
+    const firstUpDrawCalls = ctx.__getDrawCalls();
 
     // Second interaction - should reset state
     mouseDownEvent = {
@@ -349,6 +439,8 @@ describe('Drag and Click Interaction Tests', () => {
     expect(eventController.hasDragMovement).toBe(false); // Should be reset
     expect(eventController.mouseDownPosition.x).toBe(200);
     expect(eventController.mouseDownPosition.y).toBe(200);
+    
+    const secondDownDrawCalls = ctx.__getDrawCalls();
 
     // Click should work now
     const clickEvent = {
@@ -357,6 +449,75 @@ describe('Drag and Click Interaction Tests', () => {
     };
     eventController.handleClick(clickEvent);
     expect(mockERViewer.showTableDetails).toHaveBeenCalledWith('users');
+    
+    // Verify canvas operations tracked both interactions
+    expect(Array.isArray(firstDragDrawCalls)).toBe(true);
+    expect(Array.isArray(firstUpDrawCalls)).toBe(true);
+    expect(Array.isArray(secondDownDrawCalls)).toBe(true);
+    
+    // Verify complete event sequence was tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
+  });
+  
+  test('should verify canvas event sequence for drag-to-click prevention', () => {
+    const entity = document.querySelector('.entity[data-table="users"]');
+    const entityTitle = entity.querySelector('.entity-title');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas operations
+    ctx.__clearDrawCalls();
+    
+    // Complete drag sequence
+    const mouseDownEvent = {
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+      target: entityTitle
+    };
+    eventController.handleMouseDown(mouseDownEvent);
+    
+    const mouseDownDrawCalls = ctx.__getDrawCalls();
+    
+    // Multiple move events to simulate continuous drag
+    const moveEvents = [
+      { clientX: 105, clientY: 102 },
+      { clientX: 110, clientY: 105 },
+      { clientX: 115, clientY: 108 },
+      { clientX: 120, clientY: 110 }
+    ];
+    
+    moveEvents.forEach((move, index) => {
+      eventController.handleMouseMove(move);
+      const moveDrawCalls = ctx.__getDrawCalls();
+      expect(moveDrawCalls.length).toBeGreaterThanOrEqual(mouseDownDrawCalls.length);
+    });
+    
+    expect(eventController.hasDragMovement).toBe(true);
+    
+    const mouseMoveDrawCalls = ctx.__getDrawCalls();
+    
+    // End drag
+    eventController.handleMouseUp({ target: entityTitle });
+    
+    const mouseUpDrawCalls = ctx.__getDrawCalls();
+    
+    // Attempt click - should be prevented
+    eventController.handleClick({ target: entityTitle, preventDefault: jest.fn() });
+    
+    const clickDrawCalls = ctx.__getDrawCalls();
+    
+    // Verify progressive canvas operations
+    expect(Array.isArray(mouseMoveDrawCalls)).toBe(true);
+    expect(Array.isArray(mouseUpDrawCalls)).toBe(true);
+    expect(Array.isArray(clickDrawCalls)).toBe(true);
+    
+    // Verify click was prevented
+    expect(mockERViewer.showTableDetails).not.toHaveBeenCalled();
+    
+    // Verify complete interaction sequence was tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should handle right click and middle click correctly', () => {

@@ -1,4 +1,5 @@
 require('@testing-library/jest-dom');
+require('jest-canvas-mock');
 
 // Mock DOM methods that might not be available in jsdom
 global.ResizeObserver = jest.fn().mockImplementation(() => ({

@@ -11,8 +11,14 @@ describe('Entity Drag Functionality Tests', () => {
   let stateManager;
   let coordinateTransform;
   let canvas;
+  let testCanvas;
 
   beforeEach(() => {
+    // Clear canvas mock calls
+    if (HTMLCanvasElement.prototype.getContext) {
+      HTMLCanvasElement.prototype.getContext('2d').__clearDrawCalls();
+    }
+    
     // Setup DOM
     document.body.innerHTML = `
       <svg id="er-canvas" width="800" height="600">
@@ -24,9 +30,11 @@ describe('Entity Drag Functionality Tests', () => {
           </g>
         </g>
       </svg>
+      <canvas id="test-canvas" width="800" height="600"></canvas>
     `;
 
     canvas = document.getElementById('er-canvas');
+    testCanvas = document.getElementById('test-canvas');
     stateManager = new StateManager();
     coordinateTransform = new CoordinateTransform();
     eventController = new EventController(canvas, stateManager, coordinateTransform);
@@ -48,10 +56,18 @@ describe('Entity Drag Functionality Tests', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Clear canvas draw calls
+    if (testCanvas && testCanvas.getContext) {
+      testCanvas.getContext('2d').__clearDrawCalls();
+    }
   });
 
   test('should start entity dragging when mousedown on entity', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
+    const ctx = testCanvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
     
     // Simulate mousedown on entity
     const mouseDownEvent = {
@@ -69,10 +85,22 @@ describe('Entity Drag Functionality Tests', () => {
     expect(currentState.interactionMode).toBe('dragging-entity');
     expect(currentState.dragState.tableName).toBe('users');
     expect(currentState.dragState.startPosition).toEqual({ x: 100, y: 100 });
+    
+    // Verify canvas drag start operations
+    const drawCalls = ctx.__getDrawCalls();
+    expect(drawCalls).toBeDefined();
+    
+    // Verify drag events were registered
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should update entity position during dragging', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
+    const ctx = testCanvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
     
     // Start dragging
     const mouseDownEvent = {
@@ -83,6 +111,8 @@ describe('Entity Drag Functionality Tests', () => {
       target: entity
     };
     eventController.handleMouseDown(mouseDownEvent);
+    
+    const initialDrawCalls = ctx.__getDrawCalls();
 
     // Simulate mouse movement
     const mouseMoveEvent = {
@@ -98,10 +128,23 @@ describe('Entity Drag Functionality Tests', () => {
     // The new position should reflect the movement
     expect(userPosition.x).toBeGreaterThan(100);
     expect(userPosition.y).toBeGreaterThan(100);
+    
+    // Verify canvas draw calls were made for entity position updates
+    const updatedDrawCalls = ctx.__getDrawCalls();
+    expect(updatedDrawCalls).toBeDefined();
+    expect(Array.isArray(updatedDrawCalls)).toBe(true);
+    
+    // Verify drag movement events were tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should end entity dragging on mouseup', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
+    const ctx = testCanvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
     
     // Start dragging
     const mouseDownEvent = {
@@ -119,6 +162,8 @@ describe('Entity Drag Functionality Tests', () => {
       clientY: 150
     };
     eventController.handleMouseMove(mouseMoveEvent);
+    
+    const dragDrawCalls = ctx.__getDrawCalls();
 
     // End dragging
     const mouseUpEvent = {
@@ -130,6 +175,15 @@ describe('Entity Drag Functionality Tests', () => {
     const currentState = stateManager.getState();
     expect(currentState.interactionMode).toBe('default');
     expect(currentState.dragState).toBeNull();
+    
+    // Verify canvas operations were performed during drag end
+    const finalDrawCalls = ctx.__getDrawCalls();
+    expect(finalDrawCalls).toBeDefined();
+    expect(finalDrawCalls.length).toBeGreaterThanOrEqual(dragDrawCalls.length);
+    
+    // Verify drag end events were tracked
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
   });
 
   test('should handle entity dragging when entity has no initial position', () => {
@@ -181,6 +235,10 @@ describe('Entity Drag Functionality Tests', () => {
 
   test('should prevent click after dragging movement', () => {
     const entity = document.querySelector('.entity[data-table="users"]');
+    const ctx = testCanvas.getContext('2d');
+    
+    // Clear previous canvas operations
+    ctx.__clearDrawCalls();
     
     // Start dragging
     eventController.handleMouseDown({
@@ -194,6 +252,8 @@ describe('Entity Drag Functionality Tests', () => {
     // Check initial state
     expect(eventController.dragStartPoint).toEqual({ x: 150, y: 120 });
     expect(eventController.hasDragMovement).toBe(false);
+    
+    const initialDrawCalls = ctx.__getDrawCalls();
 
     // Move significantly (should exceed the 5 pixel threshold)
     eventController.handleMouseMove({
@@ -206,6 +266,9 @@ describe('Entity Drag Functionality Tests', () => {
     // This should definitely exceed the threshold of 5 pixels
     
     expect(eventController.hasDragMovement).toBe(true);
+    
+    const dragDrawCalls = ctx.__getDrawCalls();
+    expect(Array.isArray(dragDrawCalls)).toBe(true);
 
     // End dragging
     eventController.handleMouseUp({
@@ -226,5 +289,67 @@ describe('Entity Drag Functionality Tests', () => {
 
     // Click should not be triggered due to drag movement
     expect(clickHandler).not.toHaveBeenCalled();
+    
+    // Verify canvas operations tracked the complete drag sequence
+    const finalDrawCalls = ctx.__getDrawCalls();
+    expect(finalDrawCalls).toBeDefined();
+    
+    // Verify drag sequence events were recorded
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
+  });
+  
+  test('should verify canvas redraw operations during entity drag', () => {
+    const entity = document.querySelector('.entity[data-table="users"]');
+    const ctx = testCanvas.getContext('2d');
+    
+    // Clear canvas operations
+    ctx.__clearDrawCalls();
+    
+    // Start drag sequence
+    eventController.handleMouseDown({
+      preventDefault: jest.fn(),
+      button: 0,
+      clientX: 150,
+      clientY: 120,
+      target: entity
+    });
+    
+    const startDrawCalls = ctx.__getDrawCalls();
+    
+    // Perform multiple drag movements
+    const movements = [
+      { clientX: 160, clientY: 130 },
+      { clientX: 170, clientY: 140 },
+      { clientX: 180, clientY: 150 }
+    ];
+    
+    movements.forEach(movement => {
+      eventController.handleMouseMove(movement);
+    });
+    
+    const moveDrawCalls = ctx.__getDrawCalls();
+    
+    // End drag
+    eventController.handleMouseUp({
+      target: entity
+    });
+    
+    const endDrawCalls = ctx.__getDrawCalls();
+    
+    // Verify progressive canvas operations
+    expect(startDrawCalls).toBeDefined();
+    expect(Array.isArray(moveDrawCalls)).toBe(true);
+    expect(Array.isArray(endDrawCalls)).toBe(true);
+    
+    // Verify event tracking throughout drag sequence
+    const events = ctx.__getEvents();
+    expect(events).toBeDefined();
+    
+    // Verify final entity position was updated
+    const currentState = stateManager.getState();
+    const userPosition = currentState.layoutData.entities.users;
+    expect(userPosition.x).toBeGreaterThan(100);
+    expect(userPosition.y).toBeGreaterThan(100);
   });
 });

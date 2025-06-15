@@ -244,6 +244,6 @@ export class ERViewerCore {
      */
     handleContextMenu(data) {
         console.log('Context menu requested at:', data.screenX, data.screenY);
-        this.uiController.showContextMenu(data.screenX, data.screenY);
+        this.uiController.showContextMenu(data.screenX, data.screenY, { target: data.target });
     }
 }

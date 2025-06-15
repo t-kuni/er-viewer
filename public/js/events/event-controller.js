@@ -19,6 +19,9 @@ export class EventController {
         this.hasDragMovement = false;
         this.lastHadDragMovement = false;
         
+        // Rectangle selection state
+        this.selectedRectangle = null;
+        
         // Event handler bindings
         this.boundHandlers = {
             wheel: this.handleWheel.bind(this),
@@ -165,12 +168,28 @@ export class EventController {
                 this.startTextCreation(event);
                 break;
             default:
-                // Check if user clicked on an entity first
-                const entityElement = event.target && event.target.closest ? event.target.closest('.entity') : null;
-                if (entityElement) {
-                    this.startEntityDragging(event, entityElement);
+                // Check if user clicked on a resize handle first
+                const resizeHandle = event.target && event.target.classList && event.target.classList.contains('resize-handle') ? event.target : null;
+                if (resizeHandle) {
+                    this.startRectangleResizing(event, resizeHandle);
                 } else {
-                    this.startPanning(event);
+                    // Check if user clicked on a rectangle or rectangle group
+                    const rectangleElement = event.target && event.target.closest ? (
+                        event.target.closest('.annotation-rectangle') || 
+                        event.target.closest('.annotation-rectangle-group')
+                    ) : null;
+                    if (rectangleElement) {
+                        this.startRectangleDragging(event, rectangleElement);
+                    } else {
+                        // Check if user clicked on an entity
+                        const entityElement = event.target && event.target.closest ? event.target.closest('.entity') : null;
+                        if (entityElement) {
+                            this.startEntityDragging(event, entityElement);
+                        } else {
+                            this.clearRectangleSelection();
+                            this.startPanning(event);
+                        }
+                    }
                 }
                 break;
         }
@@ -204,6 +223,12 @@ export class EventController {
             case 'dragging-entity':
                 this.handleEntityDragging(event);
                 break;
+            case 'dragging-rectangle':
+                this.handleRectangleDragging(event);
+                break;
+            case 'resizing-rectangle':
+                this.handleRectangleResizing(event);
+                break;
             case 'creating-rectangle':
                 this.handleRectangleCreation(event);
                 break;
@@ -228,6 +253,12 @@ export class EventController {
                 break;
             case 'dragging-entity':
                 this.endEntityDragging(event);
+                break;
+            case 'dragging-rectangle':
+                this.endRectangleDragging(event);
+                break;
+            case 'resizing-rectangle':
+                this.endRectangleResizing(event);
                 break;
             case 'creating-rectangle':
                 this.endRectangleCreation(event);
@@ -329,7 +360,32 @@ export class EventController {
     handleKeyDown(event) {
         const currentState = this.stateManager.getState();
         
-        // Handle global shortcuts
+        // Handle global shortcuts - prevent default first for custom shortcuts
+        if (event.ctrlKey || event.metaKey) {
+            switch (event.key) {
+                case 'r':
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log('Ctrl+R pressed - entering rectangle creation mode');
+                    this.stateManager.setInteractionMode('creating-rectangle');
+                    return;
+                case 't':
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.stateManager.setInteractionMode('creating-text');
+                    return;
+                case 'z':
+                    event.preventDefault();
+                    if (event.shiftKey) {
+                        this.stateManager.redo();
+                    } else {
+                        this.stateManager.undo();
+                    }
+                    return;
+            }
+        }
+        
+        // Handle other shortcuts
         switch (event.key) {
             case 'Escape':
                 this.handleEscape();
@@ -337,28 +393,6 @@ export class EventController {
             case 'Delete':
             case 'Backspace':
                 this.handleDelete();
-                break;
-            case 'z':
-                if (event.ctrlKey || event.metaKey) {
-                    event.preventDefault();
-                    if (event.shiftKey) {
-                        this.stateManager.redo();
-                    } else {
-                        this.stateManager.undo();
-                    }
-                }
-                break;
-            case 'r':
-                if (event.ctrlKey || event.metaKey) {
-                    event.preventDefault();
-                    this.stateManager.setInteractionMode('creating-rectangle');
-                }
-                break;
-            case 't':
-                if (event.ctrlKey || event.metaKey) {
-                    event.preventDefault();
-                    this.stateManager.setInteractionMode('creating-text');
-                }
                 break;
         }
     }
@@ -487,6 +521,233 @@ export class EventController {
     }
 
     /**
+     * Start rectangle dragging
+     * @param {MouseEvent} event - Mouse event
+     * @param {Element} rectangleElement - Rectangle DOM element
+     */
+    startRectangleDragging(event, rectangleElement) {
+        const rectangleIndex = parseInt(rectangleElement.getAttribute('data-index'));
+        const currentState = this.stateManager.getState();
+        const rectangleData = currentState.layoutData.rectangles[rectangleIndex];
+        
+        if (!rectangleData) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        this.stateManager.setInteractionMode('dragging-rectangle', {
+            rectangleIndex,
+            startPosition: { x: rectangleData.x, y: rectangleData.y },
+            startMouse: svgPoint,
+            offset: {
+                x: svgPoint.x - rectangleData.x,
+                y: svgPoint.y - rectangleData.y
+            }
+        });
+        
+        // Show resize handles for the selected rectangle
+        this.showRectangleResizeHandles(rectangleIndex);
+    }
+
+    /**
+     * Handle rectangle dragging movement
+     * @param {MouseEvent} event - Mouse event
+     */
+    handleRectangleDragging(event) {
+        const dragState = this.stateManager.get('dragState');
+        if (!dragState) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        const newPosition = {
+            x: svgPoint.x - dragState.offset.x,
+            y: svgPoint.y - dragState.offset.y
+        };
+        
+        // Update rectangle position in layout data
+        const currentState = this.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        newLayoutData.rectangles = [...newLayoutData.rectangles];
+        newLayoutData.rectangles[dragState.rectangleIndex] = {
+            ...newLayoutData.rectangles[dragState.rectangleIndex],
+            x: newPosition.x,
+            y: newPosition.y
+        };
+        
+        this.stateManager.updateLayoutData(newLayoutData);
+    }
+
+    /**
+     * End rectangle dragging
+     * @param {MouseEvent} event - Mouse event
+     */
+    endRectangleDragging(event) {
+        this.stateManager.setInteractionMode('default');
+    }
+
+    /**
+     * Start rectangle resizing
+     * @param {MouseEvent} event - Mouse event
+     * @param {Element} resizeHandle - Resize handle element
+     */
+    startRectangleResizing(event, resizeHandle) {
+        const rectangleIndex = parseInt(resizeHandle.getAttribute('data-rectangle-index'));
+        const handleType = resizeHandle.getAttribute('data-handle-type');
+        const currentState = this.stateManager.getState();
+        const rectangleData = currentState.layoutData.rectangles[rectangleIndex];
+        
+        if (!rectangleData) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        this.stateManager.setInteractionMode('resizing-rectangle', {
+            rectangleIndex,
+            handleType,
+            startMouse: svgPoint,
+            originalRect: {
+                x: rectangleData.x,
+                y: rectangleData.y,
+                width: rectangleData.width,
+                height: rectangleData.height
+            }
+        });
+    }
+
+    /**
+     * Handle rectangle resizing movement
+     * @param {MouseEvent} event - Mouse event
+     */
+    handleRectangleResizing(event) {
+        const dragState = this.stateManager.get('dragState');
+        if (!dragState) return;
+        
+        const svgPoint = this.coordinateTransform.screenToSVG(
+            event.clientX, event.clientY, this.canvas
+        );
+        
+        const deltaX = svgPoint.x - dragState.startMouse.x;
+        const deltaY = svgPoint.y - dragState.startMouse.y;
+        
+        const newRect = this.calculateNewRectangleSize(
+            dragState.originalRect, 
+            dragState.handleType, 
+            deltaX, 
+            deltaY
+        );
+        
+        // Update rectangle in layout data
+        const currentState = this.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        newLayoutData.rectangles = [...newLayoutData.rectangles];
+        newLayoutData.rectangles[dragState.rectangleIndex] = {
+            ...newLayoutData.rectangles[dragState.rectangleIndex],
+            ...newRect
+        };
+        
+        this.stateManager.updateLayoutData(newLayoutData);
+    }
+
+    /**
+     * Calculate new rectangle size based on handle type and mouse movement
+     * @param {Object} originalRect - Original rectangle dimensions
+     * @param {string} handleType - Type of resize handle
+     * @param {number} deltaX - X movement delta
+     * @param {number} deltaY - Y movement delta
+     * @returns {Object} New rectangle dimensions
+     */
+    calculateNewRectangleSize(originalRect, handleType, deltaX, deltaY) {
+        const minSize = 10; // Minimum width/height
+        let newRect = { ...originalRect };
+        
+        switch (handleType) {
+            case 'nw': // Top-left
+                newRect.x = originalRect.x + deltaX;
+                newRect.y = originalRect.y + deltaY;
+                newRect.width = Math.max(minSize, originalRect.width - deltaX);
+                newRect.height = Math.max(minSize, originalRect.height - deltaY);
+                break;
+            case 'n': // Top
+                newRect.y = originalRect.y + deltaY;
+                newRect.height = Math.max(minSize, originalRect.height - deltaY);
+                break;
+            case 'ne': // Top-right
+                newRect.y = originalRect.y + deltaY;
+                newRect.width = Math.max(minSize, originalRect.width + deltaX);
+                newRect.height = Math.max(minSize, originalRect.height - deltaY);
+                break;
+            case 'e': // Right
+                newRect.width = Math.max(minSize, originalRect.width + deltaX);
+                break;
+            case 'se': // Bottom-right
+                newRect.width = Math.max(minSize, originalRect.width + deltaX);
+                newRect.height = Math.max(minSize, originalRect.height + deltaY);
+                break;
+            case 's': // Bottom
+                newRect.height = Math.max(minSize, originalRect.height + deltaY);
+                break;
+            case 'sw': // Bottom-left
+                newRect.x = originalRect.x + deltaX;
+                newRect.width = Math.max(minSize, originalRect.width - deltaX);
+                newRect.height = Math.max(minSize, originalRect.height + deltaY);
+                break;
+            case 'w': // Left
+                newRect.x = originalRect.x + deltaX;
+                newRect.width = Math.max(minSize, originalRect.width - deltaX);
+                break;
+        }
+        
+        return newRect;
+    }
+
+    /**
+     * End rectangle resizing
+     * @param {MouseEvent} event - Mouse event
+     */
+    endRectangleResizing(event) {
+        this.stateManager.setInteractionMode('default');
+    }
+
+    /**
+     * Show resize handles for a rectangle
+     * @param {number} rectangleIndex - Index of rectangle to show handles for
+     */
+    showRectangleResizeHandles(rectangleIndex) {
+        // Hide all resize handles first
+        this.hideAllResizeHandles();
+        
+        // Show handles for the selected rectangle
+        const handles = document.querySelectorAll(`[data-rectangle-index="${rectangleIndex}"].resize-handle`);
+        handles.forEach(handle => {
+            handle.style.display = 'block';
+        });
+        
+        this.selectedRectangle = rectangleIndex;
+    }
+
+    /**
+     * Hide all resize handles
+     */
+    hideAllResizeHandles() {
+        const handles = document.querySelectorAll('.resize-handle');
+        handles.forEach(handle => {
+            handle.style.display = 'none';
+        });
+    }
+
+    /**
+     * Clear rectangle selection
+     */
+    clearRectangleSelection() {
+        this.hideAllResizeHandles();
+        this.selectedRectangle = null;
+    }
+
+    /**
      * Start rectangle creation
      * @param {MouseEvent} event - Mouse event
      */
@@ -494,6 +755,8 @@ export class EventController {
         const svgPoint = this.coordinateTransform.screenToSVG(
             event.clientX, event.clientY, this.canvas
         );
+        
+        console.log('Starting rectangle creation at:', svgPoint);
         
         this.stateManager.setInteractionMode('creating-rectangle', {
             startPoint: svgPoint,
@@ -549,13 +812,19 @@ export class EventController {
     endRectangleCreation(event) {
         const dragState = this.stateManager.get('dragState');
         if (!dragState || !this.hasDragMovement) {
+            console.log('Rectangle creation ended without drag movement');
             this.stateManager.setInteractionMode('default');
             return;
         }
         
+        console.log('Ending rectangle creation, adding to layout:', dragState.currentRect);
+        
         // Add rectangle to layout data
         const currentState = this.stateManager.getState();
         const newLayoutData = { ...currentState.layoutData };
+        if (!newLayoutData.rectangles) {
+            newLayoutData.rectangles = [];
+        }
         newLayoutData.rectangles.push(dragState.currentRect);
         
         this.stateManager.updateLayoutData(newLayoutData);
@@ -659,6 +928,7 @@ export class EventController {
             screenY: event.clientY,
             svgX: svgPoint.x,
             svgY: svgPoint.y,
+            target: event.target,
             event 
         });
     }

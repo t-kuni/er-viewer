@@ -376,29 +376,45 @@ export class CanvasRenderer {
         const annotationGroup = document.getElementById('annotation-layer');
         if (!annotationGroup) return;
         
+        console.log('Rendering annotations - rectangles:', rectangles, 'texts:', texts);
+        
         annotationGroup.innerHTML = '';
         
         // Render rectangles
-        rectangles.forEach(rect => {
-            const rectElement = this.createRectangleAnnotation(rect);
-            annotationGroup.appendChild(rectElement);
-        });
+        if (rectangles && rectangles.length > 0) {
+            rectangles.forEach((rect, index) => {
+                console.log('Creating rectangle:', rect);
+                const rectElement = this.createRectangleAnnotation(rect, index);
+                annotationGroup.appendChild(rectElement);
+            });
+        }
         
         // Render texts
-        texts.forEach(text => {
-            const textElement = this.createTextAnnotation(text);
-            annotationGroup.appendChild(textElement);
-        });
+        if (texts && texts.length > 0) {
+            texts.forEach((text, index) => {
+                const textElement = this.createTextAnnotation(text, index);
+                annotationGroup.appendChild(textElement);
+            });
+        }
     }
 
     /**
      * Create rectangle annotation element
      * @param {Object} rectData - Rectangle data
-     * @returns {Element} SVG rectangle element
+     * @param {number} index - Index in rectangles array
+     * @returns {Element} SVG group element containing rectangle and resize handles
      */
-    createRectangleAnnotation(rectData) {
+    createRectangleAnnotation(rectData, index) {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('class', 'annotation-rectangle-group');
+        group.setAttribute('data-index', index);
+        group.setAttribute('data-type', 'rectangle');
+        
+        // Main rectangle
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('class', 'annotation-rectangle');
+        rect.setAttribute('data-index', index);
+        rect.setAttribute('data-type', 'rectangle');
         rect.setAttribute('x', rectData.x || 0);
         rect.setAttribute('y', rectData.y || 0);
         rect.setAttribute('width', rectData.width || 100);
@@ -409,7 +425,60 @@ export class CanvasRenderer {
         rect.setAttribute('rx', rectData.rx || 0);
         rect.setAttribute('ry', rectData.ry || 0);
         
-        return rect;
+        group.appendChild(rect);
+        
+        // Add resize handles
+        const resizeHandles = this.createResizeHandles(rectData, index);
+        resizeHandles.forEach(handle => group.appendChild(handle));
+        
+        return group;
+    }
+
+    /**
+     * Create resize handles for a rectangle
+     * @param {Object} rectData - Rectangle data
+     * @param {number} index - Rectangle index
+     * @returns {Array} Array of SVG circle elements for resize handles
+     */
+    createResizeHandles(rectData, index) {
+        const handles = [];
+        const handleSize = 6;
+        const x = rectData.x || 0;
+        const y = rectData.y || 0;
+        const width = rectData.width || 100;
+        const height = rectData.height || 50;
+        
+        // Handle positions: top-left, top-right, bottom-left, bottom-right
+        // and middle handles: top, right, bottom, left
+        const handlePositions = [
+            { name: 'nw', x: x, y: y, cursor: 'nw-resize' },
+            { name: 'n', x: x + width/2, y: y, cursor: 'n-resize' },
+            { name: 'ne', x: x + width, y: y, cursor: 'ne-resize' },
+            { name: 'e', x: x + width, y: y + height/2, cursor: 'e-resize' },
+            { name: 'se', x: x + width, y: y + height, cursor: 'se-resize' },
+            { name: 's', x: x + width/2, y: y + height, cursor: 's-resize' },
+            { name: 'sw', x: x, y: y + height, cursor: 'sw-resize' },
+            { name: 'w', x: x, y: y + height/2, cursor: 'w-resize' }
+        ];
+        
+        handlePositions.forEach(pos => {
+            const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            handle.setAttribute('class', 'resize-handle');
+            handle.setAttribute('data-rectangle-index', index);
+            handle.setAttribute('data-handle-type', pos.name);
+            handle.setAttribute('cx', pos.x);
+            handle.setAttribute('cy', pos.y);
+            handle.setAttribute('r', handleSize / 2);
+            handle.setAttribute('fill', '#ffffff');
+            handle.setAttribute('stroke', '#333333');
+            handle.setAttribute('stroke-width', '1');
+            handle.setAttribute('cursor', pos.cursor);
+            handle.style.display = 'none'; // Initially hidden
+            
+            handles.push(handle);
+        });
+        
+        return handles;
     }
 
     /**
@@ -417,13 +486,15 @@ export class CanvasRenderer {
      * @param {Object} textData - Text data
      * @returns {Element} SVG text element
      */
-    createTextAnnotation(textData) {
+    createTextAnnotation(textData, index) {
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('class', 'annotation-text');
+        text.setAttribute('data-index', index);
+        text.setAttribute('data-type', 'text');
         text.setAttribute('x', textData.x || 0);
         text.setAttribute('y', textData.y || 0);
-        text.setAttribute('fill', textData.fill || this.config.annotation.text.defaultFill);
-        text.setAttribute('font-size', textData.fontSize || this.config.annotation.text.fontSize);
+        text.setAttribute('fill', textData.fill || textData.color || this.config.annotation.text.defaultFill);
+        text.setAttribute('font-size', textData.fontSize || textData.size || this.config.annotation.text.fontSize);
         text.setAttribute('font-family', textData.fontFamily || this.config.annotation.text.fontFamily);
         text.textContent = textData.content || '';
         

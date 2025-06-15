@@ -121,6 +121,11 @@ async function saveLayout() {
 }
 
 function addRectangle() {
+    if (!erViewer) {
+        console.error('ER Viewer not initialized');
+        return;
+    }
+    
     const rect = {
         x: 100,
         y: 100,
@@ -131,8 +136,13 @@ function addRectangle() {
     };
     const currentState = erViewer.stateManager.getState();
     const newLayoutData = { ...currentState.layoutData };
+    if (!newLayoutData.rectangles) {
+        newLayoutData.rectangles = [];
+    }
     newLayoutData.rectangles.push(rect);
     erViewer.stateManager.updateLayoutData(newLayoutData);
+    
+    console.log('Rectangle added:', rect);
 }
 
 function addText() {

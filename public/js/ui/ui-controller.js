@@ -85,23 +85,25 @@ export class UIController {
         // Add menu items based on context
         const selectedAnnotation = this.stateManager.get('selectedAnnotation');
         
-        if (selectedAnnotation) {
-            if (selectedAnnotation.classList.contains('custom-rectangle')) {
-                this.addMenuItem(menu, 'プロパティ編集', () => {
-                    this.emit('edit-rectangle-properties', { element: selectedAnnotation });
-                    this.removeContextMenu();
-                });
-            }
-            
-            if (selectedAnnotation.classList.contains('custom-text')) {
-                this.addMenuItem(menu, 'プロパティ編集', () => {
-                    this.emit('edit-text-properties', { element: selectedAnnotation });
-                    this.removeContextMenu();
-                });
-            }
-            
+        // Check if we clicked on an annotation element
+        const target = options.target || event.target;
+        
+        if (target && target.classList.contains('annotation-rectangle')) {
+            this.addMenuItem(menu, 'プロパティ編集', () => {
+                this.emit('edit-rectangle-properties', { element: target });
+                this.removeContextMenu();
+            });
             this.addMenuItem(menu, '削除', () => {
-                this.emit('delete-annotation', { element: selectedAnnotation });
+                this.emit('delete-annotation', { element: target });
+                this.removeContextMenu();
+            });
+        } else if (target && target.classList.contains('annotation-text')) {
+            this.addMenuItem(menu, 'プロパティ編集', () => {
+                this.emit('edit-text-properties', { element: target });
+                this.removeContextMenu();
+            });
+            this.addMenuItem(menu, '削除', () => {
+                this.emit('delete-annotation', { element: target });
                 this.removeContextMenu();
             });
         }

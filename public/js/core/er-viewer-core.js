@@ -47,6 +47,23 @@ export class ERViewerCore {
         this.stateManager.subscribeToProperty('erData', (oldERData, newERData) => {
             this.clusteringEngine.setERData(newERData);
             this.connectionPoints.setERData(newERData);
+            
+            // If this is new ER data and entities don't have positions, calculate clustered positions
+            if (newERData && newERData.entities) {
+                const currentLayoutData = this.stateManager.get('layoutData');
+                const needsClustering = newERData.entities.some(entity => !currentLayoutData.entities[entity.name]);
+                
+                if (needsClustering) {
+                    const newLayoutData = { ...currentLayoutData };
+                    newERData.entities.forEach((entity, index) => {
+                        if (!newLayoutData.entities[entity.name]) {
+                            newLayoutData.entities[entity.name] = this.clusteringEngine.calculateClusteredPosition(entity, index);
+                        }
+                    });
+                    this.stateManager.setLayoutData(newLayoutData);
+                }
+            }
+            
             this.renderER();
         });
         

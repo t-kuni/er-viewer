@@ -48,6 +48,11 @@
 ### 3.1 Manual Positioning
 - [x] **Drag and Drop** - Move entities by dragging
 - [x] **Position Persistence** - Save entity positions
+- [x] **Drag Regression Fix** - Fixed regression in entity drag and drop functionality
+  - Fixed entity click detection in event controller
+  - Enhanced entity position fallback mechanism
+  - Improved drag movement tracking
+  - Connected clustering engine for new entities
 
 ## 8. Architecture & Code Organization Improvements
 

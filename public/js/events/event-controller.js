@@ -16,6 +16,7 @@ export class EventController {
         this.dragStartPoint = null;
         this.dragCurrentPoint = null;
         this.hasDragMovement = false;
+        this.lastHadDragMovement = false;
         
         // Event handler bindings
         this.boundHandlers = {
@@ -163,7 +164,13 @@ export class EventController {
                 this.startTextCreation(event);
                 break;
             default:
-                this.startPanning(event);
+                // Check if user clicked on an entity first
+                const entityElement = event.target && event.target.closest ? event.target.closest('.entity') : null;
+                if (entityElement) {
+                    this.startEntityDragging(event, entityElement);
+                } else {
+                    this.startPanning(event);
+                }
                 break;
         }
     }
@@ -173,9 +180,7 @@ export class EventController {
      * @param {MouseEvent} event - Mouse event
      */
     handleMouseMove(event) {
-        const currentState = this.stateManager.getState();
-        
-        // Update drag tracking
+        // Update drag tracking (this happens regardless of interaction mode)
         if (this.dragStartPoint) {
             this.dragCurrentPoint = { x: event.clientX, y: event.clientY };
             
@@ -187,6 +192,8 @@ export class EventController {
                 this.hasDragMovement = true;
             }
         }
+        
+        const currentState = this.stateManager.getState();
         
         // Handle interaction modes
         switch (currentState.interactionMode) {
@@ -226,10 +233,18 @@ export class EventController {
                 break;
         }
         
+        // Store drag movement state for click detection
+        this.lastHadDragMovement = this.hasDragMovement;
+        
         // Reset drag tracking
         this.dragStartPoint = null;
         this.dragCurrentPoint = null;
         this.hasDragMovement = false;
+        
+        // Reset the drag movement flag after a short delay to allow click handler to see it
+        setTimeout(() => {
+            this.lastHadDragMovement = false;
+        }, 10);
     }
 
     /**
@@ -238,7 +253,7 @@ export class EventController {
      */
     handleClick(event) {
         // Don't trigger click if we were dragging
-        if (this.hasDragMovement) {
+        if (this.hasDragMovement || this.lastHadDragMovement) {
             return;
         }
         
@@ -405,9 +420,22 @@ export class EventController {
     startEntityDragging(event, entityElement) {
         const tableName = entityElement.getAttribute('data-table');
         const currentState = this.stateManager.getState();
-        const entityPos = currentState.layoutData.entities[tableName];
+        let entityPos = currentState.layoutData.entities[tableName];
         
-        if (!entityPos) return;
+        // If entity doesn't have a position, get it from the DOM element
+        if (!entityPos) {
+            const transform = entityElement.getAttribute('transform');
+            const match = transform ? transform.match(/translate\(([^,]+),\s*([^)]+)\)/) : null;
+            if (match) {
+                entityPos = {
+                    x: parseFloat(match[1]),
+                    y: parseFloat(match[2])
+                };
+            } else {
+                // Fallback to default position
+                entityPos = { x: 0, y: 0 };
+            }
+        }
         
         const svgPoint = this.coordinateTransform.screenToSVG(
             event.clientX, event.clientY, this.canvas
@@ -501,6 +529,16 @@ export class EventController {
             ...dragState,
             currentRect: rect
         });
+    }
+
+    /**
+     * Start text creation
+     * @param {MouseEvent} event - Mouse event
+     */
+    startTextCreation(event) {
+        // TODO: Implement text creation functionality
+        console.log('Text creation not implemented yet');
+        this.stateManager.setInteractionMode('default');
     }
 
     /**

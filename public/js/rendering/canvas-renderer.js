@@ -85,22 +85,10 @@ export class CanvasRenderer {
         mainGroup.setAttribute('id', 'main-group');
         this.canvas.appendChild(mainGroup);
         
-        // Create layer groups
-        const backgroundGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        backgroundGroup.setAttribute('id', 'background-layer');
-        mainGroup.appendChild(backgroundGroup);
-        
-        const relationshipGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        relationshipGroup.setAttribute('id', 'relationship-layer');
-        mainGroup.appendChild(relationshipGroup);
-        
-        const entityGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        entityGroup.setAttribute('id', 'entity-layer');
-        mainGroup.appendChild(entityGroup);
-        
-        const annotationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        annotationGroup.setAttribute('id', 'annotation-layer');
-        mainGroup.appendChild(annotationGroup);
+        // Create single layer for dynamic ordering
+        const dynamicLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        dynamicLayer.setAttribute('id', 'dynamic-layer');
+        mainGroup.appendChild(dynamicLayer);
     }
 
     /**
@@ -148,32 +136,27 @@ export class CanvasRenderer {
         const layerOrder = layerManager.getLayerOrder();
         
         // Clear existing content first
-        const backgroundGroup = document.getElementById('background-layer');
-        const relationshipGroup = document.getElementById('relationship-layer');
-        const entityGroup = document.getElementById('entity-layer');
-        const annotationGroup = document.getElementById('annotation-layer');
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (dynamicLayer) {
+            dynamicLayer.innerHTML = '';
+        }
         
-        if (backgroundGroup) backgroundGroup.innerHTML = '';
-        if (relationshipGroup) relationshipGroup.innerHTML = '';
-        if (entityGroup) entityGroup.innerHTML = '';
-        if (annotationGroup) annotationGroup.innerHTML = '';
-        
-        // Sort layers by order (ascending order = back to front rendering)
-        // Lower order numbers appear behind higher order numbers
-        const sortedLayers = [...layerOrder].sort((a, b) => a.order - b.order);
+        // Sort layers by order (descending order = top to bottom in layer list = front to back rendering)
+        // Higher order numbers (lower in layer list) appear behind lower order numbers (higher in layer list)
+        const sortedLayers = [...layerOrder].sort((a, b) => b.order - a.order);
         
         // Track which rectangles and texts have been rendered
         const renderedRectangles = new Set();
         const renderedTexts = new Set();
         
-        // Render elements in layer order to annotation group
+        // Render elements in layer order to dynamic layer
         sortedLayers.forEach(layer => {
             switch (layer.type) {
                 case 'er-diagram':
-                    // Render relationships first (behind entities)
-                    this.renderRelationshipsInAnnotationLayer(erData.relationships, layoutData.entities, erData.entities);
-                    // Then render entities (in front of relationships)
-                    this.renderEntitiesInAnnotationLayer(erData.entities, layoutData.entities);
+                    // Render relationships first (behind entities within ER diagram layer)
+                    this.renderRelationshipsInDynamicLayer(erData.relationships, layoutData.entities, erData.entities);
+                    // Then render entities (in front of relationships within ER diagram layer)  
+                    this.renderEntitiesInDynamicLayer(erData.entities, layoutData.entities);
                     break;
                 case 'rectangle':
                     const rectIndex = this.renderRectangleByLayer(layoutData.rectangles, layer);
@@ -191,47 +174,66 @@ export class CanvasRenderer {
         });
         
         // Render any rectangles or texts that don't have layers yet
-        console.log('Checking for unrendered rectangles and texts');
-        console.log('Rectangle data:', layoutData.rectangles);
-        console.log('Text data:', layoutData.texts);
-        console.log('Rendered rectangles:', renderedRectangles);
-        console.log('Rendered texts:', renderedTexts);
-        
         if (layoutData.rectangles) {
             layoutData.rectangles.forEach((rect, index) => {
-                console.log(`Processing rectangle ${index}:`, rect);
                 if (!renderedRectangles.has(index)) {
-                    console.log(`Rendering rectangle ${index} without layer`);
                     const rectElement = this.createRectangleAnnotation(rect, index);
-                    if (annotationGroup) {
-                        annotationGroup.appendChild(rectElement);
-                        console.log(`Rectangle ${index} added to DOM`);
-                    } else {
-                        console.log('No annotation group found!');
+                    if (dynamicLayer) {
+                        dynamicLayer.appendChild(rectElement);
                     }
-                } else {
-                    console.log(`Rectangle ${index} already rendered by layer`);
                 }
             });
         }
         
         if (layoutData.texts) {
             layoutData.texts.forEach((text, index) => {
-                console.log(`Processing text ${index}:`, text);
                 if (!renderedTexts.has(index)) {
-                    console.log(`Rendering text ${index} without layer`);
                     const textElement = this.createTextAnnotation(text, index);
-                    if (annotationGroup) {
-                        annotationGroup.appendChild(textElement);
-                        console.log(`Text ${index} added to DOM`);
-                    } else {
-                        console.log('No annotation group found!');
+                    if (dynamicLayer) {
+                        dynamicLayer.appendChild(textElement);
                     }
-                } else {
-                    console.log(`Text ${index} already rendered by layer`);
                 }
             });
         }
+    }
+
+    /**
+     * Render entities in dynamic layer to respect layer order
+     * @param {Array} entities - Entity data
+     * @param {Object} entityPositions - Entity position data
+     */
+    renderEntitiesInDynamicLayer(entities, entityPositions) {
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return;
+        
+        entities.forEach(entity => {
+            const position = entityPositions[entity.name] || { x: 50, y: 50 };
+            const entityElement = this.createEntityElement(entity, position);
+            dynamicLayer.appendChild(entityElement);
+        });
+    }
+
+    /**
+     * Render relationships in dynamic layer to respect layer order
+     * @param {Array} relationships - Relationship data
+     * @param {Object} entityPositions - Entity position data
+     * @param {Array} entities - Entity data for connection points
+     */
+    renderRelationshipsInDynamicLayer(relationships, entityPositions, entities) {
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return;
+        
+        // Update connection points with entity data
+        if (entities) {
+            this.connectionPoints.setERData({ entities });
+        }
+        
+        relationships.forEach(relationship => {
+            const pathElement = this.createRelationshipPath(relationship, entityPositions);
+            if (pathElement) {
+                dynamicLayer.appendChild(pathElement);
+            }
+        });
     }
 
     /**
@@ -243,8 +245,8 @@ export class CanvasRenderer {
     renderRectangleByLayer(rectangles, layer) {
         if (!rectangles || rectangles.length === 0) return -1;
         
-        const annotationGroup = document.getElementById('annotation-layer');
-        if (!annotationGroup) return -1;
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return -1;
         
         // Check if layer has a name property
         if (!layer || !layer.name) {
@@ -260,7 +262,7 @@ export class CanvasRenderer {
             const rectIndex = rectNumber - 1; // Convert to 0-based index
             if (rectIndex >= 0 && rectIndex < rectangles.length) {
                 const rectElement = this.createRectangleAnnotation(rectangles[rectIndex], rectIndex);
-                annotationGroup.appendChild(rectElement);
+                dynamicLayer.appendChild(rectElement);
                 return rectIndex;
             }
         }
@@ -276,8 +278,8 @@ export class CanvasRenderer {
     renderTextByLayer(texts, layer) {
         if (!texts || texts.length === 0) return -1;
         
-        const annotationGroup = document.getElementById('annotation-layer');
-        if (!annotationGroup) return -1;
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return -1;
         
         // Check if layer has a name property
         if (!layer || !layer.name) {
@@ -297,7 +299,7 @@ export class CanvasRenderer {
             
             if (textIndex >= 0) {
                 const textElement = this.createTextAnnotation(texts[textIndex], textIndex);
-                annotationGroup.appendChild(textElement);
+                dynamicLayer.appendChild(textElement);
                 return textIndex;
             }
         }
@@ -388,15 +390,15 @@ export class CanvasRenderer {
      * @param {Object} entityPositions - Entity position data
      */
     renderEntities(entities, entityPositions) {
-        const entityGroup = document.getElementById('entity-layer');
-        if (!entityGroup) return;
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return;
         
-        entityGroup.innerHTML = '';
+        dynamicLayer.innerHTML = '';
         
         entities.forEach(entity => {
             const position = entityPositions[entity.name] || { x: 50, y: 50 };
             const entityElement = this.createEntityElement(entity, position);
-            entityGroup.appendChild(entityElement);
+            dynamicLayer.appendChild(entityElement);
         });
     }
 
@@ -590,10 +592,10 @@ export class CanvasRenderer {
      * @param {Array} entities - Entity data for connection points
      */
     renderRelationships(relationships, entityPositions, entities) {
-        const relationshipGroup = document.getElementById('relationship-layer');
-        if (!relationshipGroup) return;
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return;
         
-        relationshipGroup.innerHTML = '';
+        // Note: This method is called by fallback rendering, relationships are added to existing content
         
         // Update connection points with entity data
         if (entities) {
@@ -603,7 +605,7 @@ export class CanvasRenderer {
         relationships.forEach(relationship => {
             const pathElement = this.createRelationshipPath(relationship, entityPositions);
             if (pathElement) {
-                relationshipGroup.appendChild(pathElement);
+                dynamicLayer.appendChild(pathElement);
             }
         });
     }
@@ -656,19 +658,19 @@ export class CanvasRenderer {
      * @param {Array} texts - Text annotations
      */
     renderAnnotations(rectangles, texts) {
-        const annotationGroup = document.getElementById('annotation-layer');
-        if (!annotationGroup) return;
+        const dynamicLayer = document.getElementById('dynamic-layer');
+        if (!dynamicLayer) return;
         
         console.log('Rendering annotations - rectangles:', rectangles, 'texts:', texts);
         
-        annotationGroup.innerHTML = '';
+        dynamicLayer.innerHTML = '';
         
         // Render rectangles
         if (rectangles && rectangles.length > 0) {
             rectangles.forEach((rect, index) => {
                 console.log('Creating rectangle:', rect);
                 const rectElement = this.createRectangleAnnotation(rect, index);
-                annotationGroup.appendChild(rectElement);
+                dynamicLayer.appendChild(rectElement);
             });
         }
         
@@ -676,7 +678,7 @@ export class CanvasRenderer {
         if (texts && texts.length > 0) {
             texts.forEach((text, index) => {
                 const textElement = this.createTextAnnotation(text, index);
-                annotationGroup.appendChild(textElement);
+                dynamicLayer.appendChild(textElement);
             });
         }
     }

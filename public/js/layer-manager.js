@@ -327,6 +327,8 @@ class LayerManager {
         return this.layers.map(layer => ({
             id: layer.id,
             type: layer.type,
+            name: layer.name,
+            icon: layer.icon,
             order: layer.order
         }));
     }

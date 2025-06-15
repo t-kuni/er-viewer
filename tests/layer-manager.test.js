@@ -237,16 +237,22 @@ describe('LayerManager', () => {
             expect(layerOrder[0]).toEqual({
                 id: expect.any(String),
                 type: 'er-diagram',
+                name: 'ER図',
+                icon: '🗂️',
                 order: 0
             });
             expect(layerOrder[1]).toEqual({
                 id: expect.any(String),
                 type: 'rectangle',
+                name: '矩形No1',
+                icon: '▭',
                 order: 1
             });
             expect(layerOrder[2]).toEqual({
                 id: expect.any(String),
                 type: 'text',
+                name: 'テキスト "test"',
+                icon: '📝',
                 order: 2
             });
         });

@@ -2,6 +2,9 @@
 
 MySQL データベースからER図をリバースエンジニアリングし、ブラウザ上で可視化・編集できるツールです。
 
+![image](https://github.com/user-attachments/assets/fb8a0e8d-7b02-421f-be28-f93abeb39e32)
+
+
 ## 機能
 
 ### 🔄 リバースエンジニアリング

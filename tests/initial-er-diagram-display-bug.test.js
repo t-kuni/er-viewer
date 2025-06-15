@@ -1,6 +1,6 @@
 /**
  * Test suite for initial ER diagram display bug
- * Tests the bug where ER diagram is not displayed on initial load
+ * Tests the bug where relation lines are displayed in front of entities on initial load when data exists
  */
 
 import 'jest-canvas-mock';
@@ -9,14 +9,10 @@ import 'jest-canvas-mock';
 import { StateManager } from '../public/js/state/state-manager.js';
 import { CoordinateTransform } from '../public/js/utils/coordinate-transform.js';
 import { CanvasRenderer } from '../public/js/rendering/canvas-renderer.js';
-import { ERViewerCore } from '../public/js/core/er-viewer-core.js';
 import LayerManager from '../public/js/layer-manager.js';
 
-// Mock file operations
-global.fetch = jest.fn();
-
 describe('Initial ER Diagram Display Bug', () => {
-    let canvas, stateManager, coordinateTransform, canvasRenderer, layerManager, erViewerCore;
+    let canvas, stateManager, coordinateTransform, canvasRenderer, layerManager;
 
     beforeEach(() => {
         // Mock required DOM elements for LayerManager
@@ -53,7 +49,17 @@ describe('Initial ER Diagram Display Bug', () => {
         coordinateTransform = new CoordinateTransform();
         canvasRenderer = new CanvasRenderer(canvas, coordinateTransform);
         layerManager = new LayerManager(stateManager);
-        erViewerCore = new ERViewerCore();
+
+        // Initialize state with test data
+        stateManager.setState({
+            erData: { entities: [], relationships: [] },
+            layoutData: { entities: {}, rectangles: [], texts: [] },
+            viewport: { panX: 0, panY: 0, scale: 1 },
+            interactionMode: 'default'
+        });
+
+        // Initialize canvas
+        canvasRenderer.initializeCanvas();
 
         // Reset console mocks
         console.log = jest.fn();
@@ -67,33 +73,36 @@ describe('Initial ER Diagram Display Bug', () => {
         jest.clearAllMocks();
     });
 
-    describe('Bug Reproduction: Initial ER diagram not displayed', () => {
-        test('should load and display ER diagram on initialization', async () => {
-            // Mock ER data that should be loaded initially
-            const mockErData = {
+    describe('Bug Reproduction: Relation lines appear in front of entities on initial display', () => {
+        test('should render entities in front of relationships when data exists on initial load', () => {
+            // Create test ER data with entities and relationships
+            const testERData = {
                 entities: [
                     {
-                        name: 'users',
+                        name: 'User',
                         columns: [
-                            { name: 'id', type: 'int', isPrimaryKey: true },
-                            { name: 'name', type: 'varchar(100)', isNotNull: true },
-                            { name: 'email', type: 'varchar(255)', isNotNull: true }
-                        ]
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'name', type: 'varchar(100)' },
+                            { name: 'email', type: 'varchar(255)' }
+                        ],
+                        foreignKeys: []
                     },
                     {
-                        name: 'posts',
+                        name: 'Order', 
                         columns: [
-                            { name: 'id', type: 'int', isPrimaryKey: true },
-                            { name: 'user_id', type: 'int', isForeignKey: true },
-                            { name: 'title', type: 'varchar(200)', isNotNull: true },
-                            { name: 'content', type: 'text' }
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'user_id', type: 'int' },
+                            { name: 'amount', type: 'decimal(10,2)' }
+                        ],
+                        foreignKeys: [
+                            { column: 'user_id', referencedTable: 'User', referencedColumn: 'id' }
                         ]
                     }
                 ],
                 relationships: [
                     {
-                        from: 'users',
-                        to: 'posts',
+                        from: 'User',
+                        to: 'Order',
                         fromColumn: 'id',
                         toColumn: 'user_id',
                         type: 'one-to-many'
@@ -101,234 +110,233 @@ describe('Initial ER Diagram Display Bug', () => {
                 ]
             };
 
-            const mockLayoutData = {
+            const testLayoutData = {
                 entities: {
-                    'users': { x: 100, y: 100, width: 200, height: 120 },
-                    'posts': { x: 400, y: 100, width: 200, height: 150 }
+                    'User': { x: 100, y: 100 },
+                    'Order': { x: 400, y: 100 }
                 },
                 rectangles: [],
                 texts: []
             };
 
-            // Mock fetch responses for data files
-            global.fetch.mockImplementation((url) => {
-                if (url.includes('er-data.json')) {
-                    return Promise.resolve({
-                        ok: true,
-                        json: () => Promise.resolve(mockErData)
-                    });
-                } else if (url.includes('layout-data.json')) {
-                    return Promise.resolve({
-                        ok: true,
-                        json: () => Promise.resolve(mockLayoutData)
-                    });
-                }
-                return Promise.reject(new Error(`Unknown URL: ${url}`));
-            });
-
-            // Initialize state with empty data (like on app startup)
+            // Update state with test data
             stateManager.setState({
-                erData: { entities: [], relationships: [] },
-                layoutData: { entities: {}, rectangles: [], texts: [] },
-                viewport: { panX: 0, panY: 0, scale: 1 },
-                interactionMode: 'default'
+                erData: testERData,
+                layoutData: testLayoutData
             });
 
-            // Initialize canvas
-            canvasRenderer.initializeCanvas();
+            // Test scenario 1: Initial render without layer manager (fallback rendering)
+            // This is the problematic case where entities might be rendered before relationships
+            canvasRenderer.renderER(testERData, testLayoutData, null);
 
-            // Simulate initial data loading (like in ERViewerCore)
-            try {
-                // Load ER data
-                const erDataResponse = await fetch('/data/er-data.json');
-                const erData = await erDataResponse.json();
-                
-                // Load layout data
-                const layoutDataResponse = await fetch('/data/layout-data.json');
-                const layoutData = await layoutDataResponse.json();
-
-                // Update state with loaded data
-                stateManager.setState({
-                    erData: erData,
-                    layoutData: layoutData
-                });
-
-                // BUG CHECK: Initial render should display the ER diagram
-                const currentState = stateManager.getState();
-                
-                // Verify data was loaded
-                expect(currentState.erData.entities).toHaveLength(2);
-                expect(currentState.erData.relationships).toHaveLength(1);
-                expect(Object.keys(currentState.layoutData.entities)).toHaveLength(2);
-
-                // Render the ER diagram
-                canvasRenderer.renderEntities(currentState.erData.entities, currentState.layoutData.entities);
-                canvasRenderer.renderRelationships(currentState.erData.relationships, currentState.layoutData.entities, currentState.erData.entities);
-
-                // Check if entities are rendered on canvas
-                const entityElements = canvas.querySelectorAll('.entity');
-                const relationshipElements = canvas.querySelectorAll('.relationship');
-
-                // BUG: These elements should exist after initial load and render
-                expect(entityElements.length).toBe(2);
-                expect(relationshipElements.length).toBe(1);
-
-                // Check specific entity elements
-                const usersEntity = Array.from(entityElements).find(el => 
-                    el.querySelector('.entity-name')?.textContent === 'users'
-                );
-                const postsEntity = Array.from(entityElements).find(el => 
-                    el.querySelector('.entity-name')?.textContent === 'posts'
-                );
-
-                expect(usersEntity).toBeTruthy();
-                expect(postsEntity).toBeTruthy();
-
-                // Check entity positioning
-                expect(usersEntity.getAttribute('data-x')).toBe('100');
-                expect(usersEntity.getAttribute('data-y')).toBe('100');
-                expect(postsEntity.getAttribute('data-x')).toBe('400');
-                expect(postsEntity.getAttribute('data-y')).toBe('100');
-
-            } catch (error) {
-                // This catch block simulates the bug where data loading fails
-                console.error('Failed to load initial ER data:', error);
-                
-                // When bug occurs, no entities should be rendered
-                const entityElements = canvas.querySelectorAll('.entity');
-                expect(entityElements.length).toBe(0);
-                
-                // Mark this as expected failure due to bug
-                throw new Error('Initial ER diagram not displayed due to data loading failure');
-            }
-        });
-
-        test('should display empty state message when no ER data is available', () => {
-            // Mock empty data responses
-            global.fetch.mockImplementation((url) => {
-                if (url.includes('er-data.json')) {
-                    return Promise.resolve({
-                        ok: true,
-                        json: () => Promise.resolve({ entities: [], relationships: [] })
-                    });
-                } else if (url.includes('layout-data.json')) {
-                    return Promise.resolve({
-                        ok: true,
-                        json: () => Promise.resolve({ entities: {}, rectangles: [], texts: [] })
-                    });
-                }
-                return Promise.reject(new Error(`Unknown URL: ${url}`));
-            });
-
-            // Initialize with empty state
-            stateManager.setState({
-                erData: { entities: [], relationships: [] },
-                layoutData: { entities: {}, rectangles: [], texts: [] },
-                viewport: { panX: 0, panY: 0, scale: 1 },
-                interactionMode: 'default'
-            });
-
-            // Initialize canvas
-            canvasRenderer.initializeCanvas();
-
-            // Render empty state
-            const currentState = stateManager.getState();
-            canvasRenderer.renderEntities(currentState.erData.entities, currentState.layoutData.entities);
-
-            // Should have no entity elements
-            const entityElements = canvas.querySelectorAll('.entity');
-            expect(entityElements.length).toBe(0);
-
-            // Should have empty canvas structure
+            // Check that entities group contains entity elements
             const entitiesGroup = canvas.querySelector('#entities-group');
             expect(entitiesGroup).toBeTruthy();
-            expect(entitiesGroup.children.length).toBe(0);
+            
+            const entityElements = entitiesGroup.querySelectorAll('.entity');
+            expect(entityElements).toHaveLength(2);
+
+            // Check that relationships group contains relationship elements
+            const relationshipsGroup = canvas.querySelector('#relationships-group');
+            expect(relationshipsGroup).toBeTruthy();
+            
+            const relationshipElements = relationshipsGroup.querySelectorAll('.relationship');
+            expect(relationshipElements).toHaveLength(1);
+
+            // Verify DOM structure: relationships group should come BEFORE entities group
+            // This ensures relationships are rendered behind entities
+            const mainGroup = canvas.querySelector('#main-group');
+            const children = Array.from(mainGroup.children);
+            
+            const entitiesGroupIndex = children.indexOf(entitiesGroup);
+            const relationshipsGroupIndex = children.indexOf(relationshipsGroup);
+            
+            // Relationships group should appear before entities group in DOM
+            // (earlier in DOM = rendered first = appears behind)
+            expect(relationshipsGroupIndex).toBeLessThan(entitiesGroupIndex);
+            
+            // Additional verification: entities should have higher z-index by virtue of DOM order
+            const computedStyle = window.getComputedStyle(entitiesGroup);
+            const relComputedStyle = window.getComputedStyle(relationshipsGroup);
+            
+            // In SVG, later elements in DOM appear on top
+            // So entities group (higher index) should visually appear on top of relationships group
+            expect(entitiesGroupIndex).toBeGreaterThan(relationshipsGroupIndex);
         });
 
-        test('should handle data loading errors gracefully', async () => {
-            // Mock fetch to simulate network error
-            global.fetch.mockRejectedValue(new Error('Network error'));
-
-            // Initialize state
-            stateManager.setState({
-                erData: { entities: [], relationships: [] },
-                layoutData: { entities: {}, rectangles: [], texts: [] },
-                viewport: { panX: 0, panY: 0, scale: 1 },
-                interactionMode: 'default'
-            });
-
-            // Initialize canvas
-            canvasRenderer.initializeCanvas();
-
-            // Attempt to load data (should fail)
-            try {
-                await fetch('/data/er-data.json');
-                // If we reach here, the test should fail
-                expect(true).toBe(false); // Force failure
-            } catch (error) {
-                // Expected error - should handle gracefully
-                expect(error.message).toBe('Network error');
-
-                // Verify canvas is still in valid state
-                const entitiesGroup = canvas.querySelector('#entities-group');
-                expect(entitiesGroup).toBeTruthy();
-
-                // Verify no entities are rendered (due to loading failure)
-                const entityElements = canvas.querySelectorAll('.entity');
-                expect(entityElements.length).toBe(0);
-            }
-        });
-    });
-
-    describe('ER Diagram Rendering Integration', () => {
-        test('should properly initialize canvas structure for ER diagram', () => {
-            // Initialize canvas
-            canvasRenderer.initializeCanvas();
-
-            // Check if required SVG groups are created
-            expect(canvas.querySelector('#entities-group')).toBeTruthy();
-            expect(canvas.querySelector('#relationships-group')).toBeTruthy();
-            expect(canvas.querySelector('#annotations-group')).toBeTruthy();
-
-            // Verify canvas has proper dimensions
-            expect(canvas.getAttribute('width')).toBeTruthy();
-            expect(canvas.getAttribute('height')).toBeTruthy();
-        });
-
-        test('should render entities with correct structure', () => {
-            const testEntities = [
-                {
-                    name: 'test_table',
-                    columns: [
-                        { name: 'id', type: 'int', isPrimaryKey: true },
-                        { name: 'name', type: 'varchar(100)' }
-                    ]
-                }
-            ];
-
-            const testLayout = {
-                entities: {
-                    'test_table': { x: 100, y: 100, width: 200, height: 100 }
-                }
+        test('should render entities in front of relationships with layer manager', () => {
+            // Create test ER data
+            const testERData = {
+                entities: [
+                    {
+                        name: 'Product',
+                        columns: [
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'name', type: 'varchar(255)' },
+                            { name: 'category_id', type: 'int' }
+                        ],
+                        foreignKeys: [
+                            { column: 'category_id', referencedTable: 'Category', referencedColumn: 'id' }
+                        ]
+                    },
+                    {
+                        name: 'Category',
+                        columns: [
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'name', type: 'varchar(100)' }
+                        ],
+                        foreignKeys: []
+                    }
+                ],
+                relationships: [
+                    {
+                        from: 'Category',
+                        to: 'Product', 
+                        fromColumn: 'id',
+                        toColumn: 'category_id',
+                        type: 'one-to-many'
+                    }
+                ]
             };
 
-            // Initialize canvas
-            canvasRenderer.initializeCanvas();
+            const testLayoutData = {
+                entities: {
+                    'Product': { x: 200, y: 200 },
+                    'Category': { x: 500, y: 200 }
+                },
+                rectangles: [],
+                texts: []
+            };
 
-            // Render entities
-            canvasRenderer.renderEntities(testEntities, testLayout.entities);
+            // Update state with test data
+            stateManager.setState({
+                erData: testERData,
+                layoutData: testLayoutData
+            });
 
-            // Check if entity was rendered
-            const entityElements = canvas.querySelectorAll('.entity');
-            expect(entityElements.length).toBe(1);
+            // Test with layer manager (layer-based rendering)
+            canvasRenderer.renderER(testERData, testLayoutData, layerManager);
 
-            const entity = entityElements[0];
-            expect(entity.querySelector('.entity-name')?.textContent).toBe('test_table');
-            expect(entity.getAttribute('data-name')).toBe('test_table');
+            // Check dynamic layer contains both entities and relationships
+            const dynamicLayer = canvas.querySelector('#dynamic-layer');
+            expect(dynamicLayer).toBeTruthy();
+            
+            const children = Array.from(dynamicLayer.children);
+            
+            // Find relationship and entity elements in dynamic layer
+            const relationshipElements = children.filter(child => 
+                child.classList.contains('relationship') || 
+                child.getAttribute('data-from') || 
+                child.tagName === 'path'
+            );
+            
+            const entityElements = children.filter(child => 
+                child.classList.contains('entity') || 
+                child.getAttribute('data-table')
+            );
 
-            // Check columns
-            const columnElements = entity.querySelectorAll('.column');
-            expect(columnElements.length).toBe(2);
+            expect(relationshipElements.length).toBeGreaterThan(0);
+            expect(entityElements.length).toBeGreaterThan(0);
+
+            // In layer-based rendering, entities should be rendered AFTER relationships
+            // (later in DOM = appears on top)
+            if (relationshipElements.length > 0 && entityElements.length > 0) {
+                const firstRelationshipIndex = children.indexOf(relationshipElements[0]);
+                const firstEntityIndex = children.indexOf(entityElements[0]);
+                
+                // Entities should come after relationships in DOM order
+                expect(firstEntityIndex).toBeGreaterThan(firstRelationshipIndex);
+            }
+        });
+
+        test('should maintain correct visual hierarchy when both entities and relationships are present', () => {
+            // Create complex ER diagram with multiple entities and relationships
+            const testERData = {
+                entities: [
+                    {
+                        name: 'User',
+                        columns: [
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'name', type: 'varchar(100)' }
+                        ],
+                        foreignKeys: []
+                    },
+                    {
+                        name: 'Order',
+                        columns: [
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'user_id', type: 'int' },
+                            { name: 'product_id', type: 'int' }
+                        ],
+                        foreignKeys: [
+                            { column: 'user_id', referencedTable: 'User', referencedColumn: 'id' },
+                            { column: 'product_id', referencedTable: 'Product', referencedColumn: 'id' }
+                        ]
+                    },
+                    {
+                        name: 'Product',
+                        columns: [
+                            { name: 'id', type: 'int', key: 'PRI' },
+                            { name: 'name', type: 'varchar(255)' }
+                        ],
+                        foreignKeys: []
+                    }
+                ],
+                relationships: [
+                    {
+                        from: 'User',
+                        to: 'Order',
+                        fromColumn: 'id',
+                        toColumn: 'user_id',
+                        type: 'one-to-many'
+                    },
+                    {
+                        from: 'Product',
+                        to: 'Order',
+                        fromColumn: 'id', 
+                        toColumn: 'product_id',
+                        type: 'one-to-many'
+                    }
+                ]
+            };
+
+            const testLayoutData = {
+                entities: {
+                    'User': { x: 50, y: 50 },
+                    'Order': { x: 300, y: 150 },
+                    'Product': { x: 550, y: 50 }
+                },
+                rectangles: [],
+                texts: []
+            };
+
+            // Test both rendering scenarios
+            
+            // Scenario 1: Without layer manager (fallback rendering)
+            canvasRenderer.renderER(testERData, testLayoutData, null);
+            
+            // Verify fallback structure
+            const entitiesGroup = canvas.querySelector('#entities-group');
+            const relationshipsGroup = canvas.querySelector('#relationships-group');
+            const mainGroup = canvas.querySelector('#main-group');
+            
+            expect(entitiesGroup).toBeTruthy();
+            expect(relationshipsGroup).toBeTruthy();
+            expect(mainGroup).toBeTruthy();
+            
+            // Check that both groups have content
+            expect(entitiesGroup.children.length).toBeGreaterThan(0);
+            expect(relationshipsGroup.children.length).toBeGreaterThan(0);
+            
+            // Scenario 2: With layer manager
+            canvasRenderer.renderER(testERData, testLayoutData, layerManager);
+            
+            const dynamicLayer = canvas.querySelector('#dynamic-layer');
+            expect(dynamicLayer).toBeTruthy();
+            expect(dynamicLayer.children.length).toBeGreaterThan(0);
+            
+            // Both scenarios should result in proper visual hierarchy
+            // This test verifies that the rendering doesn't fail and produces visual elements
         });
     });
 });

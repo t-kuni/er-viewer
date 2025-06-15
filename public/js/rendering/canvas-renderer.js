@@ -97,13 +97,15 @@ export class CanvasRenderer {
         this.canvas.appendChild(mainGroup);
         
         // Create required SVG groups for compatibility with tests and proper rendering order
-        const entitiesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        entitiesGroup.setAttribute('id', 'entities-group');
-        mainGroup.appendChild(entitiesGroup);
-        
+        // Relationships group first (background)
         const relationshipsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         relationshipsGroup.setAttribute('id', 'relationships-group');
         mainGroup.appendChild(relationshipsGroup);
+        
+        // Entities group second (foreground)
+        const entitiesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        entitiesGroup.setAttribute('id', 'entities-group');
+        mainGroup.appendChild(entitiesGroup);
         
         const annotationsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         annotationsGroup.setAttribute('id', 'annotations-group');
@@ -136,8 +138,11 @@ export class CanvasRenderer {
             this.renderByLayerOrder(erData, layoutData, layerManager);
         } else {
             // Fallback to default order
-            this.renderEntities(erData.entities, layoutData.entities);
+            // Render relationships first (behind entities)
             this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
+            // Then render entities (in front of relationships)
+            this.renderEntities(erData.entities, layoutData.entities);
+            // Finally render annotations
             this.renderAnnotations(layoutData.rectangles, layoutData.texts);
         }
         
@@ -165,9 +170,10 @@ export class CanvasRenderer {
             dynamicLayer.innerHTML = '';
         }
         
-        // Sort layers by order (ascending order = top to bottom in layer list = back to front rendering)
-        // Lower order numbers (higher in layer list) appear in front of higher order numbers (lower in layer list)
-        const sortedLayers = [...layerOrder].sort((a, b) => a.order - b.order);
+        // Sort layers by order (descending order = bottom to top in layer list = back to front rendering)
+        // Higher order numbers (bottom of layer list) are rendered first (background)
+        // Lower order numbers (top of layer list) are rendered last (foreground)
+        const sortedLayers = [...layerOrder].sort((a, b) => b.order - a.order);
         
         // Track which rectangles and texts have been rendered
         const renderedRectangles = new Set();

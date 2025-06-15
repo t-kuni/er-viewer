@@ -150,7 +150,75 @@ Based on SPEC.md requirements and current implementation analysis.
 
 ## 8. Architecture & Code Organization Improvements
 
-### 8.0 フロントエンドデグレ対策（最優先）
+### 8.0 Canvas・テストコードリファクタリング（緊急・最優先）
+
+#### 8.0.1 Canvasアーキテクチャ問題修正
+- [ ] **Canvas責任分離** - ERViewerCoreの単一責任原則違反を修正
+  - Currently: ERViewerCoreが描画・イベント処理・状態管理を全て担当（er-viewer-core.js:1-400行）
+  - Required: CanvasRenderer, EventController, StateManagerに分離
+  - Benefit: バグ修正容易性、テスト可能性向上、保守性向上
+  - Priority: Critical
+  - Estimate: 12-16 hours
+
+- [ ] **Canvas状態管理一元化** - グローバルDOM操作とstate分散問題を解決
+  - Currently: Canvas状態がDOM全体に分散、複数箇所でdocument.getElementById
+  - Required: CanvasStateクラスで状態一元管理、React/Vue風state管理導入
+  - Benefit: 状態バグ削減、デバッグ容易性、予測可能な動作
+  - Priority: Critical  
+  - Estimate: 8-10 hours
+
+- [ ] **座標変換システム統一** - screenToSVG()等の重複コード削減
+  - Currently: 座標変換ロジックが複数ファイルに分散（svg-utils.js, mouse-handler.js等）
+  - Required: CoordinateTransformクラスで座標変換を一元化
+  - Benefit: 座標バグ削減、計算ロジック統一、テスト容易性
+  - Priority: Critical
+  - Estimate: 6-8 hours
+
+- [ ] **イベント処理統一** - マウス・キーボード競合とイベントバブリング問題解決
+  - Currently: mouse-handler.js, keyboard-handler.jsでイベント競合が頻発
+  - Required: CanvasEventBusで統一イベント処理、競合制御機能
+  - Benefit: イベントバグ削減、予測可能なユーザー操作、デバッグ改善
+  - Priority: Critical
+  - Estimate: 10-12 hours
+
+#### 8.0.2 テストコード構造改善  
+- [ ] **Canvas単体テスト環境構築** - DOM依存テストからユニットテスト分離
+  - Currently: 全テストがdocument.body.innerHTML操作に依存、ES Module互換性問題
+  - Required: Canvas各コンポーネントの独立したユニットテスト、モック化戦略見直し
+  - Benefit: 高速テスト実行、問題特定容易性、CI/CD対応
+  - Priority: Critical
+  - Estimate: 8-10 hours
+
+- [ ] **テスト戦略階層化** - 統合テスト偏重からテストピラミッド構築
+  - Currently: 統合テストのみでバグ特定困難（entity-click-behavior.test.js等）
+  - Required: Unit(60%) > Integration(30%) > E2E(10%)のテストピラミッド
+  - Benefit: バグ早期発見、テスト実行時間短縮、デバッグ効率化
+  - Priority: Critical
+  - Estimate: 6-8 hours
+
+- [ ] **Canvas Test Utilities作成** - テスト用モック・ヘルパー統一化
+  - Currently: 各テストファイルで個別にDOM・API・イベントモック作成
+  - Required: CanvasTestUtils, MockEventFactory, MockCanvasRendererで共通化
+  - Benefit: テストコード重複削減、テスト品質向上、保守性改善
+  - Priority: High
+  - Estimate: 4-6 hours
+
+#### 8.0.3 デバッグ・監視機能
+- [ ] **Canvas状態可視化** - デバッグ用状態監視パネル実装
+  - Currently: Console.logでのデバッグのみ、状態把握困難
+  - Required: リアルタイム状態表示、イベントログ、座標情報表示
+  - Benefit: バグ再現性向上、開発効率向上、問題解析時間短縮
+  - Priority: High
+  - Estimate: 6-8 hours
+
+- [ ] **エラー境界実装** - Canvas処理でのエラー波及防止
+  - Currently: Canvas内エラーでアプリ全体が停止
+  - Required: Canvas処理をtry-catchで囲い、エラー時の安全な復旧機能
+  - Benefit: 予期しないクラッシュ防止、ユーザー体験向上、安定性確保
+  - Priority: High
+  - Estimate: 4-6 hours
+
+### 8.0.4 従来テスト環境の課題対応
 - [ ] **テスト環境の構築** - Jest + Testing Library でユニットテスト環境を構築
   - Currently: テストが一切存在しない状態
   - Required: コアモジュール（er-viewer-core.js, app.js等）のユニットテスト作成
@@ -273,7 +341,7 @@ Based on SPEC.md requirements and current implementation analysis.
 **In Progress**: 0 tasks  
 **Not Started**: 34 tasks (47%)
 
-**Critical Priority**: 6 tasks (~30-40 hours) - **フロントエンドデグレ対策**
+**Critical Priority**: 12 tasks (~80-100 hours) - **Canvas・テストコードリファクタリング（緊急）**
 **High Priority Remaining**: 4 tasks (~20-26 hours)
 **Medium Priority Remaining**: 16 tasks (~69-80 hours)  
 **Low Priority Remaining**: 10 tasks (~50-65 hours)
@@ -285,7 +353,15 @@ Based on SPEC.md requirements and current implementation analysis.
 
 ## Next Steps Recommendation
 
-1. **Phase 1 (Critical Priority)**: デグレ対策 - テスト環境構築、エラーハンドリング改善、リントツール導入
-2. **Phase 2 (High Priority)**: Enhanced hover effects + TypeScript導入
-3. **Phase 3 (Medium Priority)**: Smart positioning, line routing, and state management
+1. **Phase 1 (緊急・Critical Priority)**: Canvas・テストコードリファクタリング
+   - Canvas責任分離・状態管理一元化・座標変換統一・イベント処理統一
+   - Canvas単体テスト環境構築・テスト戦略階層化・Canvas Test Utilities作成
+   - 推定: 80-100時間（3-4週間集中作業）
+
+2. **Phase 2 (High Priority)**: デバッグ・監視・エラー境界 + TypeScript導入
+   - Canvas状態可視化・エラー境界実装・TypeScript段階移行
+
+3. **Phase 3 (Medium Priority)**: 従来課題対応 + Enhanced hover effects
+   - テスト環境構築・エラーハンドリング改善・Smart positioning, line routing
+
 4. **Phase 4 (Architecture)**: API separation, component architecture, build pipeline

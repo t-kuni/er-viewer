@@ -245,14 +245,21 @@ export class ERViewerCore {
 
     async showTableDetails(tableName) {
         try {
+            console.log('showTableDetails called with tableName:', tableName);
             const response = await fetch(`/api/table/${tableName}/ddl`);
+            console.log('DDL API response:', response);
             if (response.ok) {
                 const data = await response.json();
+                console.log('DDL data received:', data);
+                const highlightedDDL = this.applySyntaxHighlighting(data.ddl);
                 this.sidebarContent.innerHTML = `
                     <h4>${tableName}</h4>
-                    <div class="ddl-content">${data.ddl}</div>
+                    <pre class="ddl-content syntax-highlighted"><code>${highlightedDDL}</code></pre>
                 `;
                 this.sidebar.classList.add('open');
+                console.log('Sidebar should now be open');
+            } else {
+                console.error('Failed to fetch DDL:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Error loading table details:', error);
@@ -777,5 +784,63 @@ export class ERViewerCore {
             return Math.round(parseFloat(match[1]) * 100);
         }
         return null;
+    }
+
+    applySyntaxHighlighting(ddl) {
+        if (!ddl) return '';
+        
+        // Escape HTML first to prevent XSS
+        let highlighted = ddl
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        // SQL Keywords
+        const keywords = [
+            'CREATE', 'TABLE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE', 'SELECT',
+            'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'ON', 'AS',
+            'GROUP', 'BY', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'DISTINCT',
+            'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT', 'INDEX', 'UNIQUE',
+            'NOT', 'NULL', 'DEFAULT', 'AUTO_INCREMENT', 'CHECK', 'CASCADE', 'RESTRICT',
+            'SET', 'NULL', 'CURRENT_TIMESTAMP', 'NOW'
+        ];
+
+        // Data Types
+        const dataTypes = [
+            'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
+            'VARCHAR', 'CHAR', 'TEXT', 'LONGTEXT', 'MEDIUMTEXT', 'TINYTEXT',
+            'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE', 'REAL',
+            'DATE', 'TIME', 'DATETIME', 'TIMESTAMP', 'YEAR',
+            'BOOLEAN', 'BOOL', 'BIT',
+            'BINARY', 'VARBINARY', 'BLOB', 'LONGBLOB', 'MEDIUMBLOB', 'TINYBLOB',
+            'JSON', 'ENUM', 'SET'
+        ];
+
+        // Highlight SQL keywords
+        keywords.forEach(keyword => {
+            const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+            highlighted = highlighted.replace(regex, `<span class="sql-keyword">${keyword.toUpperCase()}</span>`);
+        });
+
+        // Highlight data types
+        dataTypes.forEach(type => {
+            const regex = new RegExp(`\\b${type}\\b`, 'gi');
+            highlighted = highlighted.replace(regex, `<span class="sql-datatype">${type.toUpperCase()}</span>`);
+        });
+
+        // Highlight string literals
+        highlighted = highlighted.replace(/(&#39;[^&#39;]*&#39;)/g, '<span class="sql-string">$1</span>');
+        highlighted = highlighted.replace(/(&quot;[^&quot;]*&quot;)/g, '<span class="sql-string">$1</span>');
+
+        // Highlight numbers
+        highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="sql-number">$1</span>');
+
+        // Highlight comments
+        highlighted = highlighted.replace(/(--[^\n\r]*)/g, '<span class="sql-comment">$1</span>');
+        highlighted = highlighted.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="sql-comment">$1</span>');
+
+        return highlighted;
     }
 }

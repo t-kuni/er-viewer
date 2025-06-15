@@ -256,6 +256,37 @@ main {
     white-space: pre-wrap;
     max-height: 400px;
     overflow-y: auto;
+    line-height: 1.4;
+}
+
+/* SQL Syntax Highlighting */
+.ddl-content.syntax-highlighted {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+}
+
+.sql-keyword {
+    color: #63b3ed;
+    font-weight: bold;
+}
+
+.sql-datatype {
+    color: #68d391;
+    font-weight: 600;
+}
+
+.sql-string {
+    color: #fbb6ce;
+}
+
+.sql-number {
+    color: #f6ad55;
+}
+
+.sql-comment {
+    color: #a0aec0;
+    font-style: italic;
 }
 
 .toolbar {

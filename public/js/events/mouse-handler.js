@@ -12,6 +12,8 @@ export class MouseHandler {
         this.resizeHandle = null;
         this.resizeTarget = null;
         this.lastPanPoint = { x: 0, y: 0 };
+        this.hasMovedDuringDrag = false;
+        this.mouseDownPosition = { x: 0, y: 0 };
     }
 
     handleWheel(e) {
@@ -33,6 +35,9 @@ export class MouseHandler {
     }
 
     handleMouseDown(e) {
+        this.mouseDownPosition = { x: e.clientX, y: e.clientY };
+        this.hasMovedDuringDrag = false;
+        
         const rect = this.viewer.canvas.getBoundingClientRect();
         const svgPoint = SVGUtils.screenToSVG(
             e.clientX - rect.left, 
@@ -86,6 +91,17 @@ export class MouseHandler {
     }
 
     handleMouseMove(e) {
+        // Track if mouse has moved significantly to distinguish drag from click
+        if (this.isDragging || this.isPanning || this.isResizing) {
+            const deltaX = Math.abs(e.clientX - this.mouseDownPosition.x);
+            const deltaY = Math.abs(e.clientY - this.mouseDownPosition.y);
+            
+            // Consider it a drag if mouse moved more than 3 pixels
+            if (deltaX > 3 || deltaY > 3) {
+                this.hasMovedDuringDrag = true;
+            }
+        }
+
         if (this.isPanning) {
             const dx = e.clientX - this.lastPanPoint.x;
             const dy = e.clientY - this.lastPanPoint.y;
@@ -182,9 +198,20 @@ export class MouseHandler {
     }
 
     handleClick(e) {
+        console.log('handleClick called', e.target);
+        console.log('hasMovedDuringDrag:', this.hasMovedDuringDrag);
+        
+        // Don't trigger click if we were dragging
+        if (this.hasMovedDuringDrag) {
+            console.log('Click prevented due to drag movement');
+            return;
+        }
+        
         const entity = e.target.closest('.entity');
+        console.log('Found entity:', entity);
         if (entity) {
             const tableName = entity.getAttribute('data-table');
+            console.log('Table name:', tableName);
             this.viewer.showTableDetails(tableName);
         }
     }

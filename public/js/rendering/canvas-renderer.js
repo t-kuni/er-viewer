@@ -252,7 +252,7 @@ export class CanvasRenderer {
         text.setAttribute('font-size', '11');
         text.setAttribute('fill', '#333333');
         
-        const columnText = `${column.name} ${column.type}`;
+        const columnText = column.name;
         text.textContent = columnText;
         group.appendChild(text);
         
@@ -287,7 +287,7 @@ export class CanvasRenderer {
         let maxWidth = entity.name.length * 8 + 20; // Approximate character width
         
         entity.columns.forEach(column => {
-            const columnText = `${column.name} ${column.type}`;
+            const columnText = column.name;
             const textWidth = columnText.length * 7 + 60; // Account for icons
             maxWidth = Math.max(maxWidth, textWidth);
         });

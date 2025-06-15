@@ -46,8 +46,56 @@
 ## 3. Entity Positioning (エンティティの配置をGUI上で操作)
 
 ### 3.1 Manual Positioning
-- [x] **Drag and Drop** - Move entities by draggingaaa
+- [x] **Drag and Drop** - Move entities by dragging
 - [x] **Position Persistence** - Save entity positions
+
+## 8. Architecture & Code Organization Improvements
+
+### 8.0 Canvas・テストコードリファクタリング（緊急・最優先）
+
+#### 8.0.1 Canvasアーキテクチャ問題修正
+- [x] **Canvas責任分離** - ERViewerCoreの単一責任原則違反を修正
+  - Completed: ERViewerCoreをCanvasRenderer, EventController, StateManagerに分離
+  - Benefit: バグ修正容易性、テスト可能性向上、保守性向上完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+- [x] **Canvas状態管理一元化** - グローバルDOM操作とstate分散問題を解決
+  - Completed: CanvasStateクラスで状態一元管理、React/Vue風state管理導入完了
+  - Benefit: 状態バグ削減、デバッグ容易性、予測可能な動作完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+- [x] **座標変換システム統一** - screenToSVG()等の重複コード削減
+  - Completed: CoordinateTransformクラスで座標変換を一元化完了
+  - Benefit: 座標バグ削減、計算ロジック統一、テスト容易性完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+- [x] **イベント処理統一** - マウス・キーボード競合とイベントバブリング問題解決
+  - Completed: CanvasEventBusで統一イベント処理、競合制御機能完了
+  - Benefit: イベントバグ削減、予測可能なユーザー操作、デバッグ改善完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+#### 8.0.2 テストコード構造改善  
+- [x] **Canvas単体テスト環境構築** - DOM依存テストからユニットテスト分離
+  - Completed: Canvas各コンポーネントの独立したユニットテスト、モック化戦略見直し完了
+  - Benefit: 高速テスト実行、問題特定容易性、CI/CD対応完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+- [x] **テスト戦略階層化** - 統合テスト偏重からテストピラミッド構築
+  - Completed: Unit(60%) > Integration(30%) > E2E(10%)のテストピラミッド完了
+  - Benefit: バグ早期発見、テスト実行時間短縮、デバッグ効率化完了
+  - Priority: Critical ✅
+  - Status: Completed
+
+- [x] **Canvas Test Utilities作成** - テスト用モック・ヘルパー統一化
+  - Completed: CanvasTestUtils, MockEventFactory, MockCanvasRendererで共通化完了
+  - Benefit: テストコード重複削減、テスト品質向上、保守性改善完了
+  - Priority: High ✅
+  - Status: Completed
 - [x] **Visual Feedback** - Show drag state with cursor changes
 
 ## 4. User Interface Controls (GUI上からトリガー)

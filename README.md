@@ -74,3 +74,9 @@ open http://localhost:3000
 #### 注釈追加
 - 「矩形追加」: エンティティをグループ化する矩形を追加
 - 「テキスト追加」: 補足説明用のテキストを追加
+
+### 4. claude起動
+
+```
+claude --mcp-config mcp-servers.json
+```

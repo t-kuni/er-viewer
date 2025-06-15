@@ -165,14 +165,72 @@ export class ClusteringEngine {
     }
 
     getCircularClusterPosition(entityIndex, clusterSize, baseX, baseY) {
-        const radius = Math.max(150, clusterSize * 30);
-        const angleStep = (2 * Math.PI) / clusterSize;
-        const angle = entityIndex * angleStep;
+        // Use force-directed layout instead of circular
+        return this.getForceDirectedPosition(entityIndex, clusterSize, baseX, baseY);
+    }
+
+    getForceDirectedPosition(entityIndex, clusterSize, baseX, baseY) {
+        const positions = this.calculateForceDirectedLayout(clusterSize, baseX, baseY);
+        return positions[entityIndex] || { x: baseX, y: baseY };
+    }
+
+    calculateForceDirectedLayout(clusterSize, baseX, baseY) {
+        const positions = [];
+        const minSpacing = 280; // Increased minimum distance between entities
+        const initialSpacing = 320; // Wider initial grid spacing
         
-        return {
-            x: baseX + radius * Math.cos(angle),
-            y: baseY + radius * Math.sin(angle)
-        };
+        // Initialize positions in a wider grid to avoid overlap
+        for (let i = 0; i < clusterSize; i++) {
+            const cols = Math.ceil(Math.sqrt(clusterSize));
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            
+            positions.push({
+                x: baseX + col * initialSpacing,
+                y: baseY + row * initialSpacing
+            });
+        }
+        
+        // Apply force-directed iterations with stronger repulsion
+        for (let iteration = 0; iteration < 100; iteration++) {
+            for (let i = 0; i < positions.length; i++) {
+                let forceX = 0;
+                let forceY = 0;
+                
+                // Stronger repulsive force from other entities
+                for (let j = 0; j < positions.length; j++) {
+                    if (i === j) continue;
+                    
+                    const dx = positions[i].x - positions[j].x;
+                    const dy = positions[i].y - positions[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < minSpacing) {
+                        const force = (minSpacing - distance) / Math.max(distance, 1);
+                        forceX += dx * force * 0.3; // Increased repulsion strength
+                        forceY += dy * force * 0.3;
+                    }
+                }
+                
+                // Weaker attractive force toward cluster center
+                const centerX = baseX + initialSpacing * Math.ceil(Math.sqrt(clusterSize)) / 2;
+                const centerY = baseY + initialSpacing * Math.ceil(Math.sqrt(clusterSize)) / 2;
+                const toCenterX = centerX - positions[i].x;
+                const toCenterY = centerY - positions[i].y;
+                const centerDistance = Math.sqrt(toCenterX * toCenterX + toCenterY * toCenterY);
+                
+                if (centerDistance > minSpacing * 3) {
+                    forceX += toCenterX * 0.005; // Reduced attraction
+                    forceY += toCenterY * 0.005;
+                }
+                
+                // Apply forces with damping
+                positions[i].x += forceX * 0.8;
+                positions[i].y += forceY * 0.8;
+            }
+        }
+        
+        return positions;
     }
 
     findAvailableSpace() {

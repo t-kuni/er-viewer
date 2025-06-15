@@ -150,6 +150,35 @@ Based on SPEC.md requirements and current implementation analysis.
 
 ## 8. Architecture & Code Organization Improvements
 
+### 8.0 フロントエンドデグレ対策（最優先）
+- [ ] **テスト環境の構築** - Jest + Testing Library でユニットテスト環境を構築
+  - Currently: テストが一切存在しない状態
+  - Required: コアモジュール（er-viewer-core.js, app.js等）のユニットテスト作成
+  - Benefit: デグレ防止、リファクタリング安全性向上
+  - Priority: Critical
+  - Estimate: 8-10 hours
+
+- [ ] **エラーハンドリングの改善** - 非同期処理とAPI呼び出しのエラー処理強化
+  - Currently: app.js:80-82, er-viewer-core.js:74-94でエラー処理不完全
+  - Required: 適切なtry-catch、レスポンス検証、エラー状態管理
+  - Benefit: 予期しないクラッシュ防止、ユーザー体験向上
+  - Priority: Critical
+  - Estimate: 4-6 hours
+
+- [ ] **メモリリーク対策** - イベントリスナーとDOM参照の適切な管理
+  - Currently: er-viewer-core.js:377-379でイベントリスナー削除漏れ
+  - Required: イベントリスナーのクリーンアップ、WeakMap使用検討
+  - Benefit: 長時間使用時のパフォーマンス維持
+  - Priority: High
+  - Estimate: 3-4 hours
+
+- [ ] **TypeScript導入** - 段階的な型安全性の導入
+  - Currently: 全てバニラJavaScript、型チェックなし
+  - Required: tsconfig.json設定、主要モジュールから段階的移行
+  - Benefit: ランタイムエラー削減、開発効率向上
+  - Priority: High
+  - Estimate: 12-16 hours
+
 ### 8.1 フロントエンドアーキテクチャの改善
 - [ ] **script.jsの分割** - 1900行を超える単一ファイルをモジュール化
   - Currently: 全機能が1つのファイル（script.js: 1908行）
@@ -216,38 +245,47 @@ Based on SPEC.md requirements and current implementation analysis.
   - Priority: Low
   - Estimate: 6-8 hours
 
-### 8.6 開発ツールの改善
+### 8.6 開発ツールの改善（最優先）
 - [ ] **Linter/Formatterの導入** - コード品質の自動化
   - Currently: コードスタイルの統一なし
-  - Required: ESLint/Prettier等の導入
-  - Priority: Medium
+  - Required: ESLint/Prettier等の導入、プリコミットフック設定
+  - Benefit: コード品質担保、チーム開発での一貫性
+  - Priority: Critical
   - Estimate: 2-3 hours
+
+- [ ] **プリコミットフックの設定** - Husky + lint-staged でコード品質チェック自動化
+  - Currently: コミット前のチェック機能なし
+  - Required: Husky, lint-staged導入、Git hooks設定
+  - Benefit: 問題のあるコードのコミット防止
+  - Priority: Critical
+  - Estimate: 1-2 hours
 
 - [ ] **Build pipelineの改善** - モダンなビルドツールの導入
   - Currently: 単純なスクリプト実行
   - Required: Webpack/Vite等でのバンドル最適化
-  - Priority: Low
+  - Priority: Medium
   - Estimate: 6-8 hours
 
 ## Summary
 
-**Total Requirements**: 59 tasks (+11 architecture tasks)
+**Total Requirements**: 59 tasks (+17 architecture tasks)
 **Completed**: 31 tasks (53%) - moved to TASK_DONE.md
 **In Progress**: 0 tasks  
-**Not Started**: 28 tasks (47%)
+**Not Started**: 34 tasks (47%)
 
-**High Priority Remaining**: 3 tasks (~17-23 hours)
+**Critical Priority**: 6 tasks (~30-40 hours) - **フロントエンドデグレ対策**
+**High Priority Remaining**: 4 tasks (~20-26 hours)
 **Medium Priority Remaining**: 16 tasks (~69-80 hours)  
 **Low Priority Remaining**: 10 tasks (~50-65 hours)
 
 **Core Functionality Status**: ✅ Complete (all essential features working)
 **Enhancement Status**: ⚠️ Partial (user experience improvements needed)
-**Production Readiness**: 🔄 Good (ready for use with minor limitations)
+**Production Readiness**: ⚠️ Needs Improvement (デグレ対策が必要)
 **Architecture Status**: ⚠️ Needs Improvement (monolithic structure, maintainability concerns)
 
 ## Next Steps Recommendation
 
-1. **Phase 1 (High Priority)**: Enhanced hover effects + script.js modularization
-2. **Phase 2 (Medium Priority)**: Smart positioning, line routing, and state management
-3. **Phase 3 (Architecture)**: Testing framework, API separation, component architecture
-4. **Phase 4 (Polish)**: Build pipeline, linting, performance optimization
+1. **Phase 1 (Critical Priority)**: デグレ対策 - テスト環境構築、エラーハンドリング改善、リントツール導入
+2. **Phase 2 (High Priority)**: Enhanced hover effects + TypeScript導入
+3. **Phase 3 (Medium Priority)**: Smart positioning, line routing, and state management
+4. **Phase 4 (Architecture)**: API separation, component architecture, build pipeline

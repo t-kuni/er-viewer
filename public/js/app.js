@@ -55,6 +55,42 @@ function setupGlobalEventListeners() {
             erViewer.closeSidebar();
         });
     }
+
+    // Sidebar resize functionality
+    const sidebar = document.getElementById('sidebar');
+    const resizeHandle = sidebar.querySelector('.sidebar-resize-handle');
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidebar.offsetWidth;
+        resizeHandle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = startX - e.clientX;
+        const newWidth = startWidth + deltaX;
+        
+        // Respect min width constraint only
+        if (newWidth >= 200) {
+            sidebar.style.width = newWidth + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            resizeHandle.classList.remove('dragging');
+            document.body.style.cursor = '';
+        }
+    });
 }
 
 async function reverseEngineer() {

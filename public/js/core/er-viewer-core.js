@@ -27,12 +27,18 @@ export class ERViewerCore {
         this.uiController = new UIController(this.stateManager);
         this.annotationController = new AnnotationController(this.stateManager, this.coordinateTransform);
         
+        // Pass canvasRenderer reference to UIController
+        this.uiController.canvasRenderer = this.canvasRenderer;
+        
         // Initialize feature modules
         this.clusteringEngine = new ClusteringEngine();
         this.smartRouting = new SmartRouting();
         this.connectionPoints = new ConnectionPoints();
         
         this.initializeApplication();
+        
+        // Setup window resize handler
+        this.setupResizeHandler();
     }
 
     /**
@@ -312,5 +318,20 @@ export class ERViewerCore {
         newLayoutData.texts.push(newText);
         this.stateManager.updateLayoutData(newLayoutData);
         console.log('Text added at:', x, y, 'with text:', text);
+    }
+
+    /**
+     * Setup window resize handler
+     */
+    setupResizeHandler() {
+        // Initial canvas resize
+        setTimeout(() => {
+            this.canvasRenderer.resizeCanvas();
+        }, 100);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.canvasRenderer.resizeCanvas();
+        });
     }
 }

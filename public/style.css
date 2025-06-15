@@ -56,6 +56,7 @@ main {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
 }
 
 #canvas-container {
@@ -198,10 +199,15 @@ main {
 
 .sidebar {
     width: 300px;
+    min-width: 200px;
     background-color: white;
     border-left: 1px solid #ddd;
     padding: 1rem;
     overflow-y: auto;
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
     transform: translateX(100%);
     transition: transform 0.3s ease;
 }
@@ -244,6 +250,22 @@ main {
 
 #sidebar-content {
     line-height: 1.6;
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    left: -3px;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background-color: transparent;
+    transition: background-color 0.2s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
+    background-color: #3498db;
 }
 
 .ddl-content {

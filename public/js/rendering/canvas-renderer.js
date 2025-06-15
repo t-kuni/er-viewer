@@ -13,6 +13,10 @@ export class CanvasRenderer {
         this.smartRouting = new SmartRouting();
         this.connectionPoints = new ConnectionPoints();
         
+        // Store current rendering data
+        this.currentERData = null;
+        this.currentLayoutData = null;
+        
         // Rendering configuration
         this.config = {
             entity: {
@@ -90,6 +94,10 @@ export class CanvasRenderer {
      */
     renderER(erData, layoutData) {
         if (!erData) return;
+        
+        // Store current data for re-rendering
+        this.currentERData = erData;
+        this.currentLayoutData = layoutData;
         
         this.initializeCanvas();
         
@@ -629,5 +637,20 @@ export class CanvasRenderer {
             width: this.config.entity.minWidth,
             height: this.config.entity.minHeight
         };
+    }
+    
+    /**
+     * Resize canvas to fit container
+     */
+    resizeCanvas() {
+        const container = this.canvas.parentElement;
+        if (container) {
+            this.canvas.setAttribute('width', container.clientWidth);
+            this.canvas.setAttribute('height', container.clientHeight);
+            // Re-render to fit new size if data exists
+            if (this.currentERData && this.currentLayoutData) {
+                this.renderER(this.currentERData, this.currentLayoutData);
+            }
+        }
     }
 }

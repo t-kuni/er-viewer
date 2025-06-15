@@ -13,6 +13,9 @@ export class UIController {
         
         // Context menu state
         this.contextMenu = null;
+        
+        // Canvas renderer reference (will be set by ERViewerCore)
+        this.canvasRenderer = null;
     }
     
     /**
@@ -35,6 +38,11 @@ export class UIController {
         
         this.sidebar.classList.add('open');
         console.log('Sidebar should now be open');
+        
+        // Resize canvas when sidebar opens
+        if (this.canvasRenderer) {
+            setTimeout(() => this.canvasRenderer.resizeCanvas(), 300); // Wait for transition
+        }
     }
     
     /**
@@ -42,6 +50,11 @@ export class UIController {
      */
     closeSidebar() {
         this.sidebar.classList.remove('open');
+        
+        // Resize canvas when sidebar closes
+        if (this.canvasRenderer) {
+            setTimeout(() => this.canvasRenderer.resizeCanvas(), 300); // Wait for transition
+        }
     }
     
     /**

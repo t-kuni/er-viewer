@@ -87,6 +87,12 @@ export class ERViewerCore {
         this.uiController.on('delete-annotation', (e) => {
             this.annotationController.deleteAnnotation(e.detail.element);
         });
+        this.uiController.on('add-rectangle', (e) => {
+            this.addRectangleAtPosition(e.detail.x, e.detail.y);
+        });
+        this.uiController.on('add-text', (e) => {
+            this.addTextAtPosition(e.detail.x, e.detail.y);
+        });
         
         // Initialize UI event listeners
         this.initUIEventListeners();
@@ -244,6 +250,68 @@ export class ERViewerCore {
      */
     handleContextMenu(data) {
         console.log('Context menu requested at:', data.screenX, data.screenY);
-        this.uiController.showContextMenu(data.screenX, data.screenY, { target: data.target });
+        this.uiController.showContextMenu(data.screenX, data.screenY, { 
+            target: data.target, 
+            svgX: data.svgX, 
+            svgY: data.svgY 
+        });
+    }
+
+    /**
+     * Add rectangle at specified position
+     * @param {number} x - X coordinate in SVG space
+     * @param {number} y - Y coordinate in SVG space
+     */
+    addRectangleAtPosition(x, y) {
+        const currentState = this.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        
+        if (!newLayoutData.annotations) {
+            newLayoutData.annotations = { rectangles: [], texts: [] };
+        }
+        
+        const newRect = {
+            x: x,
+            y: y,
+            width: 100,
+            height: 60,
+            fill: '#e3f2fd',
+            stroke: '#1976d2',
+            strokeWidth: 2
+        };
+        
+        newLayoutData.annotations.rectangles.push(newRect);
+        this.stateManager.updateLayoutData(newLayoutData);
+        console.log('Rectangle added at:', x, y);
+    }
+
+    /**
+     * Add text at specified position
+     * @param {number} x - X coordinate in SVG space
+     * @param {number} y - Y coordinate in SVG space
+     */
+    addTextAtPosition(x, y) {
+        const text = prompt('テキストを入力してください:');
+        if (!text) return;
+        
+        const currentState = this.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        
+        if (!newLayoutData.annotations) {
+            newLayoutData.annotations = { rectangles: [], texts: [] };
+        }
+        
+        const newText = {
+            x: x,
+            y: y,
+            text: text,
+            fontSize: 14,
+            fill: '#333333',
+            fontFamily: 'Arial, sans-serif'
+        };
+        
+        newLayoutData.annotations.texts.push(newText);
+        this.stateManager.updateLayoutData(newLayoutData);
+        console.log('Text added at:', x, y, 'with text:', text);
     }
 }

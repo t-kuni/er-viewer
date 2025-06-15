@@ -47,21 +47,6 @@ function setupGlobalEventListeners() {
         });
     }
 
-    // Add Rectangle button
-    const addRectBtn = document.getElementById('add-rectangle');
-    if (addRectBtn) {
-        addRectBtn.addEventListener('click', () => {
-            addRectangle();
-        });
-    }
-
-    // Add Text button
-    const addTextBtn = document.getElementById('add-text');
-    if (addTextBtn) {
-        addTextBtn.addEventListener('click', () => {
-            addText();
-        });
-    }
 
     // Close Sidebar button
     const closeSidebarBtn = document.getElementById('close-sidebar');
@@ -120,50 +105,6 @@ async function saveLayout() {
     }
 }
 
-function addRectangle() {
-    if (!erViewer) {
-        console.error('ER Viewer not initialized');
-        return;
-    }
-    
-    const rect = {
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 100,
-        stroke: '#3498db',
-        fill: 'rgba(52, 152, 219, 0.1)'
-    };
-    const currentState = erViewer.stateManager.getState();
-    const newLayoutData = { ...currentState.layoutData };
-    if (!newLayoutData.rectangles) {
-        newLayoutData.rectangles = [];
-    }
-    newLayoutData.rectangles.push(rect);
-    erViewer.stateManager.updateLayoutData(newLayoutData);
-    
-    console.log('Rectangle added:', rect);
-}
-
-function addText() {
-    const text = prompt('テキストを入力してください:');
-    if (text) {
-        const textObj = {
-            x: 100,
-            y: 100,
-            content: text,
-            color: '#2c3e50',
-            size: 14
-        };
-        const currentState = erViewer.stateManager.getState();
-        const newLayoutData = { ...currentState.layoutData };
-        if (!newLayoutData.texts) {
-            newLayoutData.texts = [];
-        }
-        newLayoutData.texts.push(textObj);
-        erViewer.stateManager.updateLayoutData(newLayoutData);
-    }
-}
 
 // Simple UI utility functions (normally these would be in separate UI modules)
 function showLoading(message) {

@@ -91,7 +91,7 @@ export class UIController {
         const selectedAnnotation = this.stateManager.get('selectedAnnotation');
         
         // Check if we clicked on an annotation element
-        const target = options.target || event.target;
+        const target = options.target;
         
         if (target && target.classList.contains('annotation-rectangle')) {
             this.addMenuItem(menu, 'プロパティ編集', () => {
@@ -109,6 +109,16 @@ export class UIController {
             });
             this.addMenuItem(menu, '削除', () => {
                 this.emit('delete-annotation', { element: target });
+                this.removeContextMenu();
+            });
+        } else {
+            // Canvas background - add creation options
+            this.addMenuItem(menu, '矩形追加', () => {
+                this.emit('add-rectangle', { x: options.svgX || 100, y: options.svgY || 100 });
+                this.removeContextMenu();
+            });
+            this.addMenuItem(menu, 'テキスト追加', () => {
+                this.emit('add-text', { x: options.svgX || 100, y: options.svgY || 100 });
                 this.removeContextMenu();
             });
         }

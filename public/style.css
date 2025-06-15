@@ -307,30 +307,6 @@ main {
     color: #f6e05e;
 }
 
-.toolbar {
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    z-index: 1000;
-}
-
-.toolbar button {
-    background-color: #27ae60;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
-}
-
-.toolbar button:hover {
-    background-color: #229954;
-}
 
 .custom-rectangle {
     fill: rgba(52, 152, 219, 0.1);

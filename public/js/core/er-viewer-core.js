@@ -295,7 +295,14 @@ export class ERViewerCore {
             this.layerManager.addRectangleLayer(rectangleNumber);
         }
         
-        this.stateManager.updateLayoutData(newLayoutData);
+        // Preserve existing layers when updating layout data
+        const currentLayoutData = this.stateManager.get('layoutData');
+        const finalLayoutData = {
+            ...newLayoutData,
+            layers: currentLayoutData?.layers || []
+        };
+        
+        this.stateManager.updateLayoutData(finalLayoutData);
         
         console.log('Rectangle added at:', x, y);
     }
@@ -306,8 +313,10 @@ export class ERViewerCore {
      * @param {number} y - Y coordinate in SVG space
      */
     addTextAtPosition(x, y) {
+        
         const text = prompt('テキストを入力してください:');
         if (!text) return;
+        
         
         const currentState = this.stateManager.getState();
         const newLayoutData = { ...currentState.layoutData };
@@ -331,9 +340,15 @@ export class ERViewerCore {
             this.layerManager.addTextLayer(text);
         }
         
-        this.stateManager.updateLayoutData(newLayoutData);
+        // Preserve existing layers when updating layout data
+        const currentLayoutData = this.stateManager.get('layoutData');
+        const finalLayoutData = {
+            ...newLayoutData,
+            layers: currentLayoutData?.layers || []
+        };
         
-        console.log('Text added at:', x, y, 'with text:', text);
+        this.stateManager.updateLayoutData(finalLayoutData);
+        
     }
 
     /**

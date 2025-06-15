@@ -22,7 +22,7 @@ class LayerManager {
     setupStateSubscription() {
         // Load layers from state when layout data changes
         this.stateManager.subscribeToProperty('layoutData', (oldLayoutData, newLayoutData) => {
-            if (newLayoutData && newLayoutData.layers && newLayoutData.layers.length > 0) {
+            if (newLayoutData && newLayoutData.layers) {
                 // Only load from state if the layers actually changed to avoid infinite loops
                 const currentLayerIds = this.layers.map(l => l.id).sort();
                 const stateLayerIds = newLayoutData.layers.map(l => l.id).sort();
@@ -35,7 +35,7 @@ class LayerManager {
         
         // Load initial layers if they exist
         const currentLayoutData = this.stateManager.get('layoutData');
-        if (currentLayoutData && currentLayoutData.layers && currentLayoutData.layers.length > 0) {
+        if (currentLayoutData && currentLayoutData.layers) {
             this.loadLayersFromState(currentLayoutData.layers);
         }
     }
@@ -55,6 +55,25 @@ class LayerManager {
             };
             this.layers.push(layer);
         });
+        
+        // Ensure default ER diagram layer exists if not in state
+        const hasERLayer = this.layers.some(layer => layer.type === 'er-diagram');
+        if (!hasERLayer) {
+            const erLayer = {
+                id: this.generateLayerId(),
+                type: 'er-diagram',
+                name: 'ER図',
+                icon: '🗂️',
+                order: 0
+            };
+            this.layers.unshift(erLayer);
+            // Update all other layer orders
+            this.layers.forEach((layer, index) => {
+                if (layer.type !== 'er-diagram') {
+                    layer.order = index;
+                }
+            });
+        }
         
         // Sort by order to maintain correct sequence
         this.layers.sort((a, b) => a.order - b.order);
@@ -311,7 +330,7 @@ class LayerManager {
     }
     
     addTextLayer(text) {
-        const truncatedText = text.length > 20 ? text.substring(0, 20) + '...' : text;
+        const truncatedText = text.length > 30 ? text.substring(0, 30) + '...' : text;
         const name = `テキスト "${truncatedText}"`;
         return this.addLayer('text', name, '📝');
     }

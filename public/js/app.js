@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize the ER Viewer core
         erViewer = new ERViewerCore();
         
+        // Export for global access
+        window.erViewer = erViewer;
+        
         // Load initial data
         erViewer.loadERData();
         
@@ -239,5 +242,4 @@ function showNotification(message, type = 'info') {
     }, 4000);
 }
 
-// Export for global access if needed
-window.erViewer = erViewer;
+// Export for global access if needed (will be set inside DOMContentLoaded)

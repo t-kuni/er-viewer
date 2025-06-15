@@ -172,7 +172,7 @@ describe('LayerManager', () => {
             const longText = 'This is a very long text content that should be truncated';
             const layer = layerManager.addTextLayer(longText);
             
-            expect(layer.name).toBe('テキスト "This is a very long ..."');
+            expect(layer.name).toBe('テキスト "This is a very long text conte..."');
         });
         
         it('should remove layer by ID', () => {

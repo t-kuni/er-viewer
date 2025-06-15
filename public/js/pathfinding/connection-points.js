@@ -1,7 +1,10 @@
 // Connection point calculations for relationships
+import { CoordinateTransform } from '../utils/coordinate-transform.js';
+
 export class ConnectionPoints {
     constructor(erData) {
         this.erData = erData;
+        this.coordinateTransform = new CoordinateTransform();
     }
 
     setERData(erData) {
@@ -91,10 +94,7 @@ export class ConnectionPoints {
         
         for (const fromEdge of Object.values(fromEdges)) {
             for (const toEdge of Object.values(toEdges)) {
-                const distance = Math.sqrt(
-                    Math.pow(toEdge.x - fromEdge.x, 2) + 
-                    Math.pow(toEdge.y - fromEdge.y, 2)
-                );
+                const distance = this.coordinateTransform.distance(fromEdge, toEdge);
                 
                 if (distance < bestDistance) {
                     bestDistance = distance;

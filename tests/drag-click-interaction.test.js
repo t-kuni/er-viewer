@@ -3,7 +3,7 @@
  */
 
 describe('Drag and Click Interaction Tests', () => {
-  let mouseHandler;
+  let eventController;
   let mockERViewer;
 
   beforeEach(() => {
@@ -41,9 +41,9 @@ describe('Drag and Click Interaction Tests', () => {
     };
 
     // Mock MouseHandler
-    mouseHandler = {
+    eventController = {
       viewer: mockERViewer,
-      isDragging: false,
+      dragStartPoint: false,
       dragTarget: null,
       dragOffset: { x: 0, y: 0 },
       isPanning: false,
@@ -51,17 +51,17 @@ describe('Drag and Click Interaction Tests', () => {
       resizeHandle: null,
       resizeTarget: null,
       lastPanPoint: { x: 0, y: 0 },
-      hasMovedDuringDrag: false,
+      hasDragMovement: false,
       mouseDownPosition: { x: 0, y: 0 },
 
       handleMouseDown(e) {
         this.mouseDownPosition = { x: e.clientX, y: e.clientY };
-        this.hasMovedDuringDrag = false;
+        this.hasDragMovement = false;
         
         const target = e.target.closest('.entity, .custom-rectangle, .custom-text, .resize-handle');
         
         if (e.button === 0 && target) {
-          this.isDragging = true;
+          this.dragStartPoint = true;
           this.dragTarget = target;
           
           if (target.classList.contains('entity')) {
@@ -75,13 +75,13 @@ describe('Drag and Click Interaction Tests', () => {
       },
 
       handleMouseMove(e) {
-        if (this.isDragging && this.dragTarget) {
+        if (this.dragStartPoint && this.dragTarget) {
           const deltaX = Math.abs(e.clientX - this.mouseDownPosition.x);
           const deltaY = Math.abs(e.clientY - this.mouseDownPosition.y);
           
           // Consider it a drag if mouse moved more than 3 pixels
           if (deltaX > 3 || deltaY > 3) {
-            this.hasMovedDuringDrag = true;
+            this.hasDragMovement = true;
           }
 
           if (this.dragTarget.classList.contains('entity')) {
@@ -93,9 +93,9 @@ describe('Drag and Click Interaction Tests', () => {
       },
 
       handleMouseUp(e) {
-        const wasEntityDragging = this.isDragging && this.dragTarget && this.dragTarget.classList.contains('entity');
+        const wasEntityDragging = this.dragStartPoint && this.dragTarget && this.dragTarget.classList.contains('entity');
         
-        this.isDragging = false;
+        this.dragStartPoint = false;
         this.dragTarget = null;
         
         if (wasEntityDragging) {
@@ -105,10 +105,10 @@ describe('Drag and Click Interaction Tests', () => {
 
       handleClick(e) {
         console.log('handleClick called', e.target);
-        console.log('hasMovedDuringDrag:', this.hasMovedDuringDrag);
+        console.log('hasDragMovement:', this.hasDragMovement);
         
         // Don't trigger click if we were dragging
-        if (this.hasMovedDuringDrag) {
+        if (this.hasDragMovement) {
           console.log('Click prevented due to drag movement');
           return;
         }
@@ -143,25 +143,25 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
-    expect(mouseHandler.isDragging).toBe(true);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false);
+    expect(eventController.dragStartPoint).toBe(true);
+    expect(eventController.hasDragMovement).toBe(false);
 
     // Simulate mouseup without movement
     const mouseUpEvent = {
       target: entityTitle
     };
-    mouseHandler.handleMouseUp(mouseUpEvent);
+    eventController.handleMouseUp(mouseUpEvent);
 
-    expect(mouseHandler.isDragging).toBe(false);
+    expect(eventController.dragStartPoint).toBe(false);
 
     // Simulate click
     const clickEvent = {
       target: entityTitle,
       preventDefault: jest.fn()
     };
-    mouseHandler.handleClick(clickEvent);
+    eventController.handleClick(clickEvent);
 
     // Should trigger showTableDetails since no dragging occurred
     expect(mockERViewer.showTableDetails).toHaveBeenCalledWith('users');
@@ -178,34 +178,34 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
-    expect(mouseHandler.isDragging).toBe(true);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false);
+    expect(eventController.dragStartPoint).toBe(true);
+    expect(eventController.hasDragMovement).toBe(false);
 
     // Simulate mouse movement (dragging)
     const mouseMoveEvent = {
       clientX: 160, // Moved 10 pixels horizontally
       clientY: 115
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
+    eventController.handleMouseMove(mouseMoveEvent);
 
-    expect(mouseHandler.hasMovedDuringDrag).toBe(true);
+    expect(eventController.hasDragMovement).toBe(true);
 
     // Simulate mouseup
     const mouseUpEvent = {
       target: entityTitle
     };
-    mouseHandler.handleMouseUp(mouseUpEvent);
+    eventController.handleMouseUp(mouseUpEvent);
 
-    expect(mouseHandler.isDragging).toBe(false);
+    expect(eventController.dragStartPoint).toBe(false);
 
     // Simulate click after drag
     const clickEvent = {
       target: entityTitle,
       preventDefault: jest.fn()
     };
-    mouseHandler.handleClick(clickEvent);
+    eventController.handleClick(clickEvent);
 
     // Should NOT trigger showTableDetails since dragging occurred
     expect(mockERViewer.showTableDetails).not.toHaveBeenCalled();
@@ -222,29 +222,29 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
     // Simulate very small mouse movement (< 3 pixels)
     const mouseMoveEvent = {
       clientX: 152, // Moved only 2 pixels
       clientY: 115
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
+    eventController.handleMouseMove(mouseMoveEvent);
 
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false); // Should still be false
+    expect(eventController.hasDragMovement).toBe(false); // Should still be false
 
     // Simulate mouseup
     const mouseUpEvent = {
       target: entityTitle
     };
-    mouseHandler.handleMouseUp(mouseUpEvent);
+    eventController.handleMouseUp(mouseUpEvent);
 
     // Simulate click
     const clickEvent = {
       target: entityTitle,
       preventDefault: jest.fn()
     };
-    mouseHandler.handleClick(clickEvent);
+    eventController.handleClick(clickEvent);
 
     // Should trigger showTableDetails since movement was too small to be a drag
     expect(mockERViewer.showTableDetails).toHaveBeenCalledWith('users');
@@ -261,16 +261,16 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
     // Simulate large mouse movement
     const mouseMoveEvent = {
       clientX: 170, // Moved 20 pixels horizontally
       clientY: 130  // Moved 15 pixels vertically
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
+    eventController.handleMouseMove(mouseMoveEvent);
 
-    expect(mouseHandler.hasMovedDuringDrag).toBe(true);
+    expect(eventController.hasDragMovement).toBe(true);
 
     // Verify entity position was updated
     const currentTransform = entity.getAttribute('transform');
@@ -288,31 +288,31 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
     // First small movement
     let mouseMoveEvent = {
       clientX: 152,
       clientY: 115
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false);
+    eventController.handleMouseMove(mouseMoveEvent);
+    expect(eventController.hasDragMovement).toBe(false);
 
     // Second small movement
     mouseMoveEvent = {
       clientX: 153,
       clientY: 116
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false);
+    eventController.handleMouseMove(mouseMoveEvent);
+    expect(eventController.hasDragMovement).toBe(false);
 
     // Third movement that crosses threshold
     mouseMoveEvent = {
       clientX: 155,
       clientY: 118
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(true); // Now it's considered a drag
+    eventController.handleMouseMove(mouseMoveEvent);
+    expect(eventController.hasDragMovement).toBe(true); // Now it's considered a drag
   });
 
   test('should reset drag state on each mousedown', () => {
@@ -326,16 +326,16 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
 
     let mouseMoveEvent = {
       clientX: 160,
       clientY: 115
     };
-    mouseHandler.handleMouseMove(mouseMoveEvent);
-    expect(mouseHandler.hasMovedDuringDrag).toBe(true);
+    eventController.handleMouseMove(mouseMoveEvent);
+    expect(eventController.hasDragMovement).toBe(true);
 
-    mouseHandler.handleMouseUp({ target: entityTitle });
+    eventController.handleMouseUp({ target: entityTitle });
 
     // Second interaction - should reset state
     mouseDownEvent = {
@@ -344,18 +344,18 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 200,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(mouseDownEvent);
+    eventController.handleMouseDown(mouseDownEvent);
     
-    expect(mouseHandler.hasMovedDuringDrag).toBe(false); // Should be reset
-    expect(mouseHandler.mouseDownPosition.x).toBe(200);
-    expect(mouseHandler.mouseDownPosition.y).toBe(200);
+    expect(eventController.hasDragMovement).toBe(false); // Should be reset
+    expect(eventController.mouseDownPosition.x).toBe(200);
+    expect(eventController.mouseDownPosition.y).toBe(200);
 
     // Click should work now
     const clickEvent = {
       target: entityTitle,
       preventDefault: jest.fn()
     };
-    mouseHandler.handleClick(clickEvent);
+    eventController.handleClick(clickEvent);
     expect(mockERViewer.showTableDetails).toHaveBeenCalledWith('users');
   });
 
@@ -370,10 +370,10 @@ describe('Drag and Click Interaction Tests', () => {
       clientY: 115,
       target: entityTitle
     };
-    mouseHandler.handleMouseDown(rightClickEvent);
-    expect(mouseHandler.isDragging).toBe(false); // Should not start dragging on right click
+    eventController.handleMouseDown(rightClickEvent);
+    expect(eventController.dragStartPoint).toBe(false); // Should not start dragging on right click
 
-    // Test middle click (button 1) - need to implement this in mouseHandler
+    // Test middle click (button 1) - need to implement this in eventController
     const middleClickEvent = {
       button: 1,
       clientX: 150,
@@ -385,10 +385,10 @@ describe('Drag and Click Interaction Tests', () => {
     // Add middle click handling to our mock
     if (middleClickEvent.button === 1) {
       middleClickEvent.preventDefault();
-      mouseHandler.isPanning = true;
-      mouseHandler.lastPanPoint = { x: middleClickEvent.clientX, y: middleClickEvent.clientY };
+      eventController.isPanning = true;
+      eventController.lastPanPoint = { x: middleClickEvent.clientX, y: middleClickEvent.clientY };
     }
     
-    expect(mouseHandler.isPanning).toBe(true); // Should start panning on middle click
+    expect(eventController.isPanning).toBe(true); // Should start panning on middle click
   });
 });

@@ -11,7 +11,7 @@ console.warn = jest.fn();
 
 describe('Entity Click Behavior Tests', () => {
   let erViewer;
-  let mouseHandler;
+  let eventController;
   let mockFetch;
 
   beforeEach(() => {
@@ -62,10 +62,10 @@ describe('Entity Click Behavior Tests', () => {
       erViewer = new ERViewerCore();
       // In new architecture, event handling is done through EventController
       // Create mock for compatibility with old tests
-      mouseHandler = {
+      eventController = {
         viewer: erViewer,
-        isDragging: false,
-        hasMovedDuringDrag: false,
+        dragStartPoint: false,
+        hasDragMovement: false,
         mouseDownPosition: { x: 0, y: 0 },
         handleClick(e) {
           console.log('handleClick called', e.target);
@@ -107,10 +107,10 @@ describe('Entity Click Behavior Tests', () => {
       };
 
       // Mock event controller for old test compatibility
-      mouseHandler = {
+      eventController = {
         viewer: erViewer,
-        isDragging: false,
-        hasMovedDuringDrag: false,
+        dragStartPoint: false,
+        hasDragMovement: false,
         mouseDownPosition: { x: 0, y: 0 },
         handleClick(e) {
           console.log('handleClick called', e.target);
@@ -173,7 +173,7 @@ describe('Entity Click Behavior Tests', () => {
     const showTableDetailsSpy = jest.spyOn(erViewer, 'showTableDetails');
 
     // Simulate click
-    await mouseHandler.handleClick(mockEvent);
+    await eventController.handleClick(mockEvent);
 
     // Verify showTableDetails was called
     expect(showTableDetailsSpy).toHaveBeenCalledWith('users');
@@ -253,7 +253,7 @@ describe('Entity Click Behavior Tests', () => {
 
   test('should test click event simulation on different entity parts', () => {
     const usersEntity = document.querySelector('.entity[data-table="users"]');
-    const handleClickSpy = jest.spyOn(mouseHandler, 'handleClick');
+    const handleClickSpy = jest.spyOn(eventController, 'handleClick');
 
     // Test clicking on entity rect
     const entityRect = usersEntity.querySelector('.entity-rect');
@@ -270,7 +270,7 @@ describe('Entity Click Behavior Tests', () => {
       enumerable: true
     });
 
-    mouseHandler.handleClick(rectClickEvent);
+    eventController.handleClick(rectClickEvent);
     expect(handleClickSpy).toHaveBeenCalledWith(rectClickEvent);
 
     // Test clicking on entity title
@@ -288,7 +288,7 @@ describe('Entity Click Behavior Tests', () => {
       enumerable: true
     });
 
-    mouseHandler.handleClick(titleClickEvent);
+    eventController.handleClick(titleClickEvent);
     expect(handleClickSpy).toHaveBeenCalledWith(titleClickEvent);
 
     // Test clicking on entity column
@@ -306,7 +306,7 @@ describe('Entity Click Behavior Tests', () => {
       enumerable: true
     });
 
-    mouseHandler.handleClick(columnClickEvent);
+    eventController.handleClick(columnClickEvent);
     expect(handleClickSpy).toHaveBeenCalledWith(columnClickEvent);
   });
 
@@ -315,8 +315,8 @@ describe('Entity Click Behavior Tests', () => {
     const usersEntity = document.querySelector('.entity[data-table="users"]');
     
     // Simulate drag scenario
-    mouseHandler.hasMovedDuringDrag = true;
-    mouseHandler.isDragging = true;
+    eventController.hasDragMovement = true;
+    eventController.dragStartPoint = true;
 
     const mockEvent = {
       target: usersEntity.querySelector('.entity-title'),
@@ -325,8 +325,8 @@ describe('Entity Click Behavior Tests', () => {
 
     // In a real scenario, click should be prevented if dragging occurred
     // This test documents the expected behavior
-    expect(mouseHandler.hasMovedDuringDrag).toBe(true);
-    expect(mouseHandler.isDragging).toBe(true);
+    expect(eventController.hasDragMovement).toBe(true);
+    expect(eventController.dragStartPoint).toBe(true);
   });
 
   test('should verify DOM structure for entity clicking', () => {

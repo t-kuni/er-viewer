@@ -1,11 +1,5 @@
 // SVG and geometric utility functions
 export class SVGUtils {
-    static screenToSVG(screenX, screenY, canvas, panX, panY, scale) {
-        const rect = canvas.getBoundingClientRect();
-        const x = (screenX - rect.left - panX) / scale;
-        const y = (screenY - rect.top - panY) / scale;
-        return { x, y };
-    }
 
     static pathPointsToSVG(pathPoints) {
         return `M ${pathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`;

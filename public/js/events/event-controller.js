@@ -248,17 +248,21 @@ export class EventController {
         }
         
         // Handle entity clicks
-        const entityElement = event.target.closest('.entity');
-        if (entityElement) {
-            this.handleEntityClick(event, entityElement);
-            return;
+        if (event.target && event.target.closest) {
+            const entityElement = event.target.closest('.entity');
+            if (entityElement) {
+                this.handleEntityClick(event, entityElement);
+                return;
+            }
         }
         
         // Handle relationship clicks
-        const relationshipElement = event.target.closest('.relationship');
-        if (relationshipElement) {
-            this.handleRelationshipClick(event, relationshipElement);
-            return;
+        if (event.target && event.target.closest) {
+            const relationshipElement = event.target.closest('.relationship');
+            if (relationshipElement) {
+                this.handleRelationshipClick(event, relationshipElement);
+                return;
+            }
         }
         
         // Handle canvas background click
@@ -278,9 +282,11 @@ export class EventController {
         }
         
         // Handle entity double-click
-        const entityElement = event.target.closest('.entity');
-        if (entityElement) {
-            this.handleEntityDoubleClick(event, entityElement);
+        if (event.target && event.target.closest) {
+            const entityElement = event.target.closest('.entity');
+            if (entityElement) {
+                this.handleEntityDoubleClick(event, entityElement);
+            }
         }
     }
 

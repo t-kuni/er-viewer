@@ -138,6 +138,14 @@ export class StateManager {
     }
 
     /**
+     * Set layout data directly
+     * @param {Object} layoutData - Layout data
+     */
+    setLayoutData(layoutData) {
+        this.setState({ layoutData });
+    }
+
+    /**
      * Set interaction mode
      * @param {string} mode - Interaction mode
      * @param {Object} data - Optional mode-specific data

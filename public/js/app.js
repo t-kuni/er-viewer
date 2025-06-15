@@ -79,19 +79,16 @@ async function reverseEngineer() {
     try {
         const response = await fetch('/api/reverse-engineer', { method: 'POST' });
         if (response.ok) {
-            erViewer.erData = await response.json();
-            erViewer.layoutData = erViewer.erData.layout || { entities: {}, rectangles: [], texts: [] };
+            const erData = await response.json();
             
             // Clear existing positions to force clustering
-            erViewer.erData.entities.forEach(entity => {
+            erData.entities.forEach(entity => {
                 entity.position = null;
             });
             
-            // Update modules with new data
-            erViewer.clusteringEngine.setERData(erViewer.erData);
-            erViewer.connectionPoints.setERData(erViewer.erData);
-            
-            erViewer.renderER();
+            // Update state through StateManager
+            erViewer.stateManager.setERData(erData);
+            erViewer.stateManager.setLayoutData(erData.layout || { entities: {}, rectangles: [], texts: [] });
         } else {
             const errorText = await response.text();
             console.error(`Reverse engineering failed: ${response.status} ${response.statusText}`, errorText);
@@ -107,10 +104,11 @@ async function reverseEngineer() {
 
 async function saveLayout() {
     try {
+        const currentState = erViewer.stateManager.getState();
         const response = await fetch('/api/layout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(erViewer.layoutData)
+            body: JSON.stringify(currentState.layoutData)
         });
         
         if (response.ok) {
@@ -131,8 +129,10 @@ function addRectangle() {
         stroke: '#3498db',
         fill: 'rgba(52, 152, 219, 0.1)'
     };
-    erViewer.layoutData.rectangles.push(rect);
-    erViewer.renderER();
+    const currentState = erViewer.stateManager.getState();
+    const newLayoutData = { ...currentState.layoutData };
+    newLayoutData.rectangles.push(rect);
+    erViewer.stateManager.updateLayoutData(newLayoutData);
 }
 
 function addText() {
@@ -145,8 +145,10 @@ function addText() {
             color: '#2c3e50',
             size: 14
         };
-        erViewer.layoutData.texts.push(textObj);
-        erViewer.renderER();
+        const currentState = erViewer.stateManager.getState();
+        const newLayoutData = { ...currentState.layoutData };
+        newLayoutData.texts.push(textObj);
+        erViewer.stateManager.updateLayoutData(newLayoutData);
     }
 }
 

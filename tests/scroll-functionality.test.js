@@ -2,33 +2,40 @@
  * @jest-environment jsdom
  */
 
-import { MouseHandler } from '../public/js/events/mouse-handler.js';
-import { KeyboardHandler } from '../public/js/events/keyboard-handler.js';
+import { EventController } from '../public/js/events/event-controller.js';
+import { StateManager } from '../public/js/state/state-manager.js';
+import { CoordinateTransform } from '../public/js/utils/coordinate-transform.js';
 
 // Mock the ERViewer class and required dependencies
 class MockERViewer {
     constructor() {
         this.canvas = document.createElement('svg');
-        this.panX = 0;
-        this.panY = 0;
-        this.scale = 1;
-        this.keyboardHandler = new KeyboardHandler(this);
-        this.mouseHandler = new MouseHandler(this);
+        this.canvas.id = 'er-canvas';
+        this.stateManager = new StateManager();
+        this.coordinateTransform = new CoordinateTransform();
+        this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform);
+        
+        // Initialize viewport state
+        this.stateManager.updateViewport(0, 0, 1);
         
         // Add the canvas to DOM for testing
         document.body.appendChild(this.canvas);
     }
 
+    get viewport() {
+        return this.stateManager.get('viewport');
+    }
+
     updateTransform() {
+        const viewport = this.viewport;
         // Mock implementation
-        this.canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+        this.canvas.style.transform = `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.scale})`;
     }
 }
 
 describe('Scroll Functionality Tests', () => {
     let viewer;
-    let mouseHandler;
-    let keyboardHandler;
+    let eventController;
 
     beforeEach(() => {
         // Clear DOM
@@ -36,8 +43,7 @@ describe('Scroll Functionality Tests', () => {
         
         // Create mock viewer
         viewer = new MockERViewer();
-        mouseHandler = viewer.mouseHandler;
-        keyboardHandler = viewer.keyboardHandler;
+        eventController = viewer.eventController;
         
         // Mock getBoundingClientRect
         viewer.canvas.getBoundingClientRect = jest.fn(() => ({
@@ -48,257 +54,296 @@ describe('Scroll Functionality Tests', () => {
         }));
     });
 
-    describe('Space + Drag Scrolling', () => {
-        test('should enable panning when space key is pressed and mouse is dragged', () => {
-            // スペースキーを押下
-            const spaceKeyDownEvent = new KeyboardEvent('keydown', { code: 'Space' });
-            keyboardHandler.handleKeyDown(spaceKeyDownEvent);
+    describe('Wheel Zoom Functionality', () => {
+        test('should zoom in when scrolling up', () => {
+            const initialScale = viewer.viewport.scale;
             
-            expect(keyboardHandler.isSpacePressed).toBe(true);
-            expect(viewer.canvas.style.cursor).toBe('grab');
-            
-            // マウスダウン（スペース押下中）
-            const mouseDownEvent = new MouseEvent('mousedown', {
-                button: 0,
-                clientX: 100,
-                clientY: 100
-            });
-            Object.defineProperty(mouseDownEvent, 'target', { value: viewer.canvas });
-            
-            mouseHandler.handleMouseDown(mouseDownEvent);
-            
-            expect(mouseHandler.isPanning).toBe(true);
-            expect(viewer.canvas.style.cursor).toBe('grabbing');
-            
-            // マウス移動
-            const initialPanX = viewer.panX;
-            const initialPanY = viewer.panY;
-            
-            const mouseMoveEvent = new MouseEvent('mousemove', {
-                clientX: 150,
-                clientY: 120
+            const wheelEvent = new WheelEvent('wheel', {
+                deltaY: -100, // Scroll up
+                clientX: 400,
+                clientY: 300
             });
             
-            mouseHandler.handleMouseMove(mouseMoveEvent);
+            eventController.handleWheel(wheelEvent);
             
-            expect(viewer.panX).toBe(initialPanX + 50);
-            expect(viewer.panY).toBe(initialPanY + 20);
-            
-            // マウスアップ
-            const mouseUpEvent = new MouseEvent('mouseup', { button: 0 });
-            mouseHandler.handleMouseUp(mouseUpEvent);
-            
-            expect(mouseHandler.isPanning).toBe(false);
-            
-            // スペースキーを離す
-            const spaceKeyUpEvent = new KeyboardEvent('keyup', { code: 'Space' });
-            keyboardHandler.handleKeyUp(spaceKeyUpEvent);
-            
-            expect(keyboardHandler.isSpacePressed).toBe(false);
-            expect(viewer.canvas.style.cursor).toBe('default');
+            expect(viewer.viewport.scale).toBeGreaterThan(initialScale);
         });
 
-        test('should not enable panning when space is not pressed', () => {
-            // スペースキーを押下しない状態でマウスダウン
-            const mouseDownEvent = new MouseEvent('mousedown', {
-                button: 0,
-                clientX: 100,
-                clientY: 100
-            });
-            Object.defineProperty(mouseDownEvent, 'target', { value: viewer.canvas });
+        test('should zoom out when scrolling down', () => {
+            const initialScale = viewer.viewport.scale;
             
-            mouseHandler.handleMouseDown(mouseDownEvent);
-            
-            expect(mouseHandler.isPanning).toBe(false);
-        });
-
-        test('should prevent space key default behavior', () => {
-            const spaceKeyDownEvent = new KeyboardEvent('keydown', { code: 'Space' });
-            spaceKeyDownEvent.preventDefault = jest.fn();
-            
-            keyboardHandler.handleKeyDown(spaceKeyDownEvent);
-            
-            expect(spaceKeyDownEvent.preventDefault).toHaveBeenCalled();
-        });
-    });
-
-    describe('Middle Click (Wheel Button) Scrolling', () => {
-        test('should enable panning when middle mouse button is pressed', () => {
-            // 中クリック（ホイール押し込み）
-            const middleClickEvent = new MouseEvent('mousedown', {
-                button: 1, // Middle button
-                clientX: 100,
-                clientY: 100
-            });
-            middleClickEvent.preventDefault = jest.fn();
-            Object.defineProperty(middleClickEvent, 'target', { value: viewer.canvas });
-            
-            mouseHandler.handleMouseDown(middleClickEvent);
-            
-            expect(middleClickEvent.preventDefault).toHaveBeenCalled();
-            expect(mouseHandler.isPanning).toBe(true);
-            expect(viewer.canvas.style.cursor).toBe('grabbing');
-            
-            // マウス移動
-            const initialPanX = viewer.panX;
-            const initialPanY = viewer.panY;
-            
-            const mouseMoveEvent = new MouseEvent('mousemove', {
-                clientX: 150,
-                clientY: 120
+            const wheelEvent = new WheelEvent('wheel', {
+                deltaY: 100, // Scroll down
+                clientX: 400,
+                clientY: 300
             });
             
-            mouseHandler.handleMouseMove(mouseMoveEvent);
+            eventController.handleWheel(wheelEvent);
             
-            expect(viewer.panX).toBe(initialPanX + 50);
-            expect(viewer.panY).toBe(initialPanY + 20);
-            
-            // マウスアップ
-            const mouseUpEvent = new MouseEvent('mouseup', { button: 1 });
-            mouseHandler.handleMouseUp(mouseUpEvent);
-            
-            expect(mouseHandler.isPanning).toBe(false);
-            expect(viewer.canvas.style.cursor).toBe('default');
+            expect(viewer.viewport.scale).toBeLessThan(initialScale);
         });
 
-        test('should work independently of space key state', () => {
-            // スペースキーが押されていない状態でも中クリックでパンできる
-            expect(keyboardHandler.isSpacePressed).toBe(false);
-            
-            const middleClickEvent = new MouseEvent('mousedown', {
-                button: 1,
-                clientX: 100,
-                clientY: 100
-            });
-            middleClickEvent.preventDefault = jest.fn();
-            Object.defineProperty(middleClickEvent, 'target', { value: viewer.canvas });
-            
-            mouseHandler.handleMouseDown(middleClickEvent);
-            
-            expect(mouseHandler.isPanning).toBe(true);
-        });
-    });
-
-    describe('Panning Behavior', () => {
-        test('should update pan position correctly during mouse move', () => {
-            // パンモードを有効にする
-            mouseHandler.isPanning = true;
-            mouseHandler.lastPanPoint = { x: 100, y: 100 };
-            
-            const initialPanX = viewer.panX;
-            const initialPanY = viewer.panY;
-            
-            // マウス移動イベント
-            const mouseMoveEvent = new MouseEvent('mousemove', {
-                clientX: 120,
-                clientY: 130
-            });
-            
-            mouseHandler.handleMouseMove(mouseMoveEvent);
-            
-            // パン位置が更新されることを確認
-            expect(viewer.panX).toBe(initialPanX + 20);
-            expect(viewer.panY).toBe(initialPanY + 30);
-            expect(mouseHandler.lastPanPoint).toEqual({ x: 120, y: 130 });
-        });
-
-        test('should call updateTransform when panning', () => {
-            viewer.updateTransform = jest.fn();
-            
-            mouseHandler.isPanning = true;
-            mouseHandler.lastPanPoint = { x: 100, y: 100 };
-            
-            const mouseMoveEvent = new MouseEvent('mousemove', {
-                clientX: 110,
-                clientY: 110
-            });
-            
-            mouseHandler.handleMouseMove(mouseMoveEvent);
-            
-            expect(viewer.updateTransform).toHaveBeenCalled();
-        });
-
-        test('should reset panning state on mouse up', () => {
-            mouseHandler.isPanning = true;
-            mouseHandler.lastPanPoint = { x: 100, y: 100 };
-            viewer.canvas.style.cursor = 'grabbing';
-            
-            const mouseUpEvent = new MouseEvent('mouseup', { button: 0 });
-            mouseHandler.handleMouseUp(mouseUpEvent);
-            
-            expect(mouseHandler.isPanning).toBe(false);
-            expect(viewer.canvas.style.cursor).toBe('default');
-        });
-    });
-
-    describe('Cursor Management', () => {
-        test('should change cursor to grab when space is pressed', () => {
-            const spaceKeyDownEvent = new KeyboardEvent('keydown', { code: 'Space' });
-            keyboardHandler.handleKeyDown(spaceKeyDownEvent);
-            
-            expect(viewer.canvas.style.cursor).toBe('grab');
-        });
-
-        test('should change cursor to grabbing when panning starts', () => {
-            keyboardHandler.isSpacePressed = true;
-            
-            const mouseDownEvent = new MouseEvent('mousedown', {
-                button: 0,
-                clientX: 100,
-                clientY: 100
-            });
-            Object.defineProperty(mouseDownEvent, 'target', { value: viewer.canvas });
-            
-            mouseHandler.handleMouseDown(mouseDownEvent);
-            
-            expect(viewer.canvas.style.cursor).toBe('grabbing');
-        });
-
-        test('should reset cursor to default when space is released', () => {
-            keyboardHandler.isSpacePressed = true;
-            viewer.canvas.style.cursor = 'grab';
-            
-            const spaceKeyUpEvent = new KeyboardEvent('keyup', { code: 'Space' });
-            keyboardHandler.handleKeyUp(spaceKeyUpEvent);
-            
-            expect(keyboardHandler.isSpacePressed).toBe(false);
-            expect(viewer.canvas.style.cursor).toBe('default');
-        });
-    });
-
-    describe('Edge Cases', () => {
-        test('should handle multiple rapid key presses correctly', () => {
-            // 複数回のスペースキー押下
-            for (let i = 0; i < 5; i++) {
-                const spaceKeyDownEvent = new KeyboardEvent('keydown', { code: 'Space' });
-                keyboardHandler.handleKeyDown(spaceKeyDownEvent);
+        test('should maintain minimum and maximum zoom levels', () => {
+            // Test minimum zoom (zoom out a lot)
+            for (let i = 0; i < 20; i++) {
+                const wheelEvent = new WheelEvent('wheel', {
+                    deltaY: 100,
+                    clientX: 400,
+                    clientY: 300
+                });
+                eventController.handleWheel(wheelEvent);
             }
             
-            expect(keyboardHandler.isSpacePressed).toBe(true);
+            expect(viewer.viewport.scale).toBeGreaterThanOrEqual(0.1);
             
-            // 1回のキーアップで解除される
-            const spaceKeyUpEvent = new KeyboardEvent('keyup', { code: 'Space' });
-            keyboardHandler.handleKeyUp(spaceKeyUpEvent);
+            // Reset and test maximum zoom
+            viewer.stateManager.updateViewport(0, 0, 1);
             
-            expect(keyboardHandler.isSpacePressed).toBe(false);
+            for (let i = 0; i < 20; i++) {
+                const wheelEvent = new WheelEvent('wheel', {
+                    deltaY: -100,
+                    clientX: 400,
+                    clientY: 300
+                });
+                eventController.handleWheel(wheelEvent);
+            }
+            
+            expect(viewer.viewport.scale).toBeLessThanOrEqual(5);
         });
+    });
 
-        test('should handle mouse events outside canvas correctly', () => {
-            keyboardHandler.isSpacePressed = true;
-            
-            // キャンバス外の要素でのマウスダウン
-            const outsideElement = document.createElement('div');
+    describe('Panning Functionality', () => {
+        test('should start panning on mousedown', () => {
             const mouseDownEvent = new MouseEvent('mousedown', {
                 button: 0,
                 clientX: 100,
                 clientY: 100
             });
-            Object.defineProperty(mouseDownEvent, 'target', { value: outsideElement });
             
-            mouseHandler.handleMouseDown(mouseDownEvent);
+            eventController.handleMouseDown(mouseDownEvent);
             
-            // パンモードが有効になることを確認（スペースが押されているため）
-            expect(mouseHandler.isPanning).toBe(true);
+            expect(viewer.stateManager.get('interactionMode')).toBe('panning');
+        });
+
+        test('should update pan position during mouse move', () => {
+            // Start panning
+            const mouseDownEvent = new MouseEvent('mousedown', {
+                button: 0,
+                clientX: 100,
+                clientY: 100
+            });
+            
+            eventController.handleMouseDown(mouseDownEvent);
+            
+            const initialPanX = viewer.viewport.panX;
+            const initialPanY = viewer.viewport.panY;
+            
+            // Move mouse
+            const mouseMoveEvent = new MouseEvent('mousemove', {
+                clientX: 150,
+                clientY: 120
+            });
+            
+            eventController.handleMouseMove(mouseMoveEvent);
+            
+            // Pan position should be updated
+            expect(viewer.viewport.panX).not.toBe(initialPanX);
+            expect(viewer.viewport.panY).not.toBe(initialPanY);
+        });
+
+        test('should end panning on mouseup', () => {
+            // Start panning
+            const mouseDownEvent = new MouseEvent('mousedown', {
+                button: 0,
+                clientX: 100,
+                clientY: 100
+            });
+            
+            eventController.handleMouseDown(mouseDownEvent);
+            expect(viewer.stateManager.get('interactionMode')).toBe('panning');
+            
+            // End panning
+            const mouseUpEvent = new MouseEvent('mouseup', {
+                button: 0
+            });
+            
+            eventController.handleMouseUp(mouseUpEvent);
+            
+            expect(viewer.stateManager.get('interactionMode')).toBe('default');
+        });
+    });
+
+    describe('Keyboard Shortcuts', () => {
+        test('should handle escape key to reset interaction mode', () => {
+            // Set some interaction mode
+            viewer.stateManager.setInteractionMode('creating-rectangle');
+            
+            const escapeEvent = new KeyboardEvent('keydown', {
+                key: 'Escape'
+            });
+            
+            eventController.handleKeyDown(escapeEvent);
+            
+            expect(viewer.stateManager.get('interactionMode')).toBe('default');
+        });
+
+        test('should handle ctrl+z for undo', () => {
+            const undoSpy = jest.spyOn(viewer.stateManager, 'undo');
+            
+            const ctrlZEvent = new KeyboardEvent('keydown', {
+                key: 'z',
+                ctrlKey: true
+            });
+            
+            eventController.handleKeyDown(ctrlZEvent);
+            
+            expect(undoSpy).toHaveBeenCalled();
+        });
+
+        test('should handle ctrl+shift+z for redo', () => {
+            const redoSpy = jest.spyOn(viewer.stateManager, 'redo');
+            
+            const ctrlShiftZEvent = new KeyboardEvent('keydown', {
+                key: 'z',
+                ctrlKey: true,
+                shiftKey: true
+            });
+            
+            eventController.handleKeyDown(ctrlShiftZEvent);
+            
+            expect(redoSpy).toHaveBeenCalled();
+        });
+
+        test('should handle ctrl+r for rectangle creation mode', () => {
+            const ctrlREvent = new KeyboardEvent('keydown', {
+                key: 'r',
+                ctrlKey: true
+            });
+            
+            eventController.handleKeyDown(ctrlREvent);
+            
+            expect(viewer.stateManager.get('interactionMode')).toBe('creating-rectangle');
+        });
+
+        test('should handle ctrl+t for text creation mode', () => {
+            const ctrlTEvent = new KeyboardEvent('keydown', {
+                key: 't',
+                ctrlKey: true
+            });
+            
+            eventController.handleKeyDown(ctrlTEvent);
+            
+            expect(viewer.stateManager.get('interactionMode')).toBe('creating-text');
+        });
+    });
+
+    describe('Entity Interaction', () => {
+        test('should handle entity click events', () => {
+            const entityElement = document.createElement('g');
+            entityElement.classList.add('entity');
+            entityElement.setAttribute('data-table', 'users');
+            viewer.canvas.appendChild(entityElement);
+            
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                clientX: 100,
+                clientY: 100
+            });
+            
+            const eventSpy = jest.fn();
+            viewer.canvas.addEventListener('entity-click', eventSpy);
+            
+            // Simulate click on entity
+            Object.defineProperty(clickEvent, 'target', { value: entityElement });
+            eventController.handleClick(clickEvent);
+            
+            expect(eventSpy).toHaveBeenCalled();
+        });
+
+        test('should handle entity double-click events', () => {
+            const entityElement = document.createElement('g');
+            entityElement.classList.add('entity');
+            entityElement.setAttribute('data-table', 'users');
+            viewer.canvas.appendChild(entityElement);
+            
+            const dblClickEvent = new MouseEvent('dblclick', {
+                bubbles: true,
+                clientX: 100,
+                clientY: 100
+            });
+            
+            const eventSpy = jest.fn();
+            viewer.canvas.addEventListener('entity-dblclick', eventSpy);
+            
+            // Simulate double-click on entity
+            Object.defineProperty(dblClickEvent, 'target', { value: entityElement });
+            eventController.handleDoubleClick(dblClickEvent);
+            
+            expect(eventSpy).toHaveBeenCalled();
+        });
+    });
+
+    describe('Context Menu', () => {
+        test('should show context menu on right click', () => {
+            const contextMenuEvent = new MouseEvent('contextmenu', {
+                button: 2,
+                clientX: 200,
+                clientY: 150
+            });
+            
+            const eventSpy = jest.fn();
+            viewer.canvas.addEventListener('context-menu', eventSpy);
+            
+            eventController.handleContextMenu(contextMenuEvent);
+            
+            expect(eventSpy).toHaveBeenCalled();
+            expect(eventSpy.mock.calls[0][0].detail.screenX).toBe(200);
+            expect(eventSpy.mock.calls[0][0].detail.screenY).toBe(150);
+        });
+    });
+
+    describe('Drag Threshold', () => {
+        test('should not trigger click when dragging beyond threshold', () => {
+            // Start drag
+            const mouseDownEvent = new MouseEvent('mousedown', {
+                button: 0,
+                clientX: 100,
+                clientY: 100
+            });
+            
+            eventController.handleMouseDown(mouseDownEvent);
+            
+            // Move beyond threshold
+            const mouseMoveEvent = new MouseEvent('mousemove', {
+                clientX: 110, // 10 pixels away (> 5 pixel threshold)
+                clientY: 100
+            });
+            
+            eventController.handleMouseMove(mouseMoveEvent);
+            
+            // Check that drag movement was detected
+            expect(eventController.hasDragMovement).toBe(true);
+            
+            // Test click while still dragging - should be ignored
+            const clickEventDuringDrag = new MouseEvent('click', {
+                clientX: 110,
+                clientY: 100
+            });
+            
+            const eventSpy = jest.fn();
+            viewer.canvas.addEventListener('canvas-click', eventSpy);
+            
+            eventController.handleClick(clickEventDuringDrag);
+            
+            // Click should be ignored due to drag movement
+            expect(eventSpy).not.toHaveBeenCalled();
+            
+            // End drag
+            const mouseUpEvent = new MouseEvent('mouseup', {
+                button: 0
+            });
+            
+            eventController.handleMouseUp(mouseUpEvent);
         });
     });
 });

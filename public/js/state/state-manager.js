@@ -7,7 +7,7 @@ export class StateManager {
         this.state = {
             // Application data
             erData: null,
-            layoutData: { entities: {}, rectangles: [], texts: [] },
+            layoutData: { entities: {}, rectangles: [], texts: [], layers: [] },
             
             // View state
             viewport: {
@@ -125,7 +125,7 @@ export class StateManager {
     setERData(erData) {
         this.setState({
             erData,
-            layoutData: erData.layout || { entities: {}, rectangles: [], texts: [] }
+            layoutData: erData.layout || { entities: {}, rectangles: [], texts: [], layers: [] }
         });
     }
 
@@ -237,7 +237,7 @@ export class StateManager {
     reset() {
         const initialState = {
             erData: null,
-            layoutData: { entities: {}, rectangles: [], texts: [] },
+            layoutData: { entities: {}, rectangles: [], texts: [], layers: [] },
             viewport: { panX: 0, panY: 0, scale: 1 },
             selectedAnnotation: null,
             sidebarVisible: false,

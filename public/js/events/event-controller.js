@@ -850,9 +850,12 @@ export class EventController {
             
             this.stateManager.updateLayoutData(newLayoutData);
             
-            // Add layer for new text
+            // Add layer for new text (ensure layer manager is called even for subsequent texts)
             if (this.layerManager) {
+                console.log('Adding text layer for:', textContent.trim());
                 this.layerManager.addTextLayer(textContent.trim());
+            } else {
+                console.warn('LayerManager not available when adding text');
             }
             
             console.log('Text annotation created:', textAnnotation);
@@ -867,13 +870,29 @@ export class EventController {
      */
     endRectangleCreation(event) {
         const dragState = this.stateManager.get('dragState');
-        if (!dragState || !this.hasDragMovement) {
-            console.log('Rectangle creation ended without drag movement');
+        if (!dragState) {
+            console.log('Rectangle creation ended without drag state');
             this.stateManager.setInteractionMode('default');
             return;
         }
         
-        console.log('Ending rectangle creation, adding to layout:', dragState.currentRect);
+        // If no drag movement, create a default-sized rectangle at the start point
+        let rectToAdd;
+        if (!this.hasDragMovement) {
+            console.log('Rectangle creation with minimal drag - creating default size rectangle');
+            rectToAdd = {
+                x: dragState.startPoint.x,
+                y: dragState.startPoint.y,
+                width: 100,
+                height: 60,
+                fill: '#e3f2fd',
+                stroke: '#1976d2',
+                strokeWidth: 2
+            };
+        } else {
+            console.log('Ending rectangle creation, adding to layout:', dragState.currentRect);
+            rectToAdd = dragState.currentRect;
+        }
         
         // Add rectangle to layout data
         const currentState = this.stateManager.getState();
@@ -881,14 +900,14 @@ export class EventController {
         if (!newLayoutData.rectangles) {
             newLayoutData.rectangles = [];
         }
-        newLayoutData.rectangles.push(dragState.currentRect);
+        newLayoutData.rectangles.push(rectToAdd);
         
         this.stateManager.updateLayoutData(newLayoutData);
         
         // Add layer for new rectangle
         if (this.layerManager) {
-            const rectangleIndex = newLayoutData.rectangles.length - 1;
-            this.layerManager.addRectangleLayer(rectangleIndex);
+            const rectangleNumber = newLayoutData.rectangles.length; // Use 1-based numbering
+            this.layerManager.addRectangleLayer(rectangleNumber);
         }
         
         this.stateManager.setInteractionMode('default');

@@ -1,9 +1,10 @@
 class LayerManager {
-    constructor() {
+    constructor(stateManager = null) {
         this.layers = [];
         this.layerCounter = 0;
         this.draggedItem = null;
         this.isCollapsed = false;
+        this.stateManager = stateManager;
         
         this.initializeElements();
         this.setupEventListeners();
@@ -11,26 +12,104 @@ class LayerManager {
         
         // Add default ER diagram layer
         this.addLayer('er-diagram', 'ER図', '🗂️');
+        
+        // Subscribe to state changes if state manager is provided
+        if (this.stateManager) {
+            this.setupStateSubscription();
+        }
+    }
+    
+    setupStateSubscription() {
+        // Load layers from state when layout data changes
+        this.stateManager.subscribeToProperty('layoutData', (oldLayoutData, newLayoutData) => {
+            if (newLayoutData && newLayoutData.layers && newLayoutData.layers.length > 0) {
+                // Only load from state if the layers actually changed to avoid infinite loops
+                const currentLayerIds = this.layers.map(l => l.id).sort();
+                const stateLayerIds = newLayoutData.layers.map(l => l.id).sort();
+                
+                if (JSON.stringify(currentLayerIds) !== JSON.stringify(stateLayerIds)) {
+                    this.loadLayersFromState(newLayoutData.layers);
+                }
+            }
+        });
+        
+        // Load initial layers if they exist
+        const currentLayoutData = this.stateManager.get('layoutData');
+        if (currentLayoutData && currentLayoutData.layers && currentLayoutData.layers.length > 0) {
+            this.loadLayersFromState(currentLayoutData.layers);
+        }
+    }
+    
+    loadLayersFromState(layerData) {
+        // Clear current layers
+        this.layers = [];
+        
+        // Load layers from state in order
+        layerData.forEach(layerInfo => {
+            const layer = {
+                id: layerInfo.id,
+                type: layerInfo.type,
+                name: layerInfo.name,
+                icon: layerInfo.icon,
+                order: layerInfo.order
+            };
+            this.layers.push(layer);
+        });
+        
+        // Sort by order to maintain correct sequence
+        this.layers.sort((a, b) => a.order - b.order);
+        
+        // Update layer counter to avoid ID conflicts
+        this.layerCounter = Math.max(this.layerCounter, ...layerData.map(l => {
+            const match = l.id.match(/layer-(\d+)-/);
+            return match ? parseInt(match[1]) : 0;
+        }));
+        
+        this.renderLayers();
+    }
+    
+    saveLayersToState() {
+        if (this.stateManager) {
+            const currentLayoutData = this.stateManager.get('layoutData');
+            const layerData = this.layers.map(layer => ({
+                id: layer.id,
+                type: layer.type,
+                name: layer.name,
+                icon: layer.icon,
+                order: layer.order
+            }));
+            
+            const newLayoutData = {
+                ...currentLayoutData,
+                layers: layerData
+            };
+            
+            this.stateManager.updateLayoutData(newLayoutData);
+        }
     }
     
     initializeElements() {
         this.sidebar = document.getElementById('layer-sidebar');
         this.layerList = document.getElementById('layer-list');
         this.collapseBtn = document.getElementById('collapse-layer-sidebar');
-        this.resizeHandle = this.sidebar.querySelector('.layer-sidebar-resize-handle');
+        this.resizeHandle = this.sidebar ? this.sidebar.querySelector('.layer-sidebar-resize-handle') : null;
     }
     
     setupEventListeners() {
         // Collapse/expand functionality
-        this.collapseBtn.addEventListener('click', () => {
-            this.toggleCollapse();
-        });
+        if (this.collapseBtn) {
+            this.collapseBtn.addEventListener('click', () => {
+                this.toggleCollapse();
+            });
+        }
         
         // Resize functionality
         this.setupResizeHandle();
     }
     
     setupResizeHandle() {
+        if (!this.resizeHandle) return;
+        
         let isResizing = false;
         let startX = 0;
         let startWidth = 0;
@@ -67,19 +146,27 @@ class LayerManager {
     
     toggleCollapse() {
         this.isCollapsed = !this.isCollapsed;
-        this.sidebar.classList.toggle('collapsed', this.isCollapsed);
+        if (this.sidebar) {
+            this.sidebar.classList.toggle('collapsed', this.isCollapsed);
+        }
         
         // Update button text
-        this.collapseBtn.textContent = this.isCollapsed ? '▶' : '◀';
+        if (this.collapseBtn) {
+            this.collapseBtn.textContent = this.isCollapsed ? '▶' : '◀';
+        }
         
         // Save state
-        localStorage.setItem('layerSidebarCollapsed', this.isCollapsed);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('layerSidebarCollapsed', this.isCollapsed);
+        }
     }
     
     loadCollapsedState() {
-        const savedState = localStorage.getItem('layerSidebarCollapsed');
-        if (savedState === 'true') {
-            this.toggleCollapse();
+        if (typeof localStorage !== 'undefined') {
+            const savedState = localStorage.getItem('layerSidebarCollapsed');
+            if (savedState === 'true') {
+                this.toggleCollapse();
+            }
         }
     }
     
@@ -94,6 +181,7 @@ class LayerManager {
         
         this.layers.push(layer);
         this.renderLayers();
+        this.saveLayersToState();
         
         return layer;
     }
@@ -104,6 +192,7 @@ class LayerManager {
             this.layers.splice(index, 1);
             this.updateLayerOrders();
             this.renderLayers();
+            this.saveLayersToState();
         }
     }
     
@@ -118,6 +207,8 @@ class LayerManager {
     }
     
     renderLayers() {
+        if (!this.layerList) return;
+        
         this.layerList.innerHTML = '';
         
         // Sort layers by order (top to bottom in list = front to back in rendering)
@@ -132,6 +223,10 @@ class LayerManager {
     }
     
     createLayerElement(layer) {
+        if (typeof document === 'undefined') {
+            return { className: 'layer-item', dataset: {}, setAttribute: () => {}, innerHTML: '' };
+        }
+        
         const div = document.createElement('div');
         div.className = 'layer-item';
         div.dataset.layerId = layer.id;
@@ -146,6 +241,8 @@ class LayerManager {
     }
     
     setupDragAndDrop() {
+        if (!this.layerList) return;
+        
         const layerItems = this.layerList.querySelectorAll('.layer-item');
         
         layerItems.forEach(item => {
@@ -184,20 +281,26 @@ class LayerManager {
         const draggedIndex = this.layers.findIndex(layer => layer.id === draggedLayerId);
         const targetIndex = this.layers.findIndex(layer => layer.id === targetLayerId);
         
-        if (draggedIndex > -1 && targetIndex > -1) {
+        if (draggedIndex > -1 && targetIndex > -1 && draggedIndex !== targetIndex) {
             // Remove dragged layer
             const [draggedLayer] = this.layers.splice(draggedIndex, 1);
             
-            // Insert at target position
+            // Insert at target position (no adjustment needed since we want to drop at the target's position)
             this.layers.splice(targetIndex, 0, draggedLayer);
             
-            // Update orders
+            // Update orders to reflect new positions
             this.updateLayerOrders();
             
-            // Re-render
+            // Re-render layers list
             this.renderLayers();
             
-            console.log('Layer order updated:', this.layers.map(l => l.name));
+            // Save to state
+            this.saveLayersToState();
+            
+            console.log('Layer order updated:', this.layers.map(l => `${l.name} (order: ${l.order})`));
+            
+            // Trigger re-rendering of canvas with new layer order
+            this.triggerCanvasRerender();
         }
     }
     
@@ -237,6 +340,21 @@ class LayerManager {
         });
         
         this.renderLayers();
+        this.triggerCanvasRerender();
+    }
+    
+    triggerCanvasRerender() {
+        // Dispatch custom event to notify canvas renderer about layer order change
+        const event = new CustomEvent('layerOrderChanged', {
+            detail: { layerOrder: this.getLayerOrder() }
+        });
+        document.dispatchEvent(event);
+        
+        // Also update state if state manager is available
+        if (this.stateManager) {
+            const currentLayoutData = this.stateManager.get('layoutData');
+            this.stateManager.updateLayoutData({ ...currentLayoutData });
+        }
     }
 }
 

@@ -24,7 +24,7 @@ export class ERViewerCore {
         this.coordinateTransform = new CoordinateTransform();
         this.canvasRenderer = new CanvasRenderer(this.canvas, this.coordinateTransform);
         this.highlightManager = new HighlightManager();
-        this.layerManager = new LayerManager();
+        this.layerManager = new LayerManager(this.stateManager);
         this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform, this.highlightManager, this.layerManager);
         this.uiController = new UIController(this.stateManager);
         this.annotationController = new AnnotationController(this.stateManager, this.coordinateTransform);
@@ -181,7 +181,7 @@ export class ERViewerCore {
         
         if (!erData) return;
         
-        this.canvasRenderer.renderER(erData, layoutData);
+        this.canvasRenderer.renderER(erData, layoutData, this.layerManager);
         this.updateTransform();
     }
 
@@ -289,13 +289,14 @@ export class ERViewerCore {
         };
         
         newLayoutData.rectangles.push(newRect);
-        this.stateManager.updateLayoutData(newLayoutData);
         
-        // Add layer for new rectangle
+        // Add layer for new rectangle before updating state
         if (this.layerManager) {
-            const rectangleIndex = newLayoutData.rectangles.length - 1;
-            this.layerManager.addRectangleLayer(rectangleIndex);
+            const rectangleNumber = newLayoutData.rectangles.length; // Use 1-based numbering
+            this.layerManager.addRectangleLayer(rectangleNumber);
         }
+        
+        this.stateManager.updateLayoutData(newLayoutData);
         
         console.log('Rectangle added at:', x, y);
     }
@@ -325,12 +326,13 @@ export class ERViewerCore {
         };
         
         newLayoutData.texts.push(newText);
-        this.stateManager.updateLayoutData(newLayoutData);
         
-        // Add layer for new text
+        // Add layer for new text before updating state
         if (this.layerManager) {
             this.layerManager.addTextLayer(text);
         }
+        
+        this.stateManager.updateLayoutData(newLayoutData);
         
         console.log('Text added at:', x, y, 'with text:', text);
     }

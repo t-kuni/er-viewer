@@ -14,15 +14,27 @@ import { HighlightManager } from '../public/js/highlighting/highlight-manager.js
 import { CanvasRenderer } from '../public/js/rendering/canvas-renderer.js';
 import { AnnotationController } from '../public/js/annotations/annotation-controller.js';
 import { UIController } from '../public/js/ui/ui-controller.js';
+import LayerManager from '../public/js/layer-manager.js';
 
 // Mock DOM environment
 global.prompt = jest.fn();
 global.alert = jest.fn();
 
 describe('Text Annotation Functionality Tests', () => {
-    let canvas, stateManager, coordinateTransform, highlightManager, eventController, canvasRenderer, annotationController, uiController;
+    let canvas, stateManager, coordinateTransform, highlightManager, eventController, canvasRenderer, annotationController, uiController, layerManager;
 
     beforeEach(() => {
+        // Mock DOM elements needed for LayerManager
+        const mockLayerSidebar = document.createElement('div');
+        mockLayerSidebar.id = 'layer-sidebar';
+        const mockLayerList = document.createElement('div');
+        mockLayerList.id = 'layer-list';
+        const mockCollapseBtn = document.createElement('button');
+        mockCollapseBtn.id = 'collapse-layer-sidebar';
+        document.body.appendChild(mockLayerSidebar);
+        document.body.appendChild(mockLayerList);
+        document.body.appendChild(mockCollapseBtn);
+
         // Create mock canvas
         canvas = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         canvas.id = 'er-canvas';
@@ -34,7 +46,8 @@ describe('Text Annotation Functionality Tests', () => {
         stateManager = new StateManager();
         coordinateTransform = new CoordinateTransform();
         highlightManager = new HighlightManager();
-        eventController = new EventController(canvas, stateManager, coordinateTransform, highlightManager);
+        layerManager = new LayerManager(stateManager);
+        eventController = new EventController(canvas, stateManager, coordinateTransform, highlightManager, layerManager);
         canvasRenderer = new CanvasRenderer(canvas, coordinateTransform);
         annotationController = new AnnotationController(stateManager, coordinateTransform);
         uiController = new UIController(stateManager);
@@ -117,6 +130,69 @@ describe('Text Annotation Functionality Tests', () => {
 
             const currentState = stateManager.getState();
             expect(currentState.layoutData.texts).toHaveLength(0);
+        });
+
+        test('should create layer when text is added', () => {
+            global.prompt.mockReturnValue('Test Layer Text');
+
+            const mockEvent = {
+                clientX: 200,
+                clientY: 150,
+                preventDefault: jest.fn()
+            };
+
+            // Get initial layer count
+            const initialLayerCount = layerManager.layers.length;
+
+            stateManager.setInteractionMode('creating-text');
+            eventController.handleMouseDown(mockEvent);
+
+            // Check if text was added to state
+            const currentState = stateManager.getState();
+            expect(currentState.layoutData.texts).toHaveLength(1);
+
+            // Check if layer was added
+            expect(layerManager.layers.length).toBe(initialLayerCount + 1);
+            const newLayer = layerManager.layers[layerManager.layers.length - 1];
+            expect(newLayer.type).toBe('text');
+            expect(newLayer.name).toBe('テキスト "Test Layer Text"');
+            expect(newLayer.icon).toBe('📝');
+        });
+
+        test('should create multiple text layers without duplication', () => {
+            // Create first text
+            global.prompt.mockReturnValue('First Text');
+            const mockEvent1 = {
+                clientX: 100,
+                clientY: 100,
+                preventDefault: jest.fn()
+            };
+
+            stateManager.setInteractionMode('creating-text');
+            eventController.handleMouseDown(mockEvent1);
+
+            // Create second text
+            global.prompt.mockReturnValue('Second Text');
+            const mockEvent2 = {
+                clientX: 200,
+                clientY: 200,
+                preventDefault: jest.fn()
+            };
+
+            stateManager.setInteractionMode('creating-text');
+            eventController.handleMouseDown(mockEvent2);
+
+            // Check if both texts were added
+            const currentState = stateManager.getState();
+            expect(currentState.layoutData.texts).toHaveLength(2);
+
+            // Check if both layers were added (+ 1 for default ER diagram layer)
+            expect(layerManager.layers.length).toBe(3);
+            
+            const textLayers = layerManager.layers.filter(l => l.type === 'text');
+            expect(textLayers).toHaveLength(2);
+            expect(textLayers[0].name).toBe('テキスト "First Text"');
+            expect(textLayers[1].name).toBe('テキスト "Second Text"');
         });
     });
 

@@ -16,6 +16,7 @@ export class CanvasRenderer {
         // Store current rendering data
         this.currentERData = null;
         this.currentLayoutData = null;
+        this.layerManager = null;
         
         // Rendering configuration
         this.config = {
@@ -44,6 +45,21 @@ export class CanvasRenderer {
                 }
             }
         };
+        
+        // Listen for layer order changes
+        this.setupLayerOrderListener();
+    }
+
+    /**
+     * Setup listener for layer order changes
+     */
+    setupLayerOrderListener() {
+        document.addEventListener('layerOrderChanged', (event) => {
+            console.log('Layer order changed, re-rendering canvas');
+            if (this.currentERData && this.currentLayoutData && this.layerManager) {
+                this.renderByLayerOrder(this.currentERData, this.currentLayoutData, this.layerManager);
+            }
+        });
     }
 
     /**
@@ -91,20 +107,279 @@ export class CanvasRenderer {
      * Render complete ER diagram
      * @param {Object} erData - ER diagram data
      * @param {Object} layoutData - Layout positioning data
+     * @param {LayerManager} layerManager - Layer manager instance
      */
-    renderER(erData, layoutData) {
+    renderER(erData, layoutData, layerManager = null) {
         if (!erData) return;
         
         // Store current data for re-rendering
         this.currentERData = erData;
         this.currentLayoutData = layoutData;
+        this.layerManager = layerManager;
         
         this.initializeCanvas();
         
-        // Render in correct order for proper layering
-        this.renderEntities(erData.entities, layoutData.entities);
-        this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
-        this.renderAnnotations(layoutData.rectangles, layoutData.texts);
+        if (layerManager && layerManager.getLayerOrder) {
+            // Render based on layer order
+            this.renderByLayerOrder(erData, layoutData, layerManager);
+        } else {
+            // Fallback to default order
+            this.renderEntities(erData.entities, layoutData.entities);
+            this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
+            this.renderAnnotations(layoutData.rectangles, layoutData.texts);
+        }
+        
+        // Always ensure annotations are rendered even if layer order fails
+        if (layoutData.rectangles && layoutData.rectangles.length > 0) {
+            console.log('Debug: Rendering rectangles:', layoutData.rectangles);
+        }
+        if (layoutData.texts && layoutData.texts.length > 0) {
+            console.log('Debug: Rendering texts:', layoutData.texts);
+        }
+    }
+
+    /**
+     * Render elements based on layer order
+     * @param {Object} erData - ER diagram data
+     * @param {Object} layoutData - Layout positioning data
+     * @param {LayerManager} layerManager - Layer manager instance
+     */
+    renderByLayerOrder(erData, layoutData, layerManager) {
+        const layerOrder = layerManager.getLayerOrder();
+        
+        // Clear existing content first
+        const backgroundGroup = document.getElementById('background-layer');
+        const relationshipGroup = document.getElementById('relationship-layer');
+        const entityGroup = document.getElementById('entity-layer');
+        const annotationGroup = document.getElementById('annotation-layer');
+        
+        if (backgroundGroup) backgroundGroup.innerHTML = '';
+        if (relationshipGroup) relationshipGroup.innerHTML = '';
+        if (entityGroup) entityGroup.innerHTML = '';
+        if (annotationGroup) annotationGroup.innerHTML = '';
+        
+        // Sort layers by order (ascending order = back to front rendering)
+        // Lower order numbers appear behind higher order numbers
+        const sortedLayers = [...layerOrder].sort((a, b) => a.order - b.order);
+        
+        // Track which rectangles and texts have been rendered
+        const renderedRectangles = new Set();
+        const renderedTexts = new Set();
+        
+        // Render elements in layer order to annotation group
+        sortedLayers.forEach(layer => {
+            switch (layer.type) {
+                case 'er-diagram':
+                    // Render relationships first (behind entities)
+                    this.renderRelationshipsInAnnotationLayer(erData.relationships, layoutData.entities, erData.entities);
+                    // Then render entities (in front of relationships)
+                    this.renderEntitiesInAnnotationLayer(erData.entities, layoutData.entities);
+                    break;
+                case 'rectangle':
+                    const rectIndex = this.renderRectangleByLayer(layoutData.rectangles, layer);
+                    if (rectIndex !== -1) {
+                        renderedRectangles.add(rectIndex);
+                    }
+                    break;
+                case 'text':
+                    const textIndex = this.renderTextByLayer(layoutData.texts, layer);
+                    if (textIndex !== -1) {
+                        renderedTexts.add(textIndex);
+                    }
+                    break;
+            }
+        });
+        
+        // Render any rectangles or texts that don't have layers yet
+        console.log('Checking for unrendered rectangles and texts');
+        console.log('Rectangle data:', layoutData.rectangles);
+        console.log('Text data:', layoutData.texts);
+        console.log('Rendered rectangles:', renderedRectangles);
+        console.log('Rendered texts:', renderedTexts);
+        
+        if (layoutData.rectangles) {
+            layoutData.rectangles.forEach((rect, index) => {
+                console.log(`Processing rectangle ${index}:`, rect);
+                if (!renderedRectangles.has(index)) {
+                    console.log(`Rendering rectangle ${index} without layer`);
+                    const rectElement = this.createRectangleAnnotation(rect, index);
+                    if (annotationGroup) {
+                        annotationGroup.appendChild(rectElement);
+                        console.log(`Rectangle ${index} added to DOM`);
+                    } else {
+                        console.log('No annotation group found!');
+                    }
+                } else {
+                    console.log(`Rectangle ${index} already rendered by layer`);
+                }
+            });
+        }
+        
+        if (layoutData.texts) {
+            layoutData.texts.forEach((text, index) => {
+                console.log(`Processing text ${index}:`, text);
+                if (!renderedTexts.has(index)) {
+                    console.log(`Rendering text ${index} without layer`);
+                    const textElement = this.createTextAnnotation(text, index);
+                    if (annotationGroup) {
+                        annotationGroup.appendChild(textElement);
+                        console.log(`Text ${index} added to DOM`);
+                    } else {
+                        console.log('No annotation group found!');
+                    }
+                } else {
+                    console.log(`Text ${index} already rendered by layer`);
+                }
+            });
+        }
+    }
+
+    /**
+     * Render specific rectangle by layer
+     * @param {Array} rectangles - Rectangle data array
+     * @param {Object} layer - Layer information
+     * @returns {number} Index of rendered rectangle, or -1 if not found
+     */
+    renderRectangleByLayer(rectangles, layer) {
+        if (!rectangles || rectangles.length === 0) return -1;
+        
+        const annotationGroup = document.getElementById('annotation-layer');
+        if (!annotationGroup) return -1;
+        
+        // Check if layer has a name property
+        if (!layer || !layer.name) {
+            console.warn('Layer missing name property:', layer);
+            return -1;
+        }
+        
+        // Extract rectangle number from layer name (e.g., "矩形No1" -> number 1)
+        const match = layer.name.match(/矩形No(\d+)/);
+        if (match) {
+            const rectNumber = parseInt(match[1]);
+            // Find rectangle by number (stored in rectangles array with 0-based index)
+            const rectIndex = rectNumber - 1; // Convert to 0-based index
+            if (rectIndex >= 0 && rectIndex < rectangles.length) {
+                const rectElement = this.createRectangleAnnotation(rectangles[rectIndex], rectIndex);
+                annotationGroup.appendChild(rectElement);
+                return rectIndex;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Render specific text by layer
+     * @param {Array} texts - Text data array
+     * @param {Object} layer - Layer information
+     * @returns {number} Index of rendered text, or -1 if not found
+     */
+    renderTextByLayer(texts, layer) {
+        if (!texts || texts.length === 0) return -1;
+        
+        const annotationGroup = document.getElementById('annotation-layer');
+        if (!annotationGroup) return -1;
+        
+        // Check if layer has a name property
+        if (!layer || !layer.name) {
+            console.warn('Layer missing name property:', layer);
+            return -1;
+        }
+        
+        // Find text by content match in layer name
+        const layerText = layer.name.match(/テキスト "(.+)"/);
+        if (layerText) {
+            const textContent = layerText[1];
+            const textIndex = texts.findIndex(text => {
+                const truncatedContent = text.content.length > 20 ? 
+                    text.content.substring(0, 20) + '...' : text.content;
+                return truncatedContent === textContent || text.content === textContent;
+            });
+            
+            if (textIndex >= 0) {
+                const textElement = this.createTextAnnotation(texts[textIndex], textIndex);
+                annotationGroup.appendChild(textElement);
+                return textIndex;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Render entities for layer-based rendering
+     * @param {Array} entities - Entity data
+     * @param {Object} entityPositions - Entity position data
+     */
+    renderEntitiesInLayer(entities, entityPositions) {
+        const entityGroup = document.getElementById('entity-layer');
+        if (!entityGroup) return;
+        
+        entities.forEach(entity => {
+            const position = entityPositions[entity.name] || { x: 50, y: 50 };
+            const entityElement = this.createEntityElement(entity, position);
+            entityGroup.appendChild(entityElement);
+        });
+    }
+
+    /**
+     * Render entities in annotation layer to respect layer order
+     * @param {Array} entities - Entity data
+     * @param {Object} entityPositions - Entity position data
+     */
+    renderEntitiesInAnnotationLayer(entities, entityPositions) {
+        const annotationGroup = document.getElementById('annotation-layer');
+        if (!annotationGroup) return;
+        
+        entities.forEach(entity => {
+            const position = entityPositions[entity.name] || { x: 50, y: 50 };
+            const entityElement = this.createEntityElement(entity, position);
+            annotationGroup.appendChild(entityElement);
+        });
+    }
+
+    /**
+     * Render relationships for layer-based rendering
+     * @param {Array} relationships - Relationship data
+     * @param {Object} entityPositions - Entity position data
+     * @param {Array} entities - Entity data for connection points
+     */
+    renderRelationshipsInLayer(relationships, entityPositions, entities) {
+        const relationshipGroup = document.getElementById('relationship-layer');
+        if (!relationshipGroup) return;
+        
+        // Update connection points with entity data
+        if (entities) {
+            this.connectionPoints.setERData({ entities });
+        }
+        
+        relationships.forEach(relationship => {
+            const pathElement = this.createRelationshipPath(relationship, entityPositions);
+            if (pathElement) {
+                relationshipGroup.appendChild(pathElement);
+            }
+        });
+    }
+
+    /**
+     * Render relationships in annotation layer to respect layer order
+     * @param {Array} relationships - Relationship data
+     * @param {Object} entityPositions - Entity position data
+     * @param {Array} entities - Entity data for connection points
+     */
+    renderRelationshipsInAnnotationLayer(relationships, entityPositions, entities) {
+        const annotationGroup = document.getElementById('annotation-layer');
+        if (!annotationGroup) return;
+        
+        // Update connection points with entity data
+        if (entities) {
+            this.connectionPoints.setERData({ entities });
+        }
+        
+        relationships.forEach(relationship => {
+            const pathElement = this.createRelationshipPath(relationship, entityPositions);
+            if (pathElement) {
+                annotationGroup.appendChild(pathElement);
+            }
+        });
     }
 
     /**

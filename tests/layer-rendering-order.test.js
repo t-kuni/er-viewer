@@ -322,10 +322,11 @@ describe('Layer Rendering Order Bug Reproduction', () => {
 
             // Verify render calls were made in correct order
             // According to the specification: layer list top = front, layer list bottom = back
-            // Since layers are sorted by order (0=back, 1=front), rendering order should be:
-            // ER diagram (order 0) first, then Rectangle (order 1)
+            // ER diagram (order 0) is at the top of the list (foreground)
+            // Rectangle (order 1) is below ER diagram in the list (background)
+            // So Rectangle should be rendered first, then ER diagram
             // Within ER diagram: relationships first, then entities
-            expect(renderCalls).toEqual(['relationships', 'entities', 'rectangle']);
+            expect(renderCalls).toEqual(['rectangle', 'relationships', 'entities']);
         });
     });
 });

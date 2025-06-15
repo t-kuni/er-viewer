@@ -124,8 +124,6 @@ export class CanvasRenderer {
      * @param {LayerManager} layerManager - Layer manager instance
      */
     renderER(erData, layoutData, layerManager = null) {
-        if (!erData) return;
-        
         // Store current data for re-rendering
         this.currentERData = erData;
         this.currentLayoutData = layoutData;
@@ -138,19 +136,23 @@ export class CanvasRenderer {
             this.renderByLayerOrder(erData, layoutData, layerManager);
         } else {
             // Fallback to default order
-            // Render relationships first (behind entities)
-            this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
-            // Then render entities (in front of relationships)
-            this.renderEntities(erData.entities, layoutData.entities);
-            // Finally render annotations
+            if (erData && erData.relationships) {
+                // Render relationships first (behind entities)
+                this.renderRelationships(erData.relationships, layoutData.entities, erData.entities);
+            }
+            if (erData && erData.entities) {
+                // Then render entities (in front of relationships)
+                this.renderEntities(erData.entities, layoutData.entities);
+            }
+            // Always render annotations, even if ER data is empty
             this.renderAnnotations(layoutData.rectangles, layoutData.texts);
         }
         
         // Always ensure annotations are rendered even if layer order fails
-        if (layoutData.rectangles && layoutData.rectangles.length > 0) {
+        if (layoutData && layoutData.rectangles && layoutData.rectangles.length > 0) {
             console.log('Debug: Rendering rectangles:', layoutData.rectangles);
         }
-        if (layoutData.texts && layoutData.texts.length > 0) {
+        if (layoutData && layoutData.texts && layoutData.texts.length > 0) {
             console.log('Debug: Rendering texts:', layoutData.texts);
         }
     }
@@ -183,21 +185,29 @@ export class CanvasRenderer {
         sortedLayers.forEach(layer => {
             switch (layer.type) {
                 case 'er-diagram':
-                    // Render relationships first (behind entities within ER diagram layer)
-                    this.renderRelationshipsInDynamicLayer(erData.relationships, layoutData.entities, erData.entities);
-                    // Then render entities (in front of relationships within ER diagram layer)  
-                    this.renderEntitiesInDynamicLayer(erData.entities, layoutData.entities);
+                    if (erData && erData.relationships && layoutData.entities) {
+                        // Render relationships first (behind entities within ER diagram layer)
+                        this.renderRelationshipsInDynamicLayer(erData.relationships, layoutData.entities, erData.entities);
+                    }
+                    if (erData && erData.entities && layoutData.entities) {
+                        // Then render entities (in front of relationships within ER diagram layer)  
+                        this.renderEntitiesInDynamicLayer(erData.entities, layoutData.entities);
+                    }
                     break;
                 case 'rectangle':
-                    const rectIndex = this.renderRectangleByLayer(layoutData.rectangles, layer);
-                    if (rectIndex !== -1) {
-                        renderedRectangles.add(rectIndex);
+                    if (layoutData.rectangles) {
+                        const rectIndex = this.renderRectangleByLayer(layoutData.rectangles, layer);
+                        if (rectIndex !== -1) {
+                            renderedRectangles.add(rectIndex);
+                        }
                     }
                     break;
                 case 'text':
-                    const textIndex = this.renderTextByLayer(layoutData.texts, layer);
-                    if (textIndex !== -1) {
-                        renderedTexts.add(textIndex);
+                    if (layoutData.texts) {
+                        const textIndex = this.renderTextByLayer(layoutData.texts, layer);
+                        if (textIndex !== -1) {
+                            renderedTexts.add(textIndex);
+                        }
                     }
                     break;
             }

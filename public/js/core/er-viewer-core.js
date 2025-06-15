@@ -179,8 +179,7 @@ export class ERViewerCore {
         const erData = this.stateManager.get('erData');
         const layoutData = this.stateManager.get('layoutData');
         
-        if (!erData) return;
-        
+        // Always render, even if erData is empty (to show annotations)
         this.canvasRenderer.renderER(erData, layoutData, this.layerManager);
         this.updateTransform();
     }

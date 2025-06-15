@@ -722,3 +722,144 @@ main {
 .toast-close:hover {
     opacity: 0.7;
 }
+
+/* Help Panel Styles */
+.help-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 400px;
+    font-size: 14px;
+    backdrop-filter: blur(5px);
+}
+
+.help-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+    user-select: none;
+}
+
+.help-panel-header:hover {
+    background: #e9ecef;
+}
+
+.help-panel-header h4 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.help-toggle {
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-toggle:hover {
+    background: rgba(108, 117, 125, 0.1);
+    color: #495057;
+}
+
+.help-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.help-content {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.help-content.collapsed {
+    max-height: 0;
+    padding: 0 16px;
+    overflow: hidden;
+}
+
+.help-section {
+    margin-bottom: 20px;
+}
+
+.help-section:last-child {
+    margin-bottom: 0;
+}
+
+.help-section h5 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 4px;
+}
+
+.help-section ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style: none;
+}
+
+.help-section li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+    color: #6c757d;
+    position: relative;
+}
+
+.help-section li:before {
+    content: "•";
+    color: #3498db;
+    position: absolute;
+    left: -12px;
+    font-weight: bold;
+}
+
+.help-section li:last-child {
+    margin-bottom: 0;
+}
+
+.help-section strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Responsive adjustments for help panel */
+@media (max-width: 768px) {
+    .help-panel {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        width: auto;
+        z-index: 2000;
+    }
+    
+    .help-content {
+        max-height: 300px;
+    }
+}

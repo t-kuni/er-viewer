@@ -91,6 +91,56 @@ function setupGlobalEventListeners() {
             document.body.style.cursor = '';
         }
     });
+
+    // Help Panel toggle functionality
+    setupHelpPanel();
+}
+
+function setupHelpPanel() {
+    const helpPanel = document.getElementById('help-panel');
+    const helpToggle = document.getElementById('help-toggle');
+    const helpContent = document.getElementById('help-content');
+    const helpHeader = document.querySelector('.help-panel-header');
+    
+    if (!helpPanel || !helpToggle || !helpContent || !helpHeader) {
+        ClientLogger.warn('Help panel elements not found');
+        return;
+    }
+    
+    // Load collapsed state from localStorage
+    const isCollapsed = localStorage.getItem('helpPanelCollapsed') === 'true';
+    if (isCollapsed) {
+        helpContent.classList.add('collapsed');
+        helpToggle.classList.add('collapsed');
+        helpToggle.textContent = '▶';
+    }
+    
+    // Toggle function
+    function toggleHelpPanel() {
+        const isCurrentlyCollapsed = helpContent.classList.contains('collapsed');
+        
+        if (isCurrentlyCollapsed) {
+            // Expand
+            helpContent.classList.remove('collapsed');
+            helpToggle.classList.remove('collapsed');
+            helpToggle.textContent = '▼';
+            localStorage.setItem('helpPanelCollapsed', 'false');
+        } else {
+            // Collapse
+            helpContent.classList.add('collapsed');
+            helpToggle.classList.add('collapsed');
+            helpToggle.textContent = '▶';
+            localStorage.setItem('helpPanelCollapsed', 'true');
+        }
+    }
+    
+    // Add event listeners
+    helpToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleHelpPanel();
+    });
+    
+    helpHeader.addEventListener('click', toggleHelpPanel);
 }
 
 async function reverseEngineer() {

@@ -20,6 +20,34 @@
         
         <main>
             <div id="canvas-container">
+                <!-- Help Panel -->
+                <div id="help-panel" class="help-panel">
+                    <div class="help-panel-header">
+                        <h4>操作ガイド</h4>
+                        <button id="help-toggle" class="help-toggle">▼</button>
+                    </div>
+                    <div id="help-content" class="help-content">
+                        <div class="help-section">
+                            <h5>基本操作</h5>
+                            <ul>
+                                <li><strong>マウスドラッグ:</strong> キャンバス移動</li>
+                                <li><strong>エンティティクリック:</strong> 詳細表示</li>
+                                <li><strong>エンティティドラッグ:</strong> 位置変更</li>
+                                <li><strong>右クリック:</strong> コンテキストメニュー</li>
+                            </ul>
+                        </div>
+                        <div class="help-section">
+                            <h5>ショートカットキー</h5>
+                            <ul>
+                                <li><strong>Ctrl+R:</strong> 矩形描画モード</li>
+                                <li><strong>Ctrl+T:</strong> テキスト入力モード</li>
+                                <li><strong>Esc:</strong> 選択解除/モード終了</li>
+                                <li><strong>Delete:</strong> 選択要素削除</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
                 <svg id="er-canvas" width="100%" height="100%">
                     <defs>
                         <marker id="arrowhead" markerWidth="10" markerHeight="7" 

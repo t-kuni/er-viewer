@@ -192,4 +192,35 @@
   - Icons displayed to the left of column names
   - Visual distinction working perfectly
 
+## 9. Help Panel Feature (操作ガイド表示機能)
+
+### 9.1 Help Panel Implementation (COMPLETED)
+- [x] **Help Panel Structure** - **FULLY IMPLEMENTED**
+  - GUI上のキャンバス左上に主要機能の操作説明を表示
+  - 操作ガイド、ショートカットキー、アノテーション説明を含む
+  - Status: Complete, meets all requirements
+
+- [x] **Collapsible Functionality** - **FULLY IMPLEMENTED**  
+  - 折りたたみ可能な機能を実装
+  - ▼/▶ ボタンでの展開・収縮
+  - localStorage による状態永続化
+  - Status: Complete, smooth user experience
+
+- [x] **Content Organization** - **COMPREHENSIVE IMPLEMENTATION**
+  - 基本操作: マウスドラッグ、エンティティクリック、エンティティドラッグ、右クリック
+  - ショートカットキー: Ctrl+R（矩形）、Ctrl+T（テキスト）、Esc（終了）、Delete（削除）
+  - Status: Complete, covers all major functionality
+
+- [x] **Visual Design** - **PROFESSIONAL STYLING**
+  - 半透明背景、ブラー効果、適切な配色
+  - レスポンシブデザイン対応
+  - ホバー効果とスムーズなアニメーション
+  - Status: Complete, polished user interface
+
+- [x] **Test Coverage** - **COMPREHENSIVE TESTING**
+  - ヘルプパネル機能の単体テスト実装
+  - HTML構造、コンテンツ検証、CSS クラス確認
+  - localStorage 機能テスト
+  - Status: Complete, 7 test cases passing
+
 **Core Functionality Status**: ✅ Complete (all essential features working)

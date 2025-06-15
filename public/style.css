@@ -268,6 +268,127 @@ main {
     background-color: #3498db;
 }
 
+/* Layer Sidebar Styles */
+.layer-sidebar {
+    width: 250px;
+    min-width: 150px;
+    max-width: 400px;
+    background-color: white;
+    border-right: 1px solid #ddd;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    transition: width 0.3s ease;
+}
+
+.layer-sidebar.collapsed {
+    width: 30px;
+    min-width: 30px;
+}
+
+.layer-sidebar.collapsed .layer-sidebar-header h3,
+.layer-sidebar.collapsed .layer-list {
+    display: none;
+}
+
+.layer-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    background-color: #f8f9fa;
+}
+
+.layer-sidebar-header h3 {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.collapse-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #95a5a6;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+    color: #2c3e50;
+    background-color: #e9ecef;
+}
+
+.layer-sidebar.collapsed .collapse-btn {
+    transform: rotate(180deg);
+    margin: 0 auto;
+}
+
+.layer-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.layer-item:hover {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+}
+
+.layer-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.layer-item-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+.layer-item-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-sidebar-resize-handle {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background-color: transparent;
+    transition: background-color 0.2s;
+    z-index: 10;
+}
+
+.layer-sidebar-resize-handle:hover,
+.layer-sidebar-resize-handle.dragging {
+    background-color: #3498db;
+}
+
 .ddl-content {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;

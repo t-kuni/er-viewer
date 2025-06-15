@@ -9,6 +9,7 @@ import { CanvasRenderer } from '../rendering/canvas-renderer.js';
 import { EventController } from '../events/event-controller.js';
 import { UIController } from '../ui/ui-controller.js';
 import { AnnotationController } from '../annotations/annotation-controller.js';
+import LayerManager from '../layer-manager.js';
 
 /**
  * ERViewerCore - Orchestrates all components of the ER Viewer application
@@ -23,7 +24,8 @@ export class ERViewerCore {
         this.coordinateTransform = new CoordinateTransform();
         this.canvasRenderer = new CanvasRenderer(this.canvas, this.coordinateTransform);
         this.highlightManager = new HighlightManager();
-        this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform, this.highlightManager);
+        this.layerManager = new LayerManager();
+        this.eventController = new EventController(this.canvas, this.stateManager, this.coordinateTransform, this.highlightManager, this.layerManager);
         this.uiController = new UIController(this.stateManager);
         this.annotationController = new AnnotationController(this.stateManager, this.coordinateTransform);
         
@@ -288,6 +290,13 @@ export class ERViewerCore {
         
         newLayoutData.rectangles.push(newRect);
         this.stateManager.updateLayoutData(newLayoutData);
+        
+        // Add layer for new rectangle
+        if (this.layerManager) {
+            const rectangleIndex = newLayoutData.rectangles.length - 1;
+            this.layerManager.addRectangleLayer(rectangleIndex);
+        }
+        
         console.log('Rectangle added at:', x, y);
     }
 
@@ -317,6 +326,12 @@ export class ERViewerCore {
         
         newLayoutData.texts.push(newText);
         this.stateManager.updateLayoutData(newLayoutData);
+        
+        // Add layer for new text
+        if (this.layerManager) {
+            this.layerManager.addTextLayer(text);
+        }
+        
         console.log('Text added at:', x, y, 'with text:', text);
     }
 

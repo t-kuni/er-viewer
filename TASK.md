@@ -309,9 +309,33 @@ Based on SPEC.md requirements and current implementation analysis.
   - Priority: Low (後回し)
   - Estimate: 1-2 hours
 
-## 10. 実際に確認されたバグ (Confirmed Bugs - 2025-06-15)
+## 10. レイヤー管理機能（新規要件 - 2025-06-15）
 
-### 10.1 UI操作性の問題
+### 10.1 レイヤー管理サイドバー
+- [x] **レイヤー一覧表示** - ✅ COMPLETED - 左サイドバーにレイヤー一覧を表示
+  - Status: ER図、矩形NoX、テキスト "xxx" の表示形式で実装済み
+  - Moved to TASK_DONE.md
+- [x] **レイヤー順序管理** - ✅ COMPLETED - ドラッグ&ドロップでの順序入れ替え
+  - Status: レイヤー一覧の上から順に前面にレンダリングされる仕組み実装済み
+  - Moved to TASK_DONE.md
+- [x] **レイヤーサイドバー開閉** - ✅ COMPLETED - サイドバーの開閉機能
+  - Status: デフォルト表示、閉じても完全に非表示にならない（再度開く導線確保）実装済み
+  - Moved to TASK_DONE.md
+- [x] **レイヤーサイドバーリサイズ** - ✅ COMPLETED - ドラッグでのサイズ変更
+  - Status: サイドバーのフチをドラッグしてサイズ変更可能
+  - Moved to TASK_DONE.md
+
+### 10.2 レイヤー統合機能
+- [x] **矩形・テキスト作成時のレイヤー追加** - ✅ COMPLETED - アノテーション作成時の自動レイヤー追加
+  - Status: EventController と ERViewerCore にて統合済み
+  - Moved to TASK_DONE.md
+- [x] **レイヤー機能テストコード** - ✅ COMPLETED - レイヤー管理機能のテスト
+  - Status: 包括的なユニットテスト作成済み
+  - Moved to TASK_DONE.md
+
+## 11. 実際に確認されたバグ (Confirmed Bugs - 2025-06-15)
+
+### 11.1 UI操作性の問題
 - [ ] **矩形表示の視認性改善** - 矩形が作成されているが視認しにくい位置に表示される
   - Currently: 矩形は正常に作成・描画されているが、エンティティの後ろ（100,100位置）に表示
   - Expected: より視認しやすい位置への初期配置または作成時の視覚的フィードバック
@@ -319,7 +343,7 @@ Based on SPEC.md requirements and current implementation analysis.
   - Priority: Low
   - Estimate: 2-3 hours
 
-### 10.2 UI操作性のバグ
+### 11.2 UI操作性のバグ
 - [ ] **サイドバー閉じるボタンの操作性問題** - 「×」ボタンがクリックできない
   - Currently: サイドバーの「×」ボタンがツールバーに干渉されてクリックできない
   - Expected: サイドバーを閉じることができる

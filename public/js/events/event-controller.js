@@ -3,11 +3,12 @@
  * Handles all canvas events, interaction modes, and event delegation
  */
 export class EventController {
-    constructor(canvas, stateManager, coordinateTransform, highlightManager) {
+    constructor(canvas, stateManager, coordinateTransform, highlightManager, layerManager = null) {
         this.canvas = canvas;
         this.stateManager = stateManager;
         this.coordinateTransform = coordinateTransform;
         this.highlightManager = highlightManager;
+        this.layerManager = layerManager;
         
         // Event delegation map
         this.eventHandlers = new Map();
@@ -848,6 +849,12 @@ export class EventController {
             newLayoutData.texts.push(textAnnotation);
             
             this.stateManager.updateLayoutData(newLayoutData);
+            
+            // Add layer for new text
+            if (this.layerManager) {
+                this.layerManager.addTextLayer(textContent.trim());
+            }
+            
             console.log('Text annotation created:', textAnnotation);
         }
         
@@ -877,6 +884,13 @@ export class EventController {
         newLayoutData.rectangles.push(dragState.currentRect);
         
         this.stateManager.updateLayoutData(newLayoutData);
+        
+        // Add layer for new rectangle
+        if (this.layerManager) {
+            const rectangleIndex = newLayoutData.rectangles.length - 1;
+            this.layerManager.addRectangleLayer(rectangleIndex);
+        }
+        
         this.stateManager.setInteractionMode('default');
     }
 

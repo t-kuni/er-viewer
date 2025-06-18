@@ -35,7 +35,20 @@ MySQL データベースからER図をリバースエンジニアリングし、
 
 ## 使用方法
 
-### 1. 環境設定
+```bash
+docker run \
+  -p 30033:3000 \
+  -e DB_HOST=host.docker.internal \
+  -e DB_PORT=3306 \
+  -e DB_USER=root \
+  -e DB_PASSWORD=password \
+  -e DB_NAME=test \
+  tkuni83/er-viewer
+```
+
+[http://localhost:30033](http://localhost:30033) に接続する
+
+## 開発環境設定
 
 ```bash
 # .envファイルをコピー
@@ -45,8 +58,6 @@ cp .env.example .env
 vi .env
 ```
 
-### 2. 起動
-
 ```bash
 # Docker Composeで起動
 docker-compose up -d
@@ -55,33 +66,13 @@ docker-compose up -d
 open http://localhost:3000
 ```
 
-### 3. 操作方法
-
-#### リバースエンジニアリング
-1. 「リバースエンジニア」ボタンをクリック
-2. MySQLデータベースからER図が自動生成される
-
-#### ER図の操作
-- **ドラッグ**: エンティティを移動
-- **ホイール**: ズーム
-- **スペース+ドラッグ**: パン（画面移動）
-- **エンティティクリック**: DDL詳細表示
-
-#### レイアウト保存
-- 「レイアウト保存」ボタンで配置情報を保存
-- 「データ読み込み」ボタンで保存済みデータを復元
-
-#### 注釈追加
-- 「矩形追加」: エンティティをグループ化する矩形を追加
-- 「テキスト追加」: 補足説明用のテキストを追加
-
-### 4. claude起動
+### claude起動
 
 ```
 claude --mcp-config mcp-servers.json
 ```
 
-### 5. コンテナイメージ更新
+### コンテナイメージ更新
 
 ```
 docker build -t tkuni83/er-viewer .

@@ -31,6 +31,7 @@ npm test                       # 全テスト実行
 1. **要件確認**: SPEC.mdの要件を満たすソフトウェアを開発
 2. **タスク完了条件**: `npm test` が通ること
 3. **動作確認**: ブラウザ（Playwright）を使用（curlは非推奨）
+   - 接続先： localhost:30033
    - ブラウザテスト時は必ずブラウザを再起動
 4. **差分確認**: `git add -A && GIT_PAGER=cat git diff HEAD`
 

@@ -37,6 +37,7 @@ MySQL データベースからER図をリバースエンジニアリングし、
 
 ```bash
 docker run \
+  --rm \
   -p 30033:3000 \
   -e DB_HOST=host.docker.internal \
   -e DB_PORT=3306 \

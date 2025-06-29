@@ -1,39 +1,24 @@
-require('@testing-library/jest-dom');
-require('jest-canvas-mock');
+/**
+ * Jest test setup file
+ * Global configurations and utilities for tests
+ */
 
-// Mock DOM methods that might not be available in jsdom
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
-
-// Mock SVG methods
-global.SVGElement = global.SVGElement || class SVGElement {};
-global.SVGSVGElement = global.SVGSVGElement || class SVGSVGElement extends global.SVGElement {};
-
-// Mock requestAnimationFrame
-global.requestAnimationFrame = global.requestAnimationFrame || function(cb) {
-  return setTimeout(cb, 0);
+// Mock global functions that might be missing in test environment
+global.CustomEvent = class CustomEvent extends Event {
+    constructor(event, params = {}) {
+        super(event, params);
+        this.detail = params.detail;
+    }
 };
 
-global.cancelAnimationFrame = global.cancelAnimationFrame || function(id) {
-  clearTimeout(id);
-};
+// Mock for setImmediate if not available
+if (typeof global.setImmediate === 'undefined') {
+    global.setImmediate = (callback) => {
+        return setTimeout(callback, 0);
+    };
+}
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-};
-global.localStorage = localStorageMock;
+// Mock for SVG namespace URI
+global.SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-// Mock fetch for API calls
-global.fetch = jest.fn();
-
-// Mock window.alert and console methods to avoid noise in tests
-global.alert = jest.fn();
-console.warn = jest.fn();
-console.error = jest.fn();
+// Add any additional global test utilities here

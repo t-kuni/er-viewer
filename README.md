@@ -64,13 +64,13 @@ vi .env
 docker-compose up -d
 
 # ブラウザでアクセス
-open http://localhost:3000
+open http://localhost:30033
 ```
 
 ### claude起動
 
 ```
-claude --mcp-config mcp-servers.json
+claude --max-turns 1000 --dangerously-skip-permissions --mcp-config mcp-servers.json
 ```
 
 ### コンテナイメージ更新

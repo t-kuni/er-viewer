@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # パラメータ設定
-MAX_TURNS=100
 SLEEP_TIME=30
 
 echo "執筆スクリプトを開始します..."
@@ -15,7 +14,7 @@ while true; do
         exit 0
     fi
     
-    claude -p --max-turns $MAX_TURNS --dangerously-skip-permissions --mcp-config mcp-servers.json < WRITER_PROMPT.md
+    gemini -p --yolo < WRITER_PROMPT.md
     
     # # claudeコマンドが0以外を返した場合もループを抜ける
     # if [ $? -ne 0 ]; then

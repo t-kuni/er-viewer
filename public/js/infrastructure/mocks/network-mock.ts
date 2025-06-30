@@ -168,11 +168,20 @@ export class NetworkMock extends NetworkInterface {
       body: JSON.stringify(data),
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     return (await response.json()) as T;
   }
 
   async getJSON<T = unknown>(url: string): Promise<T> {
     const response = await this.fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     return (await response.json()) as T;
   }
 }

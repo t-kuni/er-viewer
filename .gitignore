@@ -11,6 +11,9 @@ yarn-error.log*
 coverage/
 *.lcov
 
+# Jest cache
+.jest-cache/
+
 # IDE
 .vscode/
 .idea/

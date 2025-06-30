@@ -47,7 +47,12 @@ module.exports = {
     ],
     '^.+\\.jsx?$': 'babel-jest',
   },
-  testTimeout: 10000,
+  testTimeout: 5000,
+  
+  // === メモリリーク対策とテスト間の干渉防止 ===
+  resetMocks: true,
+  restoreMocks: true,
+  clearMocks: true,
   
   // === 並列実行の設定 ===
   // 現在はテストファイルが1つのため、並列実行の恩恵は限定的
@@ -80,5 +85,36 @@ module.exports = {
   // runInBand: true,
   
   // メモリ不足エラーが発生する場合
-  // workerIdleMemoryLimit: '512MB',
+  workerIdleMemoryLimit: '512MB',
+  
+  // === Infrastructure Mock Coverage ===
+  
+  // カスタムレポーターを追加
+  reporters: [
+    'default',
+    // [
+    //   '<rootDir>/tests/jest-mock-coverage-reporter.ts',
+    //   {
+    //     threshold: 80,
+    //     failOnLowCoverage: false,
+    //   },
+    // ],
+  ],
+  
+  // カバレッジ閾値の設定
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+    // Infrastructure Mockの個別閾値
+    './public/js/infrastructure/mocks/*.ts': {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
 };

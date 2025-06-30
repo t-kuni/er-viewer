@@ -1,0 +1,24 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# テスト品質チェックを実行
+echo "Running test quality checks..."
+
+# 変更されたテストファイルのみチェック
+CHANGED_TEST_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.test\.(js|ts)$' || true)
+
+if [ -n "$CHANGED_TEST_FILES" ]; then
+  echo "Checking test files: $CHANGED_TEST_FILES"
+  
+  # テストコーディングルールのチェック
+  npm run test:quality
+  
+  # 変更されたテストの実行
+  npm test -- --findRelatedTests $CHANGED_TEST_FILES
+else
+  echo "No test files changed, skipping test quality checks"
+fi
+
+# 通常のlintとformat check
+npm run lint
+npm run format:check

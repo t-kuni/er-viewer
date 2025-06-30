@@ -22,6 +22,9 @@ import {
   createErrorResponse
 } from './test-data-factory';
 
+// テスト用ヘルパー関数 - 非同期処理の完了を待つ
+const waitForAsync = () => new Promise(resolve => setTimeout(resolve, 0));
+
 interface MockERData extends ERData {
   layout: LayoutData;
 }
@@ -39,6 +42,13 @@ interface DDLResponse {
 // テスト用タイプ
 
 describe('ERViewerApplication E2E Tests', () => {
+  afterEach(() => {
+    // タイマーのクリア
+    jest.clearAllTimers();
+    
+    // 全モックのクリア
+    jest.clearAllMocks();
+  });
 
   describe('初期化とセットアップ', () => {
     describe('アプリケーション初期化', () => {
@@ -54,13 +64,16 @@ describe('ERViewerApplication E2E Tests', () => {
         infrastructure.setupMockData(mockData);
         
         // Act
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Assert
         expect(app).toBeDefined();
         expect(app.state).toBeDefined();
         expect(app.state.canvas).toBeDefined();
         expect(app.state.sidebar).toBeDefined();
+        
+        // Cleanup
+        app = null;
       });
 
       test('キャンバスが正しく初期化される', () => {
@@ -75,13 +88,16 @@ describe('ERViewerApplication E2E Tests', () => {
         infrastructure.setupMockData(mockData);
         
         // Act
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Assert
         const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
         expect(canvas).toBeDefined();
         expect(canvas.getAttribute('width')).toBe('800');
         expect(canvas.getAttribute('height')).toBe('600');
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -106,8 +122,8 @@ describe('ERViewerApplication E2E Tests', () => {
         infrastructure.setupMockData(mockData);
         
         // Act
-        const app = new ERViewerApplication(infrastructure);
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        let app: any = new ERViewerApplication(infrastructure);
+        await waitForAsync();
         
         // Assert
         const history = infrastructure.getInteractionHistory();
@@ -126,6 +142,9 @@ describe('ERViewerApplication E2E Tests', () => {
         // レスポンスの検証
         expect(app.state.erData).toBeDefined();
         expect(app.state.erData?.entities).toHaveLength(2);
+        
+        // Cleanup
+        app = null;
       });
     });
   });
@@ -160,10 +179,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データロードを待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
 
         // エンティティがキャンバスに描画されることを確認
         const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -175,6 +194,9 @@ describe('ERViewerApplication E2E Tests', () => {
         // 2番目の要素がusersエンティティであることを期待（最初はrelationshipsグループ）
         const secondChild = dynamicLayer.children[1] as MockElement;
         expect(secondChild.getAttribute('class')).toBe('entity draggable');
+        
+        // Cleanup
+        app = null;
       });
 
       test('エンティティバウンドが正しく設定される', async () => {
@@ -199,10 +221,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データロードを待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
 
         // エンティティバウンドが設定されていることを確認
         expect(app.state.entityBounds.has('users')).toBe(true);
@@ -214,6 +236,9 @@ describe('ERViewerApplication E2E Tests', () => {
         expect(usersBounds?.y).toBeDefined();
         expect(usersBounds?.width).toBeDefined();
         expect(usersBounds?.height).toBeDefined();
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -246,10 +271,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データロードを待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
 
         // エンティティがレンダリングされていることを確認
         const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -303,10 +328,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データロードを待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // Assert - ERデータにリレーションシップが含まれていることを確認
         expect(app.state.erData?.relationships).toBeDefined();
@@ -323,6 +348,9 @@ describe('ERViewerApplication E2E Tests', () => {
         // relationshipsグループが最初の子要素であることを期待
         const firstChild = dynamicLayer.children[0] as MockElement;
         expect(firstChild.getAttribute('class')).toBe('relationships');
+        
+        // Cleanup
+        app = null;
       });
 
       test('リレーションシップパスの座標が正しく計算される', async () => {
@@ -353,10 +381,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データロードを待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
 
         // エンティティバウンドを確認
         const usersBounds = app.state.entityBounds.get('users');
@@ -386,6 +414,9 @@ describe('ERViewerApplication E2E Tests', () => {
         expect(dAttribute).toMatch(/^M [\d.]+\s+[\d.]+\s+L\s+[\d.]+\s+[\d.]+$/);
         expect(path.getAttribute('stroke')).toBe('#666');
         expect(path.getAttribute('stroke-width')).toBe('2');
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -393,7 +424,7 @@ describe('ERViewerApplication E2E Tests', () => {
       test('パン操作でビューポートが更新される', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // DOM操作をスパイ
         const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
@@ -414,12 +445,15 @@ describe('ERViewerApplication E2E Tests', () => {
           'transform',
           expect.stringContaining('translate')
         );
+        
+        // Cleanup
+        app = null;
       });
 
       test('ズーム操作でスケールが更新される', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // DOM操作をスパイ
         const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
@@ -443,6 +477,9 @@ describe('ERViewerApplication E2E Tests', () => {
           'transform',
           expect.stringContaining('scale')
         );
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -470,7 +507,7 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure) as any;
+        let app: any = new ERViewerApplication(infrastructure);
         
         // 初期データを読み込んでからレンダリング
         app.state.erData = mockERData;
@@ -491,6 +528,9 @@ describe('ERViewerApplication E2E Tests', () => {
         expect(usersPos).toEqual({ x: 50, y: 50 });   // 0行0列
         expect(postsPos).toEqual({ x: 300, y: 50 });  // 0行1列
         expect(commentsPos).toEqual({ x: 50, y: 250 }); // 1行0列
+        
+        // Cleanup
+        app = null;
       });
       
       test('既存のpositionがある場合はクラスタリングされない', () => {
@@ -518,7 +558,7 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure) as any;
+        let app: any = new ERViewerApplication(infrastructure);
         
         // 初期データを読み込んでからレンダリング
         app.state.erData = mockERData;
@@ -538,6 +578,9 @@ describe('ERViewerApplication E2E Tests', () => {
         // usersエンティティの位置を確認（2番目の子要素）
         const userEntity = dynamicLayer.children[1] as MockElement;
         expect(userEntity.getAttribute('transform')).toBe('translate(150, 150)');
+        
+        // Cleanup
+        app = null;
       });
       
       test('リバースエンジニアリング時に既存のpositionがクリアされてクラスタリングが強制される', async () => {
@@ -575,13 +618,13 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure) as any;
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act
         await app.reverseEngineer();
         
         // リバースエンジニアリング後、非同期処理が完了するまで待つ
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // Assert - positionがクリアされる
         expect(app.state.erData?.entities[0].position).toBeUndefined();
@@ -622,6 +665,9 @@ describe('ERViewerApplication E2E Tests', () => {
         
         expect(foundUsers).toBe(true);
         expect(foundPosts).toBe(true);
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -646,10 +692,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // Act - データ読み込みを待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // Assert
         expect(app.state.layoutData.layers).toHaveLength(3);
@@ -692,10 +738,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // データ読み込みを待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // Act - レイヤー順序を変更するイベントを発火
         const newLayers = [
@@ -709,8 +755,8 @@ describe('ERViewerApplication E2E Tests', () => {
         
         infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event);
         
-        // イベント処理を待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        // イベント処理を待つ（最適化：不要と判断）
+        // await waitForAsync();
         
         // Assert - 状態が更新されていることを確認
         // 注: 実装によってはレイヤー順序がそのまま反映されない可能性がある
@@ -737,10 +783,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // データ読み込みを待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // レンダリングを実行してエンティティを描画
         (app as any).render();
@@ -795,10 +841,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // データ読み込みを待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // Act - レイヤー順序を変更してから保存
         const newLayers = [
@@ -812,8 +858,8 @@ describe('ERViewerApplication E2E Tests', () => {
         
         infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event);
         
-        // イベント処理を待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        // イベント処理を待つ（最適化：不要と判断）
+        // await waitForAsync();
         
         // レイアウトを保存
         await (app as any).saveLayout();
@@ -865,10 +911,10 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
         
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // データ読み込みを待つ
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForAsync();
         
         // レンダリング実行
         (app as any).render();
@@ -914,7 +960,7 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         };
         infrastructure.setupMockData(mockData);
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         
         // DOM操作をスパイ
         const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
@@ -926,7 +972,7 @@ describe('ERViewerApplication E2E Tests', () => {
         app.showTableDetails('users');
 
         // ネットワークリクエストが送信されることを確認
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await waitForAsync();
 
         const history = infrastructure.getInteractionHistory();
         const requests = history.networkRequests;
@@ -947,6 +993,9 @@ describe('ERViewerApplication E2E Tests', () => {
           expect.anything(),
           expect.stringContaining('<h2>users</h2>')
         );
+        
+        // Cleanup
+        app = null;
       });
     });
 
@@ -988,8 +1037,8 @@ describe('ERViewerApplication E2E Tests', () => {
           },
         });
 
-        const app = new ERViewerApplication(infrastructure) as any;
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        let app: any = new ERViewerApplication(infrastructure);
+        await waitForAsync();
         app.render();
         
         // DOM操作をスパイ
@@ -1029,8 +1078,8 @@ describe('ERViewerApplication E2E Tests', () => {
           }
         });
 
-        const app = new ERViewerApplication(infrastructure) as any;
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        let app: any = new ERViewerApplication(infrastructure);
+        await waitForAsync();
         app.render();
         
         // DOM操作をスパイ
@@ -1066,7 +1115,7 @@ describe('ERViewerApplication E2E Tests', () => {
       test('矩形注釈を追加できる', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       const initialRectCount = app.state.layoutData.rectangles.length;
 
       // Act
@@ -1079,6 +1128,9 @@ describe('ERViewerApplication E2E Tests', () => {
       expect(newRect.y).toBe(200);
       expect(newRect.width).toBe(100);
       expect(newRect.height).toBe(60);
+      
+      // Cleanup
+      app = null;
     });
 
     test('テキスト注釈を追加できる', () => {
@@ -1088,7 +1140,7 @@ describe('ERViewerApplication E2E Tests', () => {
         promptResponses: ['テストテキスト'], // prompt応答をセットアップ
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       const initialTextCount = app.state.layoutData.texts.length;
       
       // BrowserAPI操作をスパイ
@@ -1114,6 +1166,9 @@ describe('ERViewerApplication E2E Tests', () => {
       expect(newText.x).toBe(300);
       expect(newText.y).toBe(300);
       expect(newText.content).toBe('テストテキスト');
+      
+      // Cleanup
+      app = null;
     });
 
     test('テキスト注釈追加をキャンセルできる', () => {
@@ -1123,7 +1178,7 @@ describe('ERViewerApplication E2E Tests', () => {
         promptResponses: [null], // promptがキャンセルされた場合
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       const initialTextCount = app.state.layoutData.texts.length;
       
       // BrowserAPI操作をスパイ
@@ -1145,6 +1200,9 @@ describe('ERViewerApplication E2E Tests', () => {
       
       // レイアウトデータは変更されていないことを検証
       expect(app.state.layoutData.texts.length).toBe(initialTextCount);
+      
+      // Cleanup
+      app = null;
     });
     });
   });
@@ -1163,7 +1221,7 @@ describe('ERViewerApplication E2E Tests', () => {
           },
         };
         infrastructure.setupMockData(mockData);
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
 
         // Act
         await app.showTableDetails('users');
@@ -1194,7 +1252,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.saveLayout();
@@ -1238,7 +1296,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.reverseEngineer();
@@ -1313,7 +1371,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期データをロード
       await app.loadERData();
@@ -1400,7 +1458,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期データをロード
       await app.loadERData();
@@ -1463,7 +1521,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期データをロード
       await app.loadERData();
@@ -1557,7 +1615,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期データをロード
       await app.loadERData();
@@ -1603,7 +1661,7 @@ describe('ERViewerApplication E2E Tests', () => {
       const getItemSpy = jest.spyOn(infrastructure.storage, 'getItem');
       
       // Act - アプリケーションを初期化（コンストラクタ内でsetupHelpPanelEventsが呼ばれる）
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // Assert - Storageから折りたたみ状態を読み込む
       expect(getItemSpy).toHaveBeenCalledWith('helpPanelCollapsed');
@@ -1613,7 +1671,7 @@ describe('ERViewerApplication E2E Tests', () => {
     test('ヘルプパネルを展開時にStorageに状態が保存される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // Storage操作をスパイ
       const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
@@ -1641,7 +1699,7 @@ describe('ERViewerApplication E2E Tests', () => {
     test('ヘルプパネルを折りたたみ時にStorageに状態が保存される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // Storage操作をスパイ
       const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
@@ -1680,7 +1738,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
@@ -1710,7 +1768,7 @@ describe('ERViewerApplication E2E Tests', () => {
         test('コンテキストメニューが表示される', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
@@ -1745,7 +1803,7 @@ describe('ERViewerApplication E2E Tests', () => {
         test('ローディング表示が正常に動作する', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
@@ -1778,7 +1836,7 @@ describe('ERViewerApplication E2E Tests', () => {
       test('状態の変更が正しく通知される', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         const subscriber = jest.fn();
         app.subscribe(subscriber);
         const newViewport = { panX: 10, panY: 20, scale: 1.5 };
@@ -1796,7 +1854,7 @@ describe('ERViewerApplication E2E Tests', () => {
       test('プロパティ変更の監視が正常に動作する', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         const propertySubscriber = jest.fn();
         app.subscribeToProperty('viewport', propertySubscriber);
         const oldViewport = app.state.viewport;
@@ -1814,7 +1872,7 @@ describe('ERViewerApplication E2E Tests', () => {
       test('ヒストリー機能が正常に動作する', () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const app = new ERViewerApplication(infrastructure);
+        let app: any = new ERViewerApplication(infrastructure);
         const initialHistoryLength = app.state.history.length;
         const newLayoutData = { entities: {}, rectangles: [], texts: [], layers: [] };
 
@@ -1837,7 +1895,7 @@ describe('ERViewerApplication E2E Tests', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.loadERData();
@@ -1854,6 +1912,9 @@ describe('ERViewerApplication E2E Tests', () => {
       // エラー状態の検証
       expect(app.state.error).toBeDefined();
       expect(app.state.loading).toBe(false);
+      
+      // Cleanup
+      app = null;
     });
 
     test('無効なテーブル名でのDDL取得エラーが処理される', async () => {
@@ -1868,7 +1929,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.showTableDetails('invalid');
@@ -1886,6 +1947,9 @@ describe('ERViewerApplication E2E Tests', () => {
       
       // エラーログの検証
       expect(history.errors.length).toBeGreaterThan(0);
+      
+      // Cleanup
+      app = null;
     });
 
     test('JSONパースエラーが適切に処理される', async () => {
@@ -1901,7 +1965,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.loadERData();
@@ -1933,7 +1997,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.loadERData();
@@ -1951,6 +2015,9 @@ describe('ERViewerApplication E2E Tests', () => {
       // エラー状態の検証
       expect(app.state.error).toBeDefined();
       expect(app.state.loading).toBe(false);
+      
+      // Cleanup
+      app = null;
     });
 
     test('レート制限エラー（429 Too Many Requests）が適切に処理される', async () => {
@@ -1966,7 +2033,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期状態を設定
       app.state.layoutData = {
@@ -2008,7 +2075,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期状態を設定
       app.state.layoutData = {
@@ -2051,7 +2118,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.showTableDetails('users');
@@ -2068,6 +2135,9 @@ describe('ERViewerApplication E2E Tests', () => {
       
       // エラーログの検証
       expect(history.errors.length).toBeGreaterThan(0);
+      
+      // Cleanup
+      app = null;
     });
 
     test('無効なエンティティデータのエラーが適切に処理される', async () => {
@@ -2092,7 +2162,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.loadERData();
@@ -2125,7 +2195,7 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
       infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
 
       // Act
       await app.reverseEngineer();
@@ -2145,6 +2215,9 @@ describe('ERViewerApplication E2E Tests', () => {
       
       // ローディング状態の検証
       expect(app.state.loading).toBe(false);
+      
+      // Cleanup
+      app = null;
     });
   });
 });

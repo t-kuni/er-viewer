@@ -1,0 +1,148 @@
+name: Test Quality Gate
+
+on:
+  push:
+    branches: [ main, develop, rearchitecture ]
+  pull_request:
+    branches: [ main, develop, rearchitecture ]
+
+jobs:
+  test-quality:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Check formatting
+      run: npm run format:check
+
+    - name: Type check
+      run: npm run typecheck
+
+    - name: Run tests
+      run: npm test
+      env:
+        DB_HOST: localhost
+        DB_PORT: 3306
+        DB_USER: test_user
+        DB_PASSWORD: test_password
+        DB_NAME: test_db
+
+    - name: Generate coverage report
+      run: npm test -- --coverage --coverageReporters=json-summary --coverageReporters=text
+
+    - name: Generate mock coverage report
+      run: npm run test:mock-coverage
+      env:
+        COLLECT_COVERAGE: 'true'
+
+    - name: Check test coding rules compliance
+      run: node .github/scripts/check-test-rules.js
+
+    - name: Check coverage thresholds
+      run: |
+        echo "Checking test coverage..."
+        coverage=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+        echo "Current coverage: $coverage%"
+        
+        if (( $(echo "$coverage < 85" | bc -l) )); then
+          echo "Coverage is below 85% threshold"
+          exit 1
+        fi
+        
+        echo "Coverage check passed"
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read coverage summary
+          const coverageSummary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+          const coverage = coverageSummary.total.lines.pct;
+          
+          // Read mock coverage summary if available
+          let mockCoverageInfo = '';
+          try {
+            const mockCoverage = JSON.parse(fs.readFileSync('coverage/mock-coverage/mock-coverage.json', 'utf8'));
+            const mockSummary = mockCoverage.summary;
+            mockCoverageInfo = `
+          
+          ### Infrastructure Mock Coverage
+          - Total Coverage: ${mockSummary.coveragePercentage.toFixed(1)}%
+          - Covered Methods: ${mockSummary.coveredMethods}/${mockSummary.totalMethods}
+          - Status: ${mockSummary.coveragePercentage >= 80 ? '✅ Passed' : '⚠️ Warning'}
+          
+          #### Mock Details:
+          ${Object.entries(mockSummary.mockDetails).map(([mock, details]) => 
+            `- **${mock}**: ${details.coverage.toFixed(1)}% (${details.coveredMethods}/${details.totalMethods})`
+          ).join('\n          ')}`;
+          } catch (e) {
+            mockCoverageInfo = '\n\n### Infrastructure Mock Coverage\n- ⚠️ Mock coverage report not found';
+          }
+          
+          // Create comment body
+          const comment = `## Test Quality Report
+          
+          ### Coverage
+          - Lines: ${coverage}%
+          - Threshold: 85%
+          - Status: ${coverage >= 85 ? '✅ Passed' : '❌ Failed'}
+          
+          ### Quality Checks
+          - Linting: ✅ Passed
+          - Formatting: ✅ Passed
+          - Type checking: ✅ Passed
+          - Test coding rules: ✅ Passed
+          
+          ### Test Coding Rules Compliance
+          - AAA Pattern: All tests follow Arrange/Act/Assert pattern
+          - No control structures: Tests avoid if/for/switch statements
+          - Infrastructure Mock verification: Tests verify mock calls instead of state
+          - Readability first: Tests use literal values over DRY principles${mockCoverageInfo}
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

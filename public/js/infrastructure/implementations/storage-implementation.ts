@@ -1,4 +1,4 @@
-import { StorageInterface } from '@infrastructure/interfaces/storage-interface';
+import { StorageInterface } from '../interfaces/storage-interface.js';
 
 /**
  * ストレージインタフェースの実装

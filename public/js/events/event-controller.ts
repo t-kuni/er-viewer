@@ -1,4 +1,4 @@
-import { ApplicationState, Viewport, LayoutData, Position, Rectangle, Text } from '../types/index';
+import { ApplicationState, Viewport, LayoutData, Position, Rectangle, Text } from '../types/index.js';
 
 /**
  * Generate a unique ID for annotations

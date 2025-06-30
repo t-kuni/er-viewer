@@ -1,4 +1,4 @@
-import type { Position, Bounds } from '../types/index';
+import type { Position, Bounds } from '../types/index.js';
 export declare class SVGUtils {
     static pathPointsToSVG(pathPoints: Position[]): string;
     static hexToRgba(hex: string, alpha: number): string;

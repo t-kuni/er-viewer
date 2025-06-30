@@ -1,5 +1,5 @@
-import { Position } from '../types/index';
-import type { ConnectionBounds } from './connection-points';
+import { Position } from '../types/index.js';
+import type { ConnectionBounds } from './connection-points.js';
 export declare class SmartRouting {
     private entityBounds;
     constructor();

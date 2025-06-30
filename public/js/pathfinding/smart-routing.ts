@@ -1,7 +1,7 @@
 // Smart path routing for relationship lines
 import { GeometryUtils, SVGUtils } from '../utils/svg-utils';
-import { Position, Bounds } from '../types/index';
-import type { ConnectionBounds } from './connection-points';
+import { Position, Bounds } from '../types/index.js';
+import type { ConnectionBounds } from './connection-points.js';
 
 // Routing direction type
 type RoutingDirection = 'horizontal' | 'vertical';

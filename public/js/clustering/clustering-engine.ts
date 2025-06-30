@@ -1,4 +1,4 @@
-import { ERData, Entity, Position } from '../types/index';
+import { ERData, Entity, Position } from '../types/index.js';
 
 // Type definitions for clustering
 interface RelationshipCluster {

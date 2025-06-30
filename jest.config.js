@@ -31,6 +31,7 @@ module.exports = {
     '^@infrastructure/(.*)$': '<rootDir>/public/js/infrastructure/$1',
     '^@utils/(.*)$': '<rootDir>/public/js/utils/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1',
+    '^(.*)\\.js$': '$1',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transform: {

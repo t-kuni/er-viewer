@@ -1,5 +1,5 @@
-import { Infrastructure } from '../interfaces/infrastructure';
-import type { DOMInterface, NetworkInterface, StorageInterface, BrowserAPIInterface } from '../../types/infrastructure';
+import { Infrastructure } from '../interfaces/infrastructure.js';
+import type { DOMInterface, NetworkInterface, StorageInterface, BrowserAPIInterface } from '../../types/infrastructure.js';
 /**
  * インフラストラクチャー層の実装
  * 全ての副作用を持つ実装を統合

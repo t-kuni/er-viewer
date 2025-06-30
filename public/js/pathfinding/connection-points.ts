@@ -1,6 +1,6 @@
 // Connection point calculations for relationships
-import { CoordinateTransform } from '../utils/coordinate-transform';
-import { ERData, Entity, Relationship, Position, Bounds } from '../types/index';
+import { CoordinateTransform } from '../utils/coordinate-transform.js';
+import { ERData, Entity, Relationship, Position, Bounds } from '../types/index.js';
 
 // Extended bounds type for connection calculations
 export interface ConnectionBounds extends Bounds {

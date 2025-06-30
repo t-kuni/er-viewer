@@ -1,5 +1,5 @@
-import { DOMInterface } from '../interfaces/dom-interface';
-import type { EventHandler } from '../../types/infrastructure';
+import { DOMInterface } from '../interfaces/dom-interface.js';
+import type { EventHandler } from '../../types/infrastructure.js';
 /**
  * DOMインタフェースの実装
  * 実際のDOM操作を行う

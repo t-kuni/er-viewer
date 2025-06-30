@@ -1,5 +1,5 @@
-import { BrowserAPIInterface } from '../interfaces/browser-api-interface';
-import type { EventHandler, WindowSize } from '../../types/infrastructure';
+import { BrowserAPIInterface } from '../interfaces/browser-api-interface.js';
+import type { EventHandler, WindowSize } from '../../types/infrastructure.js';
 /**
  * ブラウザAPIインタフェースの実装
  * 実際のブラウザAPI呼び出しを行う

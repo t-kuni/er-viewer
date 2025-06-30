@@ -2,8 +2,8 @@
  * DOM操作のモック実装
  * テスト用に副作用を排除したDOM操作を提供
  */
-import { DOMInterface } from '../interfaces/dom-interface';
-import type { EventHandler, BoundingRect, EventListenerOptions, CustomEventDetail } from '../../types/infrastructure';
+import { DOMInterface } from '../interfaces/dom-interface.js';
+import type { EventHandler, BoundingRect, EventListenerOptions, CustomEventDetail } from '../../types/infrastructure.js';
 export interface MockElementAttributes {
     tagName: string;
     namespace: string | null;

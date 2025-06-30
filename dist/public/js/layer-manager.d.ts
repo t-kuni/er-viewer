@@ -1,4 +1,4 @@
-import type { LayoutData, Layer as BaseLayer } from './types/index';
+import type { LayoutData, Layer as BaseLayer } from './types/index.js';
 interface LayerData extends BaseLayer {
     type: 'er-diagram' | 'rectangle' | 'text';
     icon: string;

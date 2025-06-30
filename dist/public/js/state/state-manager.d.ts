@@ -1,4 +1,4 @@
-import { ApplicationState, ERData, LayoutData, InteractionMode } from '../types/index';
+import { ApplicationState, ERData, LayoutData, InteractionMode } from '../types/index.js';
 type StateChangeCallback = (oldState: ApplicationState, newState: ApplicationState) => void;
 type PropertyChangeCallback<T = any> = (oldValue: T, newValue: T) => void;
 /**

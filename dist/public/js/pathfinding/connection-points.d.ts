@@ -1,4 +1,4 @@
-import { ERData, Entity, Relationship, Position, Bounds } from '../types/index';
+import { ERData, Entity, Relationship, Position, Bounds } from '../types/index.js';
 export interface ConnectionBounds extends Bounds {
     left: number;
     top: number;

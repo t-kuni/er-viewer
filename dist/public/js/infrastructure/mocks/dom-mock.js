@@ -2,7 +2,7 @@
  * DOM操作のモック実装
  * テスト用に副作用を排除したDOM操作を提供
  */
-import { DOMInterface } from '../interfaces/dom-interface';
+import { DOMInterface } from '../interfaces/dom-interface.js';
 export class MockElement {
     constructor(tagName, namespace = null) {
         this.tagName = tagName.toLowerCase();

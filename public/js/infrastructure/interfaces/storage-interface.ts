@@ -1,4 +1,4 @@
-import type { StorageInterface as IStorageInterface } from '../../types/infrastructure';
+import type { StorageInterface as IStorageInterface } from '../../types/infrastructure.js';
 
 /**
  * ストレージ操作の抽象インタフェース

@@ -1,4 +1,4 @@
-import type { LogEntry } from '../types/index';
+import type { LogEntry } from '../types/index.js';
 
 // Log level type
 export type LogLevel = 'info' | 'warn' | 'error';

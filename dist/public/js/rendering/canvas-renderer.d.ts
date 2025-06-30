@@ -1,4 +1,4 @@
-import type { ERData, LayoutData } from '../types/index';
+import type { ERData, LayoutData } from '../types/index.js';
 interface Layer {
     id: string;
     type: 'er-diagram' | 'rectangle' | 'text';

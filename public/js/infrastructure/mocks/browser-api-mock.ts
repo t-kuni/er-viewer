@@ -2,7 +2,7 @@
  * ブラウザAPI操作のモック実装
  * テスト用に副作用を排除したブラウザAPI操作を提供
  */
-import { BrowserAPIInterface } from '../interfaces/browser-api-interface';
+import { BrowserAPIInterface } from '../interfaces/browser-api-interface.js';
 import type {
   WindowSize,
   EventHandler,
@@ -11,7 +11,7 @@ import type {
   MockAlertEntry,
   MockConfirmEntry,
   MockTimer,
-} from '../../types/infrastructure';
+} from '../../types/infrastructure.js';
 
 export class BrowserAPIMock extends BrowserAPIInterface {
   private logs: MockLogEntry[];
@@ -66,7 +66,14 @@ export class BrowserAPIMock extends BrowserAPIInterface {
   }
 
   prompt(message: string, defaultValue: string = ''): string | null {
-    const response = this.promptResponses.length > 0 ? (this.promptResponses.shift() ?? defaultValue) : defaultValue;
+    let response: string | null;
+    if (this.promptResponses.length > 0) {
+      const shifted = this.promptResponses.shift();
+      // nullを明示的に処理
+      response = shifted === null ? null : (shifted ?? defaultValue);
+    } else {
+      response = defaultValue;
+    }
 
     this.prompts.push({
       message,

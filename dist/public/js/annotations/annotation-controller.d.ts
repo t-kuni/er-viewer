@@ -1,4 +1,4 @@
-import { ApplicationState, LayoutData } from '../types/index';
+import { ApplicationState, LayoutData } from '../types/index.js';
 interface AnnotationRectangle {
     id: string;
     x: number;

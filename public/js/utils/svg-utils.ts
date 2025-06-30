@@ -1,6 +1,6 @@
 // SVG and geometric utility functions
 
-import type { Position, Bounds } from '../types/index';
+import type { Position, Bounds } from '../types/index.js';
 
 export class SVGUtils {
   static pathPointsToSVG(pathPoints: Position[]): string {

@@ -1,4 +1,4 @@
-import type { LayoutData, Layer as BaseLayer } from './types/index';
+import type { LayoutData, Layer as BaseLayer } from './types/index.js';
 
 // Extended Layer type for Layer Manager that includes UI-specific properties
 interface LayerData extends BaseLayer {

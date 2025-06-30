@@ -2,8 +2,8 @@
  * ER Viewer Application - 統合されたアプリケーションクラス
  * 全てのロジックとステートを内包し、副作用はインフラストラクチャー層を通じて実行
  */
-import type { Infrastructure, EventHandler as InfraEventHandler } from './types/infrastructure';
-import type { ERData, LayoutData, ApplicationState, Position, Bounds, HistoryEntry } from './types/index';
+import type { Infrastructure, EventHandler as InfraEventHandler } from './types/infrastructure.js';
+import type { ERData, LayoutData, ApplicationState, Position, Bounds, HistoryEntry } from './types/index.js';
 interface ERViewerState extends ApplicationState {
     canvas: SVGSVGElement | null;
     sidebar: HTMLElement | null;

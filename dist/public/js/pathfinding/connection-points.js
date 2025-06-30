@@ -1,5 +1,5 @@
 // Connection point calculations for relationships
-import { CoordinateTransform } from '../utils/coordinate-transform';
+import { CoordinateTransform } from '../utils/coordinate-transform.js';
 export class ConnectionPoints {
     constructor(erData) {
         this.erData = erData || null;

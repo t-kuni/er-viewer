@@ -2,8 +2,8 @@
  * New application entry point using unified architecture
  * Uses ERViewerApplication with Infrastructure layer for clean E2E testing
  */
-import { ERViewerApplication } from './er-viewer-application';
-import { InfrastructureImplementation } from './infrastructure/implementations/infrastructure-implementation';
+import { ERViewerApplication } from './er-viewer-application.js';
+import { InfrastructureImplementation } from './infrastructure/implementations/infrastructure-implementation.js';
 
 // Extend window interface for global access
 declare global {

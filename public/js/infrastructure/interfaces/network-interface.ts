@@ -1,4 +1,4 @@
-import type { NetworkInterface as INetworkInterface, RequestOptions } from '../../types/infrastructure';
+import type { NetworkInterface as INetworkInterface, RequestOptions } from '../../types/infrastructure.js';
 
 /**
  * ネットワーク通信の抽象インタフェース

@@ -3,9 +3,9 @@
  * Handles all SVG drawing operations and visual presentation
  */
 import { SVGUtils } from '../utils/svg-utils';
-import { SmartRouting } from '../pathfinding/smart-routing';
+import { SmartRouting } from '../pathfinding/smart-routing.js';
 import { ConnectionPoints } from '../pathfinding/connection-points';
-import type { ERData, Entity, Relationship, LayoutData, Position, Bounds, Rectangle, Text } from '../types/index';
+import type { ERData, Entity, Relationship, LayoutData, Position, Bounds, Rectangle, Text } from '../types/index.js';
 
 // Type definitions for Canvas Renderer
 interface CanvasRendererConfig {

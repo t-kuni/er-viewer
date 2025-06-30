@@ -1,4 +1,4 @@
-import { BrowserAPIInterface } from '../interfaces/browser-api-interface';
+import { BrowserAPIInterface } from '../interfaces/browser-api-interface.js';
 /**
  * ブラウザAPIインタフェースの実装
  * 実際のブラウザAPI呼び出しを行う

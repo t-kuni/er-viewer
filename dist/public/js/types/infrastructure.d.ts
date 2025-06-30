@@ -214,7 +214,7 @@ export interface MockPerformance {
 export interface MockData {
     networkResponses?: Record<string, MockNetworkResponse>;
     storageData?: Record<string, any>;
-    promptResponses?: string[];
+    promptResponses?: (string | null)[];
     confirmResponses?: boolean[];
     windowSize?: WindowSize;
 }

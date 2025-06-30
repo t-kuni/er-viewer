@@ -1,4 +1,4 @@
-import { Viewport, Position, Bounds } from '../types/index';
+import { Viewport, Position, Bounds } from '../types/index.js';
 /**
  * Centralized coordinate transformation system
  * Handles all coordinate system conversions and viewport calculations

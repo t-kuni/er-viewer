@@ -10,11 +10,11 @@ import {
   BrowserAPIInterface,
   MockData,
   InteractionHistory,
-} from '../../types/infrastructure';
-import { DOMMock } from './dom-mock';
-import { NetworkMock } from './network-mock';
-import { StorageMock } from './storage-mock';
-import { BrowserAPIMock } from './browser-api-mock';
+} from '../../types/infrastructure.js';
+import { DOMMock } from './dom-mock.js';
+import { NetworkMock } from './network-mock.js';
+import { StorageMock } from './storage-mock.js';
+import { BrowserAPIMock } from './browser-api-mock.js';
 
 export class InfrastructureMock implements Infrastructure {
   public readonly dom: DOMInterface;

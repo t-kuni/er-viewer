@@ -1,5 +1,5 @@
 // Main application entry point - modularized (Legacy version)
-import ClientLogger from './utils/client-logger';
+import ClientLogger from './utils/client-logger.js';
 // Import ERViewerCore as any since it's not migrated yet
 import { ERViewerCore as ERViewerCoreClass } from './core/er-viewer-core.js';
 // Initialize the application

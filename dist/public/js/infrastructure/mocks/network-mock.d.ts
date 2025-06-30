@@ -2,8 +2,8 @@
  * ネットワーク操作のモック実装
  * テスト用に副作用を排除したネットワーク操作を提供
  */
-import { NetworkInterface } from '../interfaces/network-interface';
-import type { MockNetworkResponse, MockRequestHistory } from '../../types/infrastructure';
+import { NetworkInterface } from '../interfaces/network-interface.js';
+import type { MockNetworkResponse, MockRequestHistory } from '../../types/infrastructure.js';
 export declare class NetworkMock extends NetworkInterface {
     private responses;
     private requests;

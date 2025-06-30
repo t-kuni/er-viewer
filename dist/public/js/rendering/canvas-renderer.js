@@ -3,7 +3,7 @@
  * Handles all SVG drawing operations and visual presentation
  */
 import { SVGUtils } from '../utils/svg-utils';
-import { SmartRouting } from '../pathfinding/smart-routing';
+import { SmartRouting } from '../pathfinding/smart-routing.js';
 import { ConnectionPoints } from '../pathfinding/connection-points';
 // Helper function to convert EntityLayouts to EntityPositions
 function convertLayoutsToPositions(layouts) {

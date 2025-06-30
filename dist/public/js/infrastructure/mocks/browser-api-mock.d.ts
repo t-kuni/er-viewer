@@ -2,8 +2,8 @@
  * ブラウザAPI操作のモック実装
  * テスト用に副作用を排除したブラウザAPI操作を提供
  */
-import { BrowserAPIInterface } from '../interfaces/browser-api-interface';
-import type { WindowSize, EventHandler, MockLogEntry, MockPromptEntry, MockAlertEntry, MockConfirmEntry, MockTimer } from '../../types/infrastructure';
+import { BrowserAPIInterface } from '../interfaces/browser-api-interface.js';
+import type { WindowSize, EventHandler, MockLogEntry, MockPromptEntry, MockAlertEntry, MockConfirmEntry, MockTimer } from '../../types/infrastructure.js';
 export declare class BrowserAPIMock extends BrowserAPIInterface {
     private logs;
     private warnings;

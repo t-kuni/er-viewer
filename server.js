@@ -19,6 +19,10 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from dist/public for TypeScript compiled files
+app.use('/js', express.static(path.join(__dirname, 'dist/public/js')));
+// Serve other static files from public directory
 app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();

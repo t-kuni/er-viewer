@@ -2,7 +2,7 @@
  * インフラストラクチャー層のモック実装
  * テスト用に副作用を排除した統合実装
  */
-import { Infrastructure, DOMInterface, NetworkInterface, StorageInterface, BrowserAPIInterface, MockData, InteractionHistory } from '../../types/infrastructure';
+import { Infrastructure, DOMInterface, NetworkInterface, StorageInterface, BrowserAPIInterface, MockData, InteractionHistory } from '../../types/infrastructure.js';
 export declare class InfrastructureMock implements Infrastructure {
     readonly dom: DOMInterface;
     readonly network: NetworkInterface;

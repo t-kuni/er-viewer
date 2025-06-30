@@ -1,5 +1,5 @@
-import { NetworkInterface } from '../interfaces/network-interface';
-import type { RequestOptions } from '../../types/infrastructure';
+import { NetworkInterface } from '../interfaces/network-interface.js';
+import type { RequestOptions } from '../../types/infrastructure.js';
 /**
  * ネットワークインタフェースの実装
  * 実際のHTTP通信を行う

@@ -2,7 +2,7 @@
  * ストレージ操作のモック実装
  * テスト用に副作用を排除したストレージ操作を提供
  */
-import { StorageInterface } from '../interfaces/storage-interface';
+import { StorageInterface } from '../interfaces/storage-interface.js';
 export class StorageMock extends StorageInterface {
     constructor() {
         super();

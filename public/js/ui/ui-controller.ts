@@ -1,4 +1,4 @@
-import { ApplicationState } from '../types/index';
+import { ApplicationState } from '../types/index.js';
 // Removed unused imports
 
 // Type definitions for dependencies

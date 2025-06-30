@@ -1,4 +1,4 @@
-import type { DOMInterface as IDOMInterface, EventHandler, BoundingRect, EventListenerOptions, CustomEventDetail } from '../../types/infrastructure';
+import type { DOMInterface as IDOMInterface, EventHandler, BoundingRect, EventListenerOptions, CustomEventDetail } from '../../types/infrastructure.js';
 /**
  * DOM操作の抽象インタフェース
  * 副作用を含む全てのDOM操作をこのインタフェースを通して行う

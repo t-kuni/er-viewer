@@ -1,5 +1,5 @@
 // Main application entry point - modularized (Legacy version)
-import ClientLogger from './utils/client-logger';
+import ClientLogger from './utils/client-logger.js';
 
 // Type declaration for ERViewerCore (legacy module not yet migrated)
 interface ERViewerCore {

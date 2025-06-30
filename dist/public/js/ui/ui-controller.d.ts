@@ -1,4 +1,4 @@
-import { ApplicationState } from '../types/index';
+import { ApplicationState } from '../types/index.js';
 interface StateManager {
     get<K extends keyof ApplicationState>(key: K): ApplicationState[K];
 }

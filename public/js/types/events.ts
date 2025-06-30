@@ -2,7 +2,7 @@
  * ER Viewer Application - Event Type Definitions
  */
 
-import { Position, Entity, Rectangle, Text, Layer } from './index';
+import { Position, Entity, Rectangle, Text, Layer } from './index.js';
 
 // Base event data
 export interface BaseEventData {

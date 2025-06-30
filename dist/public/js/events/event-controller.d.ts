@@ -1,4 +1,4 @@
-import { ApplicationState, Viewport, LayoutData, Position } from '../types/index';
+import { ApplicationState, Viewport, LayoutData, Position } from '../types/index.js';
 interface StateManager {
     getState(): ApplicationState;
     get<K extends keyof ApplicationState>(key: K): ApplicationState[K];

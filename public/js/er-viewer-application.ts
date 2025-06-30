@@ -2,7 +2,7 @@
  * ER Viewer Application - 統合されたアプリケーションクラス
  * 全てのロジックとステートを内包し、副作用はインフラストラクチャー層を通じて実行
  */
-import type { Infrastructure, EventHandler as InfraEventHandler } from './types/infrastructure';
+import type { Infrastructure, EventHandler as InfraEventHandler } from './types/infrastructure.js';
 import type {
   ERData,
   LayoutData,
@@ -14,8 +14,8 @@ import type {
   Rectangle,
   Text,
   HistoryEntry,
-} from './types/index';
-import type { SVGMousePosition } from './types/dom';
+} from './types/index.js';
+import type { SVGMousePosition } from './types/dom.js';
 
 // Internal types
 type InteractionMode = 'default' | 'panning' | 'dragging' | 'creating';

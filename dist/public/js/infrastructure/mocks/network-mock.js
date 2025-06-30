@@ -2,7 +2,7 @@
  * ネットワーク操作のモック実装
  * テスト用に副作用を排除したネットワーク操作を提供
  */
-import { NetworkInterface } from '../interfaces/network-interface';
+import { NetworkInterface } from '../interfaces/network-interface.js';
 /**
  * Mock Response class for testing
  */

@@ -4,7 +4,7 @@ import type {
   BoundingRect,
   EventListenerOptions,
   CustomEventDetail,
-} from '../../types/infrastructure';
+} from '../../types/infrastructure.js';
 
 /**
  * DOM操作の抽象インタフェース

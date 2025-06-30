@@ -1,7 +1,7 @@
 /**
  * ER Viewer Application - Event Type Definitions
  */
-import { Position, Entity, Rectangle, Text, Layer } from './index';
+import { Position, Entity, Rectangle, Text, Layer } from './index.js';
 export interface BaseEventData {
     timestamp: number;
     source: 'user' | 'system' | 'api';

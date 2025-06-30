@@ -1,13 +1,13 @@
 {
   "version": "1.0.0",
   "name": "er-viewer",
-  "buildTime": "2025-06-14T12:18:51.801Z",
-  "buildTimestamp": 1749903531802,
-  "buildDate": "2025/06/14 21:18:51",
+  "buildTime": "2025-06-30T04:09:33.913Z",
+  "buildTimestamp": 1751256573913,
+  "buildDate": "2025/06/30 13:09:33",
   "git": {
-    "commit": "d13493d3b7f80d1eaf5887a3e9518fbac963d644",
-    "commitShort": "d13493d3",
-    "branch": "main",
+    "commit": "bbb2e17558bcafccf9b8c6ad192cb2d320f0410d",
+    "commitShort": "bbb2e175",
+    "branch": "rearchitecture",
     "tag": null
   },
   "nodeVersion": "v22.12.0",

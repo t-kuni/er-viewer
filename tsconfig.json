@@ -1,0 +1,58 @@
+{
+  "compilerOptions": {
+    // 言語とターゲット
+    "target": "ES2020",
+    "module": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+
+    // モジュール解決
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // 型チェック（厳密な設定）
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+
+    // 出力設定
+    "outDir": "./dist",
+    "rootDir": "./",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "preserveConstEnums": true,
+
+    // その他のオプション
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "checkJs": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo",
+
+    // パス設定
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["public/js/*"],
+      "@types/*": ["public/js/types/*"],
+      "@infrastructure/*": ["public/js/infrastructure/*"],
+      "@utils/*": ["public/js/utils/*"],
+      "@tests/*": ["tests/*"]
+    }
+  },
+  "include": ["public/js/**/*", "lib/**/*", "types/**/*", "tests/**/*", "server.js"],
+  "exclude": ["node_modules", "dist", "docker-data", "*.min.js", "**/*.spec.js", "public/js/**/*.min.js"]
+}

@@ -1,23 +1,50 @@
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testMatch: [
     '<rootDir>/tests/**/*.test.js',
-    '<rootDir>/tests/**/*.spec.js'
+    '<rootDir>/tests/**/*.spec.js',
+    '<rootDir>/tests/**/*.test.ts',
+    '<rootDir>/tests/**/*.spec.ts',
   ],
   collectCoverageFrom: [
     'public/js/**/*.js',
+    'public/js/**/*.ts',
     'lib/**/*.js',
+    'lib/**/*.ts',
     'server.js',
+    'server.ts',
     '!public/js/**/*.test.js',
     '!public/js/**/*.spec.js',
-    '!node_modules/**'
+    '!public/js/**/*.test.ts',
+    '!public/js/**/*.spec.ts',
+    '!node_modules/**',
+    '!dist/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/public/js/$1',
-    '^@lib/(.*)$': '<rootDir>/lib/$1'
+    '^@lib/(.*)$': '<rootDir>/lib/$1',
+    '^@types/(.*)$': '<rootDir>/public/js/types/$1',
+    '^@infrastructure/(.*)$': '<rootDir>/public/js/infrastructure/$1',
+    '^@utils/(.*)$': '<rootDir>/public/js/utils/$1',
+    '^@tests/(.*)$': '<rootDir>/tests/$1',
   },
-  testTimeout: 10000
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          esModuleInterop: true,
+          allowJs: true,
+        },
+        isolatedModules: true,
+      },
+    ],
+    '^.+\\.jsx?$': 'babel-jest',
+  },
+  testTimeout: 10000,
 };

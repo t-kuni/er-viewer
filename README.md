@@ -4,15 +4,16 @@ MySQL データベースからER図をリバースエンジニアリングし、
 
 ![image](https://github.com/user-attachments/assets/fb8a0e8d-7b02-421f-be28-f93abeb39e32)
 
-
 ## 機能
 
 ### 🔄 リバースエンジニアリング
+
 - MySQLデータベースからER図を自動生成
 - 増分リバース対応（既存の配置情報を維持）
 - DDL情報の保持
 
 ### 🎨 可視化・編集機能
+
 - インタラクティブなER図表示
 - エンティティのドラッグ&ドロップ配置
 - ズーム・パン操作
@@ -20,16 +21,19 @@ MySQL データベースからER図をリバースエンジニアリングし、
 - ホバー時のハイライト表示
 
 ### 📊 詳細情報表示
+
 - エンティティクリックでDDL表示
 - サイドバーでの詳細情報表示
 - プライマリキー・外部キーの視覚的区別
 
 ### ✏️ 注釈機能
+
 - 矩形描画（エンティティのグループ化用）
 - テキスト追加（補足情報記載用）
 - カスタマイズ可能な色・サイズ
 
 ### 💾 データ永続化
+
 - ER図データとレイアウト情報の保存
 - Dockerボリュームによる柔軟な保存場所設定
 
@@ -51,13 +55,26 @@ docker run \
 
 ## 開発環境設定
 
+### 前提条件
+
+- Node.js 18以上
+- Docker & Docker Compose
+- TypeScript 5.0以上
+
+### セットアップ
+
 ```bash
 # .envファイルをコピー
 cp .env.example .env
 
 # 必要に応じてDB設定を変更
 vi .env
+
+# 依存関係のインストール
+npm install
 ```
+
+### 起動
 
 ```bash
 # Docker Composeで起動
@@ -65,6 +82,28 @@ docker-compose up -d
 
 # ブラウザでアクセス
 open http://localhost:30033
+```
+
+### 開発コマンド
+
+```bash
+# TypeScriptコンパイル
+npm run build:ts
+
+# TypeScript監視モード
+npm run dev:ts
+
+# 型チェック
+npm run typecheck
+
+# テスト実行
+npm test
+
+# Lintチェック
+npm run lint
+
+# コードフォーマット
+npm run format
 ```
 
 ### claude起動

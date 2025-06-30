@@ -113,24 +113,43 @@ npm run format:check           # フォーマットチェック
 - **ワークフロー重視**: ユーザーのワークフロー全体をテスト
 - **高カバレッジ**: 1つのテストで関連する複数機能を検証
 
+### テストコーディングルール
+
+- **AAAパターン厳守**: Arrange（準備）、Act（実行）、Assert（検証）の3ステップを明確に分離
+- **可読性最優先**: DRY原則よりもテストの可読性を重視。共通化よりもリテラル値の直接記述
+- **制御構造排除**: if/for/switch文を使用禁止。配列操作や条件分岐を避ける
+- **Mock検証中心**: stateの検証ではなく、Infrastructure Mockの呼び出し履歴を検証
+
 ### テスト実行の特徴
 
 - **高速実行**: ブラウザや外部依存なしで実行
 - **決定的動作**: モックにより常に同じ結果を保証
-- **包括的検証**: 状態変更、DOM操作、ネットワーク呼び出しを全て検証
+- **包括的検証**: Infrastructure Mockの呼び出し履歴を全て検証
 - **リファクタリング耐性**: 実装詳細でなく動作をテスト
 
 ### モック戦略
 
 ```typescript
-// テスト例：完全にモック化された環境で実アプリケーションコードを実行
-const infrastructure = new InfrastructureMock();
-const app = new ERViewerApplication(infrastructure);
-
-// ユーザーワークフローをそのままテスト
-app.showTableDetails('users');
-expect(app.state.sidebarVisible).toBe(true);
-expect(app.state.currentTable).toBe('users');
+// テスト例：AAAパターンとMock検証を使用
+test('エンティティをクリックすると詳細が表示される', () => {
+  // Arrange
+  const infrastructure = new InfrastructureMock();
+  const app = new ERViewerApplication(infrastructure);
+  
+  // Act
+  app.showTableDetails('users');
+  
+  // Assert - Mock呼び出しを検証
+  expect(infrastructure.dom.setAttribute).toHaveBeenCalledWith(
+    'sidebar', 
+    'data-visible', 
+    'true'
+  );
+  expect(infrastructure.dom.setTextContent).toHaveBeenCalledWith(
+    'current-table', 
+    'users'
+  );
+});
 ```
 
 ## 主要機能

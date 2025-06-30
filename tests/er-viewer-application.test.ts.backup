@@ -33,66 +33,27 @@ describe('ERViewerApplication E2E Tests', () => {
     // モックインフラストラクチャーを作成
     infrastructure = new InfrastructureMock();
 
-    // サンプルERデータを設定
-    const mockERData: MockERData = {
-      entities: [
-        {
-          name: 'users',
-          columns: [
-            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
-            { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
-            { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
-          ],
-          foreignKeys: [],
-          ddl: '',
-        },
-        {
-          name: 'posts',
-          columns: [
-            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
-            { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
-            { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
-            { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
-          ],
-          foreignKeys: [],
-          ddl: '',
-        },
-      ],
-      relationships: [
-        {
-          from: 'posts',
-          fromColumn: 'user_id',
-          to: 'users',
-          toColumn: 'id',
-          constraintName: 'posts_user_id_fkey',
-        },
-      ],
-      layout: {
-        entities: {
-          users: { position: { x: 100, y: 100 } },
-          posts: { position: { x: 350, y: 100 } },
-        },
-        rectangles: [],
-        texts: [],
-        layers: [],
-      },
-    };
-
-    // モックネットワーク応答を設定
+    // 基本的なモックデータの設定（個別のテストケースでオーバーライドされる）
     const mockData: MockData = {
       networkResponses: {
+        // 初期化時に必要な最小限のERデータ
         '/api/er-data': {
           status: 200,
-          data: mockERData,
+          data: {
+            entities: [],
+            relationships: [],
+            layout: {
+              entities: {},
+              rectangles: [],
+              texts: [],
+              layers: [],
+            },
+          },
         } as NetworkResponse<MockERData>,
         '/api/table/users/ddl': {
           status: 200,
           data: { ddl: 'CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255) UNIQUE);' },
         } as NetworkResponse<DDLResponse>,
-        '/api/reverse-engineer': {
-          status: 200,
-          data: mockERData,
-        } as NetworkResponse<MockERData>,
         '/api/layout': {
           status: 200,
           data: { success: true },
@@ -104,7 +65,7 @@ describe('ERViewerApplication E2E Tests', () => {
 
     infrastructure.setupMockData(mockData);
 
-    // アプリケーションを初期化
+    // アプリケーションを初期化（各テストケースでERデータを設定）
     app = new ERViewerApplication(infrastructure);
   });
 
@@ -114,6 +75,13 @@ describe('ERViewerApplication E2E Tests', () => {
 
   describe('初期化', () => {
     test('アプリケーションが正常に初期化される', () => {
+      // Arrange
+      // beforeEachで infrastructure と app が初期化済み
+
+      // Act
+      // コンストラクタによる初期化は beforeEach で実行済み
+
+      // Assert
       expect(app).toBeDefined();
       expect(app.state).toBeDefined();
       expect(app.state.canvas).toBeDefined();
@@ -121,21 +89,62 @@ describe('ERViewerApplication E2E Tests', () => {
     });
 
     test('初期データがロードされる', async () => {
-      // アプリケーションの初期化を待つ
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Arrange
+      const testERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [],
+        layout: {
+          entities: {},
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
 
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: testERData,
+      });
+
+      // Act
+      await app.loadERData();
+
+      // Assert
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
 
-      // 配列操作を使わずに最初のリクエストを確認
-      expect(requests.length).toBeGreaterThan(0);
-      expect(requests[0].url).toBe('/api/er-data');
+      expect(requests.some((req) => req.url === '/api/er-data')).toBe(true);
       expect(app.state.erData).toBeDefined();
       expect(app.state.erData?.entities).toHaveLength(2);
     });
 
     test('キャンバスが正しく初期化される', () => {
+      // Arrange
+      // beforeEachで infrastructure と app が初期化済み
+
+      // Act
       const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
+
+      // Assert
       expect(canvas).toBeDefined();
       expect(canvas.getAttribute('width')).toBe('800');
       expect(canvas.getAttribute('height')).toBe('600');
@@ -148,42 +157,164 @@ describe('ERViewerApplication E2E Tests', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    test('エンティティが正しく描画される', () => {
+    test('エンティティが正しく描画される', async () => {
+      // Arrange
+      const renderERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: renderERData,
+      });
+
+      // Act
+      // データを再ロードしてからレンダリング
+      await app.loadERData();
       app.render();
 
+      // Assert
       // エンティティがキャンバスに描画されることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
 
       // エンティティ要素が作成されることを確認
-      // 配列操作を使わずに直接要素を確認
-      expect(dynamicLayer.children.length).toBeGreaterThan(0);
-      const firstChild = dynamicLayer.children[0] as MockElement;
-      expect(firstChild.getAttribute('class')).toBe('entity draggable');
+      const entityElements = dynamicLayer.children.filter(
+        (child: MockElement) => child.getAttribute && child.getAttribute('class') === 'entity draggable',
+      );
+      expect(entityElements.length).toBeGreaterThan(0);
     });
 
     test('エンティティクリックでテーブル詳細が表示される', async () => {
+      // Arrange
+      const clickERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: clickERData,
+      });
+
+      await app.loadERData();
       app.render();
 
+      // Act
       // usersエンティティをクリック
       app.showTableDetails('users');
 
       // ネットワークリクエストが送信されることを確認
       await new Promise((resolve) => setTimeout(resolve, 0));
 
+      // Assert
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
 
-      // 配列操作を使わずに最後のリクエストを確認
-      expect(requests.length).toBeGreaterThan(0);
-      expect(requests[requests.length - 1].url).toBe('/api/table/users/ddl');
+      expect(requests.some((req) => req.url === '/api/table/users/ddl')).toBe(true);
       expect(app.state.sidebarVisible).toBe(true);
       expect(app.state.currentTable).toBe('users');
     });
 
-    test('リレーションシップが正しく描画される - dynamicLayer.children.filter エラー修正', () => {
+    test('リレーションシップが正しく描画される - dynamicLayer.children.filter エラー修正', async () => {
+      // Arrange
+      const relationshipERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: relationshipERData,
+      });
+
+      // Act
+      await app.loadERData();
       app.render();
 
+      // Assert
       // エンティティがレンダリングされていることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
@@ -194,32 +325,75 @@ describe('ERViewerApplication E2E Tests', () => {
       }).not.toThrow();
 
       // リレーションシップグループが存在することを確認
-      // 配列操作を使わずに直接アクセス
-      let relationshipGroup: MockElement | null = null;
-      for (let i = 0; i < dynamicLayer.children.length; i++) {
-        const child = dynamicLayer.children[i] as MockElement;
-        if (child.getAttribute && child.getAttribute('class') === 'relationships') {
-          relationshipGroup = child;
-          break;
-        }
-      }
-      expect(relationshipGroup).not.toBeNull();
+      // dynamicLayer.children が HTMLCollection または NodeList の場合、
+      // Array.from() を使用して配列に変換する必要がある
+      const childrenArray = Array.from(dynamicLayer.children);
+      const relationshipGroups = childrenArray.filter(
+        (child: MockElement) => child.getAttribute && child.getAttribute('class') === 'relationships',
+      );
+      expect(relationshipGroups.length).toBeGreaterThan(0);
 
       // 具体的なリレーションシップパスが存在することを確認
-      // 配列操作を使わずに最初のpath要素を確認
-      if (relationshipGroup) {
-        expect(relationshipGroup.children.length).toBeGreaterThan(0);
-        const firstPath = relationshipGroup.children[0] as MockElement;
-        expect(firstPath.tagName).toBe('path');
-        expect(firstPath.getAttribute('class')).toBe('relationship');
-        expect(firstPath.getAttribute('data-from-table')).toBe('posts');
-        expect(firstPath.getAttribute('data-to-table')).toBe('users');
-      }
+      const relationshipGroup = relationshipGroups[0];
+      const pathElements = relationshipGroup
+        ? Array.from(relationshipGroup.children).filter(
+            (child: MockElement) => child.tagName === 'path' && child.getAttribute('class') === 'relationship',
+          )
+        : [];
+      expect(pathElements.length).toBeGreaterThan(0);
+
+      // パスにデータ属性が設定されていることを確認
+      const firstPath = pathElements[0] as MockElement;
+      expect(firstPath.getAttribute('data-from-table')).toBe('posts');
+      expect(firstPath.getAttribute('data-to-table')).toBe('users');
     });
 
-    test('エンティティバウンドが正しく設定される', () => {
+    test('エンティティバウンドが正しく設定される', async () => {
+      // Arrange
+      const boundsERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: boundsERData,
+      });
+
+      // Act
+      await app.loadERData();
       app.render();
 
+      // Assert
       // エンティティバウンドが設定されていることを確認
       expect(app.state.entityBounds.has('users')).toBe(true);
       expect(app.state.entityBounds.has('posts')).toBe(true);
@@ -232,7 +406,56 @@ describe('ERViewerApplication E2E Tests', () => {
       expect(usersBounds?.height).toBeDefined();
     });
 
-    test('リレーションシップレンダリングの詳細検証', () => {
+    test('リレーションシップレンダリングの詳細検証', async () => {
+      // Arrange
+      const detailERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: detailERData,
+      });
+
+      // データをロードして状態を更新
+      await app.loadERData();
+      
       // ERデータにリレーションシップが含まれていることを確認
       expect(app.state.erData?.relationships).toBeDefined();
       expect(app.state.erData?.relationships?.length).toBe(1);
@@ -241,8 +464,10 @@ describe('ERViewerApplication E2E Tests', () => {
       expect(relationship?.from).toBe('posts');
       expect(relationship?.to).toBe('users');
 
+      // Act
       app.render();
 
+      // Assert
       // dynamic-layerの内容を詳細確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       console.log('Dynamic layer children count:', dynamicLayer.children.length);
@@ -272,9 +497,61 @@ describe('ERViewerApplication E2E Tests', () => {
       expect(relationshipGroups.length).toBeGreaterThan(0);
     });
 
-    test('リレーションシップパスの座標が正しく計算される', () => {
+    test('リレーションシップパスの座標が正しく計算される', async () => {
+      // Arrange
+      const pathERData: MockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: pathERData,
+      });
+
+      // Act
+      await app.loadERData();
       app.render();
 
+      // Assert
       // エンティティバウンドを確認
       const usersBounds = app.state.entityBounds.get('users');
       const postsBounds = app.state.entityBounds.get('posts');
@@ -311,17 +588,19 @@ describe('ERViewerApplication E2E Tests', () => {
   });
 
   describe('エンティティのドラッグ操作', () => {
+    beforeEach(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      app.render();
+    });
+
     test('エンティティをドラッグできる', async () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockERData: MockERData = {
+      const dragERData: MockERData = {
         entities: [
           {
             name: 'users',
             columns: [
               { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
-              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
-              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
             ],
             foreignKeys: [],
             ddl: '',
@@ -338,29 +617,25 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
 
-      infrastructure.setupMockData({
-        networkResponses: {
-          '/api/er-data': {
-            status: 200,
-            data: mockERData,
-          } as NetworkResponse<MockERData>,
-        },
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: dragERData,
       });
 
-      const app = new ERViewerApplication(infrastructure) as any;
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await app.loadERData();
       app.render();
 
-      // Act
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       const userEntity = dynamicLayer.children.find(
         (child: MockElement) => child.getAttribute && child.getAttribute('data-table-name') === 'users',
       ) as MockElement;
+      expect(userEntity).toBeDefined();
+      const dragStartPosition = { x: 150, y: 150 };
 
-      app.startEntityDrag(userEntity as unknown as Element, { x: 150, y: 150 });
+      // Act
+      app.startEntityDrag(userEntity as unknown as Element, dragStartPosition);
 
       // Assert
-      expect(userEntity).toBeDefined();
       expect(app.state.interactionMode).toBe('dragging');
       expect(app.state.dragState).toBeDefined();
       expect(app.state.dragState?.type).toBe('entity');
@@ -369,15 +644,12 @@ describe('ERViewerApplication E2E Tests', () => {
 
     test('エンティティドラッグでレイアウトが更新される', async () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockERData: MockERData = {
+      const dragUpdateERData: MockERData = {
         entities: [
           {
             name: 'users',
             columns: [
               { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
-              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
-              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
             ],
             foreignKeys: [],
             ddl: '',
@@ -394,32 +666,27 @@ describe('ERViewerApplication E2E Tests', () => {
         },
       };
 
-      infrastructure.setupMockData({
-        networkResponses: {
-          '/api/er-data': {
-            status: 200,
-            data: mockERData,
-          } as NetworkResponse<MockERData>,
-        },
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 200,
+        data: dragUpdateERData,
       });
 
-      const app = new ERViewerApplication(infrastructure) as any;
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await app.loadERData();
       app.render();
-      
-      const mockEvent = {
+
+      const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
+      const userEntity = dynamicLayer.children.find(
+        (child: MockElement) => child.getAttribute && child.getAttribute('data-table-name') === 'users',
+      ) as MockElement;
+      const dragStartPosition = { x: 100, y: 100 };
+      const mockMouseMoveEvent = {
         clientX: 250,
         clientY: 250,
       } as MouseEvent;
 
       // Act
-      const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
-      const userEntity = dynamicLayer.children.find(
-        (child: MockElement) => child.getAttribute && child.getAttribute('data-table-name') === 'users',
-      ) as MockElement;
-
-      app.startEntityDrag(userEntity as unknown as Element, { x: 100, y: 100 });
-      app.updateDrag(mockEvent);
+      app.startEntityDrag(userEntity as unknown as Element, dragStartPosition);
+      app.updateDrag(mockMouseMoveEvent);
       app.endInteraction();
 
       // Assert
@@ -428,14 +695,18 @@ describe('ERViewerApplication E2E Tests', () => {
   });
 
   describe('注釈機能', () => {
+    beforeEach(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     test('矩形注釈を追加できる', () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
       const initialRectCount = app.state.layoutData.rectangles.length;
+      const xPosition = 200;
+      const yPosition = 200;
 
       // Act
-      app.addRectangleAtPosition(200, 200);
+      app.addRectangleAtPosition(xPosition, yPosition);
 
       // Assert
       expect(app.state.layoutData.rectangles.length).toBe(initialRectCount + 1);
@@ -448,16 +719,13 @@ describe('ERViewerApplication E2E Tests', () => {
 
     test('テキスト注釈を追加できる', () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        promptResponses: ['テストテキスト'], // prompt応答をセットアップ
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
       const initialTextCount = app.state.layoutData.texts.length;
+      const xPosition = 300;
+      const yPosition = 300;
+      // mockERDataのpromptResponsesには'テストテキスト'が設定されている
 
       // Act
-      app.addTextAtPosition(300, 300);
+      app.addTextAtPosition(xPosition, yPosition);
 
       // Assert
       expect(app.state.layoutData.texts.length).toBe(initialTextCount + 1);
@@ -469,19 +737,23 @@ describe('ERViewerApplication E2E Tests', () => {
   });
 
   describe('ビューポート操作', () => {
+    beforeEach(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     test('パン操作でビューポートが更新される', () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
       const initialPanX = app.state.viewport.panX;
       const initialPanY = app.state.viewport.panY;
+      const startX = 100;
+      const startY = 100;
       const mockEvent = {
         clientX: 150,
         clientY: 150,
       } as MouseEvent;
 
       // Act
-      app.startPan(100, 100);
+      app.startPan(startX, startY);
       app.updatePan(mockEvent);
 
       // Assert
@@ -491,15 +763,13 @@ describe('ERViewerApplication E2E Tests', () => {
 
     test('ズーム操作でスケールが更新される', () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      const initialScale = app.state.viewport.scale;
       const mockWheelEvent = {
         preventDefault: jest.fn(),
         clientX: 400,
         clientY: 300,
         deltaY: -100,
       } as unknown as WheelEvent;
-      const initialScale = app.state.viewport.scale;
 
       // Act
       app.handleCanvasWheel(mockWheelEvent);
@@ -511,63 +781,66 @@ describe('ERViewerApplication E2E Tests', () => {
   });
 
   describe('データ永続化', () => {
-    test('レイアウト保存が正常に動作する', async () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        networkResponses: {
-          '/api/layout': {
-            status: 200,
-            data: { success: true },
-          },
-        },
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+    beforeEach(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-      // Act
+    test('レイアウト保存が正常に動作する', async () => {
       await app.saveLayout();
 
-      // Assert
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
-      // 配列操作を使わずにリクエストを確認
-      expect(requests.length).toBeGreaterThan(0);
-      expect(requests[requests.length - 1].url).toBe('/api/layout');
+
+      expect(requests.some((req) => req.url === '/api/layout')).toBe(true);
     });
 
     test('リバースエンジニアリングが正常に動作する', async () => {
       // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockERData = {
+      const reverseERData: MockERData = {
         entities: [
           {
             name: 'users',
             columns: [
               { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
             ],
             foreignKeys: [],
             ddl: '',
           },
         ],
-        relationships: [],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
         layout: {
-          entities: {},
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
           rectangles: [],
           texts: [],
           layers: [],
         },
       };
-      const mockData: MockData = {
-        networkResponses: {
-          '/api/reverse-engineer': {
-            status: 200,
-            data: mockERData,
-          },
-        },
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+
+      (infrastructure.network as NetworkMock).setMockResponse('/api/reverse-engineer', {
+        status: 200,
+        data: reverseERData,
+      });
 
       // Act
       await app.reverseEngineer();
@@ -575,75 +848,45 @@ describe('ERViewerApplication E2E Tests', () => {
       // Assert
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
-      // 配列操作を使わずにリクエストを確認
-      expect(requests.length).toBeGreaterThan(0);
-      expect(requests[0].url).toBe('/api/reverse-engineer');
+
+      expect(requests.some((req) => req.url === '/api/reverse-engineer')).toBe(true);
     });
   });
 
   describe('UI操作', () => {
+    beforeEach(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     test('サイドバーの開閉が正常に動作する', async () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        networkResponses: {
-          '/api/table/users/ddl': {
-            status: 200,
-            data: { ddl: 'CREATE TABLE users (id INT PRIMARY KEY);' },
-          },
-        },
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
-
-      // Act - サイドバーを開く
+      // サイドバーを開く
       await app.showTableDetails('users');
-
-      // Assert
       expect(app.state.sidebarVisible).toBe(true);
 
-      // Act - サイドバーを閉じる
+      // サイドバーを閉じる
       app.closeSidebar();
-
-      // Assert
       expect(app.state.sidebarVisible).toBe(false);
     });
 
     test('コンテキストメニューが表示される', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
-
-      // Act - コンテキストメニューを表示
       app.showContextMenu(200, 200, { x: 100, y: 100 }, null);
 
-      // Assert
       expect(app.state.contextMenu).toBeDefined();
 
-      // Act - コンテキストメニューを非表示
       app.hideContextMenu();
 
-      // Assert
       expect(app.state.contextMenu).toBeNull();
     });
 
     test('ローディング表示が正常に動作する', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
-
-      // Act - ローディングを表示
       app.showLoading('テスト中...');
 
-      // Assert
       const loadingElement = infrastructure.dom.getElementById('loading-overlay');
       expect(loadingElement).toBeDefined();
       expect(loadingElement?.textContent).toBe('テスト中...');
 
-      // Act - ローディングを非表示
       app.hideLoading();
 
-      // Assert
       const removedElement = infrastructure.dom.getElementById('loading-overlay');
       expect(removedElement).toBeNull();
     });
@@ -651,93 +894,64 @@ describe('ERViewerApplication E2E Tests', () => {
 
   describe('状態管理', () => {
     test('状態の変更が正しく通知される', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
       const subscriber = jest.fn();
       app.subscribe(subscriber);
-      const newViewport = { panX: 10, panY: 20, scale: 1.5 };
 
-      // Act
+      const newViewport = { panX: 10, panY: 20, scale: 1.5 };
       app.setState({ viewport: newViewport });
 
-      // Assert
       expect(subscriber).toHaveBeenCalled();
       expect(app.state.viewport).toEqual(newViewport);
     });
 
     test('プロパティ変更の監視が正常に動作する', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
       const propertySubscriber = jest.fn();
       app.subscribeToProperty('viewport', propertySubscriber);
+
       const oldViewport = app.state.viewport;
       const newViewport = { panX: 100, panY: 100, scale: 2 };
 
-      // Act
       app.setState({ viewport: newViewport });
 
-      // Assert
       expect(propertySubscriber).toHaveBeenCalledWith(oldViewport, newViewport);
     });
 
     test('ヒストリー機能が正常に動作する', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
       const initialHistoryLength = app.state.history.length;
-      const newLayoutData = { entities: {}, rectangles: [], texts: [], layers: [] };
 
-      // Act
-      app.setState({ layoutData: newLayoutData });
+      // レイアウトデータを変更（ヒストリーに保存される）
+      app.setState({ layoutData: { entities: {}, rectangles: [], texts: [], layers: [] } });
 
-      // Assert
       expect(app.state.history.length).toBeGreaterThan(initialHistoryLength);
     });
   });
 
   describe('エラーハンドリング', () => {
     test('ネットワークエラーが適切に処理される', async () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        networkResponses: {
-          '/api/er-data': {
-            status: 500,
-            statusText: 'Internal Server Error',
-          },
-        },
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      // エラーレスポンスを設定
+      (infrastructure.network as NetworkMock).setMockResponse('/api/er-data', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
 
-      // Act
       await app.loadERData();
 
-      // Assert
       expect(app.state.error).toBeDefined();
       expect(app.state.loading).toBe(false);
     });
 
     test('無効なテーブル名でのDDL取得エラーが処理される', async () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
+      infrastructure.setupMockData({
         networkResponses: {
           '/api/table/invalid/ddl': {
             status: 404,
             statusText: 'Not Found',
           },
         },
-      };
-      infrastructure.setupMockData(mockData);
-      const app = new ERViewerApplication(infrastructure);
+      });
 
-      // Act
       await app.showTableDetails('invalid');
 
-      // Assert
       const history = infrastructure.getInteractionHistory();
       expect(history.errors.length).toBeGreaterThan(0);
     });

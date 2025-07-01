@@ -22,7 +22,8 @@ describe('UIコンポーネント', () => {
             let app = new ERViewerApplication(infrastructure);
             // Assert - Storageから折りたたみ状態を読み込む
             expect(getItemSpy).toHaveBeenCalledWith('helpPanelCollapsed');
-            expect(getItemSpy).toHaveBeenCalledTimes(1);
+            // layerSidebarCollapsedも読み込まれるため、2回呼ばれる
+            expect(getItemSpy).toHaveBeenCalledTimes(2);
         });
         test('ヘルプパネルを展開時にStorageに状態が保存される', () => {
             // Arrange
@@ -145,6 +146,260 @@ describe('UIコンポーネント', () => {
                 app.hideLoading();
                 // Assert - ローディング要素削除のDOM操作を検証
                 expect(removeElementSpy).toHaveBeenCalled();
+            });
+        });
+    });
+    describe('左サイドバー', () => {
+        test('左サイドバーの折りたたみボタンをクリックすると折りたたまれる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
+            const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar');
+            // DOM操作をスパイ
+            const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
+            const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
+            // Act - 折りたたみボタンをクリック
+            collapseBtn.dispatchEvent('click');
+            // Assert - layer-sidebarにcollapsedクラスが追加される
+            expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
+            // Storageに折りたたみ状態が保存される
+            expect(setItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed', 'true');
+        });
+        test('折りたたまれた左サイドバーの折りたたみボタンをクリックすると展開される', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            // 初期状態を折りたたみ状態に設定（StorageMockはJSON.stringifyするので、文字列で設定）
+            infrastructure.storage.setItem('layerSidebarCollapsed', 'true');
+            // DOM操作をスパイ（初期化前に設定）
+            const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
+            const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
+            const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
+            const app = new ERViewerApplication(infrastructure);
+            const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
+            const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar');
+            // 折りたたみ状態にあることを確認
+            expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
+            // スパイをクリア
+            addClassSpy.mockClear();
+            setItemSpy.mockClear();
+            // Act - 折りたたみボタンをクリック
+            collapseBtn.dispatchEvent('click');
+            // Assert - layer-sidebarからcollapsedクラスが削除される
+            expect(removeClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
+            // Storageに展開状態が保存される
+            expect(setItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed', 'false');
+        });
+        test('初期化時にStorageから左サイドバーの折りたたみ状態を読み込む', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            // 折りたたみ状態をStorageに設定
+            infrastructure.storage.setItem('layerSidebarCollapsed', 'true');
+            // Storage操作をスパイ
+            const getItemSpy = jest.spyOn(infrastructure.storage, 'getItem');
+            const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
+            // Act - アプリケーションを初期化
+            const app = new ERViewerApplication(infrastructure);
+            const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
+            // Assert - Storageから折りたたみ状態を読み込んで適用
+            expect(getItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed');
+            expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
+        });
+    });
+    describe('矩形描画', () => {
+        test('矩形描画モードを開始できる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            // Act - 矩形描画モードを開始
+            app.startRectangleDrawingMode();
+            // Assert - 描画モードが有効になっている
+            expect(app.state.drawingMode).toBe('rectangle');
+            expect(app.state.isDrawing).toBe(false);
+        });
+        test('矩形描画モードを終了できる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            app.startRectangleDrawingMode();
+            // Act - 矩形描画モードを終了
+            app.endDrawingMode();
+            // Assert - 描画モードが無効になっている
+            expect(app.state.drawingMode).toBe(null);
+            expect(app.state.isDrawing).toBe(false);
+        });
+        test('マウスドラッグで矩形を描画できる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            const createElementSvgSpy = jest.spyOn(infrastructure.dom, 'createElementSvg');
+            const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
+            const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+            app.startRectangleDrawingMode();
+            // Act - マウスドラッグで矩形を描画
+            const canvas = infrastructure.dom.getElementById('er-canvas');
+            // マウスダウン
+            const mouseDownEvent = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
+            canvas.dispatchEvent(mouseDownEvent);
+            // マウスムーブ（キャンバスレベルで）
+            const mouseMoveEvent = new MouseEvent('mousemove', { clientX: 200, clientY: 150 });
+            canvas.dispatchEvent(mouseMoveEvent);
+            // マウスアップ（ドキュメントレベルで）
+            const mouseUpEvent = new MouseEvent('mouseup', { clientX: 200, clientY: 150 });
+            infrastructure.dom.getDocumentElement().dispatchEvent(mouseUpEvent);
+            // Assert - 矩形要素が作成される
+            expect(createElementSvgSpy).toHaveBeenCalledWith('rect');
+            expect(appendChildSpy).toHaveBeenCalled();
+            // 矩形の属性が設定される
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'x', '100');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '100');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'width', '100');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'height', '50');
+            // 描画した矩形がstate.layoutData.rectanglesに追加される
+            expect(app.state.layoutData.rectangles).toHaveLength(1);
+            expect(app.state.layoutData.rectangles[0]).toMatchObject({
+                x: 100,
+                y: 100,
+                width: 100,
+                height: 50
+            });
+        });
+        test('矩形の色を変更できる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+            // 矩形を作成
+            app.state.layoutData.rectangles = [{
+                    id: 'rect-1',
+                    x: 100,
+                    y: 100,
+                    width: 100,
+                    height: 50,
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeWidth: 1
+                }];
+            // Act - 矩形の色を変更
+            app.updateRectangle('rect-1', {
+                color: '#ff0000',
+                stroke: '#00ff00'
+            });
+            // Assert - 矩形の色が更新される
+            expect(app.state.layoutData.rectangles[0].color).toBe('#ff0000');
+            expect(app.state.layoutData.rectangles[0].stroke).toBe('#00ff00');
+            // DOM要素の属性も更新される
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'fill', '#ff0000');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'stroke', '#00ff00');
+        });
+        test('矩形のサイズと位置を変更できる', () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+            // 矩形を作成
+            app.state.layoutData.rectangles = [{
+                    id: 'rect-1',
+                    x: 100,
+                    y: 100,
+                    width: 100,
+                    height: 50,
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeWidth: 1
+                }];
+            // Act - 矩形のサイズと位置を変更
+            app.updateRectangle('rect-1', {
+                x: 150,
+                y: 120,
+                width: 200,
+                height: 80
+            });
+            // Assert - 矩形のサイズと位置が更新される
+            expect(app.state.layoutData.rectangles[0]).toMatchObject({
+                x: 150,
+                y: 120,
+                width: 200,
+                height: 80
+            });
+            // DOM要素の属性も更新される
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'x', '150');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '120');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'width', '200');
+            expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'height', '80');
+        });
+        test('矩形データがレイアウトデータに含まれて保存される', async () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            // 矩形を作成
+            app.state.layoutData.rectangles = [{
+                    id: 'rect-1',
+                    x: 100,
+                    y: 100,
+                    width: 100,
+                    height: 50,
+                    color: '#ff0000',
+                    stroke: '#00ff00',
+                    strokeWidth: 2
+                }];
+            // Network操作をスパイ
+            const fetchSpy = jest.spyOn(infrastructure.network, 'fetch');
+            // Act - レイアウトを保存
+            await app.saveLayout();
+            // Assert - 矩形データが保存データに含まれる
+            expect(fetchSpy).toHaveBeenCalledWith('/api/layout', expect.objectContaining({
+                method: 'POST',
+                body: expect.stringContaining('"rectangles"')
+            }));
+            // 保存データに矩形情報が含まれることを確認
+            const saveCall = fetchSpy.mock.calls[0];
+            const bodyData = JSON.parse(saveCall[1].body);
+            expect(bodyData.rectangles).toHaveLength(1);
+            expect(bodyData.rectangles[0]).toMatchObject({
+                id: 'rect-1',
+                x: 100,
+                y: 100,
+                width: 100,
+                height: 50,
+                color: '#ff0000',
+                stroke: '#00ff00',
+                strokeWidth: 2
+            });
+        });
+        test('テキストデータがレイアウトデータに含まれて保存される', async () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const app = new ERViewerApplication(infrastructure);
+            // テキストを作成
+            app.state.layoutData.texts = [{
+                    id: 'text-1',
+                    x: 200,
+                    y: 150,
+                    content: 'サンプルテキスト',
+                    color: '#2c3e50',
+                    fontSize: 16
+                }];
+            // Network操作をスパイ
+            const fetchSpy = jest.spyOn(infrastructure.network, 'fetch');
+            // Act - レイアウトを保存
+            await app.saveLayout();
+            // Assert - テキストデータが保存データに含まれる
+            expect(fetchSpy).toHaveBeenCalledWith('/api/layout', expect.objectContaining({
+                method: 'POST',
+                body: expect.stringContaining('"texts"')
+            }));
+            // 保存データにテキスト情報が含まれることを確認
+            const saveCall = fetchSpy.mock.calls[0];
+            const bodyData = JSON.parse(saveCall[1]?.body);
+            expect(bodyData.texts).toHaveLength(1);
+            expect(bodyData.texts[0]).toMatchObject({
+                id: 'text-1',
+                x: 200,
+                y: 150,
+                content: 'サンプルテキスト',
+                color: '#2c3e50',
+                fontSize: 16
             });
         });
     });

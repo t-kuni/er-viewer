@@ -365,6 +365,17 @@ export class DOMMock extends DOMInterface {
     };
     this.body.appendChild(canvas);
 
+    // Create mock layer sidebar
+    const layerSidebar = new MockElement('div');
+    layerSidebar.setAttribute('id', 'layer-sidebar');
+    layerSidebar.classList.add('layer-sidebar');
+    this.body.appendChild(layerSidebar);
+
+    const collapseLayerSidebarBtn = new MockElement('button');
+    collapseLayerSidebarBtn.setAttribute('id', 'collapse-layer-sidebar');
+    collapseLayerSidebarBtn.classList.add('collapse-btn');
+    layerSidebar.appendChild(collapseLayerSidebarBtn);
+
     // Create mock sidebar
     const sidebar = new MockElement('div');
     sidebar.setAttribute('id', 'sidebar');
@@ -454,6 +465,10 @@ export class DOMMock extends DOMInterface {
       },
     });
     return element as unknown as Element;
+  }
+
+  createElementSvg(tagName: string): Element {
+    return this.createElement(tagName, 'http://www.w3.org/2000/svg');
   }
 
   appendChild(parent: Element, child: Element): void {

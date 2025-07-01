@@ -14,6 +14,64 @@ describe('レンダリング', () => {
         jest.clearAllMocks();
     });
     describe('エンティティ描画', () => {
+        test('カラムの種別に応じて絵文字が表示される', async () => {
+            // Arrange
+            const infrastructure = new InfrastructureMock();
+            const mockERData = createERData({
+                entities: [
+                    createEntity({
+                        name: 'test_table',
+                        columns: [
+                            { name: 'id', type: 'bigint', key: 'PRI', nullable: false },
+                            { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false },
+                            { name: 'user_id', type: 'int', key: 'MUL', nullable: false },
+                            { name: 'age', type: 'int', key: '', nullable: false },
+                            { name: 'name', type: 'varchar(100)', key: '', nullable: true },
+                            { name: 'description', type: 'text', key: '', nullable: true },
+                            { name: 'created_at', type: 'datetime', key: '', nullable: false },
+                            { name: 'updated_at', type: 'timestamp', key: '', nullable: true },
+                            { name: 'birth_date', type: 'date', key: '', nullable: true },
+                            { name: 'price', type: 'decimal(10,2)', key: '', nullable: false }
+                        ]
+                    })
+                ],
+                layout: {
+                    entities: {
+                        test_table: { position: { x: 100, y: 100 } }
+                    }
+                }
+            });
+            infrastructure.setupMockData({
+                networkResponses: {
+                    '/api/er-data': createNetworkResponse({ data: mockERData })
+                }
+            });
+            let app = new ERViewerApplication(infrastructure);
+            // Act - データロードを待つ
+            await waitForAsync();
+            // Assert
+            const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer');
+            const entity = dynamicLayer.children.find((child) => child.getAttribute('data-table-name') === 'test_table');
+            expect(entity).toBeDefined();
+            // カラムのテキスト要素を取得
+            const columnTexts = entity.querySelectorAll('.column');
+            // 各カラムの絵文字を検証
+            expect(columnTexts[0].innerHTML).toContain('🔑'); // PRIMARY KEY
+            expect(columnTexts[1].innerHTML).toContain('📍'); // UNIQUE KEY
+            expect(columnTexts[2].innerHTML).toContain('🔗'); // FOREIGN KEY
+            expect(columnTexts[3].innerHTML).toContain('🔢'); // 数値型 (int)
+            expect(columnTexts[3].innerHTML).toContain('🚫'); // NOT NULL
+            expect(columnTexts[4].innerHTML).toContain('📝'); // 文字列型 (varchar)
+            expect(columnTexts[4].innerHTML).toContain('❓'); // NULL許可
+            expect(columnTexts[5].innerHTML).toContain('📝'); // 文字列型 (text)
+            expect(columnTexts[6].innerHTML).toContain('📅'); // 日付型 (datetime)
+            expect(columnTexts[6].innerHTML).toContain('🚫'); // NOT NULL
+            expect(columnTexts[7].innerHTML).toContain('📅'); // 日付型 (timestamp)
+            expect(columnTexts[8].innerHTML).toContain('📅'); // 日付型 (date)
+            expect(columnTexts[9].innerHTML).toContain('🔢'); // 数値型 (decimal)
+            // Cleanup
+            app = null;
+        });
         test('エンティティが正しく描画される', async () => {
             // Arrange
             const infrastructure = new InfrastructureMock();

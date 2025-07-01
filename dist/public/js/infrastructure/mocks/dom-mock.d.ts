@@ -83,6 +83,7 @@ export declare class DOMMock extends DOMInterface {
     querySelectorAll(selector: string): Element[];
     getElementById(id: string): Element | null;
     createElement(tagName: string, namespace?: string | null): Element;
+    createElementSvg(tagName: string): Element;
     appendChild(parent: Element, child: Element): void;
     insertBefore(parent: Element, newChild: Element, referenceChild: Element | null): void;
     removeElement(element: Element): void;

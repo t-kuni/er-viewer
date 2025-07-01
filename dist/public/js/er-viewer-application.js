@@ -1,5 +1,7 @@
+import { LayerManager } from './layer-manager.js';
 export class ERViewerApplication {
     constructor(infrastructure) {
+        this.layerManager = null;
         this.infra = infrastructure;
         // State
         this.state = {
@@ -46,6 +48,12 @@ export class ERViewerApplication {
             clusteredPositions: new Map(),
             entityBounds: new Map(),
             routingCache: new Map(),
+            // Keyboard state
+            isSpacePressed: false,
+            // Drawing state
+            drawingMode: null,
+            isDrawing: false,
+            currentDrawingRect: null,
         };
         // Event subscribers
         this.subscribers = new Set();
@@ -145,6 +153,8 @@ export class ERViewerApplication {
         this.setupBuildInfoModalEvents();
         // Layer order change events
         this.setupLayerOrderChangeEvents();
+        // Layer sidebar events
+        this.setupLayerSidebarEvents();
     }
     /**
      * Load ER data from server
@@ -174,6 +184,18 @@ export class ERViewerApplication {
      */
     getState() {
         return { ...this.state };
+    }
+    /**
+     * Get specific state property (for LayerManager compatibility)
+     */
+    get(key) {
+        return this.state[key] || null;
+    }
+    /**
+     * Update layout data (for LayerManager compatibility)
+     */
+    updateLayoutData(layoutData) {
+        this.setState({ layoutData });
     }
     /**
      * Set state with notifications
@@ -348,6 +370,45 @@ export class ERViewerApplication {
         });
     }
     /**
+     * Get emoji icons for column based on its properties
+     */
+    getColumnEmojis(column) {
+        const emojis = [];
+        // キー種別の絵文字
+        if (column.key === 'PRI') {
+            emojis.push('🔑'); // 主キー
+        }
+        else if (column.key === 'UNI') {
+            emojis.push('📍'); // ユニークキー
+        }
+        else if (column.key === 'MUL') {
+            emojis.push('🔗'); // 外部キー
+        }
+        // 型に基づく絵文字
+        const typeLC = column.type.toLowerCase();
+        if (typeLC.includes('int') || typeLC.includes('decimal') ||
+            typeLC.includes('numeric') || typeLC.includes('float') ||
+            typeLC.includes('double') || typeLC.includes('real')) {
+            emojis.push('🔢'); // 数値型
+        }
+        else if (typeLC.includes('varchar') || typeLC.includes('char') ||
+            typeLC.includes('text') || typeLC.includes('string')) {
+            emojis.push('📝'); // 文字列型
+        }
+        else if (typeLC.includes('date') || typeLC.includes('time') ||
+            typeLC.includes('timestamp')) {
+            emojis.push('📅'); // 日付型
+        }
+        // NULL制約の絵文字
+        if (column.nullable) {
+            emojis.push('❓'); // NULL許可
+        }
+        else {
+            emojis.push('🚫'); // NOT NULL
+        }
+        return emojis.length > 0 ? emojis.join(' ') + ' ' : '';
+    }
+    /**
      * Create entity SVG element
      */
     createEntityElement(entity, position) {
@@ -395,8 +456,10 @@ export class ERViewerApplication {
             this.infra.dom.setAttribute(columnText, 'y', y.toString());
             this.infra.dom.setAttribute(columnText, 'fill', '#333');
             this.infra.dom.setAttribute(columnText, 'font-size', '12');
-            const isPrimaryKey = column.key === 'PRI';
-            const columnContent = `${isPrimaryKey ? '🔑 ' : ''}${column.name} (${column.type})`;
+            this.infra.dom.setAttribute(columnText, 'class', 'column');
+            this.infra.dom.setAttribute(columnText, 'data-column-name', column.name);
+            const emojis = this.getColumnEmojis(column);
+            const columnContent = `${emojis}${column.name} (${column.type})`;
             this.infra.dom.setInnerHTML(columnText, columnContent);
             this.infra.dom.appendChild(group, columnText);
         });
@@ -498,6 +561,8 @@ export class ERViewerApplication {
         this.infra.dom.setAttribute(path, 'fill', 'none');
         this.infra.dom.setAttribute(path, 'data-from-table', relationship.from);
         this.infra.dom.setAttribute(path, 'data-to-table', relationship.to);
+        this.infra.dom.setAttribute(path, 'data-from-column', relationship.fromColumn);
+        this.infra.dom.setAttribute(path, 'data-to-column', relationship.toColumn);
         return path;
     }
     /**
@@ -547,13 +612,14 @@ export class ERViewerApplication {
         const rectElement = this.infra.dom.createElement('rect', 'http://www.w3.org/2000/svg');
         this.infra.dom.setAttribute(rectElement, 'class', 'annotation-rectangle');
         this.infra.dom.setAttribute(rectElement, 'data-rect-index', index.toString());
+        this.infra.dom.setAttribute(rectElement, 'data-rect-id', rect.id);
         this.infra.dom.setAttribute(rectElement, 'x', rect.x.toString());
         this.infra.dom.setAttribute(rectElement, 'y', rect.y.toString());
         this.infra.dom.setAttribute(rectElement, 'width', rect.width.toString());
         this.infra.dom.setAttribute(rectElement, 'height', rect.height.toString());
         this.infra.dom.setAttribute(rectElement, 'fill', rect.color || '#e3f2fd');
-        this.infra.dom.setAttribute(rectElement, 'stroke', rect.color || '#1976d2');
-        this.infra.dom.setAttribute(rectElement, 'stroke-width', '2');
+        this.infra.dom.setAttribute(rectElement, 'stroke', rect.stroke || '#1976d2');
+        this.infra.dom.setAttribute(rectElement, 'stroke-width', (rect.strokeWidth || 2).toString());
         return rectElement;
     }
     /**
@@ -563,10 +629,12 @@ export class ERViewerApplication {
         const textElement = this.infra.dom.createElement('text', 'http://www.w3.org/2000/svg');
         this.infra.dom.setAttribute(textElement, 'class', 'annotation-text');
         this.infra.dom.setAttribute(textElement, 'data-text-index', index.toString());
+        this.infra.dom.setAttribute(textElement, 'data-text-id', text.id);
         this.infra.dom.setAttribute(textElement, 'x', text.x.toString());
         this.infra.dom.setAttribute(textElement, 'y', text.y.toString());
         this.infra.dom.setAttribute(textElement, 'fill', text.color || '#2c3e50');
         this.infra.dom.setAttribute(textElement, 'font-size', (text.fontSize || 14).toString());
+        this.infra.dom.setAttribute(textElement, 'cursor', 'pointer');
         this.infra.dom.setInnerHTML(textElement, text.content);
         return textElement;
     }
@@ -589,6 +657,9 @@ export class ERViewerApplication {
         // Document events for drag
         this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'mousemove', (e) => this.handleDocumentMouseMove(e));
         this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'mouseup', (e) => this.handleDocumentMouseUp(e));
+        // Keyboard events
+        this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'keydown', (e) => this.handleKeyDown(e));
+        this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'keyup', (e) => this.handleKeyUp(e));
     }
     /**
      * Handle canvas mouse down
@@ -599,6 +670,17 @@ export class ERViewerApplication {
         const screenX = event.clientX - rect.left;
         const screenY = event.clientY - rect.top;
         const svgPoint = this.screenToSVG(screenX, screenY);
+        // Check if in drawing mode
+        if (this.state.drawingMode === 'rectangle') {
+            event.preventDefault();
+            this.startRectangleDrawing(svgPoint);
+            return;
+        }
+        if (this.state.drawingMode === 'text') {
+            event.preventDefault();
+            this.addTextAtPosition(svgPoint.x, svgPoint.y);
+            return;
+        }
         // Check if clicking on entity
         const entity = this.infra.dom.closest(target, '.entity');
         if (entity) {
@@ -612,8 +694,8 @@ export class ERViewerApplication {
             this.selectAnnotation(target);
             return;
         }
-        // Start pan if middle mouse or shift+left
-        if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
+        // Start pan if middle mouse, shift+left, or space+left
+        if (event.button === 1 || (event.button === 0 && event.shiftKey) || (event.button === 0 && this.state.isSpacePressed)) {
             event.preventDefault();
             this.startPan(screenX, screenY);
         }
@@ -667,6 +749,9 @@ export class ERViewerApplication {
     handleCanvasMouseMove(event) {
         if (this.state.interactionMode === 'default') {
             this.updateHover(event);
+        }
+        else if (this.state.isDrawing && this.state.drawingMode === 'rectangle') {
+            this.updateRectangleDrawing(event);
         }
     }
     /**
@@ -746,6 +831,11 @@ export class ERViewerApplication {
      * End interaction
      */
     endInteraction() {
+        // Handle rectangle drawing completion
+        if (this.state.isDrawing && this.state.drawingMode === 'rectangle' && this.state.currentDrawingRect) {
+            this.completeRectangleDrawing();
+            return;
+        }
         if (this.state.interactionMode === 'dragging' && this.state.dragState) {
             // Save entity position
             if (this.state.dragState.type === 'entity' && this.state.dragState.tableName) {
@@ -826,6 +916,24 @@ export class ERViewerApplication {
         const canvasY = event.clientY - rect.top;
         const svgPoint = this.screenToSVG(canvasX, canvasY);
         this.showContextMenu(screenX, screenY, svgPoint, event.target);
+    }
+    /**
+     * Handle key down
+     */
+    handleKeyDown(event) {
+        if (event.key === ' ' || event.code === 'Space') {
+            event.preventDefault();
+            this.setState({ isSpacePressed: true }, false);
+        }
+    }
+    /**
+     * Handle key up
+     */
+    handleKeyUp(event) {
+        if (event.key === ' ' || event.code === 'Space') {
+            event.preventDefault();
+            this.setState({ isSpacePressed: false }, false);
+        }
     }
     /**
      * Convert screen coordinates to SVG coordinates
@@ -987,6 +1095,10 @@ export class ERViewerApplication {
         };
         newLayoutData.rectangles.push(newRect);
         this.setState({ layoutData: newLayoutData });
+        // Add layer for the rectangle
+        if (this.layerManager) {
+            this.layerManager.addRectangleLayer(newLayoutData.rectangles.length);
+        }
         this.infra.browserAPI.log('Rectangle added at:', x, y);
     }
     /**
@@ -997,6 +1109,9 @@ export class ERViewerApplication {
         if (!text) {
             return;
         }
+        const fontSize = this.infra.browserAPI.prompt('フォントサイズを入力してください (デフォルト: 14):');
+        const parsedFontSize = fontSize ? parseInt(fontSize) : 14;
+        const color = this.infra.browserAPI.prompt('色を入力してください (デフォルト: #2c3e50):');
         const newLayoutData = { ...this.state.layoutData };
         if (!newLayoutData.texts) {
             newLayoutData.texts = [];
@@ -1006,11 +1121,21 @@ export class ERViewerApplication {
             x: x,
             y: y,
             content: text,
-            color: '#2c3e50',
-            fontSize: 14,
+            color: color || '#2c3e50',
+            fontSize: parsedFontSize || 14,
         };
         newLayoutData.texts.push(newText);
         this.setState({ layoutData: newLayoutData });
+        // Add layer for the text
+        if (this.layerManager) {
+            this.layerManager.addTextLayer(text);
+        }
+        // テキスト描画モードを終了
+        this.endDrawingMode();
+        const textBtn = this.infra.dom.getElementById('draw-text');
+        if (textBtn) {
+            this.infra.dom.removeClass(textBtn, 'active');
+        }
     }
     /**
      * Setup UI button events
@@ -1045,6 +1170,48 @@ export class ERViewerApplication {
         if (closeSidebarBtn) {
             this.infra.dom.addEventListener(closeSidebarBtn, 'click', () => {
                 this.closeSidebar();
+            });
+        }
+        // Rectangle Drawing button
+        const rectBtn = this.infra.dom.getElementById('draw-rectangle');
+        if (rectBtn) {
+            this.infra.dom.addEventListener(rectBtn, 'click', () => {
+                if (this.state.drawingMode === 'rectangle') {
+                    // End drawing mode
+                    this.endDrawingMode();
+                    this.infra.dom.removeClass(rectBtn, 'active');
+                }
+                else {
+                    // Start rectangle drawing mode
+                    this.startRectangleDrawingMode();
+                    this.infra.dom.addClass(rectBtn, 'active');
+                    // Disable other drawing modes
+                    const textBtn = this.infra.dom.getElementById('draw-text');
+                    if (textBtn) {
+                        this.infra.dom.removeClass(textBtn, 'active');
+                    }
+                }
+            });
+        }
+        // Text Drawing button
+        const textBtn = this.infra.dom.getElementById('draw-text');
+        if (textBtn) {
+            this.infra.dom.addEventListener(textBtn, 'click', () => {
+                if (this.state.drawingMode === 'text') {
+                    // End drawing mode
+                    this.endDrawingMode();
+                    this.infra.dom.removeClass(textBtn, 'active');
+                }
+                else {
+                    // Start text drawing mode
+                    this.startTextDrawingMode();
+                    this.infra.dom.addClass(textBtn, 'active');
+                    // Disable other drawing modes
+                    const rectBtn = this.infra.dom.getElementById('draw-rectangle');
+                    if (rectBtn) {
+                        this.infra.dom.removeClass(rectBtn, 'active');
+                    }
+                }
             });
         }
     }
@@ -1254,6 +1421,40 @@ export class ERViewerApplication {
         });
     }
     /**
+     * Setup layer sidebar events
+     */
+    setupLayerSidebarEvents() {
+        const layerSidebar = this.infra.dom.getElementById('layer-sidebar');
+        const collapseBtn = this.infra.dom.getElementById('collapse-layer-sidebar');
+        if (!layerSidebar || !collapseBtn) {
+            return;
+        }
+        // Initialize LayerManager with state management
+        this.layerManager = new LayerManager(this);
+        // Load collapsed state from localStorage
+        const storedValue = this.infra.storage.getItem('layerSidebarCollapsed');
+        const isCollapsed = storedValue === 'true' || storedValue === true;
+        if (isCollapsed) {
+            this.infra.dom.addClass(layerSidebar, 'collapsed');
+        }
+        // Setup collapse button click handler
+        this.infra.dom.addEventListener(collapseBtn, 'click', () => {
+            const isCurrentlyCollapsed = this.infra.dom.hasClass(layerSidebar, 'collapsed');
+            if (isCurrentlyCollapsed) {
+                // Expand
+                this.infra.dom.removeClass(layerSidebar, 'collapsed');
+                this.infra.storage.setItem('layerSidebarCollapsed', 'false');
+                this.infra.browserAPI.log('Layer sidebar expanded');
+            }
+            else {
+                // Collapse
+                this.infra.dom.addClass(layerSidebar, 'collapsed');
+                this.infra.storage.setItem('layerSidebarCollapsed', 'true');
+                this.infra.browserAPI.log('Layer sidebar collapsed');
+            }
+        });
+    }
+    /**
      * Setup window resize handler
      */
     setupResizeHandler() {
@@ -1302,6 +1503,12 @@ export class ERViewerApplication {
      * Clear all highlights
      */
     clearHighlights() {
+        // Remove highlight classes from all elements
+        const highlightedElements = this.infra.dom.querySelectorAll('.highlighted');
+        highlightedElements.forEach((element) => {
+            this.infra.dom.removeClass(element, 'highlighted');
+        });
+        // Clear the highlight layer
         const highlightLayer = this.infra.dom.getElementById('highlight-layer');
         if (highlightLayer) {
             this.infra.dom.setInnerHTML(highlightLayer, '');
@@ -1309,15 +1516,87 @@ export class ERViewerApplication {
         this.setState({ highlightedEntities: new Set(), highlightedRelationships: new Set() });
     }
     /**
+     * Update highlight layer to ensure highlighted elements are on top
+     */
+    updateHighlightLayer() {
+        const highlightLayer = this.infra.dom.getElementById('highlight-layer');
+        if (!highlightLayer) {
+            return;
+        }
+        // Clear the highlight layer
+        this.infra.dom.setInnerHTML(highlightLayer, '');
+        // Clone highlighted elements to the highlight layer for z-index effect
+        const highlightedElements = this.infra.dom.querySelectorAll('.highlighted');
+        highlightedElements.forEach((element) => {
+            const clone = this.infra.dom.cloneNode(element, true);
+            // Add special styling to make it stand out
+            this.infra.dom.addClass(clone, 'highlight-clone');
+            this.infra.dom.setAttribute(clone, 'pointer-events', 'none');
+            // Add to highlight layer
+            this.infra.dom.appendChild(highlightLayer, clone);
+        });
+    }
+    /**
      * Highlight entity
      */
     highlightEntity(entity) {
         const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
-        if (tableName) {
-            this.state.highlightedEntities.add(tableName);
+        if (!tableName || !this.state.erData) {
+            return;
         }
-        // Add highlight effect
+        // Clear any existing highlights first
+        this.clearHighlights();
+        // Highlight the hovered entity
+        this.state.highlightedEntities.add(tableName);
         this.infra.dom.addClass(entity, 'highlighted');
+        // Find and highlight all related entities and relationships
+        const relatedTables = new Set();
+        const relatedRelationships = new Set();
+        // Find relationships connected to this entity
+        this.state.erData.relationships.forEach((rel) => {
+            if (rel.from.table === tableName) {
+                relatedTables.add(rel.to.table);
+                relatedRelationships.add(`${rel.from.table}-${rel.to.table}`);
+            }
+            else if (rel.to.table === tableName) {
+                relatedTables.add(rel.from.table);
+                relatedRelationships.add(`${rel.from.table}-${rel.to.table}`);
+            }
+        });
+        // Highlight related entities
+        relatedTables.forEach((relatedTable) => {
+            this.state.highlightedEntities.add(relatedTable);
+            const relatedEntity = this.infra.dom.querySelector(`.entity[data-table-name="${relatedTable}"]`);
+            if (relatedEntity) {
+                this.infra.dom.addClass(relatedEntity, 'highlighted');
+            }
+        });
+        // Highlight relationships
+        relatedRelationships.forEach((relKey) => {
+            this.state.highlightedRelationships.add(relKey);
+            const [fromTable, toTable] = relKey.split('-');
+            const relationship = this.infra.dom.querySelector(`.relationship[data-from-table="${fromTable}"][data-to-table="${toTable}"]`);
+            if (relationship) {
+                this.infra.dom.addClass(relationship, 'highlighted');
+                // Highlight the related columns
+                const fromColumn = this.infra.dom.getAttribute(relationship, 'data-from-column');
+                const toColumn = this.infra.dom.getAttribute(relationship, 'data-to-column');
+                if (fromColumn) {
+                    const fromColumnElement = this.infra.dom.querySelector(`.entity[data-table-name="${fromTable}"] .column[data-column-name="${fromColumn}"]`);
+                    if (fromColumnElement) {
+                        this.infra.dom.addClass(fromColumnElement, 'highlighted');
+                    }
+                }
+                if (toColumn) {
+                    const toColumnElement = this.infra.dom.querySelector(`.entity[data-table-name="${toTable}"] .column[data-column-name="${toColumn}"]`);
+                    if (toColumnElement) {
+                        this.infra.dom.addClass(toColumnElement, 'highlighted');
+                    }
+                }
+            }
+        });
+        // Update the highlight layer to ensure highlighted elements are on top
+        this.updateHighlightLayer();
     }
     /**
      * Highlight relationship
@@ -1325,20 +1604,83 @@ export class ERViewerApplication {
     highlightRelationship(relationship) {
         const fromTable = this.infra.dom.getAttribute(relationship, 'data-from-table');
         const toTable = this.infra.dom.getAttribute(relationship, 'data-to-table');
-        if (fromTable && toTable) {
-            this.state.highlightedRelationships.add(`${fromTable}-${toTable}`);
+        const fromColumn = this.infra.dom.getAttribute(relationship, 'data-from-column');
+        const toColumn = this.infra.dom.getAttribute(relationship, 'data-to-column');
+        if (!fromTable || !toTable) {
+            return;
         }
-        // Add highlight effect
+        // Clear any existing highlights first
+        this.clearHighlights();
+        // Highlight the relationship
+        this.state.highlightedRelationships.add(`${fromTable}-${toTable}`);
         this.infra.dom.addClass(relationship, 'highlighted');
+        // Highlight both entities
+        this.state.highlightedEntities.add(fromTable);
+        this.state.highlightedEntities.add(toTable);
+        const fromEntity = this.infra.dom.querySelector(`.entity[data-table-name="${fromTable}"]`);
+        const toEntity = this.infra.dom.querySelector(`.entity[data-table-name="${toTable}"]`);
+        if (fromEntity) {
+            this.infra.dom.addClass(fromEntity, 'highlighted');
+        }
+        if (toEntity) {
+            this.infra.dom.addClass(toEntity, 'highlighted');
+        }
+        // Highlight the specific columns
+        if (fromColumn) {
+            const fromColumnElement = this.infra.dom.querySelector(`.entity[data-table-name="${fromTable}"] .column[data-column-name="${fromColumn}"]`);
+            if (fromColumnElement) {
+                this.infra.dom.addClass(fromColumnElement, 'highlighted');
+            }
+        }
+        if (toColumn) {
+            const toColumnElement = this.infra.dom.querySelector(`.entity[data-table-name="${toTable}"] .column[data-column-name="${toColumn}"]`);
+            if (toColumnElement) {
+                this.infra.dom.addClass(toColumnElement, 'highlighted');
+            }
+        }
+        // Update the highlight layer to ensure highlighted elements are on top
+        this.updateHighlightLayer();
     }
     /**
      * Select annotation
      */
     selectAnnotation(element) {
-        const annotationId = this.infra.dom.getAttribute(element, 'data-id') || '';
+        const annotationId = this.infra.dom.getAttribute(element, 'data-rect-id') ||
+            this.infra.dom.getAttribute(element, 'data-text-id') || '';
         this.setState({ selectedAnnotation: annotationId });
         // Add selection visual
         this.infra.dom.addClass(element, 'selected');
+        // If it's a text element, allow editing on double click
+        if (this.infra.dom.hasClass(element, 'annotation-text')) {
+            const textId = this.infra.dom.getAttribute(element, 'data-text-id');
+            const textIndex = parseInt(this.infra.dom.getAttribute(element, 'data-text-index') || '0');
+            // Set up double click event for text editing
+            this.infra.dom.addEventListener(element, 'dblclick', () => {
+                this.editTextAnnotation(textId, textIndex);
+            });
+        }
+    }
+    /**
+     * Edit text annotation
+     */
+    editTextAnnotation(_textId, textIndex) {
+        if (!this.state.layoutData.texts || !this.state.layoutData.texts[textIndex]) {
+            return;
+        }
+        const currentText = this.state.layoutData.texts[textIndex];
+        const newContent = this.infra.browserAPI.prompt('テキストを編集してください:', currentText.content);
+        if (newContent !== null && newContent !== currentText.content) {
+            const newFontSize = this.infra.browserAPI.prompt('フォントサイズを編集してください:', currentText.fontSize?.toString() || '14');
+            const newColor = this.infra.browserAPI.prompt('色を編集してください:', currentText.color || '#2c3e50');
+            const newLayoutData = { ...this.state.layoutData };
+            newLayoutData.texts[textIndex] = {
+                ...currentText,
+                content: newContent,
+                fontSize: newFontSize ? parseInt(newFontSize) : currentText.fontSize,
+                color: newColor || currentText.color
+            };
+            this.setState({ layoutData: newLayoutData });
+        }
     }
     // UI utility methods
     /**
@@ -1425,6 +1767,198 @@ export class ERViewerApplication {
      */
     setLayoutData(layoutData) {
         this.setState({ layoutData });
+    }
+    /**
+     * Start rectangle drawing mode
+     */
+    startRectangleDrawingMode() {
+        this.setState({
+            drawingMode: 'rectangle',
+            isDrawing: false,
+            currentDrawingRect: null
+        });
+        // Change cursor
+        if (this.state.canvas) {
+            this.infra.dom.setStyles(this.state.canvas, { cursor: 'crosshair' });
+        }
+    }
+    /**
+     * Start text drawing mode
+     */
+    startTextDrawingMode() {
+        this.setState({
+            drawingMode: 'text',
+            isDrawing: false,
+            currentDrawingRect: null
+        });
+        // Change cursor
+        if (this.state.canvas) {
+            this.infra.dom.setStyles(this.state.canvas, { cursor: 'text' });
+        }
+    }
+    /**
+     * End drawing mode
+     */
+    endDrawingMode() {
+        this.setState({
+            drawingMode: null,
+            isDrawing: false,
+            currentDrawingRect: null
+        });
+        // Reset cursor
+        if (this.state.canvas) {
+            this.infra.dom.setStyles(this.state.canvas, { cursor: 'default' });
+        }
+    }
+    /**
+     * Update a rectangle's properties
+     */
+    updateRectangle(id, updates) {
+        const layoutRectIndex = this.state.layoutData.rectangles.findIndex(r => r.id === id);
+        if (layoutRectIndex === -1)
+            return;
+        // Update in layoutData
+        const updatedRectangles = [...this.state.layoutData.rectangles];
+        updatedRectangles[layoutRectIndex] = {
+            ...updatedRectangles[layoutRectIndex],
+            ...updates
+        };
+        const updatedLayoutData = {
+            ...this.state.layoutData,
+            rectangles: updatedRectangles
+        };
+        this.setState({ layoutData: updatedLayoutData });
+        // Update DOM element
+        const rectElement = this.infra.dom.querySelector(`[data-rect-id="${id}"]`);
+        if (rectElement) {
+            if (updates.x !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'x', updates.x.toString());
+            }
+            if (updates.y !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'y', updates.y.toString());
+            }
+            if (updates.width !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'width', updates.width.toString());
+            }
+            if (updates.height !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'height', updates.height.toString());
+            }
+            if (updates.color !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'fill', updates.color);
+            }
+            if (updates.stroke !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'stroke', updates.stroke);
+            }
+            if (updates.strokeWidth !== undefined) {
+                this.infra.dom.setAttribute(rectElement, 'stroke-width', updates.strokeWidth.toString());
+            }
+        }
+    }
+    /**
+     * Start rectangle drawing
+     */
+    startRectangleDrawing(point) {
+        const rectId = `rect-${Date.now()}`;
+        const newRect = {
+            id: rectId,
+            x: point.x,
+            y: point.y,
+            width: 0,
+            height: 0,
+            color: '#e3f2fd',
+            stroke: '#1976d2',
+            strokeWidth: 2
+        };
+        this.setState({
+            isDrawing: true,
+            currentDrawingRect: newRect
+        });
+        // Create temporary rectangle element
+        const annotationLayer = this.infra.dom.getElementById('annotation-layer');
+        if (annotationLayer) {
+            const rectElement = this.infra.dom.createElement('rect', 'http://www.w3.org/2000/svg');
+            this.infra.dom.setAttribute(rectElement, 'id', `temp-${rectId}`);
+            this.infra.dom.setAttribute(rectElement, 'data-rect-id', rectId);
+            this.infra.dom.setAttribute(rectElement, 'x', newRect.x.toString());
+            this.infra.dom.setAttribute(rectElement, 'y', newRect.y.toString());
+            this.infra.dom.setAttribute(rectElement, 'width', '0');
+            this.infra.dom.setAttribute(rectElement, 'height', '0');
+            this.infra.dom.setAttribute(rectElement, 'fill', newRect.color || '#e3f2fd');
+            this.infra.dom.setAttribute(rectElement, 'stroke', newRect.stroke || '#1976d2');
+            this.infra.dom.setAttribute(rectElement, 'stroke-width', newRect.strokeWidth?.toString() || '2');
+            this.infra.dom.setAttribute(rectElement, 'opacity', '0.5');
+            this.infra.dom.appendChild(annotationLayer, rectElement);
+        }
+    }
+    /**
+     * Update rectangle drawing
+     */
+    updateRectangleDrawing(event) {
+        if (!this.state.currentDrawingRect)
+            return;
+        const rect = this.infra.dom.getBoundingClientRect(this.state.canvas);
+        const screenX = event.clientX - rect.left;
+        const screenY = event.clientY - rect.top;
+        const svgPoint = this.screenToSVG(screenX, screenY);
+        // Calculate dimensions
+        const width = Math.abs(svgPoint.x - this.state.currentDrawingRect.x);
+        const height = Math.abs(svgPoint.y - this.state.currentDrawingRect.y);
+        const x = Math.min(svgPoint.x, this.state.currentDrawingRect.x);
+        const y = Math.min(svgPoint.y, this.state.currentDrawingRect.y);
+        // Update temporary rectangle
+        const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect.id}`);
+        if (tempRect) {
+            this.infra.dom.setAttribute(tempRect, 'x', x.toString());
+            this.infra.dom.setAttribute(tempRect, 'y', y.toString());
+            this.infra.dom.setAttribute(tempRect, 'width', width.toString());
+            this.infra.dom.setAttribute(tempRect, 'height', height.toString());
+        }
+        // Update current drawing rect state
+        this.setState({
+            currentDrawingRect: {
+                ...this.state.currentDrawingRect,
+                x,
+                y,
+                width,
+                height
+            }
+        });
+    }
+    /**
+     * Complete rectangle drawing
+     */
+    completeRectangleDrawing() {
+        if (!this.state.currentDrawingRect ||
+            this.state.currentDrawingRect.width === 0 ||
+            this.state.currentDrawingRect.height === 0) {
+            // Remove temporary rectangle if too small
+            const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect?.id}`);
+            if (tempRect) {
+                this.infra.dom.removeElement(tempRect);
+            }
+            this.setState({
+                isDrawing: false,
+                currentDrawingRect: null
+            });
+            return;
+        }
+        // Remove opacity from temporary rectangle
+        const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect.id}`);
+        if (tempRect) {
+            this.infra.dom.setAttribute(tempRect, 'id', this.state.currentDrawingRect.id);
+            this.infra.dom.setAttribute(tempRect, 'opacity', '1');
+            this.infra.dom.setAttribute(tempRect, 'class', 'annotation-rectangle');
+        }
+        // Add to layout data
+        const updatedLayoutData = {
+            ...this.state.layoutData,
+            rectangles: [...this.state.layoutData.rectangles, this.state.currentDrawingRect]
+        };
+        this.setState({
+            layoutData: updatedLayoutData,
+            isDrawing: false,
+            currentDrawingRect: null
+        });
     }
 }
 //# sourceMappingURL=er-viewer-application.js.map

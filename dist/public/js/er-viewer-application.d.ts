@@ -3,7 +3,7 @@
  * 全てのロジックとステートを内包し、副作用はインフラストラクチャー層を通じて実行
  */
 import type { Infrastructure, EventHandler as InfraEventHandler } from './types/infrastructure.js';
-import type { ERData, LayoutData, ApplicationState, Position, Bounds, HistoryEntry } from './types/index.js';
+import type { ERData, LayoutData, ApplicationState, Position, Bounds, Rectangle, HistoryEntry } from './types/index.js';
 interface ERViewerState extends ApplicationState {
     canvas: SVGSVGElement | null;
     sidebar: HTMLElement | null;
@@ -19,6 +19,10 @@ interface ERViewerState extends ApplicationState {
     clusteredPositions: Map<string, Position>;
     entityBounds: Map<string, Bounds>;
     routingCache: Map<string, Position[]>;
+    isSpacePressed: boolean;
+    drawingMode: 'rectangle' | 'text' | null;
+    isDrawing: boolean;
+    currentDrawingRect: Rectangle | null;
 }
 type StateUpdateCallback = (oldState: ERViewerState, newState: ERViewerState) => void;
 type PropertyUpdateCallback<K extends keyof ERViewerState> = (oldValue: ERViewerState[K], newValue: ERViewerState[K]) => void;
@@ -27,6 +31,7 @@ export declare class ERViewerApplication {
     private state;
     private subscribers;
     private propertySubscribers;
+    private layerManager;
     constructor(infrastructure: Infrastructure);
     /**
      * Get current application state (for testing)
@@ -56,6 +61,14 @@ export declare class ERViewerApplication {
      * Get current state (read-only)
      */
     getState(): Readonly<ERViewerState>;
+    /**
+     * Get specific state property (for LayerManager compatibility)
+     */
+    get<K extends keyof ERViewerState>(key: K): ERViewerState[K] | null;
+    /**
+     * Update layout data (for LayerManager compatibility)
+     */
+    updateLayoutData(layoutData: LayoutData): void;
     /**
      * Set state with notifications
      */
@@ -96,6 +109,10 @@ export declare class ERViewerApplication {
      * Render entities
      */
     private renderEntities;
+    /**
+     * Get emoji icons for column based on its properties
+     */
+    private getColumnEmojis;
     /**
      * Create entity SVG element
      */
@@ -193,6 +210,14 @@ export declare class ERViewerApplication {
      */
     private handleCanvasContextMenu;
     /**
+     * Handle key down
+     */
+    private handleKeyDown;
+    /**
+     * Handle key up
+     */
+    private handleKeyUp;
+    /**
      * Convert screen coordinates to SVG coordinates
      */
     private screenToSVG;
@@ -235,7 +260,7 @@ export declare class ERViewerApplication {
     /**
      * Save layout
      */
-    private saveLayout;
+    saveLayout(): Promise<void>;
     /**
      * Setup sidebar resize events
      */
@@ -261,6 +286,10 @@ export declare class ERViewerApplication {
      */
     private setupLayerOrderChangeEvents;
     /**
+     * Setup layer sidebar events
+     */
+    private setupLayerSidebarEvents;
+    /**
      * Setup window resize handler
      */
     private setupResizeHandler;
@@ -277,6 +306,10 @@ export declare class ERViewerApplication {
      */
     private clearHighlights;
     /**
+     * Update highlight layer to ensure highlighted elements are on top
+     */
+    private updateHighlightLayer;
+    /**
      * Highlight entity
      */
     private highlightEntity;
@@ -288,6 +321,10 @@ export declare class ERViewerApplication {
      * Select annotation
      */
     private selectAnnotation;
+    /**
+     * Edit text annotation
+     */
+    private editTextAnnotation;
     /**
      * Show loading overlay
      */
@@ -328,6 +365,34 @@ export declare class ERViewerApplication {
      * Update layout data
      */
     setLayoutData(layoutData: LayoutData): void;
+    /**
+     * Start rectangle drawing mode
+     */
+    startRectangleDrawingMode(): void;
+    /**
+     * Start text drawing mode
+     */
+    startTextDrawingMode(): void;
+    /**
+     * End drawing mode
+     */
+    endDrawingMode(): void;
+    /**
+     * Update a rectangle's properties
+     */
+    updateRectangle(id: string, updates: Partial<Rectangle>): void;
+    /**
+     * Start rectangle drawing
+     */
+    private startRectangleDrawing;
+    /**
+     * Update rectangle drawing
+     */
+    private updateRectangleDrawing;
+    /**
+     * Complete rectangle drawing
+     */
+    private completeRectangleDrawing;
 }
 export {};
 //# sourceMappingURL=er-viewer-application.d.ts.map

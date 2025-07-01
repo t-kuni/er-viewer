@@ -52,6 +52,33 @@ header h1 {
   background-color: #2980b9;
 }
 
+.controls button:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.controls .separator {
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.3);
+  margin: 0 0.5rem;
+}
+
+.controls .tool-btn {
+  background-color: #95a5a6;
+}
+
+.controls .tool-btn.active {
+  background-color: #e74c3c;
+}
+
+.controls .tool-btn:hover:not(:disabled) {
+  background-color: #7f8c8d;
+}
+
+.controls .tool-btn.active:hover {
+  background-color: #c0392b;
+}
+
 main {
   display: flex;
   flex: 1;
@@ -997,4 +1024,37 @@ main {
   .help-content {
     max-height: 300px;
   }
+}
+
+/* Highlight Styles */
+.entity.highlighted {
+  filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.8));
+  opacity: 1 !important;
+}
+
+.relationship.highlighted {
+  stroke: #3498db !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.6));
+  opacity: 1 !important;
+}
+
+.column.highlighted {
+  fill: #3498db !important;
+  font-weight: bold;
+}
+
+/* Highlight layer clones for z-index effect */
+#highlight-layer .highlight-clone {
+  opacity: 0.9;
+  filter: brightness(1.2);
+}
+
+/* Ensure non-highlighted elements are dimmed when something is highlighted */
+svg:has(.highlighted) .entity:not(.highlighted) {
+  opacity: 0.3;
+}
+
+svg:has(.highlighted) .relationship:not(.highlighted) {
+  opacity: 0.3;
 }

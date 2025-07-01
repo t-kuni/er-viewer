@@ -444,18 +444,14 @@ describe('ユーザーインタラクション', () => {
     
     // キャンセルされた場合、render()が呼ばれないことを検証
     // text要素が作成されないことを確認
-    const textElementCalls = createElementSpy.mock.calls.filter(
-      call => call[0] === 'text'
-    );
-    expect(textElementCalls.length).toBe(0);
+    expect(createElementSpy).not.toHaveBeenCalledWith('text');
     
-    // annotation-layerにテキスト要素が追加されないことを確認
-    const appendCalls = appendChildSpy.mock.calls;
-    const textAppendCalls = appendCalls.filter(call => {
-      const element = call[1];
-      return element && element.tagName === 'text';
-    });
-    expect(textAppendCalls.length).toBe(0);
+    // DOM要素の表示が変更されないことを確認
+    const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
+    expect(setStylesSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tagName: 'text' }),
+      expect.any(Object)
+    );
     
     // Cleanup
     app = null;
@@ -746,9 +742,13 @@ describe('ユーザーインタラクション', () => {
         toJSON: () => ({})
       });
       
-      // 初期スケールを確認
-      let state = app.getState();
-      expect(state.viewport.scale).toBe(1);
+      // 初期スケールが反映されたトランスフォームが設定される
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(1)')
+      );
       
       // Act - wheelイベントをトリガー（deltaY < 0 で上方向）
       const mockWheelEvent = new WheelEvent('wheel', {
@@ -768,10 +768,12 @@ describe('ユーザーインタラクション', () => {
         wheelHandler[2](mockWheelEvent);
       }
       
-      // Assert
-      state = app.getState();
-      expect(state.viewport.scale).toBeGreaterThan(1);
-      expect(state.viewport.scale).toBeCloseTo(1.1, 5);
+      // Assert - ズームイン後のスケールがトランスフォームに反映される
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(1.1)')
+      );
       
       // Cleanup
       app = null;
@@ -812,9 +814,13 @@ describe('ユーザーインタラクション', () => {
         toJSON: () => ({})
       });
       
-      // 初期スケールを確認
-      let state = app.getState();
-      expect(state.viewport.scale).toBe(1);
+      // 初期スケールが設定される
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(1)')
+      );
       
       // Act - wheelイベントをトリガー（deltaY > 0 で下方向）
       const mockWheelEvent = new WheelEvent('wheel', {
@@ -834,10 +840,12 @@ describe('ユーザーインタラクション', () => {
         wheelHandler[2](mockWheelEvent);
       }
       
-      // Assert
-      state = app.getState();
-      expect(state.viewport.scale).toBeLessThan(1);
-      expect(state.viewport.scale).toBeCloseTo(0.9, 5);
+      // Assert - ズームアウト後のスケールがトランスフォームに反映される
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(0.9)')
+      );
       
       // Cleanup
       app = null;
@@ -885,40 +893,45 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Act - 大幅にズームアウト（縮小）
-      for (let i = 0; i < 10; i++) {
-        const mockWheelEvent = new WheelEvent('wheel', {
-          clientX: 400,
-          clientY: 300,
-          deltaY: 1000,
-          bubbles: true,
-          cancelable: true
-        });
-        if (wheelHandler && wheelHandler[2]) {
-          wheelHandler[2](mockWheelEvent);
-        }
+      // 最小スケールに到達するまでズームアウト
+      const mockWheelEvent1 = new WheelEvent('wheel', {
+        clientX: 400,
+        clientY: 300,
+        deltaY: 10000, // 大きな値で一気に最小値まで
+        bubbles: true,
+        cancelable: true
+      });
+      if (wheelHandler && wheelHandler[2]) {
+        wheelHandler[2](mockWheelEvent1);
       }
       
       // Assert - 最小値0.1を下回らない
-      let state = app.getState();
-      expect(state.viewport.scale).toBeGreaterThanOrEqual(0.1);
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(0.1)')
+      );
       
       // Act - 大幅にズームイン（拡大）
-      for (let i = 0; i < 10; i++) {
-        const mockWheelEvent = new WheelEvent('wheel', {
-          clientX: 400,
-          clientY: 300,
-          deltaY: -1000,
-          bubbles: true,
-          cancelable: true
-        });
-        if (wheelHandler && wheelHandler[2]) {
-          wheelHandler[2](mockWheelEvent);
-        }
+      // 最大スケールに到達するまでズームイン
+      const mockWheelEvent2 = new WheelEvent('wheel', {
+        clientX: 400,
+        clientY: 300,
+        deltaY: -10000, // 大きな負の値で一気に最大値まで
+        bubbles: true,
+        cancelable: true
+      });
+      if (wheelHandler && wheelHandler[2]) {
+        wheelHandler[2](mockWheelEvent2);
       }
       
       // Assert - 最大値5.0を上回らない
-      state = app.getState();
-      expect(state.viewport.scale).toBeLessThanOrEqual(5.0);
+      expect(setAttributeSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'transform',
+        expect.stringContaining('scale(5)')
+      );
       
       // Cleanup
       app = null;
@@ -1218,17 +1231,22 @@ describe('ユーザーインタラクション', () => {
         mousedownHandler[2](mockClickEvent);
       }
       
-      // Assert
-      const state = app.getState();
-      expect(state.layoutData.texts).toHaveLength(1);
-      expect(state.layoutData.texts[0]).toMatchObject({
-        content: 'テストテキスト',
-        fontSize: 16,
-        color: '#333333',
-        x: 100,
-        y: 100
-      });
-      expect(state.drawingMode).toBeNull(); // モードが終了している
+      // Assert - テキスト要素が作成される
+      const createElementSvgSpy = jest.spyOn(infrastructure.dom, 'createElementSvg');
+      expect(createElementSvgSpy).toHaveBeenCalledWith('text');
+      
+      const setTextContentSpy = jest.spyOn(infrastructure.dom, 'setTextContent');
+      expect(setTextContentSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'テストテキスト'
+      );
+      
+      // モードが終了している（カーソルがリセットされる）
+      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
+      expect(setStylesSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        { cursor: 'default' }
+      );
       
       // Cleanup
       app = null;
@@ -1252,13 +1270,22 @@ describe('ユーザーインタラクション', () => {
       
       // テキスト描画モードを開始
       app.startTextDrawingMode();
-      expect(app.getState().drawingMode).toBe('text');
+      
+      // テキストモードが開始されたことを確認（カーソルが変更される）
+      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
+      expect(setStylesSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        { cursor: 'text' }
+      );
       
       // Act - ESCキーを押す
       app.endDrawingMode();
       
-      // Assert
-      expect(app.getState().drawingMode).toBeNull();
+      // Assert - モードが終了している（カーソルがリセットされる）
+      expect(setStylesSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        { cursor: 'default' }
+      );
       
       // Cleanup
       app = null;

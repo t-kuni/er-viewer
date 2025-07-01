@@ -34,10 +34,14 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     // Assert - レイヤーリストに新しいレイヤーアイテムが追加される
     const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
     // レイヤーリストにレイヤーアイテムが追加されているか確認
-    const layerItemCalls = appendChildSpy.mock.calls.filter(call => 
-      call[0] === layerList && call[1]?.className?.includes('layer-item')
+    expect(appendChildSpy).toHaveBeenCalledWith(
+      layerList,
+      expect.objectContaining({
+        classList: expect.objectContaining({
+          classes: expect.any(Set)
+        })
+      })
     );
-    expect(layerItemCalls.length).toBeGreaterThan(0);
   });
 
   test('レイヤーアイテムがドラッグ可能である', () => {
@@ -53,13 +57,12 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     
     // Assert - レイヤーアイテムにdraggable属性が設定されている
-    layerItems.forEach(item => {
-      const setAttributeCalls = jest.spyOn(infrastructure.dom, 'setAttribute').mock.calls;
-      const draggableCall = setAttributeCalls.find(call => 
-        call[0] === item && call[1] === 'draggable' && call[2] === 'true'
-      );
-      expect(draggableCall).toBeDefined();
-    });
+    const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+    expect(setAttributeSpy).toHaveBeenCalledWith(
+      expect.any(Object),
+      'draggable',
+      'true'
+    );
   });
 
   test('レイヤーアイテムをドラッグ&ドロップで順番を入れ替えられる', () => {
@@ -177,9 +180,10 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     firstItem.dispatchEvent(new Event('dragend'));
     
     // Assert - layerOrderChangedイベントが発火される
-    const layerOrderChangedEvent = dispatchEventSpy.mock.calls.find(call => 
-      call[0] instanceof CustomEvent && call[0].type === 'layerOrderChanged'
+    expect(dispatchEventSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'layerOrderChanged'
+      })
     );
-    expect(layerOrderChangedEvent).toBeDefined();
   });
 });

@@ -32,6 +32,7 @@ describe('データ管理', () => {
     test('エンティティクリックでテーブルDDLが取得される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
       const mockData: MockData = {
         networkResponses: {
           '/api/table/users/ddl': {
@@ -63,6 +64,7 @@ describe('データ管理', () => {
     test('レイアウト保存が正常に動作する', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     const mockData: MockData = {
       networkResponses: {
         '/api/layout': {
@@ -72,36 +74,30 @@ describe('データ管理', () => {
       },
     };
     infrastructure.setupMockData(mockData);
+    
+    // postJSONメソッドをスパイ化
+    jest.spyOn(infrastructure.network, 'postJSON');
+    
     let app: any = new ERViewerApplication(infrastructure);
 
     // Act
     await app.saveLayout();
 
     // Assert
-    const history = infrastructure.getInteractionHistory();
-    const requests = history.networkRequests;
-    // 配列操作を使わずにリクエストを確認
-    expect(requests.length).toBeGreaterThan(0);
-    
-    // Network操作の詳細検証
-    const saveRequest = requests[requests.length - 1];
-    expect(saveRequest.url).toBe('/api/layout');
-    expect(saveRequest.method).toBe('POST');
-    expect(saveRequest.headers).toBeDefined();
-    expect(saveRequest.body).toBeDefined(); // POSTリクエストなのでbodyがある
-    
-    // bodyは文字列としてエンコードされている場合があるので、パースする
-    const requestBody = typeof saveRequest.body === 'string' 
-      ? JSON.parse(saveRequest.body) 
-      : saveRequest.body;
-    expect(requestBody).toHaveProperty('entities');
-    expect(requestBody).toHaveProperty('rectangles');
-    expect(requestBody).toHaveProperty('texts');
+    expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
+      '/api/layout',
+      expect.objectContaining({
+        entities: expect.any(Object),
+        rectangles: expect.any(Array),
+        texts: expect.any(Array)
+      })
+    );
   });
 
   test('リバースエンジニアリングが正常に動作する', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     const mockERData = createERData({
       entities: [
         createEntity({
@@ -141,6 +137,7 @@ describe('データ管理', () => {
   test('増分リバースエンジニアリング - 既存レイアウトを保持しながら新しいエンティティを追加', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     
     // 初期状態：usersエンティティのみ存在
     const initialERData = createERData({
@@ -210,12 +207,14 @@ describe('データ管理', () => {
     const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
-    const saveRequest = requests.find(req => req.url === '/api/layout' && req.method === 'POST');
-    expect(saveRequest).toBeDefined();
+    expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
+      '/api/layout',
+      expect.any(Object)
+    );
     
-    const requestBody = typeof saveRequest?.body === 'string' 
-      ? JSON.parse(saveRequest.body) 
-      : saveRequest?.body;
+    const postCalls = (infrastructure.network.postJSON as jest.Mock).mock.calls;
+    const layoutCall = postCalls[postCalls.length - 1];
+    const requestBody = layoutCall[1];
     
     // usersエンティティの位置が保持されている
     expect(requestBody.entities.users).toBeDefined();
@@ -228,6 +227,7 @@ describe('データ管理', () => {
   test('増分リバースエンジニアリング - 削除されたエンティティのレイアウトを削除', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     
     // 初期状態：users, postsエンティティが存在
     const initialERData = createERData({
@@ -299,12 +299,14 @@ describe('データ管理', () => {
     const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
-    const saveRequest = requests.find(req => req.url === '/api/layout' && req.method === 'POST');
-    expect(saveRequest).toBeDefined();
+    expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
+      '/api/layout',
+      expect.any(Object)
+    );
     
-    const requestBody = typeof saveRequest?.body === 'string' 
-      ? JSON.parse(saveRequest.body) 
-      : saveRequest?.body;
+    const postCalls = (infrastructure.network.postJSON as jest.Mock).mock.calls;
+    const layoutCall = postCalls[postCalls.length - 1];
+    const requestBody = layoutCall[1];
     
     // usersエンティティの位置が保持されている
     expect(requestBody.entities.users).toBeDefined();
@@ -317,6 +319,7 @@ describe('データ管理', () => {
   test('増分リバースエンジニアリング - 既存エンティティの位置とサイズを保持', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     
     // 初期状態：usersエンティティが既存の位置とサイズを持つ
     const initialERData = createERData({
@@ -379,12 +382,14 @@ describe('データ管理', () => {
     const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
-    const saveRequest = requests.find(req => req.url === '/api/layout' && req.method === 'POST');
-    expect(saveRequest).toBeDefined();
+    expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
+      '/api/layout',
+      expect.any(Object)
+    );
     
-    const requestBody = typeof saveRequest?.body === 'string' 
-      ? JSON.parse(saveRequest.body) 
-      : saveRequest?.body;
+    const postCalls = (infrastructure.network.postJSON as jest.Mock).mock.calls;
+    const layoutCall = postCalls[postCalls.length - 1];
+    const requestBody = layoutCall[1];
     
     // usersエンティティの位置とサイズが保持されている
     expect(requestBody.entities.users).toBeDefined();
@@ -394,6 +399,7 @@ describe('データ管理', () => {
   test('増分リバースエンジニアリング - 複数の新規エンティティが適切にクラスタリングされる', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     
     // 初期状態：usersエンティティのみ
     const initialERData = createERData({
@@ -481,12 +487,14 @@ describe('データ管理', () => {
     const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
-    const saveRequest = requests.find(req => req.url === '/api/layout' && req.method === 'POST');
-    expect(saveRequest).toBeDefined();
+    expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
+      '/api/layout',
+      expect.any(Object)
+    );
     
-    const requestBody = typeof saveRequest?.body === 'string' 
-      ? JSON.parse(saveRequest.body) 
-      : saveRequest?.body;
+    const postCalls = (infrastructure.network.postJSON as jest.Mock).mock.calls;
+    const layoutCall = postCalls[postCalls.length - 1];
+    const requestBody = layoutCall[1];
     
     // 既存のusersエンティティの位置が保持されている
     expect(requestBody.entities.users).toBeDefined();
@@ -504,6 +512,7 @@ describe('データ管理', () => {
   test('レイヤー順序変更が永続化される', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
+    jest.spyOn(infrastructure.network, 'postJSON');
     const mockERData = createERData({
       entities: [createUserEntity(), createPostEntity()],
       layout: createLayoutData({

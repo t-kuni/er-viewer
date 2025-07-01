@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # パラメータ設定
-MAX_TURNS=35
+MAX_TURNS=100
 SLEEP_TIME=30
 
 echo "執筆スクリプトを開始します..."

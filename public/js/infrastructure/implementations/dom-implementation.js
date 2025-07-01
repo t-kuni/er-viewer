@@ -1,4 +1,4 @@
-import { DOMInterface } from '../interfaces/dom-interface';
+import { DOMInterface } from '../interfaces/dom-interface.js';
 /**
  * DOMインタフェースの実装
  * 実際のDOM操作を行う

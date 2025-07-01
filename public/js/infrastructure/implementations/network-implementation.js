@@ -1,4 +1,4 @@
-import { NetworkInterface } from '../interfaces/network-interface';
+import { NetworkInterface } from '../interfaces/network-interface.js';
 /**
  * ネットワークインタフェースの実装
  * 実際のHTTP通信を行う

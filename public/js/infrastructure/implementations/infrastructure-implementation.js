@@ -1,8 +1,8 @@
-import { Infrastructure } from '../interfaces/infrastructure';
-import { DOMImplementation } from './dom-implementation';
-import { NetworkImplementation } from './network-implementation';
-import { StorageImplementation } from './storage-implementation';
-import { BrowserAPIImplementation } from './browser-api-implementation';
+import { Infrastructure } from '../interfaces/infrastructure.js';
+import { DOMImplementation } from './dom-implementation.js';
+import { NetworkImplementation } from './network-implementation.js';
+import { StorageImplementation } from './storage-implementation.js';
+import { BrowserAPIImplementation } from './browser-api-implementation.js';
 /**
  * インフラストラクチャー層の実装
  * 全ての副作用を持つ実装を統合

@@ -38,6 +38,9 @@ npm run lint                   # ESLint実行
 npm run lint:fix               # ESLint自動修正
 npm run format                 # Prettierフォーマット
 npm run format:check           # フォーマットチェック
+
+# 保存済みレイアウトデータ削除
+rm -f ./data/*
 ```
 
 ## 開発フロー

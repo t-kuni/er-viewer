@@ -1311,14 +1311,41 @@ export class ERViewerApplication {
       if (response.ok) {
         const erData = (await response.json()) as ERData;
 
-        // Clear existing positions to force clustering
+        // Incremental reverse engineering: preserve existing layout
+        const currentLayout = this.state.layoutData;
+        const currentEntities = new Set(this.state.erData?.entities.map(e => e.name) || []);
+        const newEntities = new Set(erData.entities.map(e => e.name));
+
+        // Create new layout data preserving existing positions
+        const newLayoutData: LayoutData = {
+          entities: {},
+          rectangles: currentLayout.rectangles || [],
+          texts: currentLayout.texts || [],
+          layers: currentLayout.layers || []
+        };
+
+        // Process each entity
         erData.entities.forEach((entity) => {
-          delete entity.position;
+          if (currentEntities.has(entity.name) && currentLayout.entities[entity.name]) {
+            // Existing entity: preserve its layout
+            entity.position = currentLayout.entities[entity.name].position;
+            newLayoutData.entities[entity.name] = currentLayout.entities[entity.name];
+          } else {
+            // New entity: will be clustered
+            delete entity.position;
+          }
+        });
+
+        // Remove layout data for deleted entities
+        Object.keys(currentLayout.entities).forEach(entityName => {
+          if (!newEntities.has(entityName)) {
+            delete newLayoutData.entities[entityName];
+          }
         });
 
         this.setState({
           erData,
-          layoutData: erData.layout || { entities: {}, rectangles: [], texts: [] },
+          layoutData: newLayoutData,
         });
       } else {
         const errorText = await response.text();

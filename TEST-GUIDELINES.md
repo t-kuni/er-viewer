@@ -141,10 +141,22 @@ test('複数のエンティティが正しくクラスタリングされる', ()
   // Act
   app.render();
   
-  // Assert - 各エンティティを明示的に検証
-  expect(app.state.clusteredPositions.get('users')).toEqual({ x: 50, y: 50 });
-  expect(app.state.clusteredPositions.get('posts')).toEqual({ x: 300, y: 50 });
-  expect(app.state.clusteredPositions.get('comments')).toEqual({ x: 50, y: 250 });
+  // Assert - 各エンティティの描画を検証
+  expect(infrastructure.dom.setAttribute).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'entity-users' }),
+    'transform',
+    'translate(50, 50)'
+  );
+  expect(infrastructure.dom.setAttribute).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'entity-posts' }),
+    'transform',
+    'translate(300, 50)'
+  );
+  expect(infrastructure.dom.setAttribute).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'entity-comments' }),
+    'transform',
+    'translate(50, 250)'
+  );
 });
 ```
 

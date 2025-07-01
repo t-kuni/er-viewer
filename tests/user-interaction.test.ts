@@ -200,18 +200,39 @@ describe('ユーザーインタラクション', () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
     let app: any = new ERViewerApplication(infrastructure);
-    const initialRectCount = app.state.layoutData.rectangles.length;
+    
+    // DOM操作をスパイ
+    const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
+    const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+    const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
+    const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
+    const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
 
     // Act
     app.addRectangleAtPosition(200, 200);
 
-    // Assert
-    expect(app.state.layoutData.rectangles.length).toBe(initialRectCount + 1);
-    const newRect = app.state.layoutData.rectangles[app.state.layoutData.rectangles.length - 1];
-    expect(newRect.x).toBe(200);
-    expect(newRect.y).toBe(200);
-    expect(newRect.width).toBe(100);
-    expect(newRect.height).toBe(60);
+    // Assert - render()が呼ばれてannotation-layerがクリアされる
+    expect(getElementByIdSpy).toHaveBeenCalledWith('annotation-layer');
+    expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), '');
+    
+    // 矩形要素の作成を検証
+    expect(createElementSpy).toHaveBeenCalledWith('rect', 'http://www.w3.org/2000/svg');
+    
+    // 矩形の属性設定を検証
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'class', 'annotation-rectangle');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'x', '200');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '200');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'width', '100');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'height', '60');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'fill', '#e3f2fd');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'stroke', '#e3f2fd'); // colorが設定されているため同じ値
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'stroke-width', '2');
+    
+    // DOM要素の追加を検証
+    expect(appendChildSpy).toHaveBeenCalledWith(
+      expect.anything(), // annotation-layer
+      expect.anything()  // rectElement
+    );
     
     // Cleanup
     app = null;
@@ -225,10 +246,16 @@ describe('ユーザーインタラクション', () => {
     };
     infrastructure.setupMockData(mockData);
     let app: any = new ERViewerApplication(infrastructure);
-    const initialTextCount = app.state.layoutData.texts.length;
     
     // BrowserAPI操作をスパイ
     const promptSpy = jest.spyOn(infrastructure.browserAPI, 'prompt');
+    
+    // DOM操作をスパイ
+    const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
+    const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+    const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
+    const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
+    const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
 
     // Act
     app.addTextAtPosition(300, 300);
@@ -244,12 +271,26 @@ describe('ユーザーインタラクション', () => {
     expect(prompts[0].response).toBe('テストテキスト');
     expect(prompts[0].timestamp).toBeDefined();
     
-    // レイアウトデータの検証
-    expect(app.state.layoutData.texts.length).toBe(initialTextCount + 1);
-    const newText = app.state.layoutData.texts[app.state.layoutData.texts.length - 1];
-    expect(newText.x).toBe(300);
-    expect(newText.y).toBe(300);
-    expect(newText.content).toBe('テストテキスト');
+    // render()が呼ばれてannotation-layerがクリアされる
+    expect(getElementByIdSpy).toHaveBeenCalledWith('annotation-layer');
+    expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), '');
+    
+    // テキスト要素の作成を検証
+    expect(createElementSpy).toHaveBeenCalledWith('text', 'http://www.w3.org/2000/svg');
+    
+    // テキストの属性設定を検証
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'class', 'annotation-text');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'x', '300');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '300');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'fill', '#2c3e50');
+    expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'font-size', '14');
+    expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), 'テストテキスト');
+    
+    // DOM要素の追加を検証
+    expect(appendChildSpy).toHaveBeenCalledWith(
+      expect.anything(), // annotation-layer
+      expect.anything()  // textElement
+    );
     
     // Cleanup
     app = null;
@@ -263,10 +304,13 @@ describe('ユーザーインタラクション', () => {
     };
     infrastructure.setupMockData(mockData);
     let app: any = new ERViewerApplication(infrastructure);
-    const initialTextCount = app.state.layoutData.texts.length;
     
     // BrowserAPI操作をスパイ
     const promptSpy = jest.spyOn(infrastructure.browserAPI, 'prompt');
+    
+    // DOM操作をスパイ  
+    const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
+    const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
 
     // Act
     app.addTextAtPosition(400, 400);
@@ -282,8 +326,20 @@ describe('ユーザーインタラクション', () => {
     expect(prompts[0].response).toBeNull(); // nullが正しく処理される
     expect(prompts[0].timestamp).toBeDefined();
     
-    // レイアウトデータは変更されていないことを検証
-    expect(app.state.layoutData.texts.length).toBe(initialTextCount);
+    // キャンセルされた場合、render()が呼ばれないことを検証
+    // text要素が作成されないことを確認
+    const textElementCalls = createElementSpy.mock.calls.filter(
+      call => call[0] === 'text'
+    );
+    expect(textElementCalls.length).toBe(0);
+    
+    // annotation-layerにテキスト要素が追加されないことを確認
+    const appendCalls = appendChildSpy.mock.calls;
+    const textAppendCalls = appendCalls.filter(call => {
+      const element = call[1];
+      return element && element.tagName === 'text';
+    });
+    expect(textAppendCalls.length).toBe(0);
     
     // Cleanup
     app = null;

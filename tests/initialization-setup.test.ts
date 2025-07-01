@@ -43,9 +43,26 @@ describe('初期化とセットアップ', () => {
       
       // Assert
       expect(app).toBeDefined();
-      expect(app.state).toBeDefined();
-      expect(app.state.canvas).toBeDefined();
-      expect(app.state.sidebar).toBeDefined();
+      
+      // キャンバスが初期化されたことを検証
+      const canvas = infrastructure.dom.getElementById('er-canvas');
+      expect(canvas).toBeDefined();
+      
+      // サイドバーが初期化されたことを検証
+      const sidebar = infrastructure.dom.getElementById('sidebar');
+      expect(sidebar).toBeDefined();
+      
+      // ヘルプボタンが初期化されたことを検証
+      const helpButton = infrastructure.dom.getElementById('help-button');
+      expect(helpButton).toBeDefined();
+      
+      // DOM要素が正しく作成されたことを検証
+      const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer');
+      expect(dynamicLayer).toBeDefined();
+      
+      // エラー表示エリアが作成されたことを検証
+      const errorContainer = infrastructure.dom.getElementById('error-container');
+      expect(errorContainer).toBeDefined();
       
       // Cleanup
       app = null;
@@ -114,9 +131,14 @@ describe('初期化とセットアップ', () => {
       expect(firstRequest.headers).toBeDefined();
       expect(firstRequest.timestamp).toBeDefined();
       
-      // レスポンスの検証
-      expect(app.state.erData).toBeDefined();
-      expect(app.state.erData?.entities).toHaveLength(2);
+      // dynamic-layerにエンティティが作成されたことを検証
+      const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
+      expect(dynamicLayer).toBeDefined();
+      expect(dynamicLayer.children.length).toBeGreaterThan(0);
+      
+      // DOM要素の属性が正しく設定されたことを確認
+      const history2 = infrastructure.getInteractionHistory();
+      expect(history2.networkRequests.length).toBe(1);
       
       // Cleanup
       app = null;

@@ -77,6 +77,11 @@ export abstract class DOMInterface implements IDOMInterface {
   abstract setInnerHTML(element: Element, html: string): void;
 
   /**
+   * 要素のテキストコンテンツを設定
+   */
+  abstract setTextContent(element: Element, text: string): void;
+
+  /**
    * イベントリスナーを追加
    */
   abstract addEventListener(

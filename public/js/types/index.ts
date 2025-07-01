@@ -95,7 +95,7 @@ export interface LayoutData {
   entities: Record<string, EntityLayout>;
   rectangles: Rectangle[];
   texts: Text[];
-  layers?: Layer[];
+  layers: Layer[];
 }
 
 // Viewport state for pan and zoom

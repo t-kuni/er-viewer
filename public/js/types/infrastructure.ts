@@ -58,6 +58,7 @@ export interface DOMInterface {
 
   // Content
   setInnerHTML(element: Element, html: string): void;
+  setTextContent(element: Element, text: string): void;
 
   // Events
   addEventListener(element: Element, event: string, handler: EventHandler, options?: EventListenerOptions): void;

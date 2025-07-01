@@ -42,12 +42,11 @@ describe('エラーハンドリング', () => {
     // Act - ネットワークエラーをシミュレート
     const getJSONSpy = jest.spyOn(infrastructure.network, 'getJSON');
     
-    // エラーレスポンスが返されることを確認
-    const response = await infrastructure.network.getJSON('/api/er-data');
+    // エラーがスローされることを期待
+    await expect(infrastructure.network.getJSON('/api/er-data')).rejects.toThrow('HTTP error! status: 500');
     
     // Assert
     expect(getJSONSpy).toHaveBeenCalledWith('/api/er-data');
-    expect(response.status).toBe(500);
     
     // エラーハンドリングが適切に処理されたことを検証
     // ネットワークエラーが発生してもアプリケーションがクラッシュしないことが重要

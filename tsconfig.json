@@ -43,6 +43,7 @@
     "checkJs": false,
     "incremental": true,
     "tsBuildInfoFile": "./.tsbuildinfo",
+    "isolatedModules": true,
 
     // パス設定
     "baseUrl": "./",

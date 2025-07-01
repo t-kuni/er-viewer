@@ -70,6 +70,10 @@ export class DOMImplementation extends DOMInterface {
     element.innerHTML = html;
   }
 
+  setTextContent(element: Element, text: string): void {
+    element.textContent = text;
+  }
+
   addEventListener(element: Element, event: string, handler: EventHandler, options?: AddEventListenerOptions): void {
     element.addEventListener(event, handler as EventListener, options);
 

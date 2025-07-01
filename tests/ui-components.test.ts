@@ -341,7 +341,7 @@ describe('UIコンポーネント', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       const app = new ERViewerApplication(infrastructure);
-      const createElementSvgSpy = jest.spyOn(infrastructure.dom, 'createElementSvg');
+      const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
       const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
@@ -354,16 +354,16 @@ describe('UIコンポーネント', () => {
       const mouseDownEvent = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       canvas.dispatchEvent(mouseDownEvent);
       
-      // マウスムーブ（キャンバスレベルで）
+      // マウスムーブ（ドキュメントレベルで）
       const mouseMoveEvent = new MouseEvent('mousemove', { clientX: 200, clientY: 150 });
-      canvas.dispatchEvent(mouseMoveEvent);
+      infrastructure.dom.getDocumentElement().dispatchEvent(mouseMoveEvent);
       
       // マウスアップ（ドキュメントレベルで）
       const mouseUpEvent = new MouseEvent('mouseup', { clientX: 200, clientY: 150 });
       infrastructure.dom.getDocumentElement().dispatchEvent(mouseUpEvent);
       
       // Assert - 矩形要素が作成される
-      expect(createElementSvgSpy).toHaveBeenCalledWith('rect');
+      expect(createElementSpy).toHaveBeenCalledWith('rect', 'http://www.w3.org/2000/svg');
       expect(appendChildSpy).toHaveBeenCalled();
       
       // 矩形の属性が設定される
@@ -381,32 +381,53 @@ describe('UIコンポーネント', () => {
     test('矩形の色を変更できる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        erData: createERData({
-          entities: [],
-          layout: {
-            entities: {},
-            rectangles: [{
-              id: 'rect-1',
-              x: 100,
-              y: 100,
-              width: 100,
-              height: 50,
-              color: '#ffffff',
-              stroke: '#000000',
-              strokeWidth: 1
-            }],
-            texts: []
-          }
-        })
-      };
-      infrastructure.setupMockData(mockData);
+      
+      // Mock the network getJSON to return ER data with rectangles
+      const mockERData = createERData({
+        entities: [],
+        layout: {
+          entities: {},
+          rectangles: [{
+            id: 'rect-1',
+            x: 100,
+            y: 100,
+            width: 100,
+            height: 50,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeWidth: 1
+          }],
+          texts: []
+        }
+      });
+      
+      jest.spyOn(infrastructure.network, 'getJSON').mockResolvedValue(mockERData);
+      
+      // Create spy BEFORE any setAttribute calls
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      
+      // Create mock rectangle element that will be found by querySelector
+      const mockRectElement = infrastructure.dom.createElement('rect', 'http://www.w3.org/2000/svg');
+      infrastructure.dom.setAttribute(mockRectElement, 'data-rect-id', 'rect-1');
+      
+      // Mock querySelector to return our element
+      jest.spyOn(infrastructure.dom, 'querySelector').mockImplementation((selector) => {
+        if (selector === '[data-rect-id="rect-1"]') {
+          return mockRectElement;
+        }
+        return null;
+      });
       
       const app = new ERViewerApplication(infrastructure);
+      
+      // Manually call initialize to ensure canvas is set up
+      (app as any).initialize();
+      
       await app.loadERData();
       await waitForAsync();
       
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      // Clear previous calls from setup
+      setAttributeSpy.mockClear();
       
       // Act - 矩形の色を変更
       app.updateRectangle('rect-1', {
@@ -415,39 +436,56 @@ describe('UIコンポーネント', () => {
       });
       
       // Assert - DOM要素の属性が更新される
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'fill', '#ff0000');
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'stroke', '#00ff00');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'fill', '#ff0000');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'stroke', '#00ff00');
     });
 
     test('矩形のサイズと位置を変更できる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockData: MockData = {
-        erData: createERData({
-          entities: [],
-          layout: {
-            entities: {},
-            rectangles: [{
-              id: 'rect-1',
-              x: 100,
-              y: 100,
-              width: 100,
-              height: 50,
-              color: '#ffffff',
-              stroke: '#000000',
-              strokeWidth: 1
-            }],
-            texts: []
-          }
-        })
-      };
-      infrastructure.setupMockData(mockData);
+      
+      // Mock the network getJSON to return ER data with rectangles
+      const mockERData = createERData({
+        entities: [],
+        layout: {
+          entities: {},
+          rectangles: [{
+            id: 'rect-1',
+            x: 100,
+            y: 100,
+            width: 100,
+            height: 50,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeWidth: 1
+          }],
+          texts: []
+        }
+      });
+      
+      jest.spyOn(infrastructure.network, 'getJSON').mockResolvedValue(mockERData);
+      
+      // Create spy BEFORE any setAttribute calls
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      
+      // Create mock rectangle element that will be found by querySelector
+      const mockRectElement = infrastructure.dom.createElement('rect', 'http://www.w3.org/2000/svg');
+      infrastructure.dom.setAttribute(mockRectElement, 'data-rect-id', 'rect-1');
+      
+      // Mock querySelector to return our element
+      jest.spyOn(infrastructure.dom, 'querySelector').mockImplementation((selector) => {
+        if (selector === '[data-rect-id="rect-1"]') {
+          return mockRectElement;
+        }
+        return null;
+      });
       
       const app = new ERViewerApplication(infrastructure);
       await app.loadERData();
       await waitForAsync();
       
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      // Clear previous calls from setup
+      setAttributeSpy.mockClear();
       
       // Act - 矩形のサイズと位置を変更
       app.updateRectangle('rect-1', {
@@ -458,10 +496,10 @@ describe('UIコンポーネント', () => {
       });
       
       // Assert - DOM要素の属性が更新される
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'x', '150');
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '120');
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'width', '200');
-      expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'height', '80');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'x', '150');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'y', '120');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'width', '200');
+      expect(setAttributeSpy).toHaveBeenCalledWith(mockRectElement, 'height', '80');
     });
 
     test('矩形データがレイアウトデータに含まれて保存される', async () => {
@@ -475,6 +513,10 @@ describe('UIコンポーネント', () => {
       infrastructure.setupMockData(mockData);
       
       const app = new ERViewerApplication(infrastructure);
+      
+      // Initialize app to set up canvas
+      (app as any).initialize();
+      
       const postJSONSpy = jest.spyOn(infrastructure.network, 'postJSON');
       
       // 矩形描画モードを開始
@@ -483,13 +525,26 @@ describe('UIコンポーネント', () => {
       // マウス操作で矩形を描画
       const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
       
+      // Setup getBoundingClientRect mock to return proper values
+      jest.spyOn(infrastructure.dom, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 800,
+        bottom: 600,
+        width: 800,
+        height: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => ({})
+      });
+      
       // マウスダウン
       const mouseDownEvent = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       canvas.dispatchEvent(mouseDownEvent);
       
-      // マウスムーブ
+      // マウスムーブ (to make the rectangle have size)
       const mouseMoveEvent = new MouseEvent('mousemove', { clientX: 200, clientY: 150 });
-      canvas.dispatchEvent(mouseMoveEvent);
+      infrastructure.dom.getDocumentElement().dispatchEvent(mouseMoveEvent);
       
       // マウスアップ
       const mouseUpEvent = new MouseEvent('mouseup', { clientX: 200, clientY: 150 });
@@ -524,23 +579,36 @@ describe('UIコンポーネント', () => {
       };
       infrastructure.setupMockData(mockData);
       
+      // Mock prompt to return text
+      jest.spyOn(infrastructure.browserAPI, 'prompt').mockReturnValue('サンプルテキスト');
+      
       const app = new ERViewerApplication(infrastructure);
+      
+      // Initialize app to set up canvas
+      (app as any).initialize();
+      
       const postJSONSpy = jest.spyOn(infrastructure.network, 'postJSON');
+      
+      // Setup getBoundingClientRect mock
+      jest.spyOn(infrastructure.dom, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 800,
+        bottom: 600,
+        width: 800,
+        height: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => ({})
+      });
       
       // テキストモードを開始
       app.startTextDrawingMode();
       
-      // テキストを作成
+      // テキストを作成 - mousedown instead of click
       const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
-      const clickEvent = new MouseEvent('click', { clientX: 200, clientY: 150 });
-      canvas.dispatchEvent(clickEvent);
-      
-      // テキスト入力フォームが表示されるので、入力して保存
-      const textInput = infrastructure.dom.getElementById('text-input') as MockElement;
-      (textInput as any).value = 'サンプルテキスト';
-      
-      const saveTextBtn = infrastructure.dom.getElementById('save-text-btn') as MockElement;
-      saveTextBtn.dispatchEvent(new Event('click'));
+      const mouseDownEvent = new MouseEvent('mousedown', { clientX: 200, clientY: 150 });
+      canvas.dispatchEvent(mouseDownEvent);
       
       // Act - レイアウトを保存
       await app.saveLayout();
@@ -551,7 +619,9 @@ describe('UIコンポーネント', () => {
         expect.objectContaining({
           texts: expect.arrayContaining([
             expect.objectContaining({
-              content: 'サンプルテキスト'
+              content: 'サンプルテキスト',
+              x: 200,
+              y: 150
             })
           ])
         })

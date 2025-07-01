@@ -28,20 +28,20 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
+    // mousemoveはdocumentに対して発火する必要がある
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
-    // Assert - レイヤーリストに新しいレイヤーアイテムが追加される
-    const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
-    // レイヤーリストにレイヤーアイテムが追加されているか確認
-    expect(appendChildSpy).toHaveBeenCalledWith(
-      layerList,
-      expect.objectContaining({
-        classList: expect.objectContaining({
-          classes: expect.any(Set)
-        })
-      })
-    );
+    // Assert - レイヤーリストにレイヤーアイテムが存在する
+    const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
+    expect(layerItems.length).toBeGreaterThanOrEqual(2); // デフォルトのER図 + 矩形1
+    
+    // 矩形レイヤーが追加されているか確認
+    const rectangleLayer = Array.from(layerItems).find(item => {
+      const innerHTML = (item as MockElement).innerHTML;
+      return innerHTML.includes('矩形No');
+    });
+    expect(rectangleLayer).toBeTruthy();
   });
 
   test('レイヤーアイテムがドラッグ可能である', () => {
@@ -49,20 +49,18 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
-    // レイヤーアイテムを取得
-    const layerList = infrastructure.dom.getElementById('layer-list') as MockElement;
+    // Assert - レイヤーアイテムを取得してdraggable属性を確認
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
+    expect(layerItems.length).toBeGreaterThanOrEqual(2);
     
-    // Assert - レイヤーアイテムにdraggable属性が設定されている
-    const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
-    expect(setAttributeSpy).toHaveBeenCalledWith(
-      expect.any(Object),
-      'draggable',
-      'true'
-    );
+    // 各レイヤーアイテムがdraggable属性を持っているか確認
+    layerItems.forEach(item => {
+      const draggable = infrastructure.dom.getAttribute(item, 'draggable');
+      expect(draggable).toBe('true');
+    });
   });
 
   test('レイヤーアイテムをドラッグ&ドロップで順番を入れ替えられる', () => {
@@ -71,13 +69,13 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
     // 矩形2を追加
     app.startRectangleDrawingMode();
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
     // レイヤーアイテムを取得
@@ -109,9 +107,9 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     
     // Assert - レイヤーの順番が変更される
     const updatedLayerItems = infrastructure.dom.querySelectorAll('.layer-item');
-    // ドラッグ&ドロップ後の順番を確認
-    expect(updatedLayerItems[1]).toBe(secondItem);
-    expect(updatedLayerItems[2]).toBe(firstItem);
+    // ドラッグ&ドロップ後の順番を確認（内容で比較）
+    expect((updatedLayerItems[1] as MockElement).innerHTML).toContain('矩形No2');
+    expect((updatedLayerItems[2] as MockElement).innerHTML).toContain('矩形No1');
   });
 
   test('ドラッグ中にレイヤーアイテムに視覚的フィードバックがある', () => {
@@ -119,7 +117,7 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
@@ -151,12 +149,12 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
     app.startRectangleDrawingMode();
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 100 }));
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
+    infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
     
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');

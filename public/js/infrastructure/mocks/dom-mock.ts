@@ -151,6 +151,14 @@ export class MockElement implements MockElementAttributes {
       const className = selector.substring(1);
       return this.findByClass(className);
     }
+    if (selector.startsWith('[') && selector.endsWith(']')) {
+      // Handle attribute selector
+      const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
+      if (attributeMatch) {
+        const [, attrName, attrValue] = attributeMatch;
+        return this.findByAttribute(attrName, attrValue);
+      }
+    }
     return this.findByTag(selector);
   }
 
@@ -216,6 +224,21 @@ export class MockElement implements MockElementAttributes {
     return null;
   }
 
+  findByAttribute(attrName: string, attrValue: string): MockElement | null {
+    if (this.getAttribute(attrName) === attrValue) {
+      return this;
+    }
+    for (const child of this.children) {
+      if (child.findByAttribute) {
+        const found = child.findByAttribute(attrName, attrValue);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
   closest(selector: string): MockElement | null {
     let current: MockElement | null = this;
     while (current) {
@@ -233,6 +256,14 @@ export class MockElement implements MockElementAttributes {
     }
     if (selector.startsWith('.')) {
       return this.classList.contains(selector.substring(1));
+    }
+    if (selector.startsWith('[') && selector.endsWith(']')) {
+      // Handle attribute selector
+      const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
+      if (attributeMatch) {
+        const [, attrName, attrValue] = attributeMatch;
+        return this.getAttribute(attrName) === attrValue;
+      }
     }
     return this.tagName === selector.toLowerCase();
   }
@@ -364,6 +395,27 @@ export class DOMMock extends DOMInterface {
       }),
     };
     this.body.appendChild(canvas);
+    
+    // Create SVG structure
+    const mainGroup = new MockElement('g', 'http://www.w3.org/2000/svg');
+    mainGroup.setAttribute('id', 'main-group');
+    canvas.appendChild(mainGroup);
+    
+    const staticLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
+    staticLayer.setAttribute('id', 'static-layer');
+    mainGroup.appendChild(staticLayer);
+    
+    const dynamicLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
+    dynamicLayer.setAttribute('id', 'dynamic-layer');
+    mainGroup.appendChild(dynamicLayer);
+    
+    const annotationLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
+    annotationLayer.setAttribute('id', 'annotation-layer');
+    mainGroup.appendChild(annotationLayer);
+    
+    const highlightLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
+    highlightLayer.setAttribute('id', 'highlight-layer');
+    mainGroup.appendChild(highlightLayer);
 
     // Create mock layer sidebar
     const layerSidebar = new MockElement('div');
@@ -375,6 +427,12 @@ export class DOMMock extends DOMInterface {
     collapseLayerSidebarBtn.setAttribute('id', 'collapse-layer-sidebar');
     collapseLayerSidebarBtn.classList.add('collapse-btn');
     layerSidebar.appendChild(collapseLayerSidebarBtn);
+
+    // Create mock layer list
+    const layerList = new MockElement('div');
+    layerList.setAttribute('id', 'layer-list');
+    layerList.classList.add('layer-list');
+    layerSidebar.appendChild(layerList);
 
     // Create mock sidebar
     const sidebar = new MockElement('div');
@@ -520,6 +578,13 @@ export class DOMMock extends DOMInterface {
     const mockElement = element as unknown as MockElement;
     mockElement.innerHTML = html;
     mockElement.textContent = html.replace(/<[^>]*>/g, '');
+    // Clear children when innerHTML is set (mimics real DOM behavior)
+    mockElement.children = [];
+  }
+
+  setTextContent(element: Element, text: string): void {
+    const mockElement = element as unknown as MockElement;
+    mockElement.textContent = text;
   }
 
   addEventListener(element: Element, event: string, handler: EventHandler, options?: EventListenerOptions): void {

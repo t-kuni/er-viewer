@@ -1,4 +1,5 @@
 import type { LayoutData, Layer as BaseLayer } from './types/index.js';
+import type { Infrastructure } from './types/infrastructure.js';
 
 // Extended Layer type for Layer Manager that includes UI-specific properties
 interface LayerData extends BaseLayer {
@@ -27,22 +28,24 @@ interface LayerElement extends HTMLDivElement {
 export class LayerManager {
   private layers: Layer[] = [];
   private layerCounter: number = 0;
-  private draggedItem: LayerElement | null = null;
+  private draggedItem: Element | null = null;
   private isCollapsed: boolean = false;
   private readonly stateManager: StateManager | null;
+  private readonly infra: Infrastructure | null;
 
   // DOM elements
-  private sidebar: HTMLElement | null = null;
-  private layerList: HTMLElement | null = null;
-  private collapseBtn: HTMLElement | null = null;
-  private resizeHandle: HTMLElement | null = null;
+  private sidebar: Element | null = null;
+  private layerList: Element | null = null;
+  private collapseBtn: Element | null = null;
+  private resizeHandle: Element | null = null;
 
-  constructor(stateManager: StateManager | null = null) {
+  constructor(stateManager: StateManager | null = null, infra: Infrastructure | null = null) {
     this.stateManager = stateManager;
+    this.infra = infra;
 
     this.initializeElements();
     this.setupEventListeners();
-    this.loadCollapsedState();
+    // Collapsed state is handled by ERViewerApplication
 
     // Add default ER diagram layer
     this.addLayer('er-diagram', 'ER図', '🗂️');
@@ -134,17 +137,21 @@ export class LayerManager {
 
   private saveLayersToState(): void {
     if (this.stateManager) {
-      const currentLayoutData = this.stateManager.get('layoutData') || { entities: {}, rectangles: [], texts: [] };
-      const layerData: BaseLayer[] = this.layers.map((layer) => ({
+      const currentLayoutData = this.stateManager.get('layoutData') || { entities: {}, rectangles: [], texts: [], layers: [] };
+      // Save full layer information including type, icon, and order
+      const layerData: Layer[] = this.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,
+        type: layer.type,
+        icon: layer.icon,
+        order: layer.order,
         visible: layer.visible,
         zIndex: layer.zIndex,
       }));
 
       const newLayoutData: LayoutData = {
         ...currentLayoutData,
-        layers: layerData,
+        layers: layerData as BaseLayer[],
       };
 
       this.stateManager.updateLayoutData(newLayoutData);
@@ -152,19 +159,22 @@ export class LayerManager {
   }
 
   private initializeElements(): void {
-    this.sidebar = document.getElementById('layer-sidebar');
-    this.layerList = document.getElementById('layer-list');
-    this.collapseBtn = document.getElementById('collapse-layer-sidebar');
-    this.resizeHandle = this.sidebar ? this.sidebar.querySelector('.layer-sidebar-resize-handle') : null;
+    if (!this.infra) {
+      this.sidebar = document.getElementById('layer-sidebar');
+      this.layerList = document.getElementById('layer-list');
+      this.collapseBtn = document.getElementById('collapse-layer-sidebar');
+      this.resizeHandle = this.sidebar ? this.sidebar.querySelector('.layer-sidebar-resize-handle') : null;
+    } else {
+      this.sidebar = this.infra.dom.getElementById('layer-sidebar');
+      this.layerList = this.infra.dom.getElementById('layer-list');
+      this.collapseBtn = this.infra.dom.getElementById('collapse-layer-sidebar');
+      this.resizeHandle = this.sidebar ? this.infra.dom.querySelector('.layer-sidebar-resize-handle') : null;
+    }
   }
 
   private setupEventListeners(): void {
-    // Collapse/expand functionality
-    if (this.collapseBtn) {
-      this.collapseBtn.addEventListener('click', () => {
-        this.toggleCollapse();
-      });
-    }
+    // Collapse/expand functionality is handled by ERViewerApplication
+    // so we don't set it up here to avoid duplicate event handlers
 
     // Resize functionality
     this.setupResizeHandle();
@@ -211,31 +221,7 @@ export class LayerManager {
     });
   }
 
-  private toggleCollapse(): void {
-    this.isCollapsed = !this.isCollapsed;
-    if (this.sidebar) {
-      this.sidebar.classList.toggle('collapsed', this.isCollapsed);
-    }
-
-    // Update button text
-    if (this.collapseBtn) {
-      this.collapseBtn.textContent = this.isCollapsed ? '▶' : '◀';
-    }
-
-    // Save state
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('layerSidebarCollapsed', String(this.isCollapsed));
-    }
-  }
-
-  private loadCollapsedState(): void {
-    if (typeof localStorage !== 'undefined') {
-      const savedState = localStorage.getItem('layerSidebarCollapsed');
-      if (savedState === 'true') {
-        this.toggleCollapse();
-      }
-    }
-  }
+  // Collapse functionality is handled by ERViewerApplication
 
   public addLayer(type: Layer['type'], name: string, icon: string = '📄'): Layer {
     const layer: Layer = {
@@ -280,7 +266,11 @@ export class LayerManager {
       return;
     }
 
-    this.layerList.innerHTML = '';
+    if (!this.infra) {
+      this.layerList.innerHTML = '';
+    } else {
+      this.infra.dom.setInnerHTML(this.layerList, '');
+    }
 
     // Sort layers by order (top to bottom in list = front to back in rendering)
     const sortedLayers = [...this.layers].sort((a, b) => a.order - b.order);
@@ -288,28 +278,44 @@ export class LayerManager {
     sortedLayers.forEach((layer) => {
       const layerElement = this.createLayerElement(layer);
       if (this.layerList) {
-        this.layerList.appendChild(layerElement);
+        if (!this.infra) {
+          this.layerList.appendChild(layerElement);
+        } else {
+          this.infra.dom.appendChild(this.layerList, layerElement);
+        }
       }
     });
 
     this.setupDragAndDrop();
   }
 
-  private createLayerElement(layer: Layer): HTMLDivElement {
-    if (typeof document === 'undefined') {
+  private createLayerElement(layer: Layer): Element {
+    if (typeof document === 'undefined' && !this.infra) {
       const div = { className: 'layer-item', dataset: {}, setAttribute: () => {}, innerHTML: '' } as any;
       return div;
     }
 
-    const div = document.createElement('div');
-    div.className = 'layer-item';
-    (div as LayerElement).dataset.layerId = layer.id;
-    div.setAttribute('draggable', 'true');
-
-    div.innerHTML = `
+    const div = this.infra 
+      ? this.infra.dom.createElement('div')
+      : document.createElement('div');
+    
+    if (!this.infra) {
+      div.className = 'layer-item';
+      (div as LayerElement).dataset.layerId = layer.id;
+      div.setAttribute('draggable', 'true');
+      div.innerHTML = `
             <span class="layer-item-icon">${layer.icon}</span>
             <span class="layer-item-text">${layer.name}</span>
         `;
+    } else {
+      this.infra.dom.addClass(div, 'layer-item');
+      this.infra.dom.setAttribute(div, 'data-layer-id', layer.id);
+      this.infra.dom.setAttribute(div, 'draggable', 'true');
+      this.infra.dom.setInnerHTML(div, `
+            <span class="layer-item-icon">${layer.icon}</span>
+            <span class="layer-item-text">${layer.name}</span>
+        `);
+    }
 
     return div;
   }
@@ -319,44 +325,84 @@ export class LayerManager {
       return;
     }
 
-    const layerItems = this.layerList.querySelectorAll<LayerElement>('.layer-item');
+    const layerItems = this.infra 
+      ? this.infra.dom.querySelectorAll('.layer-item')
+      : this.layerList.querySelectorAll<LayerElement>('.layer-item');
 
     layerItems.forEach((item) => {
-      item.addEventListener('dragstart', (e: DragEvent) => {
-        this.draggedItem = item;
-        item.classList.add('dragging');
-        if (e.dataTransfer) {
-          e.dataTransfer.effectAllowed = 'move';
-        }
-      });
+      if (!this.infra) {
+        item.addEventListener('dragstart', (e: DragEvent) => {
+          this.draggedItem = item;
+          item.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+          }
+        });
 
-      item.addEventListener('dragend', () => {
-        if (this.draggedItem) {
-          this.draggedItem.classList.remove('dragging');
-          this.draggedItem = null;
-        }
-      });
+        item.addEventListener('dragend', () => {
+          if (this.draggedItem) {
+            (this.draggedItem as HTMLElement).classList.remove('dragging');
+            this.draggedItem = null;
+          }
+        });
 
-      item.addEventListener('dragover', (e: DragEvent) => {
-        e.preventDefault();
-        if (e.dataTransfer) {
-          e.dataTransfer.dropEffect = 'move';
-        }
-      });
+        item.addEventListener('dragover', (e: DragEvent) => {
+          e.preventDefault();
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+          }
+        });
 
-      item.addEventListener('drop', (e: DragEvent) => {
-        e.preventDefault();
+        item.addEventListener('drop', (e: DragEvent) => {
+          e.preventDefault();
 
-        if (this.draggedItem && this.draggedItem !== item) {
-          this.reorderLayers(this.draggedItem, item);
-        }
-      });
+          if (this.draggedItem && this.draggedItem !== item) {
+            this.reorderLayers(this.draggedItem as LayerElement, item as LayerElement);
+          }
+        });
+      } else {
+        this.infra.dom.addEventListener(item, 'dragstart', (e: Event) => {
+          this.draggedItem = item;
+          this.infra!.dom.addClass(item, 'dragging');
+          const dragEvent = e as DragEvent;
+          if (dragEvent.dataTransfer) {
+            dragEvent.dataTransfer.effectAllowed = 'move';
+          }
+        });
+
+        this.infra.dom.addEventListener(item, 'dragend', () => {
+          if (this.draggedItem) {
+            this.infra!.dom.removeClass(this.draggedItem, 'dragging');
+            this.draggedItem = null;
+          }
+        });
+
+        this.infra.dom.addEventListener(item, 'dragover', (e: Event) => {
+          e.preventDefault();
+          const dragEvent = e as DragEvent;
+          if (dragEvent.dataTransfer) {
+            dragEvent.dataTransfer.dropEffect = 'move';
+          }
+        });
+
+        this.infra.dom.addEventListener(item, 'drop', (e: Event) => {
+          e.preventDefault();
+
+          if (this.draggedItem && this.draggedItem !== item) {
+            this.reorderLayers(this.draggedItem, item);
+          }
+        });
+      }
     });
   }
 
-  private reorderLayers(draggedElement: LayerElement, targetElement: LayerElement): void {
-    const draggedLayerId = draggedElement.dataset.layerId;
-    const targetLayerId = targetElement.dataset.layerId;
+  private reorderLayers(draggedElement: Element, targetElement: Element): void {
+    const draggedLayerId = this.infra 
+      ? this.infra.dom.getAttribute(draggedElement, 'data-layer-id')
+      : (draggedElement as LayerElement).dataset.layerId;
+    const targetLayerId = this.infra 
+      ? this.infra.dom.getAttribute(targetElement, 'data-layer-id')
+      : (targetElement as LayerElement).dataset.layerId;
 
     if (!draggedLayerId || !targetLayerId) {
       return;
@@ -383,10 +429,6 @@ export class LayerManager {
       // Save to state
       this.saveLayersToState();
 
-      console.log(
-        'Layer order updated:',
-        this.layers.map((l) => `${l.name} (order: ${l.order})`),
-      );
 
       // Trigger re-rendering of canvas with new layer order
       this.triggerCanvasRerender();
@@ -438,10 +480,16 @@ export class LayerManager {
 
   private triggerCanvasRerender(): void {
     // Dispatch custom event to notify canvas renderer about layer order change
-    const event = new CustomEvent('layerOrderChanged', {
-      detail: { layerOrder: this.getLayerOrder() },
-    });
-    document.dispatchEvent(event);
+    if (!this.infra) {
+      const event = new CustomEvent('layerOrderChanged', {
+        detail: { layerOrder: this.getLayerOrder() },
+      });
+      document.dispatchEvent(event);
+    } else {
+      this.infra.dom.dispatchEvent(this.infra.dom.getDocumentElement(), 'layerOrderChanged', {
+        layerOrder: this.getLayerOrder()
+      });
+    }
 
     // Also update state if state manager is available
     if (this.stateManager) {

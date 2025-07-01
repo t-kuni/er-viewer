@@ -168,8 +168,16 @@ export const toHaveRequestedWithBody = (
   const actualBody = typeof request.body === 'string' 
     ? JSON.parse(request.body) 
     : request.body;
-    
-  const pass = JSON.stringify(actualBody) === JSON.stringify(expectedBody);
+  
+  // Jestのマッチャーオブジェクトを使用した比較を行う
+  // expect.objectContaining, expect.stringMatching などを考慮
+  let pass: boolean;
+  try {
+    expect(actualBody).toEqual(expectedBody);
+    pass = true;
+  } catch {
+    pass = false;
+  }
   
   return {
     pass,

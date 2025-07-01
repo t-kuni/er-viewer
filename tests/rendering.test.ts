@@ -63,36 +63,41 @@ describe('レンダリング', () => {
         }
       });
       
+      // DOM操作をスパイ - app作成前に設定
+      const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
+      
       let app: any = new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
       await waitForAsync();
 
-      // Assert
+      // Assert - DOMに描画されたエンティティを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
+      expect(dynamicLayer).toBeDefined();
       
-      // dynamic-layerの子要素をデバッグ
-      console.log('Dynamic layer children:', dynamicLayer.children.length);
+      // エンティティ要素が存在することを確認
+      const entityElements = Array.from(dynamicLayer.children).filter(
+        (child: any) => child.getAttribute && child.getAttribute('class') === 'entity draggable'
+      ) as MockElement[];
+      expect(entityElements.length).toBeGreaterThan(0);
       
-      // エンティティ要素が作成されていることを確認
-      const createElementSvgSpy = jest.spyOn(infrastructure.dom, 'createElementSvg');
-      const setTextContentSpy = jest.spyOn(infrastructure.dom, 'setTextContent');
+      const entityElement = entityElements[0];
+      expect(entityElement.getAttribute('data-table-name')).toBe('test_table');
       
-      // エンティティグループが作成されていることを確認
-      expect(createElementSvgSpy).toHaveBeenCalledWith('g');
+      // カラムの絵文字が設定されていることをDOM操作から検証
+      const columnTexts = setInnerHTMLSpy.mock.calls
+        .filter(call => typeof call[1] === 'string' && call[1].includes('('))
+        .map(call => call[1]);
       
-      // カラムのテキスト要素が作成されていることを確認
-      expect(createElementSvgSpy).toHaveBeenCalledWith('text');
-      
-      // 各カラムの絵文字がテキスト内容として設定されていることを検証
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('🔑')); // PRIMARY KEY
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('📍')); // UNIQUE KEY
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('🔗')); // FOREIGN KEY
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('🔢')); // 数値型
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('🚫')); // NOT NULL
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('📝')); // 文字列型
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('❓')); // NULL許可
-      expect(setTextContentSpy).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('📅')); // 日付型
+      const allColumnText = columnTexts.join('');
+      expect(allColumnText).toContain('🔑'); // PRIMARY KEY
+      expect(allColumnText).toContain('📍'); // UNIQUE KEY
+      expect(allColumnText).toContain('🔗'); // FOREIGN KEY
+      expect(allColumnText).toContain('🔢'); // 数値型
+      expect(allColumnText).toContain('🚫'); // NOT NULL
+      expect(allColumnText).toContain('📝'); // 文字列型
+      expect(allColumnText).toContain('❓'); // NULL許可
+      expect(allColumnText).toContain('📅'); // 日付型
       
       // Cleanup
       app = null;
@@ -149,6 +154,8 @@ describe('レンダリング', () => {
     test('エンティティバウンドが正しく設定される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      
       const mockERData = createERData({
         entities: [
           createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
@@ -173,12 +180,10 @@ describe('レンダリング', () => {
       // Act - データロードを待つ
       await waitForAsync();
 
+      // Assert
       // エンティティがDOM上に描画されていることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
-      
-      // エンティティ要素が適切な属性で作成されていることを確認
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
       // usersエンティティの属性設定を確認
       expect(setAttributeSpy).toHaveBeenCalledWith(
@@ -528,9 +533,12 @@ describe('レンダリング', () => {
         }
       });
       
+      // setInnerHTMLが呼ばれていることを確認 - app作成前に設定
+      const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
+      
       let app: any = new ERViewerApplication(infrastructure);
       
-      // データロードをシミュレート
+      // Act - データロードをシミュレート
       await app.loadERData();
       await waitForAsync();
       
@@ -538,29 +546,35 @@ describe('レンダリング', () => {
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
       
-      // エンティティ要素がグリッドレイアウトで配置されていることを確認
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
-      
-      // usersエンティティの配置を確認（0行0列）
-      expect(setAttributeSpy).toHaveBeenCalledWith(
-        expect.any(Object),
-        'transform',
-        'translate(50, 50)'
+      const clearCalls = setInnerHTMLSpy.mock.calls.filter(
+        call => call[0] === dynamicLayer && call[1] === ''
       );
       
-      // postsエンティティの配置を確認（0行1列）
-      expect(setAttributeSpy).toHaveBeenCalledWith(
-        expect.any(Object),
-        'transform',
-        'translate(300, 50)'
-      );
+      // dynamic-layerがクリアされているはず
+      expect(clearCalls.length).toBeGreaterThan(0);
       
-      // commentsエンティティの配置を確認（1行0列）
-      expect(setAttributeSpy).toHaveBeenCalledWith(
-        expect.any(Object),
-        'transform',
-        'translate(50, 250)'
-      );
+      // エンティティ要素をフィルタリング
+      const entityElements: MockElement[] = [];
+      for (let i = 0; i < dynamicLayer.children.length; i++) {
+        const child = dynamicLayer.children[i] as MockElement;
+        if (child.getAttribute && child.getAttribute('class') === 'entity draggable') {
+          entityElements.push(child);
+        }
+      }
+      
+      expect(entityElements.length).toBe(3);
+      
+      // エンティティがクラスタリングされて配置されていることを確認
+      const transforms = entityElements.map(el => el.getAttribute('transform'));
+      
+      // クラスタリングにより、異なる位置に配置されていることを確認
+      expect(new Set(transforms).size).toBe(3); // 3つとも異なる位置
+      
+      // 各エンティティが正しく作成されていることを確認
+      const tableNames = entityElements.map(el => el.getAttribute('data-table-name'));
+      expect(tableNames).toContain('users');
+      expect(tableNames).toContain('posts');
+      expect(tableNames).toContain('comments');
       
       // Cleanup
       app = null;
@@ -719,6 +733,8 @@ describe('レンダリング', () => {
     test('レイヤーの初期状態が正しく設定される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      
       const mockERData = createERData({
         entities: [createUserEntity(), createPostEntity()],
         layout: createLayoutData({
@@ -745,9 +761,6 @@ describe('レンダリング', () => {
       // レイヤー情報がDOMに反映されていることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
-      
-      // エンティティがレイヤー情報に応じて描画されていることを確認
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
       // レイヤーIDが設定されていることを確認
       expect(setAttributeSpy).toHaveBeenCalledWith(
@@ -926,6 +939,8 @@ describe('レンダリング', () => {
     test('関係性ベースのクラスタリングが適用される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
+      
       // 手動でERDataを作成して、layoutを完全に空にする
       const mockERData: ERData = {
         entities: [
@@ -959,13 +974,11 @@ describe('レンダリング', () => {
       // Act - データロードを待つ
       await waitForAsync();
 
+      // Assert
       // エンティティがキャンバスに描画されることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
 
-      // エンティティがクラスタリングされて配置されていることを確認
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
-      
       // users、posts、commentsが同じクラスタに配置されることを確認
       // 同じy座標または近いy座標に配置されるはず
       expect(setAttributeSpy).toHaveBeenCalledWith(

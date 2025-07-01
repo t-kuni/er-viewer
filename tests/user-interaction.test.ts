@@ -459,28 +459,29 @@ describe('ユーザーインタラクション', () => {
   });
 
   describe('エンティティホバー時のハイライト', () => {
-    test.skip('エンティティにホバーすると関連エンティティとリレーションがハイライトされる', async () => {
+    test('エンティティにホバーすると関連エンティティとリレーションがハイライトされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       const mockERData = createUserPostERData();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(mockERData)
+          '/api/er-data': createNetworkResponse({ data: mockERData })
         }
       };
       infrastructure.setupMockData(mockData);
-      let app: any = new ERViewerApplication(infrastructure);
       
-      // 初期データロード完了を待つ
-      await waitForAsync();
-      
-      // DOM操作をスパイ
+      // DOM操作をスパイ (アプリケーション初期化前に設定)
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
       const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
       const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const closestSpy = jest.spyOn(infrastructure.dom, 'closest');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
+      
+      let app: any = new ERViewerApplication(infrastructure);
+      
+      // 初期データロード完了を待つ
+      await waitForAsync();
       
       // モックエンティティ要素を作成
       const mockUserEntity = new MockElement('g');
@@ -490,15 +491,9 @@ describe('ユーザーインタラクション', () => {
       // closest()がエンティティを返すようにモック
       closestSpy.mockReturnValue(mockUserEntity);
       
-      // ハイライトレイヤーのモック
-      const mockHighlightLayer = new MockElement('g');
-      mockHighlightLayer.setAttribute('id', 'highlight-layer');
-      getElementByIdSpy.mockImplementation((id: string) => {
-        if (id === 'highlight-layer') {
-          return mockHighlightLayer;
-        }
-        return null;
-      });
+      // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
+      // InfrastructureMockが自動的にハイライトレイヤーを提供する
+      const mockHighlightLayer = infrastructure.dom.getElementById('highlight-layer');
       
       // Act - mousemoveイベントをトリガー
       const mockEvent = new MouseEvent('mousemove', {
@@ -535,28 +530,29 @@ describe('ユーザーインタラクション', () => {
       app = null;
     });
 
-    test.skip('リレーションにホバーすると両端のエンティティとカラムがハイライトされる', async () => {
+    test('リレーションにホバーすると両端のエンティティとカラムがハイライトされる', async () => {
       // Arrange  
       const infrastructure = new InfrastructureMock();
       const mockERData = createUserPostERData();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(mockERData)
+          '/api/er-data': createNetworkResponse({ data: mockERData })
         }
       };
       infrastructure.setupMockData(mockData);
-      let app: any = new ERViewerApplication(infrastructure);
       
-      // 初期データロード完了を待つ
-      await waitForAsync();
-      
-      // DOM操作をスパイ
+      // DOM操作をスパイ (アプリケーション初期化前に設定)
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
       const hasClassSpy = jest.spyOn(infrastructure.dom, 'hasClass');
       const getAttributeSpy = jest.spyOn(infrastructure.dom, 'getAttribute');
       const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
+      
+      let app: any = new ERViewerApplication(infrastructure);
+      
+      // 初期データロード完了を待つ
+      await waitForAsync();
       
       // モックリレーション要素を作成
       const mockRelationship = new MockElement('path');
@@ -576,15 +572,9 @@ describe('ユーザーインタラクション', () => {
         return (element as MockElement).getAttribute(attr);
       });
       
-      // ハイライトレイヤーのモック
-      const mockHighlightLayer = new MockElement('g');
-      mockHighlightLayer.setAttribute('id', 'highlight-layer');
-      getElementByIdSpy.mockImplementation((id: string) => {
-        if (id === 'highlight-layer') {
-          return mockHighlightLayer;
-        }
-        return null;
-      });
+      // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
+      // InfrastructureMockが自動的にハイライトレイヤーを提供する
+      const mockHighlightLayer = infrastructure.dom.getElementById('highlight-layer');
       
       // Act - mousemoveイベントをトリガー
       const mockEvent = new MouseEvent('mousemove', {
@@ -621,37 +611,32 @@ describe('ユーザーインタラクション', () => {
       app = null;
     });
 
-    test.skip('ホバーを外すとハイライトがクリアされる', async () => {
+    test('ホバーを外すとハイライトがクリアされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       const mockERData = createUserPostERData();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(mockERData)
+          '/api/er-data': createNetworkResponse({ data: mockERData })
         }
       };
       infrastructure.setupMockData(mockData);
-      let app: any = new ERViewerApplication(infrastructure);
       
-      // 初期データロード完了を待つ
-      await waitForAsync();
-      
-      // DOM操作をスパイ
+      // DOM操作をスパイ (アプリケーション初期化前に設定)
       const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const closestSpy = jest.spyOn(infrastructure.dom, 'closest');
       const hasClassSpy = jest.spyOn(infrastructure.dom, 'hasClass');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       
-      // ハイライトレイヤーのモック
-      const mockHighlightLayer = new MockElement('g');
-      mockHighlightLayer.setAttribute('id', 'highlight-layer');
-      getElementByIdSpy.mockImplementation((id: string) => {
-        if (id === 'highlight-layer') {
-          return mockHighlightLayer;
-        }
-        return null;
-      });
+      let app: any = new ERViewerApplication(infrastructure);
+      
+      // 初期データロード完了を待つ
+      await waitForAsync();
+      
+      // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
+      // InfrastructureMockが自動的にハイライトレイヤーを提供する
+      const mockHighlightLayer = infrastructure.dom.getElementById('highlight-layer');
       
       // 空の領域（エンティティでもリレーションでもない）のモック
       const mockEmptyArea = new MockElement('svg');
@@ -720,6 +705,7 @@ describe('ユーザーインタラクション', () => {
       // イベントリスナーをスパイ（アプリ作成前に設定）
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
       let app: any = new ERViewerApplication(infrastructure);
       
@@ -743,7 +729,6 @@ describe('ユーザーインタラクション', () => {
       });
       
       // 初期スケールが反映されたトランスフォームが設定される
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       expect(setAttributeSpy).toHaveBeenCalledWith(
         expect.anything(),
         'transform',
@@ -792,6 +777,7 @@ describe('ユーザーインタラクション', () => {
       // イベントリスナーをスパイ（アプリ作成前に設定）
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
       let app: any = new ERViewerApplication(infrastructure);
       
@@ -815,7 +801,6 @@ describe('ユーザーインタラクション', () => {
       });
       
       // 初期スケールが設定される
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       expect(setAttributeSpy).toHaveBeenCalledWith(
         expect.anything(),
         'transform',
@@ -864,6 +849,7 @@ describe('ユーザーインタラクション', () => {
       // イベントリスナーをスパイ（アプリ作成前に設定）
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
+      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
       let app: any = new ERViewerApplication(infrastructure);
       
@@ -893,20 +879,21 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Act - 大幅にズームアウト（縮小）
-      // 最小スケールに到達するまでズームアウト
-      const mockWheelEvent1 = new WheelEvent('wheel', {
-        clientX: 400,
-        clientY: 300,
-        deltaY: 10000, // 大きな値で一気に最小値まで
-        bubbles: true,
-        cancelable: true
-      });
-      if (wheelHandler && wheelHandler[2]) {
-        wheelHandler[2](mockWheelEvent1);
+      // 複数回ズームアウトして最小スケールに到達させる
+      for (let i = 0; i < 30; i++) {
+        const mockWheelEvent = new WheelEvent('wheel', {
+          clientX: 400,
+          clientY: 300,
+          deltaY: 100, // 正の値でズームアウト
+          bubbles: true,
+          cancelable: true
+        });
+        if (wheelHandler && wheelHandler[2]) {
+          wheelHandler[2](mockWheelEvent);
+        }
       }
       
       // Assert - 最小値0.1を下回らない
-      const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       expect(setAttributeSpy).toHaveBeenCalledWith(
         expect.anything(),
         'transform',
@@ -914,16 +901,18 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Act - 大幅にズームイン（拡大）
-      // 最大スケールに到達するまでズームイン
-      const mockWheelEvent2 = new WheelEvent('wheel', {
-        clientX: 400,
-        clientY: 300,
-        deltaY: -10000, // 大きな負の値で一気に最大値まで
-        bubbles: true,
-        cancelable: true
-      });
-      if (wheelHandler && wheelHandler[2]) {
-        wheelHandler[2](mockWheelEvent2);
+      // 複数回ズームインして最大スケールに到達させる
+      for (let i = 0; i < 50; i++) {
+        const mockWheelEvent = new WheelEvent('wheel', {
+          clientX: 400,
+          clientY: 300,
+          deltaY: -100, // 負の値でズームイン
+          bubbles: true,
+          cancelable: true
+        });
+        if (wheelHandler && wheelHandler[2]) {
+          wheelHandler[2](mockWheelEvent);
+        }
       }
       
       // Assert - 最大値5.0を上回らない
@@ -1170,47 +1159,51 @@ describe('ユーザーインタラクション', () => {
   });
   
   describe('テキスト描画機能', () => {
+    beforeEach(() => {
+      // フェイクタイマーを有効化
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      // フェイクタイマーをリセット
+      jest.useRealTimers();
+    });
+
     test('テキスト描画モードでクリックするとテキストが追加される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
-        networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
-        }
+        promptResponses: ['テストテキスト'] // prompt応答をセットアップ
       };
       infrastructure.setupMockData(mockData);
       
-      // promptのモック設定
-      infrastructure.browserAPI.prompt = jest.fn()
-        .mockReturnValueOnce('テストテキスト')
-        .mockReturnValueOnce('16')
-        .mockReturnValueOnce('#333333');
+      // BrowserAPI操作をスパイ
+      const promptSpy = jest.spyOn(infrastructure.browserAPI, 'prompt');
       
-      const app: any = new ERViewerApplication(infrastructure);
+      // DOM操作をスパイ（アプリ作成前に設定）
+      const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
+      const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
+      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
+      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
+      const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
       
-      // 初期化タイマーを実行
-      jest.advanceTimersByTime(10);
-      jest.runAllTimers();
+      let app: any = new ERViewerApplication(infrastructure);
       
       // テキスト描画モードを開始
       app.startTextDrawingMode();
       
-      // Act - カンバスをクリック
-      const canvasElement = infrastructure.dom.getElementById('er-canvas');
-      const mockClickEvent = new MouseEvent('mousedown', {
-        clientX: 100,
-        clientY: 100,
-        button: 0,
-        bubbles: true
-      });
+      // 状態を確認
+      const state = app.getState();
+      expect(state.drawingMode).toBe('text');
       
-      // MouseEventのtargetを設定
-      Object.defineProperty(mockClickEvent, 'target', {
-        value: canvasElement,
-        writable: false
-      });
+      // カーソルが変更されたことを確認
+      expect(setStylesSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        { cursor: 'text' }
+      );
       
-      // getBoundingClientRectのモック
+      // Act - handleCanvasMouseDownをシミュレート
+      const rect = { left: 0, top: 0 };
       jest.spyOn(infrastructure.dom, 'getBoundingClientRect').mockReturnValue({
         left: 0,
         top: 0,
@@ -1223,26 +1216,39 @@ describe('ユーザーインタラクション', () => {
         toJSON: () => ({})
       });
       
-      const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
-      const mousedownHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === canvasElement && call[1] === 'mousedown'
-      );
-      if (mousedownHandler && mousedownHandler[2]) {
-        mousedownHandler[2](mockClickEvent);
-      }
+      const mockEvent = {
+        preventDefault: jest.fn(),
+        clientX: 100,
+        clientY: 100,
+        target: infrastructure.dom.getElementById('er-canvas')
+      } as any;
+      
+      app.handleCanvasMouseDown(mockEvent);
+      
+      // Assert - promptが呼ばれたことを確認
+      expect(promptSpy).toHaveBeenCalledWith('テキストを入力してください:');
+      expect(promptSpy).toHaveBeenCalledTimes(1);
+      
+      // render()が呼ばれてannotation-layerがクリアされる
+      expect(getElementByIdSpy).toHaveBeenCalledWith('annotation-layer');
+      expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), '');
       
       // Assert - テキスト要素が作成される
-      const createElementSvgSpy = jest.spyOn(infrastructure.dom, 'createElementSvg');
-      expect(createElementSvgSpy).toHaveBeenCalledWith('text');
+      expect(createElementSpy).toHaveBeenCalledWith('text', 'http://www.w3.org/2000/svg');
       
-      const setTextContentSpy = jest.spyOn(infrastructure.dom, 'setTextContent');
-      expect(setTextContentSpy).toHaveBeenCalledWith(
+      // テキストの内容が設定される
+      expect(setInnerHTMLSpy).toHaveBeenCalledWith(
         expect.anything(),
         'テストテキスト'
       );
       
+      // DOM要素の追加を検証
+      expect(appendChildSpy).toHaveBeenCalledWith(
+        expect.anything(), // annotation-layer
+        expect.anything()  // textElement
+      );
+      
       // モードが終了している（カーソルがリセットされる）
-      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
       expect(setStylesSpy).toHaveBeenCalledWith(
         expect.anything(),
         { cursor: 'default' }
@@ -1262,17 +1268,19 @@ describe('ユーザーインタラクション', () => {
       };
       infrastructure.setupMockData(mockData);
       
-      const app: any = new ERViewerApplication(infrastructure);
+      let app: any = new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
       jest.runAllTimers();
       
+      // スパイを先に設定
+      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
+      
       // テキスト描画モードを開始
       app.startTextDrawingMode();
       
       // テキストモードが開始されたことを確認（カーソルが変更される）
-      const setStylesSpy = jest.spyOn(infrastructure.dom, 'setStyles');
       expect(setStylesSpy).toHaveBeenCalledWith(
         expect.anything(),
         { cursor: 'text' }

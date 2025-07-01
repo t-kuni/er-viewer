@@ -87,12 +87,22 @@ describe('Infrastructure Matchers 使用例', () => {
       // Act
       await app.saveLayout();
       
-      // Assert - layersも含めて検証
+      // Assert - layersも含めて検証（デフォルトレイヤーが含まれる）
       expect(infrastructure).toHaveRequestedWithBody('/api/layout', {
         entities: {},
         rectangles: [],
         texts: [],
-        layers: []
+        layers: [
+          {
+            id: expect.stringMatching(/^layer-1-\d+$/),
+            name: 'ER図',
+            type: 'er-diagram',
+            icon: '🗂️',
+            order: 0,
+            visible: true,
+            zIndex: 0
+          }
+        ]
       });
     });
   });

@@ -42,7 +42,6 @@ module.exports = {
           esModuleInterop: true,
           allowJs: true,
         },
-        isolatedModules: true,
       },
     ],
     '^.+\\.jsx?$': 'babel-jest',

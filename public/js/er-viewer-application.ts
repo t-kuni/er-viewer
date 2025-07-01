@@ -272,7 +272,7 @@ export class ERViewerApplication {
   /**
    * Load ER data from server
    */
-  private async loadERData(): Promise<void> {
+  public async loadERData(): Promise<void> {
     try {
       this.infra.browserAPI.log('Loading ER data...');
       this.setState({ loading: true, error: null });
@@ -1034,6 +1034,8 @@ export class ERViewerApplication {
       this.updateDrag(event);
     } else if (this.state.interactionMode === 'panning') {
       this.updatePan(event);
+    } else if (this.state.isDrawing && this.state.drawingMode === 'rectangle') {
+      this.updateRectangleDrawing(event);
     }
   }
 
@@ -1432,6 +1434,8 @@ export class ERViewerApplication {
       width: 100,
       height: 60,
       color: '#e3f2fd',
+      stroke: '#e3f2fd',
+      strokeWidth: 2,
     };
 
     newLayoutData.rectangles.push(newRect);
@@ -1454,11 +1458,6 @@ export class ERViewerApplication {
       return;
     }
 
-    const fontSize = this.infra.browserAPI.prompt('フォントサイズを入力してください (デフォルト: 14):');
-    const parsedFontSize = fontSize ? parseInt(fontSize) : 14;
-
-    const color = this.infra.browserAPI.prompt('色を入力してください (デフォルト: #2c3e50):');
-
     const newLayoutData = { ...this.state.layoutData };
     if (!newLayoutData.texts) {
       newLayoutData.texts = [];
@@ -1469,8 +1468,8 @@ export class ERViewerApplication {
       x: x,
       y: y,
       content: text,
-      color: color || '#2c3e50',
-      fontSize: parsedFontSize || 14,
+      color: '#2c3e50',
+      fontSize: 14,
     };
 
     newLayoutData.texts.push(newText);
@@ -1812,8 +1811,8 @@ export class ERViewerApplication {
       return;
     }
 
-    // Initialize LayerManager with state management
-    this.layerManager = new LayerManager(this);
+    // Initialize LayerManager with state management and infrastructure
+    this.layerManager = new LayerManager(this, this.infra);
 
     // Load collapsed state from localStorage
     const storedValue = this.infra.storage.getItem('layerSidebarCollapsed');
@@ -2432,10 +2431,17 @@ export class ERViewerApplication {
       rectangles: [...this.state.layoutData.rectangles, this.state.currentDrawingRect]
     };
     
+    // First update the state with rectangles
     this.setState({
       layoutData: updatedLayoutData,
       isDrawing: false,
       currentDrawingRect: null
     });
+    
+    // Then add layer for this rectangle after state is updated
+    if (this.layerManager) {
+      const rectangleNumber = updatedLayoutData.rectangles.length;
+      this.layerManager.addRectangleLayer(rectangleNumber);
+    }
   }
 }

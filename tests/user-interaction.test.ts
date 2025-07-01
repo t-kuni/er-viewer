@@ -66,10 +66,11 @@ describe('ユーザーインタラクション', () => {
       
       // Network操作の詳細検証
       const ddlRequest = requests[requests.length - 1];
-      expect(ddlRequest.url).toBe('/api/table/users/ddl');
-      expect(ddlRequest.method).toBe('GET');
-      expect(ddlRequest.headers).toBeDefined();
-      expect(ddlRequest.body).toBeUndefined(); // GETリクエストなのでbodyは無い
+      expect(ddlRequest).toBeDefined();
+      expect(ddlRequest!.url).toBe('/api/table/users/ddl');
+      expect(ddlRequest!.method).toBe('GET');
+      expect(ddlRequest!.headers).toBeDefined();
+      expect(ddlRequest!.body).toBeUndefined(); // GETリクエストなのでbodyは無い
       
       // DOM操作のMock検証
       expect(removeClassSpy).toHaveBeenCalledWith(expect.anything(), 'hidden');
@@ -80,6 +81,121 @@ describe('ユーザーインタラクション', () => {
       
       // Cleanup
       app = null;
+    });
+
+    test('エンティティ要素をクリックするとhandleCanvasClickが正しく動作する', async () => {
+      // Arrange
+      const infrastructure = new InfrastructureMock();
+      const mockData: MockData = {
+        networkResponses: {
+          '/api/table/users/ddl': createDDLResponse('CREATE TABLE users (id INT PRIMARY KEY);')
+        }
+      };
+      infrastructure.setupMockData(mockData);
+      let app: any = new ERViewerApplication(infrastructure);
+      
+      // クリックターゲットのモック要素を作成
+      const mockEntityElement = new MockElement('g');
+      mockEntityElement.setAttribute('class', 'entity');
+      mockEntityElement.setAttribute('data-table-name', 'users');
+      
+      // closest メソッドのモック
+      const closestSpy = jest.spyOn(infrastructure.dom, 'closest')
+        .mockReturnValue(mockEntityElement as unknown as Element);
+      
+      // getAttribute メソッドのモック
+      const getAttributeSpy = jest.spyOn(infrastructure.dom, 'getAttribute')
+        .mockImplementation((element, attrName) => {
+          if ((element as any) === mockEntityElement && attrName === 'data-table-name') {
+            return 'users';
+          }
+          return null;
+        });
+      
+      app.render();
+      
+      // クリックイベントをシミュレート
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      // イベントターゲットを設定
+      Object.defineProperty(clickEvent, 'target', {
+        value: mockEntityElement,
+        writable: false
+      });
+      
+      // handleCanvasClickを直接呼び出す
+      app.handleCanvasClick(clickEvent);
+      
+      // 非同期処理を待つ
+      await waitForAsync();
+      
+      // closest が正しく呼ばれたことを確認
+      expect(closestSpy).toHaveBeenCalledWith(mockEntityElement, '.entity');
+      
+      // getAttribute が呼ばれたことを確認
+      expect(getAttributeSpy).toHaveBeenCalledWith(mockEntityElement, 'data-table-name');
+      
+      // ネットワークリクエストが送信されることを確認
+      const history = infrastructure.getInteractionHistory();
+      const requests = history.networkRequests;
+      expect(requests.length).toBeGreaterThan(0);
+      
+      const ddlRequest = requests[requests.length - 1];
+      expect(ddlRequest).toBeDefined();
+      expect(ddlRequest!.url).toBe('/api/table/users/ddl');
+      
+      // Cleanup
+      app = null;
+    });
+
+    test('DDL表示時にsyntax highlightが適用される', async () => {
+      // Arrange
+      const infrastructure = new InfrastructureMock();
+      const mockData: MockData = {
+        networkResponses: {
+          '/api/table/users/ddl': createDDLResponse(`CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`)
+        }
+      };
+      infrastructure.setupMockData(mockData);
+      
+      // Prismモックをwindowに追加
+      const highlightElementSpy = jest.fn();
+      (global as any).window.Prism = {
+        highlightElement: highlightElementSpy
+      };
+      
+      let app: any = new ERViewerApplication(infrastructure);
+      
+      // querySelector spyの設定
+      const mockCodeElement = new MockElement('code');
+      const querySelectorSpy = jest.spyOn(infrastructure.dom, 'querySelector')
+        .mockReturnValue(mockCodeElement);
+      
+      app.render();
+
+      // エンティティクリックをシミュレート
+      app.showTableDetails('users');
+
+      // 非同期処理を待つ
+      await waitForAsync();
+
+      // querySelector が正しいセレクタで呼ばれたことを確認
+      expect(querySelectorSpy).toHaveBeenCalledWith('#sidebar-content code');
+      
+      // Prism.highlightElement が呼ばれたことを確認
+      expect(highlightElementSpy).toHaveBeenCalledWith(mockCodeElement);
+      
+      // Cleanup
+      app = null;
+      delete (global as any).window.Prism;
     });
   });
 

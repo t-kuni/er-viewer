@@ -17,4 +17,20 @@ if (process.env.COLLECT_COVERAGE === 'true' || process.env.NODE_ENV === 'test') 
     });
 }
 // その他のグローバル設定をここに追加可能
+// テスト実行完了後のクリーンアップ
+afterAll(() => {
+    // MockCoverageTrackerのクリーンアップ
+    if (process.env.COLLECT_COVERAGE === 'true' || process.env.NODE_ENV === 'test') {
+        // シングルトンインスタンスを完全にクリア
+        MockCoverageTracker.clearInstance();
+    }
+    // グローバルオブジェクトのクリーンアップ
+    // Jestのカスタムマッチャーはexpect.extendで登録されているため、
+    // 明示的なクリーンアップは不要（Jestが自動的に管理）
+    // その他のグローバル変数やタイマーのクリーンアップ
+    // 必要に応じて以下を追加：
+    // - clearAllTimers()
+    // - clearAllIntervals()
+    // - グローバル変数のリセット
+});
 //# sourceMappingURL=jest-setup.js.map

@@ -53,5 +53,10 @@ export declare class MockCoverageTracker {
      * データをリセット
      */
     reset(): void;
+    /**
+     * シングルトンインスタンスを破棄
+     * テスト完了後のクリーンアップで使用
+     */
+    static clearInstance(): void;
 }
 //# sourceMappingURL=mock-coverage-tracker.d.ts.map

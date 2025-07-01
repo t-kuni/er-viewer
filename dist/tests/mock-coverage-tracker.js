@@ -154,6 +154,17 @@ export class MockCoverageTracker {
     reset() {
         this.coverageData = {};
         this.currentTest = null;
+        this.allMethods.clear();
+    }
+    /**
+     * シングルトンインスタンスを破棄
+     * テスト完了後のクリーンアップで使用
+     */
+    static clearInstance() {
+        if (MockCoverageTracker.instance) {
+            MockCoverageTracker.instance.reset();
+            MockCoverageTracker.instance = undefined;
+        }
     }
 }
 //# sourceMappingURL=mock-coverage-tracker.js.map

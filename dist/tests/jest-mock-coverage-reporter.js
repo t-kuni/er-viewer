@@ -3,7 +3,7 @@
  *
  * Infrastructure Mockの呼び出しカバレッジをレポートするカスタムレポーター
  */
-import { MockCoverageTracker } from './mock-coverage-tracker.js';
+import { MockCoverageTracker } from './mock-coverage-tracker';
 import * as fs from 'fs';
 import * as path from 'path';
 export default class MockCoverageReporter {

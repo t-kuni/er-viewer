@@ -1,5 +1,7 @@
 # ESLint エラー解消タスクリスト
 
+* `npm run lint` のエラーを全て解消する
+
 ## 概要
 - **総エラー数**: 957問題（667エラー、290警告）
 - **主要ファイル**: er-viewer-application.ts, clustering-engine.ts, app.ts, annotation-controller.ts
@@ -64,9 +66,9 @@
 
 ## Phase 6: 最終確認・検証
 
-### 品質確認
+### 最終確認
 - [ ] `npm run lint:fix && npm run test && npm run typecheck` 実行
-- [ ] 全エラーが解消されていることを確認
+- [ ] `npm run lint` の全エラーが解消されていることを確認
 - [ ] 機能が正常に動作することを確認（ブラウザテスト推奨）
 
 ## 推奨作業順序

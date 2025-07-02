@@ -6,7 +6,7 @@ import type { EventHandler } from '../../types/infrastructure.js';
  * 実際のDOM操作を行う
  */
 export class DOMImplementation extends DOMInterface {
-  private _eventListeners: WeakMap<Element, Map<string, Set<EventHandler>>>;
+  private _eventListeners: WeakMap<Element, Map<string, Set<EventHandler<any>>>>;
 
   constructor() {
     super();
@@ -82,7 +82,7 @@ export class DOMImplementation extends DOMInterface {
     element.textContent = text;
   }
 
-  addEventListener(element: Element, event: string, handler: EventHandler, options?: AddEventListenerOptions): void {
+  addEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>, options?: EventListenerOptions): void {
     element.addEventListener(event, handler as EventListener, options);
 
     // イベントリスナーを追跡（テスト用）
@@ -93,17 +93,17 @@ export class DOMImplementation extends DOMInterface {
     if (!elementListeners.has(event)) {
       elementListeners.set(event, new Set());
     }
-    elementListeners.get(event)!.add(handler);
+    elementListeners.get(event)!.add(handler as EventHandler<any>);
   }
 
-  removeEventListener(element: Element, event: string, handler: EventHandler): void {
+  removeEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>): void {
     element.removeEventListener(event, handler as EventListener);
 
     // イベントリスナーの追跡を削除
     if (this._eventListeners.has(element)) {
       const elementListeners = this._eventListeners.get(element)!;
       if (elementListeners.has(event)) {
-        elementListeners.get(event)!.delete(handler);
+        elementListeners.get(event)!.delete(handler as EventHandler<any>);
       }
     }
   }

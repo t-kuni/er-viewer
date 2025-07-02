@@ -67,10 +67,10 @@ export abstract class BrowserAPIInterface implements IBrowserAPIInterface {
   /**
    * ウィンドウイベントリスナーを追加
    */
-  abstract addWindowEventListener(event: string, handler: EventHandler): void;
+  abstract addWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void;
 
   /**
    * ウィンドウイベントリスナーを削除
    */
-  abstract removeWindowEventListener(event: string, handler: EventHandler): void;
+  abstract removeWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void;
 }

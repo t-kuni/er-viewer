@@ -36,8 +36,9 @@ export class ClusteringEngine {
       return false;
     }
 
-    // Always apply clustering on initial reverse engineering
-    return true;
+    // Apply clustering only when no entities have positions
+    // This happens during initial reverse engineering
+    return this.erData.entities.every((entity) => !entity.position);
   }
 
   private getInitialClusteredPosition(entity: Entity): Position {

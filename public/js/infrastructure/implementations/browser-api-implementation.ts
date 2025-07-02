@@ -6,7 +6,7 @@ import type { EventHandler, WindowSize } from '../../types/infrastructure.js';
  * 実際のブラウザAPI呼び出しを行う
  */
 export class BrowserAPIImplementation extends BrowserAPIInterface {
-  private _windowEventListeners: Map<string, Set<EventHandler>>;
+  private _windowEventListeners: Map<string, Set<EventHandler<any>>>;
 
   constructor() {
     super();
@@ -60,22 +60,22 @@ export class BrowserAPIImplementation extends BrowserAPIInterface {
     return navigator.userAgent;
   }
 
-  addWindowEventListener(event: string, handler: EventHandler): void {
+  addWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void {
     window.addEventListener(event, handler as EventListener);
 
     // イベントリスナーを追跡
     if (!this._windowEventListeners.has(event)) {
       this._windowEventListeners.set(event, new Set());
     }
-    this._windowEventListeners.get(event)!.add(handler);
+    this._windowEventListeners.get(event)!.add(handler as EventHandler<any>);
   }
 
-  removeWindowEventListener(event: string, handler: EventHandler): void {
+  removeWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void {
     window.removeEventListener(event, handler as EventListener);
 
     // イベントリスナーの追跡を削除
     if (this._windowEventListeners.has(event)) {
-      this._windowEventListeners.get(event)!.delete(handler);
+      this._windowEventListeners.get(event)!.delete(handler as EventHandler<any>);
     }
   }
 }

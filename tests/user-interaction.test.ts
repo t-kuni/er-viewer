@@ -302,6 +302,115 @@ describe('ユーザーインタラクション', () => {
         );
       });
     });
+
+    describe('ドラッグ視覚的フィードバック', () => {
+      test('ドラッグ開始時にdraggingクラスが追加される', async () => {
+        // Arrange
+        const infrastructure = new InfrastructureMock();
+        const mockERData: MockERData = {
+          entities: [
+            {
+              name: 'users',
+              columns: [
+                { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              ],
+              foreignKeys: [],
+              ddl: '',
+            },
+          ],
+          relationships: [],
+          layout: {
+            entities: {
+              users: { position: { x: 100, y: 100 } },
+            },
+            rectangles: [],
+            texts: [],
+            layers: [],
+          },
+        };
+
+        infrastructure.setupMockData({
+          networkResponses: {
+            '/api/er-data': {
+              status: 200,
+              data: mockERData,
+            },
+          },
+        });
+
+        const app: any = new ERViewerApplication(infrastructure);
+        await waitForAsync();
+        app.render();
+
+        // DOM操作をスパイ
+        const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
+
+        // Act
+        const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
+        const userEntity = dynamicLayer.children[1] as MockElement;
+        expect(userEntity.getAttribute('data-table-name')).toBe('users');
+
+        app.startEntityDrag(userEntity as unknown as Element, { x: 100, y: 100 });
+
+        // Assert - draggingクラスが追加されたことを検証
+        expect(addClassSpy).toHaveBeenCalledWith(userEntity, 'dragging');
+      });
+
+      test('ドラッグ終了時にdraggingクラスが削除される', async () => {
+        // Arrange
+        const infrastructure = new InfrastructureMock();
+        const mockERData: MockERData = {
+          entities: [
+            {
+              name: 'users',
+              columns: [
+                { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              ],
+              foreignKeys: [],
+              ddl: '',
+            },
+          ],
+          relationships: [],
+          layout: {
+            entities: {
+              users: { position: { x: 100, y: 100 } },
+            },
+            rectangles: [],
+            texts: [],
+            layers: [],
+          },
+        };
+
+        infrastructure.setupMockData({
+          networkResponses: {
+            '/api/er-data': {
+              status: 200,
+              data: mockERData,
+            },
+          },
+        });
+
+        const app: any = new ERViewerApplication(infrastructure);
+        await waitForAsync();
+        app.render();
+
+        // DOM操作をスパイ
+        const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
+
+        // Act
+        const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
+        const userEntity = dynamicLayer.children[1] as MockElement;
+        expect(userEntity.getAttribute('data-table-name')).toBe('users');
+
+        app.startEntityDrag(userEntity as unknown as Element, { x: 100, y: 100 });
+        app.endInteraction();
+
+        // Assert - draggingクラスが削除されたことを検証
+        expect(removeClassSpy).toHaveBeenCalledWith(userEntity, 'dragging');
+      });
+    });
   });
 
   describe('注釈追加', () => {

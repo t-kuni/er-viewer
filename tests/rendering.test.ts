@@ -81,7 +81,13 @@ describe('レンダリング', () => {
 
       // カラムの絵文字が設定されていることをDOM操作から検証
       const columnTexts = setInnerHTMLSpy.mock.calls
-        .filter((call) => typeof call[1] === 'string' && call[1].includes('('))
+        .filter((call) => {
+          // カラム要素のsetInnerHTMLを探す（絵文字を含む）
+          return typeof call[1] === 'string' && 
+                 (call[1].includes('🔑') || call[1].includes('📍') || call[1].includes('🔗') || 
+                  call[1].includes('🔢') || call[1].includes('📝') || call[1].includes('📅') ||
+                  call[1].includes('🚫') || call[1].includes('❓'));
+        })
         .map((call) => call[1]);
 
       const allColumnText = columnTexts.join('');

@@ -167,6 +167,12 @@ export interface ApplicationState {
   // Interaction state
   interactionMode: InteractionMode;
   dragState: DragState | null;
+  isSpacePressed: boolean;
+
+  // Drawing state
+  drawingMode: 'rectangle' | 'text' | null;
+  isDrawing: boolean;
+  currentDrawingRect: Rectangle | null;
 
   // Application state
   loading: boolean;

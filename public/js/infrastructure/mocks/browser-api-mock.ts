@@ -25,7 +25,7 @@ export class BrowserAPIMock extends BrowserAPIInterface {
   private windowSize: WindowSize;
   private locationHref: string;
   private userAgent: string;
-  private windowEventListeners: Map<string, Set<EventHandler>>;
+  private windowEventListeners: Map<string, Set<EventHandler<any>>>;
 
   // Mock responses
   private promptResponses: (string | null)[];
@@ -177,16 +177,16 @@ export class BrowserAPIMock extends BrowserAPIInterface {
     this.userAgent = userAgent;
   }
 
-  addWindowEventListener(event: string, handler: EventHandler): void {
+  addWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void {
     if (!this.windowEventListeners.has(event)) {
       this.windowEventListeners.set(event, new Set());
     }
-    this.windowEventListeners.get(event)?.add(handler);
+    this.windowEventListeners.get(event)?.add(handler as EventHandler<any>);
   }
 
-  removeWindowEventListener(event: string, handler: EventHandler): void {
+  removeWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void {
     if (this.windowEventListeners.has(event)) {
-      this.windowEventListeners.get(event)?.delete(handler);
+      this.windowEventListeners.get(event)?.delete(handler as EventHandler<any>);
     }
   }
 

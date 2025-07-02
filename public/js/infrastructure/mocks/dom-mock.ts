@@ -36,7 +36,7 @@ export class MockElement implements MockElementAttributes {
   public textContent: string;
   public classList: MockClassList;
   public style: MockStyle;
-  public eventListeners: Map<string, Set<EventHandler>>;
+  public eventListeners: Map<string, Set<EventHandler<any>>>;
   public offsetWidth: number;
   public offsetHeight: number;
   public boundingClientRect: BoundingRect;
@@ -273,16 +273,16 @@ export class MockElement implements MockElementAttributes {
     return this.tagName === selector.toLowerCase();
   }
 
-  addEventListener(event: string, handler: EventHandler, _options?: EventListenerOptions): void {
+  addEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>, _options?: EventListenerOptions): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
-    this.eventListeners.get(event)!.add(handler);
+    this.eventListeners.get(event)!.add(handler as EventHandler<any>);
   }
 
-  removeEventListener(event: string, handler: EventHandler): void {
+  removeEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void {
     if (this.eventListeners.has(event)) {
-      this.eventListeners.get(event)!.delete(handler);
+      this.eventListeners.get(event)!.delete(handler as EventHandler<any>);
     }
   }
 
@@ -600,11 +600,11 @@ export class DOMMock extends DOMInterface {
     mockElement.textContent = text;
   }
 
-  addEventListener(element: Element, event: string, handler: EventHandler, options?: EventListenerOptions): void {
+  addEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>, options?: EventListenerOptions): void {
     (element as unknown as MockElement).addEventListener(event, handler, options);
   }
 
-  removeEventListener(element: Element, event: string, handler: EventHandler): void {
+  removeEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>): void {
     (element as unknown as MockElement).removeEventListener(event, handler);
   }
 

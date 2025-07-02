@@ -94,17 +94,17 @@ export abstract class DOMInterface implements IDOMInterface {
   /**
    * イベントリスナーを追加
    */
-  abstract addEventListener(
+  abstract addEventListener<T extends Event = Event>(
     element: Element,
     event: string,
-    handler: EventHandler,
+    handler: EventHandler<T>,
     options?: EventListenerOptions,
   ): void;
 
   /**
    * イベントリスナーを削除
    */
-  abstract removeEventListener(element: Element, event: string, handler: EventHandler): void;
+  abstract removeEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>): void;
 
   /**
    * カスタムイベントを発火

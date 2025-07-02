@@ -15,6 +15,7 @@ import type {
   Rectangle,
   Text,
   HistoryEntry,
+  Layer,
 } from './types/index.js';
 import type { SVGMousePosition } from './types/dom.js';
 import { LayerManager } from './layer-manager.js';
@@ -541,6 +542,29 @@ export class ERViewerApplication {
   }
 
   /**
+   * Calculate entity width based on table name and column names
+   */
+  private calculateEntityWidth(entity: Entity): number {
+    const padding = 20; // Left and right padding
+    const minWidth = 150; // Minimum width
+    const charWidth = 8; // Approximate width per character
+    const emojiWidth = 20; // Width for emoji characters
+
+    // Calculate width based on table name
+    let maxWidth = entity.name.length * charWidth + padding;
+
+    // Calculate width based on column names
+    entity.columns.forEach((column) => {
+      const emojis = this.getColumnEmojis(column);
+      const emojiCount = (emojis.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+      const columnWidth = emojiCount * emojiWidth + column.name.length * charWidth + padding;
+      maxWidth = Math.max(maxWidth, columnWidth);
+    });
+
+    return Math.max(minWidth, maxWidth);
+  }
+
+  /**
    * Get emoji icons for column based on its properties
    */
   private getColumnEmojis(column: Column): string {
@@ -600,7 +624,7 @@ export class ERViewerApplication {
     const padding = 10;
     const headerHeight = 30;
     const rowHeight = 20;
-    const width = 200;
+    const width = this.calculateEntityWidth(entity);
     const height = headerHeight + entity.columns.length * rowHeight + padding * 2;
 
     // Background rectangle
@@ -645,7 +669,7 @@ export class ERViewerApplication {
       this.infra.dom.setAttribute(columnText, 'data-column-name', column.name);
 
       const emojis = this.getColumnEmojis(column);
-      const columnContent = `${emojis}${column.name} (${column.type})`;
+      const columnContent = `${emojis}${column.name}`;
       this.infra.dom.setInnerHTML(columnText, columnContent);
       this.infra.dom.appendChild(group, columnText);
     });
@@ -948,20 +972,20 @@ export class ERViewerApplication {
     }
 
     // Mouse events
-    this.infra.dom.addEventListener(this.state.canvas, 'mousedown', (e) => this.handleCanvasMouseDown(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'mousemove', (e) => this.handleCanvasMouseMove(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'mouseup', (e) => this.handleCanvasMouseUp(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'wheel', (e) => this.handleCanvasWheel(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'click', (e) => this.handleCanvasClick(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'dblclick', (e) => this.handleCanvasDoubleClick(e));
-    this.infra.dom.addEventListener(this.state.canvas, 'contextmenu', (e) => this.handleCanvasContextMenu(e));
+    this.infra.dom.addEventListener(this.state.canvas, 'mousedown', (e) => this.handleCanvasMouseDown(e as MouseEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'mousemove', (e) => this.handleCanvasMouseMove(e as MouseEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'mouseup', (e) => this.handleCanvasMouseUp(e as MouseEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'wheel', (e) => this.handleCanvasWheel(e as WheelEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'click', (e) => this.handleCanvasClick(e as MouseEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'dblclick', (e) => this.handleCanvasDoubleClick(e as MouseEvent));
+    this.infra.dom.addEventListener(this.state.canvas, 'contextmenu', (e) => this.handleCanvasContextMenu(e as MouseEvent));
 
     // Document events for drag
     this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'mousemove', (e) =>
-      this.handleDocumentMouseMove(e),
+      this.handleDocumentMouseMove(e as MouseEvent),
     );
     this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'mouseup', (e) =>
-      this.handleDocumentMouseUp(e),
+      this.handleDocumentMouseUp(e as MouseEvent),
     );
 
     // Keyboard events
@@ -1033,6 +1057,9 @@ export class ERViewerApplication {
     const match = transform.match(/translate\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)\)/);
 
     if (match !== null && match !== undefined && match[1] !== null && match[1] !== undefined && match[1] !== '' && match[2] !== null && match[2] !== undefined && match[2] !== '') {
+      // Add dragging class for visual feedback
+      this.infra.dom.addClass(entity, 'dragging');
+      
       this.setState({
         interactionMode: 'dragging' as InteractionMode,
         dragState: {
@@ -1185,6 +1212,11 @@ export class ERViewerApplication {
     if (this.state.interactionMode === 'dragging' && this.state.dragState) {
       // Save entity position
       if (this.state.dragState.type === 'entity' && this.state.dragState.tableName !== null && this.state.dragState.tableName !== undefined && this.state.dragState.tableName !== '') {
+        // Remove dragging class
+        if (this.state.dragState.element) {
+          this.infra.dom.removeClass(this.state.dragState.element, 'dragging');
+        }
+        
         const bounds = this.state.entityBounds.get(this.state.dragState.tableName);
         if (bounds) {
           const newLayoutData = { ...this.state.layoutData };

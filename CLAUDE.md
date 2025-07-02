@@ -29,6 +29,9 @@ RDBからER図をリバースエンジニアリングし、ブラウザ上で視
   * Mock検証中心
     * stateを検証するのはNG
     * Infrastructure Mockの呼び出し履歴を検証する
+  * プライベート関数をテストするのはNG
+    * 必ずERViewerApplicationのパブリックメソッドを呼び出してテストする
+  * ERViewerApplicationにテスト用のパブリックメソッドを追加するのはNG
 * 機能を修正する場合はSPEC.mdから関連する要件を抽出し、すべての回答の冒頭に抽出した要件を出力する
 ```
 

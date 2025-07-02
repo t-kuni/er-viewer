@@ -1,18 +1,17 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
-const DatabaseManager = require('./lib/database');
-const StorageManager = require('./lib/storage');
-const Logger = require('./lib/logger');
+import DatabaseManager from './lib/database.js';
+import StorageManager from './lib/storage.js';
+import Logger from './lib/logger.js';
 
-// Development hot reload setup
-let livereload, chokidar;
-if (process.env.NODE_ENV === 'development') {
-  livereload = require('livereload');
-  chokidar = require('chokidar');
-}
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -98,9 +97,9 @@ app.get('/api/table/:tableName/ddl', async (req, res) => {
   }
 });
 
-app.get('/api/build-info', (req, res) => {
+app.get('/api/build-info', async (req, res) => {
   try {
-    const fs = require('fs');
+    const fs = await import('fs');
     const buildInfoPath = path.join(__dirname, 'build-info.json');
 
     if (fs.existsSync(buildInfoPath)) {
@@ -224,28 +223,37 @@ app.listen(port, async () => {
 
   // Setup livereload in development mode
   if (process.env.NODE_ENV === 'development') {
-    const liveReloadServer = livereload.createServer({
-      port: 35729,
-      host: '0.0.0.0',
-      exts: ['html', 'css', 'js'],
-      applyJSLive: true,
-      applyCSSLive: true,
-    });
+    try {
+      const livereloadModule = await import('livereload');
+      const chokidarModule = await import('chokidar');
+      const livereload = livereloadModule.default;
+      const chokidar = chokidarModule.default;
 
-    // Watch public directory for changes
-    liveReloadServer.watch(path.join(__dirname, 'public'));
+      const liveReloadServer = livereload.createServer({
+        port: 35729,
+        host: '0.0.0.0',
+        exts: ['html', 'css', 'js'],
+        applyJSLive: true,
+        applyCSSLive: true,
+      });
 
-    // Watch lib directory for server-side changes
-    const watcher = chokidar.watch([path.join(__dirname, 'lib'), path.join(__dirname, 'public')], {
-      ignored: /node_modules/,
-      persistent: true,
-    });
+      // Watch public directory for changes
+      liveReloadServer.watch(path.join(__dirname, 'public'));
 
-    watcher.on('change', (filePath) => {
-      console.log(`File changed: ${filePath}`);
-      liveReloadServer.refresh(filePath);
-    });
+      // Watch lib directory for server-side changes
+      const watcher = chokidar.watch([path.join(__dirname, 'lib'), path.join(__dirname, 'public')], {
+        ignored: /node_modules/,
+        persistent: true,
+      });
 
-    await logger.info('LiveReload server running on port 35729');
+      watcher.on('change', (filePath) => {
+        console.log(`File changed: ${filePath}`);
+        liveReloadServer.refresh(filePath);
+      });
+
+      await logger.info('LiveReload server running on port 35729');
+    } catch (error) {
+      console.warn('LiveReload setup failed:', error.message);
+    }
   }
 });

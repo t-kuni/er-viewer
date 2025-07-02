@@ -6,7 +6,6 @@
  */
 import type { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import type { NetworkRequest } from '../public/js/types/infrastructure';
 
 // Jest カスタムマッチャーの型定義を拡張
 declare global {
@@ -195,8 +194,8 @@ export const toHaveStoredItem = (
   key: string,
   value?: any
 ) => {
-  const storageContents = infrastructure.storage.getStorageContents();
-  const hasKey = key in storageContents;
+  const actualValue = infrastructure.storage.getItem(key);
+  const hasKey = actualValue !== null;
   
   if (value === undefined) {
     return {
@@ -207,11 +206,8 @@ export const toHaveStoredItem = (
     };
   }
   
-  // StorageMockは値をJSON.stringifyして保存するため、
-  // 期待値も同様にJSON.stringifyする必要がある
-  const actualValue = storageContents[key];
-  const expectedValue = JSON.stringify(value);
-  const pass = hasKey && actualValue === expectedValue;
+  // StorageMockは値をそのまま保存するため、そのまま比較
+  const pass = hasKey && actualValue === value;
   
   return {
     pass,
@@ -230,24 +226,27 @@ export const toHaveSetAttribute = (
   attributeName: string,
   value: string
 ) => {
-  const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
-  const elementMatcher = typeof element === 'string' 
-    ? expect.objectContaining({ id: element })
+  // 要素を取得
+  const targetElement = typeof element === 'string' 
+    ? infrastructure.dom.getElementById(element) as unknown as MockElement
     : element;
-    
-  const pass = setAttributeSpy.mock.calls.some(call => {
-    const [el, attr, val] = call;
-    const elementMatches = typeof element === 'string'
-      ? (el as MockElement).getAttribute('id') === element
-      : el === element;
-    return elementMatches && attr === attributeName && val === value;
-  });
+  
+  if (!targetElement) {
+    return {
+      pass: false,
+      message: () => `Element ${element} not found`
+    };
+  }
+  
+  // 要素の属性値を確認
+  const actualValue = targetElement.getAttribute(attributeName);
+  const pass = actualValue === value;
   
   return {
     pass,
     message: () => pass
-      ? `Expected not to have called setAttribute with (${element}, "${attributeName}", "${value}")`
-      : `Expected to have called setAttribute with (${element}, "${attributeName}", "${value}")`
+      ? `Expected element not to have attribute "${attributeName}" with value "${value}"`
+      : `Expected element to have attribute "${attributeName}" with value "${value}", but got "${actualValue}"`
   };
 };
 

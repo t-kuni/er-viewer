@@ -3,7 +3,6 @@
  */
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
-import type { MockData } from '../public/js/types/infrastructure';
 import type { ERData } from '../public/js/types/index';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { 
@@ -11,13 +10,10 @@ import {
   createEntity,
   createLayoutData,
   createUserEntity, 
-  createPostEntity, 
-  createUserPostERData,
+  createPostEntity,
   createNetworkResponse
 } from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('レンダリング', () => {
   afterEach(() => {
@@ -66,10 +62,10 @@ describe('レンダリング', () => {
       // DOM操作をスパイ - app作成前に設定
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Assert - DOMに描画されたエンティティを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -81,7 +77,7 @@ describe('レンダリング', () => {
       ) as MockElement[];
       expect(entityElements.length).toBeGreaterThan(0);
       
-      const entityElement = entityElements[0];
+      const entityElement = entityElements[0]!;
       expect(entityElement.getAttribute('data-table-name')).toBe('test_table');
       
       // カラムの絵文字が設定されていることをDOM操作から検証
@@ -99,8 +95,6 @@ describe('レンダリング', () => {
       expect(allColumnText).toContain('❓'); // NULL許可
       expect(allColumnText).toContain('📅'); // 日付型
       
-      // Cleanup
-      app = null;
     });
 
     test('エンティティが正しく描画される', async () => {
@@ -131,10 +125,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // エンティティがキャンバスに描画されることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -147,8 +141,6 @@ describe('レンダリング', () => {
       const secondChild = dynamicLayer.children[1] as MockElement;
       expect(secondChild.getAttribute('class')).toBe('entity draggable');
       
-      // Cleanup
-      app = null;
     });
 
     test('エンティティバウンドが正しく設定される', async () => {
@@ -175,10 +167,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Assert
       // エンティティがDOM上に描画されていることを確認
@@ -209,8 +201,6 @@ describe('レンダリング', () => {
         'translate(300, 200)'
       );
       
-      // Cleanup
-      app = null;
     });
   });
 
@@ -243,10 +233,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // エンティティがレンダリングされていることを確認
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -300,10 +290,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Assert - リレーションシップが描画されていることを確認
 
@@ -315,8 +305,6 @@ describe('レンダリング', () => {
       const firstChild = dynamicLayer.children[0] as MockElement;
       expect(firstChild.getAttribute('class')).toBe('relationships');
       
-      // Cleanup
-      app = null;
     });
 
     test('リレーションシップパスの座標が正しく計算される', async () => {
@@ -347,10 +335,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // リレーションシップが描画されていることを確認
 
@@ -376,8 +364,6 @@ describe('レンダリング', () => {
       expect(path.getAttribute('stroke')).toBe('#666');
       expect(path.getAttribute('stroke-width')).toBe('2');
       
-      // Cleanup
-      app = null;
     });
 
     test('リレーションシップがPolyline（直角線）で描画される', async () => {
@@ -408,10 +394,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // リレーションシップグループを取得
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
@@ -441,8 +427,6 @@ describe('レンダリング', () => {
       expect(segments[0]).toBe('M');
       expect(segments).toContain('L');
       
-      // Cleanup
-      app = null;
     });
   });
 
@@ -450,7 +434,7 @@ describe('レンダリング', () => {
     test('パン操作でビューポートが更新される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
@@ -472,14 +456,12 @@ describe('レンダリング', () => {
         expect.stringContaining('translate')
       );
       
-      // Cleanup
-      app = null;
     });
 
     test('ズーム操作でスケールが更新される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
@@ -504,8 +486,6 @@ describe('レンダリング', () => {
         expect.stringContaining('scale')
       );
       
-      // Cleanup
-      app = null;
     });
   });
 
@@ -536,18 +516,18 @@ describe('レンダリング', () => {
       // setInnerHTMLが呼ばれていることを確認 - app作成前に設定
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // Act - データロードをシミュレート
       await app.loadERData();
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Assert - DOM上にクラスタリングされた位置でエンティティが描画される
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
       
       const clearCalls = setInnerHTMLSpy.mock.calls.filter(
-        call => call[0] === dynamicLayer && call[1] === ''
+        call => call[0] === (dynamicLayer as any) && call[1] === ''
       );
       
       // dynamic-layerがクリアされているはず
@@ -576,8 +556,6 @@ describe('レンダリング', () => {
       expect(tableNames).toContain('posts');
       expect(tableNames).toContain('comments');
       
-      // Cleanup
-      app = null;
     });
     
     test('既存のpositionがある場合はクラスタリングされない', async () => {
@@ -605,11 +583,11 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // データロードをシミュレート
       await app.loadERData();
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Assert - 既存のpositionが使用されてエンティティが描画される
       
@@ -621,8 +599,6 @@ describe('レンダリング', () => {
       const userEntity = dynamicLayer.children[1] as MockElement;
       expect(userEntity.getAttribute('transform')).toBe('translate(150, 150)');
       
-      // Cleanup
-      app = null;
     });
     
     test('リバースエンジニアリング時に既存のpositionがクリアされてクラスタリングが強制される', async () => {
@@ -673,21 +649,21 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
-      await waitForAsync(); // 初期データロードを待つ
+      const app: any = new ERViewerApplication(infrastructure);
+      await new Promise(resolve => setTimeout(resolve, 0)); // 初期データロードを待つ
       
       // Act
       await app.reverseEngineer();
       
       // リバースエンジニアリング後、非同期処理が完了するまで待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Assert - ネットワークリクエストの検証
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
       expect(requests.length).toBeGreaterThan(0);
       
-      const reverseEngRequest = requests[requests.length - 1];
+      const reverseEngRequest = requests[requests.length - 1]!;
       expect(reverseEngRequest.url).toBe('/api/reverse-engineer');
       expect(reverseEngRequest.method).toBe('POST');
       
@@ -705,7 +681,7 @@ describe('レンダリング', () => {
       
       for (let i = 0; i < dynamicLayer.children.length; i++) {
         const child = dynamicLayer.children[i] as MockElement;
-        if (child.getAttribute('class') === 'entity draggable') {
+        if (child.getAttribute && child.getAttribute('class') === 'entity draggable') {
           const tableName = child.getAttribute('data-table-name');
           const transform = child.getAttribute('transform');
           
@@ -724,8 +700,6 @@ describe('レンダリング', () => {
       expect(foundUsers).toBe(true);
       expect(foundPosts).toBe(true);
       
-      // Cleanup
-      app = null;
     });
   });
 
@@ -752,10 +726,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データ読み込みを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Assert
       // レイヤー情報がDOMに反映されていることを確認
@@ -792,10 +766,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // データ読み込みを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Act - レイヤー順序を変更するイベントを発火
       const newLayers = [
@@ -807,7 +781,7 @@ describe('レンダリング', () => {
         detail: { layers: newLayers }
       });
       
-      infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event);
+      infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event as any);
       
       // イベント処理を待つ（最適化：不要と判断）
       // await waitForAsync();
@@ -839,10 +813,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // データ読み込みを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // レンダリングを実行してエンティティを描画
       (app as any).render();
@@ -857,7 +831,7 @@ describe('レンダリング', () => {
         detail: { layers: newLayers }
       });
       
-      infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event);
+      infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event as any);
       
       // 再レンダリングをトリガー
       (app as any).render();
@@ -900,10 +874,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // データ読み込みを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // レンダリング実行
       (app as any).render();
@@ -918,7 +892,7 @@ describe('レンダリング', () => {
       
       for (let i = 0; i < dynamicLayer.children.length; i++) {
         const child = dynamicLayer.children[i] as MockElement;
-        if (child.getAttribute('class') === 'entity draggable') {
+        if (child.getAttribute && child.getAttribute('class') === 'entity draggable') {
           visibleEntitiesCount++;
           const tableName = child.getAttribute('data-table-name');
           
@@ -934,6 +908,7 @@ describe('レンダリング', () => {
       // 実装されていない場合は、両方とも表示される可能性がある
       expect(usersEntityFound).toBe(true);
       // postsEntityFoundの検証は、レイヤー機能の実装状況により異なる
+      expect(postsEntityFound).toBeDefined();
     });
 
     test('関係性ベースのクラスタリングが適用される', async () => {
@@ -951,8 +926,8 @@ describe('レンダリング', () => {
           createEntity({ name: 'tags', columns: [{ name: 'id', type: 'int', key: 'PRI' }] })
         ],
         relationships: [
-          { from: 'posts', fromColumn: 'user_id', to: 'users', toColumn: 'id' },
-          { from: 'comments', fromColumn: 'post_id', to: 'posts', toColumn: 'id' }
+          { from: 'posts', fromColumn: 'user_id', to: 'users', toColumn: 'id', constraintName: 'fk_posts_users' },
+          { from: 'comments', fromColumn: 'post_id', to: 'posts', toColumn: 'id', constraintName: 'fk_comments_posts' }
         ],
         // layoutを空にして、クラスタリングが適用されるようにする
         layout: {
@@ -969,10 +944,10 @@ describe('レンダリング', () => {
         }
       });
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Act - データロードを待つ
-      await waitForAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Assert
       // エンティティがキャンバスに描画されることを確認
@@ -1009,8 +984,6 @@ describe('レンダリング', () => {
         'tags'
       );
       
-      // Cleanup
-      app = null;
     });
   });
 });

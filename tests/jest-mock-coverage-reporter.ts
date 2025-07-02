@@ -4,17 +4,15 @@
  * Infrastructure Mockの呼び出しカバレッジをレポートするカスタムレポーター
  */
 
-import { Reporter, Test, TestResult, AggregatedResult, Context } from '@jest/reporters';
+import { Reporter, Test, TestResult, AggregatedResult } from '@jest/reporters';
 import { MockCoverageTracker } from './mock-coverage-tracker';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export default class MockCoverageReporter implements Reporter {
-  private globalConfig: any;
   private options: any;
 
-  constructor(globalConfig: any, options: any) {
-    this.globalConfig = globalConfig;
+  constructor(_globalConfig: any, options: any) {
     this.options = options || {};
   }
 
@@ -37,14 +35,14 @@ export default class MockCoverageReporter implements Reporter {
   /**
    * 各テスト実行後
    */
-  onTestResult(test: Test, testResult: TestResult): void {
+  onTestResult(_test: Test, _testResult: TestResult): void {
     // テストごとの結果を必要に応じて処理
   }
 
   /**
    * すべてのテスト実行完了時
    */
-  onRunComplete(contexts: Set<Context>, results: AggregatedResult): void {
+  onRunComplete(_contexts: Set<any>, _results: AggregatedResult): void {
     const tracker = MockCoverageTracker.getInstance();
     
     // カバレッジディレクトリを作成

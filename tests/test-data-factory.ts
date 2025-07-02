@@ -64,8 +64,22 @@ export function createLayoutData(options: {
 } = {}): LayoutData {
   return {
     entities: options.entities || {},
-    rectangles: options.rectangles || [],
-    texts: options.texts || [],
+    rectangles: (options.rectangles || []).map((rect, index) => ({
+      id: rect.id || `rect-${index}`,
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      color: rect.color
+    })),
+    texts: (options.texts || []).map((text, index) => ({
+      id: text.id || `text-${index}`,
+      x: text.x,
+      y: text.y,
+      content: text.content,
+      fontSize: text.fontSize,
+      color: text.color
+    })),
     layers: options.layers || []
   };
 }

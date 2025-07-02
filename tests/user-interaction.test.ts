@@ -8,9 +8,7 @@ import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { BrowserAPIMock } from '../public/js/infrastructure/mocks/browser-api-mock';
 import { 
   createERData, 
-  createEntity,
   createUserEntity, 
-  createPostEntity, 
   createUserPostERData,
   createNetworkResponse,
   createDDLResponse
@@ -44,7 +42,7 @@ describe('ユーザーインタラクション', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
@@ -80,7 +78,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
 
     test('エンティティ要素をクリックするとhandleCanvasClickが正しく動作する', async () => {
@@ -92,7 +89,7 @@ describe('ユーザーインタラクション', () => {
         }
       };
       infrastructure.setupMockData(mockData);
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // クリックターゲットのモック要素を作成
       const mockEntityElement = new MockElement('g');
@@ -148,7 +145,6 @@ describe('ユーザーインタラクション', () => {
       expect(ddlRequest!.url).toBe('/api/table/users/ddl');
       
       // Cleanup
-      app = null;
     });
 
     test('DDL表示時にsyntax highlightが適用される', async () => {
@@ -172,12 +168,12 @@ describe('ユーザーインタラクション', () => {
         highlightElement: highlightElementSpy
       };
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // querySelector spyの設定
       const mockCodeElement = new MockElement('code');
       const querySelectorSpy = jest.spyOn(infrastructure.dom, 'querySelector')
-        .mockReturnValue(mockCodeElement);
+        .mockReturnValue(mockCodeElement as unknown as Element);
       
       app.render();
 
@@ -191,10 +187,9 @@ describe('ユーザーインタラクション', () => {
       expect(querySelectorSpy).toHaveBeenCalledWith('#sidebar-content code');
       
       // Prism.highlightElement が呼ばれたことを確認
-      expect(highlightElementSpy).toHaveBeenCalledWith(mockCodeElement);
+      expect(highlightElementSpy).toHaveBeenCalledWith(mockCodeElement as unknown as Element);
       
       // Cleanup
-      app = null;
       delete (global as any).window.Prism;
     });
   });
@@ -237,7 +232,7 @@ describe('ユーザーインタラクション', () => {
         },
       });
 
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       await waitForAsync();
       app.render();
       
@@ -278,7 +273,7 @@ describe('ユーザーインタラクション', () => {
         }
       });
 
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       await waitForAsync();
       app.render();
       
@@ -383,9 +378,9 @@ describe('ユーザーインタラクション', () => {
     // BrowserAPI呼び出し履歴の詳細検証
     const prompts = (infrastructure.browserAPI as BrowserAPIMock).getPrompts();
     expect(prompts.length).toBe(1);
-    expect(prompts[0].message).toBe('テキストを入力してください:');
-    expect(prompts[0].response).toBe('テストテキスト');
-    expect(prompts[0].timestamp).toBeDefined();
+    expect(prompts[0]!.message).toBe('テキストを入力してください:');
+    expect(prompts[0]!.response).toBe('テストテキスト');
+    expect(prompts[0]!.timestamp).toBeDefined();
     
     // render()が呼ばれてannotation-layerがクリアされる
     expect(getElementByIdSpy).toHaveBeenCalledWith('annotation-layer');
@@ -426,7 +421,6 @@ describe('ユーザーインタラクション', () => {
     
     // DOM操作をスパイ  
     const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
-    const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
 
     // Act
     app.addTextAtPosition(400, 400);
@@ -438,9 +432,9 @@ describe('ユーザーインタラクション', () => {
     // BrowserAPI呼び出し履歴の詳細検証
     const prompts = (infrastructure.browserAPI as BrowserAPIMock).getPrompts();
     expect(prompts.length).toBe(1);
-    expect(prompts[0].message).toBe('テキストを入力してください:');
-    expect(prompts[0].response).toBeNull(); // nullが正しく処理される
-    expect(prompts[0].timestamp).toBeDefined();
+    expect(prompts[0]!.message).toBe('テキストを入力してください:');
+    expect(prompts[0]!.response).toBeNull(); // nullが正しく処理される
+    expect(prompts[0]!.timestamp).toBeDefined();
     
     // キャンセルされた場合、render()が呼ばれないことを検証
     // text要素が作成されないことを確認
@@ -472,13 +466,11 @@ describe('ユーザーインタラクション', () => {
       
       // DOM操作をスパイ (アプリケーション初期化前に設定)
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
-      const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
-      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const closestSpy = jest.spyOn(infrastructure.dom, 'closest');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期データロード完了を待つ
       await waitForAsync();
@@ -489,7 +481,7 @@ describe('ユーザーインタラクション', () => {
       mockUserEntity.setAttribute('data-table-name', 'users');
       
       // closest()がエンティティを返すようにモック
-      closestSpy.mockReturnValue(mockUserEntity);
+      closestSpy.mockReturnValue(mockUserEntity as unknown as Element);
       
       // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
       // InfrastructureMockが自動的にハイライトレイヤーを提供する
@@ -502,7 +494,7 @@ describe('ユーザーインタラクション', () => {
         bubbles: true
       });
       Object.defineProperty(mockEvent, 'target', {
-        value: mockUserEntity,
+        value: mockUserEntity as unknown as Element,
         writable: false
       });
       
@@ -527,7 +519,6 @@ describe('ユーザーインタラクション', () => {
       expect(appState.highlightedEntities.has('users')).toBeTruthy();
       
       // Cleanup
-      app = null;
     });
 
     test('リレーションにホバーすると両端のエンティティとカラムがハイライトされる', async () => {
@@ -545,11 +536,10 @@ describe('ユーザーインタラクション', () => {
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
       const hasClassSpy = jest.spyOn(infrastructure.dom, 'hasClass');
       const getAttributeSpy = jest.spyOn(infrastructure.dom, 'getAttribute');
-      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期データロード完了を待つ
       await waitForAsync();
@@ -564,12 +554,12 @@ describe('ユーザーインタラクション', () => {
       
       // hasClass()がtrueを返すようにモック
       hasClassSpy.mockImplementation((element: Element, className: string) => {
-        return element === mockRelationship && className === 'relationship';
+        return element === (mockRelationship as unknown as Element) && className === 'relationship';
       });
       
       // getAttribute()の実装
       getAttributeSpy.mockImplementation((element: Element, attr: string) => {
-        return (element as MockElement).getAttribute(attr);
+        return (element as unknown as MockElement).getAttribute(attr);
       });
       
       // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
@@ -608,7 +598,6 @@ describe('ユーザーインタラクション', () => {
       expect(appState.highlightedRelationships.has('posts-users')).toBeTruthy();
       
       // Cleanup
-      app = null;
     });
 
     test('ホバーを外すとハイライトがクリアされる', async () => {
@@ -623,13 +612,12 @@ describe('ユーザーインタラクション', () => {
       infrastructure.setupMockData(mockData);
       
       // DOM操作をスパイ (アプリケーション初期化前に設定)
-      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
       const closestSpy = jest.spyOn(infrastructure.dom, 'closest');
       const hasClassSpy = jest.spyOn(infrastructure.dom, 'hasClass');
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期データロード完了を待つ
       await waitForAsync();
@@ -679,7 +667,6 @@ describe('ユーザーインタラクション', () => {
       expect(appState.highlightedRelationships.size).toBe(0);
       
       // Cleanup
-      app = null;
     });
   });
 
@@ -697,7 +684,7 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
@@ -707,7 +694,7 @@ describe('ユーザーインタラクション', () => {
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -761,7 +748,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
 
     test('マウスホイールを下に回すと縮小される', async () => {
@@ -769,7 +755,7 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
@@ -779,7 +765,7 @@ describe('ユーザーインタラクション', () => {
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -833,7 +819,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
 
     test('ズームの最小値と最大値が制限される', async () => {
@@ -841,7 +826,7 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
@@ -851,7 +836,7 @@ describe('ユーザーインタラクション', () => {
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -923,7 +908,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
   });
 
@@ -941,7 +925,7 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
@@ -950,7 +934,7 @@ describe('ユーザーインタラクション', () => {
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -1069,7 +1053,6 @@ describe('ユーザーインタラクション', () => {
       expect(state.dragState).toBeNull();
       
       // Cleanup
-      app = null;
     });
 
     test('マウスホイール押し込みながらドラッグでもスクロールできる', async () => {
@@ -1077,7 +1060,7 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
@@ -1086,7 +1069,7 @@ describe('ユーザーインタラクション', () => {
       const addEventListenerSpy = jest.spyOn(infrastructure.dom, 'addEventListener');
       const getBoundingClientRectSpy = jest.spyOn(infrastructure.dom, 'getBoundingClientRect');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -1154,7 +1137,6 @@ describe('ユーザーインタラクション', () => {
       expect(state.viewport.panY).toBe(initialPanY + 50); // 250 - 200 = 50
       
       // Cleanup
-      app = null;
     });
   });
   
@@ -1187,7 +1169,7 @@ describe('ユーザーインタラクション', () => {
       const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
       const appendChildSpy = jest.spyOn(infrastructure.dom, 'appendChild');
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // テキスト描画モードを開始
       app.startTextDrawingMode();
@@ -1203,7 +1185,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Act - handleCanvasMouseDownをシミュレート
-      const rect = { left: 0, top: 0 };
       jest.spyOn(infrastructure.dom, 'getBoundingClientRect').mockReturnValue({
         left: 0,
         top: 0,
@@ -1255,7 +1236,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
 
     test('テキスト描画モードでESCキーを押すとモードが終了する', async () => {
@@ -1263,12 +1243,12 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': createNetworkResponse(createUserPostERData())
+          '/api/tables': { status: 200, data: createUserPostERData() }
         }
       };
       infrastructure.setupMockData(mockData);
       
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       
       // 初期化タイマーを実行
       jest.advanceTimersByTime(10);
@@ -1296,7 +1276,6 @@ describe('ユーザーインタラクション', () => {
       );
       
       // Cleanup
-      app = null;
     });
   });
 });

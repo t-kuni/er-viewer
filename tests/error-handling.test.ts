@@ -5,19 +5,9 @@ import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockData } from '../public/js/types/infrastructure';
 import { 
-  createERData, 
-  createEntity,
-  createUserEntity, 
-  createPostEntity, 
-  createUserPostERData,
-  createNetworkResponse,
-  createDDLResponse,
-  createSuccessResponse,
   createErrorResponse
 } from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('エラーハンドリング', () => {
   afterEach(() => {
@@ -37,7 +27,7 @@ describe('エラーハンドリング', () => {
       }
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    new ERViewerApplication(infrastructure);
 
     // Act - ネットワークエラーをシミュレート
     const getJSONSpy = jest.spyOn(infrastructure.network, 'getJSON');
@@ -55,11 +45,8 @@ describe('エラーハンドリング', () => {
     expect(requests.length).toBeGreaterThan(0);
     
     const errorRequest = requests[requests.length - 1];
-    expect(errorRequest.url).toBe('/api/er-data');
-    expect(errorRequest.method).toBe('GET');
-    
-    // Cleanup
-    app = null;
+    expect(errorRequest!.url).toBe('/api/er-data');
+    expect(errorRequest!.method).toBe('GET');
   });
 
   test('無効なテーブル名でのDDL取得エラーが処理される', async () => {
@@ -74,7 +61,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // Act
     await app.showTableDetails('invalid');
@@ -87,14 +74,11 @@ describe('エラーハンドリング', () => {
     expect(requests.length).toBeGreaterThan(0);
     
     const notFoundRequest = requests[requests.length - 1];
-    expect(notFoundRequest.url).toBe('/api/table/invalid/ddl');
-    expect(notFoundRequest.method).toBe('GET');
+    expect(notFoundRequest!.url).toBe('/api/table/invalid/ddl');
+    expect(notFoundRequest!.method).toBe('GET');
     
     // エラーログの検証
     expect(history.errors.length).toBeGreaterThan(0);
-    
-    // Cleanup
-    app = null;
   });
 
   test('JSONパースエラーが適切に処理される', async () => {
@@ -110,26 +94,26 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // loadERDataメソッドを追加（テスト用）
     app.loadERData = async function() {
       try {
         // @ts-ignore - privateメソッドアクセス
         this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.getJSON('/api/er-data') as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to load ER data');
         }
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
-        this.setState({ erData: response.data });
+        this.setState({ erData: response?.data });
       } catch (error) {
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
         // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', error.message);
-        this.setState({ error: error.message });
+        this.showError('データの読み込みに失敗しました', (error as Error).message);
+        this.setState({ error: (error as Error).message });
       }
     };
 
@@ -142,7 +126,7 @@ describe('エラーハンドリング', () => {
     // Network操作の検証
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
-    expect(requests[requests.length - 1].url).toBe('/api/er-data');
+    expect(requests[requests.length - 1]!.url).toBe('/api/er-data');
     
     // JSONパースエラーが適切に処理されたことを検証
     // ネットワークリクエストが発行されたことで間接的に確認
@@ -161,26 +145,26 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // loadERDataメソッドを追加（テスト用）
     app.loadERData = async function() {
       try {
         // @ts-ignore - privateメソッドアクセス
         this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.getJSON('/api/er-data') as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to load ER data');
         }
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
-        this.setState({ erData: response.data });
+        this.setState({ erData: response?.data });
       } catch (error) {
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
         // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', error.message);
-        this.setState({ error: error.message });
+        this.showError('データの読み込みに失敗しました', (error as Error).message);
+        this.setState({ error: (error as Error).message });
       }
     };
 
@@ -194,15 +178,12 @@ describe('エラーハンドリング', () => {
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
     const forbiddenRequest = requests[requests.length - 1];
-    expect(forbiddenRequest.url).toBe('/api/er-data');
-    expect(forbiddenRequest.method).toBe('GET');
+    expect(forbiddenRequest!.url).toBe('/api/er-data');
+    expect(forbiddenRequest!.method).toBe('GET');
     
     // エラーハンドリングが適切に処理されたことを検証
     // ネットワークエラーが発生してもアプリケーションがクラッシュしないことが重要
     // DOM操作の詳細はエラーハンドリングの本質ではないため、検証を省略
-    
-    // Cleanup
-    app = null;
   });
 
   test('レート制限エラー（429 Too Many Requests）が適切に処理される', async () => {
@@ -218,7 +199,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
     
     // 初期状態を設定（publicメソッドを使用）
     app.setLayoutData({
@@ -231,12 +212,12 @@ describe('エラーハンドリング', () => {
     // saveLayoutメソッドを追加（テスト用）
     app.saveLayout = async function() {
       try {
-        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData());
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData()) as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to save layout');
         }
       } catch (error) {
-        this.infra.browserAPI.error('Error saving layout:', error.message);
+        this.infra.browserAPI.error('Error saving layout:', (error as Error).message);
       }
     };
 
@@ -250,13 +231,13 @@ describe('エラーハンドリング', () => {
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
     const rateLimitRequest = requests[requests.length - 1];
-    expect(rateLimitRequest.url).toBe('/api/layout');
-    expect(rateLimitRequest.method).toBe('POST');
+    expect(rateLimitRequest!.url).toBe('/api/layout');
+    expect(rateLimitRequest!.method).toBe('POST');
     
     // エラーハンドリングの検証 - saveLayoutメソッドがエラーログを記録しているか確認
     expect(history.errors.length).toBeGreaterThan(0);
     const lastError = history.errors[history.errors.length - 1];
-    expect(lastError.args[0]).toContain('Error saving layout');
+    expect(lastError!.args[0]).toContain('Error saving layout');
   });
 
   test('レイアウト保存時のサーバーエラーが適切に処理される', async () => {
@@ -272,7 +253,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
     
     // 初期状態を設定（publicメソッドを使用）
     app.setLayoutData({
@@ -285,12 +266,12 @@ describe('エラーハンドリング', () => {
     // saveLayoutメソッドを追加（テスト用）
     app.saveLayout = async function() {
       try {
-        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData());
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData()) as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to save layout');
         }
       } catch (error) {
-        this.infra.browserAPI.error('Error saving layout:', error.message);
+        this.infra.browserAPI.error('Error saving layout:', (error as Error).message);
       }
     };
 
@@ -304,14 +285,14 @@ describe('エラーハンドリング', () => {
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
     const errorRequest = requests[requests.length - 1];
-    expect(errorRequest.url).toBe('/api/layout');
-    expect(errorRequest.method).toBe('POST');
-    expect(errorRequest.body).toBeDefined();
+    expect(errorRequest!.url).toBe('/api/layout');
+    expect(errorRequest!.method).toBe('POST');
+    expect(errorRequest!.body).toBeDefined();
     
     // エラーハンドリングの検証 - saveLayoutメソッドがエラーログを記録しているか確認
     expect(history.errors.length).toBeGreaterThan(0);
     const lastError = history.errors[history.errors.length - 1];
-    expect(lastError.args[0]).toContain('Error saving layout');
+    expect(lastError!.args[0]).toContain('Error saving layout');
   });
 
   test('DDL取得時のサーバーエラーが適切に処理される', async () => {
@@ -327,7 +308,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // Act
     await app.showTableDetails('users');
@@ -339,14 +320,11 @@ describe('エラーハンドリング', () => {
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
     const errorRequest = requests[requests.length - 1];
-    expect(errorRequest.url).toBe('/api/table/users/ddl');
-    expect(errorRequest.method).toBe('GET');
+    expect(errorRequest!.url).toBe('/api/table/users/ddl');
+    expect(errorRequest!.method).toBe('GET');
     
     // エラーログの検証
     expect(history.errors.length).toBeGreaterThan(0);
-    
-    // Cleanup
-    app = null;
   });
 
   test('無効なエンティティデータのエラーが適切に処理される', async () => {
@@ -371,26 +349,26 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // loadERDataメソッドを追加（テスト用）
     app.loadERData = async function() {
       try {
         // @ts-ignore - privateメソッドアクセス
         this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.getJSON('/api/er-data') as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to load ER data');
         }
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
-        this.setState({ erData: response.data });
+        this.setState({ erData: response?.data });
       } catch (error) {
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
         // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', error.message);
-        this.setState({ error: error.message });
+        this.showError('データの読み込みに失敗しました', (error as Error).message);
+        this.setState({ error: (error as Error).message });
       }
     };
 
@@ -403,7 +381,7 @@ describe('エラーハンドリング', () => {
     // Network操作の検証
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
-    expect(requests[requests.length - 1].url).toBe('/api/er-data');
+    expect(requests[requests.length - 1]!.url).toBe('/api/er-data');
     
     // エラーハンドリングが適切に処理されたことを検証
     // エラーが発生してもアプリケーションがクラッシュしないことが重要
@@ -427,24 +405,24 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app = new ERViewerApplication(infrastructure) as any;
 
     // reverseEngineerメソッドを追加（テスト用）
     app.reverseEngineer = async function() {
       try {
         // @ts-ignore - privateメソッドアクセス
         this.showLoading('リバースエンジニアリング中...');
-        const response = await this.infra.network.postJSON('/api/reverse-engineer', {});
-        if (!response || response.status !== 200) {
+        const response = await this.infra.network.postJSON('/api/reverse-engineer', {}) as any;
+        if (!response || response?.status !== 200) {
           throw new Error('Failed to reverse engineer');
         }
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
-        this.setState({ erData: response.data });
+        this.setState({ erData: response?.data });
       } catch (error) {
         // @ts-ignore - privateメソッドアクセス
         this.hideLoading();
-        this.infra.browserAPI.error('Reverse engineering failed:', error.message);
+        this.infra.browserAPI.error('Reverse engineering failed:', (error as Error).message);
       }
     };
 
@@ -458,16 +436,13 @@ describe('エラーハンドリング', () => {
     const requests = history.networkRequests;
     expect(requests.length).toBeGreaterThan(0);
     const errorRequest = requests[requests.length - 1];
-    expect(errorRequest.url).toBe('/api/reverse-engineer');
-    expect(errorRequest.method).toBe('POST');
+    expect(errorRequest!.url).toBe('/api/reverse-engineer');
+    expect(errorRequest!.method).toBe('POST');
     
     // エラーログの検証
     expect(history.errors.length).toBeGreaterThan(0);
     
     // エラーハンドリングが適切に処理されたことを検証
     // エラーが発生してもアプリケーションがクラッシュしないことが重要
-    
-    // Cleanup
-    app = null;
   });
 });

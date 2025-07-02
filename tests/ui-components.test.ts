@@ -8,12 +8,6 @@ import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { StorageMock } from '../public/js/infrastructure/mocks/storage-mock';
 import { 
   createERData, 
-  createEntity,
-  createUserEntity, 
-  createPostEntity, 
-  createUserPostERData,
-  createNetworkResponse,
-  createDDLResponse,
   createSuccessResponse
 } from './test-data-factory';
 
@@ -38,7 +32,7 @@ describe('UIコンポーネント', () => {
     const getItemSpy = jest.spyOn(infrastructure.storage, 'getItem');
     
     // Act - アプリケーションを初期化（コンストラクタ内でsetupHelpPanelEventsが呼ばれる）
-    let app: any = new ERViewerApplication(infrastructure);
+    new ERViewerApplication(infrastructure);
     
     // Assert - Storageから折りたたみ状態を読み込む
     expect(getItemSpy).toHaveBeenCalledWith('helpPanelCollapsed');
@@ -49,7 +43,7 @@ describe('UIコンポーネント', () => {
   test('ヘルプパネルを展開時にStorageに状態が保存される', () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
-    let app: any = new ERViewerApplication(infrastructure);
+    new ERViewerApplication(infrastructure);
     
     // Storage操作をスパイ
     const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
@@ -59,8 +53,8 @@ describe('UIコンポーネント', () => {
     const helpContent = infrastructure.dom.getElementById('help-content') as unknown as MockElement;
     
     // ヘルプパネルを折りたたみ状態に設定
-    infrastructure.dom.addClass(helpContent, 'collapsed');
-    infrastructure.dom.addClass(helpToggle, 'collapsed');
+    infrastructure.dom.addClass(helpContent as unknown as Element, 'collapsed');
+    infrastructure.dom.addClass(helpToggle as unknown as Element, 'collapsed');
     
     // Act - トグルボタンをクリック（展開する）
     const clickEvent = new Event('click');
@@ -77,7 +71,7 @@ describe('UIコンポーネント', () => {
   test('ヘルプパネルを折りたたみ時にStorageに状態が保存される', () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
-    let app: any = new ERViewerApplication(infrastructure);
+    new ERViewerApplication(infrastructure);
     
     // Storage操作をスパイ
     const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
@@ -87,8 +81,8 @@ describe('UIコンポーネント', () => {
     const helpContent = infrastructure.dom.getElementById('help-content') as unknown as MockElement;
     
     // ヘルプパネルを展開状態に設定（collapsedクラスなし）
-    infrastructure.dom.removeClass(helpContent, 'collapsed');
-    infrastructure.dom.removeClass(helpToggle, 'collapsed');
+    infrastructure.dom.removeClass(helpContent as unknown as Element, 'collapsed');
+    infrastructure.dom.removeClass(helpToggle as unknown as Element, 'collapsed');
     
     // Act - トグルボタンをクリック（折りたたむ）
     const clickEvent = new Event('click');
@@ -116,7 +110,7 @@ describe('UIコンポーネント', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    let app: any = new ERViewerApplication(infrastructure);
+    const app: any = new ERViewerApplication(infrastructure);
     
     // DOM操作をスパイ
     const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
@@ -146,7 +140,7 @@ describe('UIコンポーネント', () => {
       test('コンテキストメニューが表示される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-    let app: any = new ERViewerApplication(infrastructure);
+    const app: any = new ERViewerApplication(infrastructure);
     
     // DOM操作をスパイ
     const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
@@ -181,7 +175,7 @@ describe('UIコンポーネント', () => {
       test('ローディング表示が正常に動作する', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-    let app: any = new ERViewerApplication(infrastructure);
+    const app: any = new ERViewerApplication(infrastructure);
     
     // DOM操作をスパイ
     const createElementSpy = jest.spyOn(infrastructure.dom, 'createElement');
@@ -212,10 +206,10 @@ describe('UIコンポーネント', () => {
     test('左サイドバーの折りたたみボタンをクリックすると折りたたまれる', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const app = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
-      const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar') as MockElement;
+      const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar') as unknown as MockElement;
       
       // DOM操作をスパイ
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
@@ -248,10 +242,10 @@ describe('UIコンポーネント', () => {
       const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
       const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
       
-      const app = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
-      const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar') as MockElement;
+      const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar') as unknown as MockElement;
       
       // 折りたたみ状態にあることを確認
       expect(addClassSpy).toHaveBeenCalledWith(
@@ -290,7 +284,7 @@ describe('UIコンポーネント', () => {
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
       
       // Act - アプリケーションを初期化
-      const app = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
       
@@ -348,7 +342,7 @@ describe('UIコンポーネント', () => {
       app.startRectangleDrawingMode();
       
       // Act - マウスドラッグで矩形を描画
-      const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
+      const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
       
       // マウスダウン
       const mouseDownEvent = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
@@ -523,7 +517,7 @@ describe('UIコンポーネント', () => {
       app.startRectangleDrawingMode();
       
       // マウス操作で矩形を描画
-      const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
+      const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
       
       // Setup getBoundingClientRect mock to return proper values
       jest.spyOn(infrastructure.dom, 'getBoundingClientRect').mockReturnValue({
@@ -606,7 +600,7 @@ describe('UIコンポーネント', () => {
       app.startTextDrawingMode();
       
       // テキストを作成 - mousedown instead of click
-      const canvas = infrastructure.dom.getElementById('er-canvas') as MockElement;
+      const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
       const mouseDownEvent = new MouseEvent('mousedown', { clientX: 200, clientY: 150 });
       canvas.dispatchEvent(mouseDownEvent);
       

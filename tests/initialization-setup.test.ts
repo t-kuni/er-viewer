@@ -7,7 +7,6 @@ import type { MockData } from '../public/js/types/infrastructure';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { 
   createERData, 
-  createEntity,
   createUserEntity, 
   createPostEntity, 
   createUserPostERData,
@@ -39,10 +38,10 @@ describe('初期化とセットアップ', () => {
       infrastructure.setupMockData(mockData);
       
       // Act
-      let app: any = new ERViewerApplication(infrastructure);
+      const _app: any = new ERViewerApplication(infrastructure);
       
       // Assert
-      expect(app).toBeDefined();
+      expect(_app).toBeDefined();
       
       // キャンバスが初期化されたことを検証
       const canvas = infrastructure.dom.getElementById('er-canvas');
@@ -63,9 +62,6 @@ describe('初期化とセットアップ', () => {
       // エラー表示エリアが作成されたことを検証
       const errorContainer = infrastructure.dom.getElementById('error-container');
       expect(errorContainer).toBeDefined();
-      
-      // Cleanup
-      app = null;
     });
 
     test('キャンバスが正しく初期化される', () => {
@@ -80,16 +76,13 @@ describe('初期化とセットアップ', () => {
       infrastructure.setupMockData(mockData);
       
       // Act
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       
       // Assert
       const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
       expect(canvas).toBeDefined();
       expect(canvas.getAttribute('width')).toBe('800');
       expect(canvas.getAttribute('height')).toBe('600');
-      
-      // Cleanup
-      app = null;
     });
   });
 
@@ -114,7 +107,7 @@ describe('初期化とセットアップ', () => {
       infrastructure.setupMockData(mockData);
       
       // Act
-      let app: any = new ERViewerApplication(infrastructure);
+      new ERViewerApplication(infrastructure);
       await waitForAsync();
       
       // Assert
@@ -125,7 +118,7 @@ describe('初期化とセットアップ', () => {
       expect(requests.length).toBeGreaterThan(0);
       
       // Network操作の詳細検証
-      const firstRequest = requests[0];
+      const firstRequest = requests[0]!;
       expect(firstRequest.url).toBe('/api/er-data');
       expect(firstRequest.method).toBe('GET');
       expect(firstRequest.headers).toBeDefined();
@@ -139,9 +132,6 @@ describe('初期化とセットアップ', () => {
       // DOM要素の属性が正しく設定されたことを確認
       const history2 = infrastructure.getInteractionHistory();
       expect(history2.networkRequests.length).toBe(1);
-      
-      // Cleanup
-      app = null;
     });
   });
 });

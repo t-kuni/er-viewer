@@ -3,8 +3,8 @@
  */
 
 // Basic types
-export type EventHandler = (...args: any[]) => void;
-export type CustomEventDetail = any;
+export type EventHandler<T extends Event = Event> = (event: T) => void;
+export type CustomEventDetail = unknown;
 
 // DOM-related types
 export interface BoundingRect {
@@ -63,8 +63,8 @@ export interface DOMInterface {
   setTextContent(element: Element, text: string): void;
 
   // Events
-  addEventListener(element: Element, event: string, handler: EventHandler, options?: EventListenerOptions): void;
-  removeEventListener(element: Element, event: string, handler: EventHandler): void;
+  addEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>, options?: EventListenerOptions): void;
+  removeEventListener<T extends Event = Event>(element: Element, event: string, handler: EventHandler<T>): void;
   dispatchEvent(element: Element, eventName: string, detail?: CustomEventDetail): void;
 
   // Measurements
@@ -113,8 +113,8 @@ export interface BrowserAPIInterface {
   getWindowSize(): WindowSize;
   getLocationHref(): string;
   getUserAgent(): string;
-  addWindowEventListener(event: string, handler: EventHandler): void;
-  removeWindowEventListener(event: string, handler: EventHandler): void;
+  addWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void;
+  removeWindowEventListener<T extends Event = Event>(event: string, handler: EventHandler<T>): void;
 }
 
 // Main Infrastructure Interface

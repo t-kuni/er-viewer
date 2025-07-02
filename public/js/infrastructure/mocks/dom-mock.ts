@@ -286,13 +286,13 @@ export class MockElement implements MockElementAttributes {
     }
   }
 
-  dispatchEvent(event: Event | string | Record<string, any>): boolean {
-    const eventType = typeof event === 'string' ? event : event.type;
+  dispatchEvent(event: Event | string | Record<string, unknown>): boolean {
+    const eventType = typeof event === 'string' ? event : (event as Event).type;
     if (this.eventListeners.has(eventType)) {
       this.eventListeners.get(eventType)!.forEach((handler) => {
         try {
           handler(event as Event);
-        } catch (e) {
+        } catch {
           // Ignore errors in mock
         }
       });
@@ -359,7 +359,7 @@ class MockStyle {
   }
 
   // Allow direct property access
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export class DOMMock extends DOMInterface {
@@ -374,7 +374,7 @@ export class DOMMock extends DOMInterface {
     this.documentElement = new MockElement('html');
 
     // Add readyState property
-    (this.documentElement as any).readyState = 'complete';
+    (this.documentElement as MockElement & { readyState: string }).readyState = 'complete';
 
     // Set up basic structure
     this.document.appendChild(this.documentElement);

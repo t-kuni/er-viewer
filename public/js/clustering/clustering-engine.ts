@@ -116,7 +116,7 @@ export class ClusteringEngine {
 
     for (let i = 0; i < this.relationshipClusters.length; i++) {
       const cluster = this.relationshipClusters[i];
-      if (cluster?.includes(entityName)) {
+      if (cluster !== null && cluster !== undefined && cluster.includes(entityName)) {
         return { index: i, entities: cluster };
       }
     }
@@ -279,7 +279,7 @@ export class ClusteringEngine {
     // Simple algorithm to find space not occupied by other entities
     const occupiedSpaces = new Set<string>();
 
-    if (this.erData && this.erData.entities) {
+    if (this.erData !== null && this.erData !== undefined && this.erData.entities !== null && this.erData.entities !== undefined && this.erData.entities.length > 0) {
       this.erData.entities.forEach((entity) => {
         if (entity.position) {
           const gridX = Math.floor(entity.position.x / 200);

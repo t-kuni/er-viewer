@@ -20,6 +20,15 @@ import type { SVGMousePosition } from './types/dom.js';
 import { LayerManager } from './layer-manager.js';
 import { ClusteringEngine } from './clustering/clustering-engine.js';
 
+// Global type declarations
+declare global {
+  interface Window {
+    Prism?: {
+      highlightElement: (element: Element) => void;
+    };
+  }
+}
+
 // Internal types
 type InteractionMode = 'default' | 'panning' | 'dragging' | 'creating';
 
@@ -67,7 +76,7 @@ export class ERViewerApplication {
   private readonly infra: Infrastructure;
   private state: ERViewerState;
   private subscribers: Set<StateUpdateCallback>;
-  private propertySubscribers: Map<string, Set<PropertyUpdateCallback<any>>>;
+  private propertySubscribers: Map<string, Set<unknown>>;
   private layerManager: LayerManager | null = null;
   private clusteringEngine: ClusteringEngine;
 
@@ -323,7 +332,8 @@ export class ERViewerApplication {
    * Get specific state property (for LayerManager compatibility)
    */
   public get<K extends keyof ERViewerState>(key: K): ERViewerState[K] | null {
-    return this.state[key] || null;
+    const value = this.state[key];
+    return value !== null && value !== undefined ? value : null;
   }
 
   /**
@@ -400,7 +410,7 @@ export class ERViewerApplication {
       if (oldState[stateKey] !== newState[stateKey]) {
         callbacks.forEach((callback) => {
           try {
-            callback(oldState[stateKey], newState[stateKey]);
+            (callback as PropertyUpdateCallback<typeof stateKey>)(oldState[stateKey], newState[stateKey]);
           } catch (error) {
             this.infra.browserAPI.error(`Error in property subscriber for ${String(key)}:`, error);
           }
@@ -708,7 +718,7 @@ export class ERViewerApplication {
 
     // Remove existing relationship groups first
     const existingGroups = Array.from(dynamicLayer.children).filter(
-      (child) => child.getAttribute && child.getAttribute('class') === 'relationships',
+      (child) => typeof child.getAttribute === 'function' && child.getAttribute('class') === 'relationships',
     );
     existingGroups.forEach((group) => {
       this.infra.dom.removeElement(group);
@@ -730,7 +740,11 @@ export class ERViewerApplication {
 
     // Insert before entities
     const firstEntity = Array.from(dynamicLayer.children).find(
-      (child) => child.getAttribute && child.getAttribute('class') && child.getAttribute('class')!.includes('entity'),
+      (child) => {
+        if (typeof child.getAttribute !== 'function') return false;
+        const classAttr = child.getAttribute('class');
+        return classAttr !== null && classAttr !== undefined && classAttr.includes('entity');
+      },
     );
 
     if (firstEntity) {
@@ -872,7 +886,7 @@ export class ERViewerApplication {
     this.infra.dom.setInnerHTML(annotationLayer, '');
 
     // Render rectangles
-    if (this.state.layoutData.rectangles) {
+    if (this.state.layoutData.rectangles !== null && this.state.layoutData.rectangles !== undefined && this.state.layoutData.rectangles.length > 0) {
       this.state.layoutData.rectangles.forEach((rect, index) => {
         const rectElement = this.createRectangleAnnotation(rect, index);
         this.infra.dom.appendChild(annotationLayer, rectElement);
@@ -880,7 +894,7 @@ export class ERViewerApplication {
     }
 
     // Render texts
-    if (this.state.layoutData.texts) {
+    if (this.state.layoutData.texts !== null && this.state.layoutData.texts !== undefined && this.state.layoutData.texts.length > 0) {
       this.state.layoutData.texts.forEach((text, index) => {
         const textElement = this.createTextAnnotation(text, index);
         this.infra.dom.appendChild(annotationLayer, textElement);
@@ -900,9 +914,9 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(rectElement, 'y', rect.y.toString());
     this.infra.dom.setAttribute(rectElement, 'width', rect.width.toString());
     this.infra.dom.setAttribute(rectElement, 'height', rect.height.toString());
-    this.infra.dom.setAttribute(rectElement, 'fill', rect.color || '#e3f2fd');
-    this.infra.dom.setAttribute(rectElement, 'stroke', rect.stroke || '#1976d2');
-    this.infra.dom.setAttribute(rectElement, 'stroke-width', (rect.strokeWidth || 2).toString());
+    this.infra.dom.setAttribute(rectElement, 'fill', rect.color !== null && rect.color !== undefined && rect.color !== '' ? rect.color : '#e3f2fd');
+    this.infra.dom.setAttribute(rectElement, 'stroke', rect.stroke !== null && rect.stroke !== undefined && rect.stroke !== '' ? rect.stroke : '#1976d2');
+    this.infra.dom.setAttribute(rectElement, 'stroke-width', (rect.strokeWidth !== null && rect.strokeWidth !== undefined && rect.strokeWidth !== 0 ? rect.strokeWidth : 2).toString());
     return rectElement;
   }
 
@@ -916,8 +930,8 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(textElement, 'data-text-id', text.id);
     this.infra.dom.setAttribute(textElement, 'x', text.x.toString());
     this.infra.dom.setAttribute(textElement, 'y', text.y.toString());
-    this.infra.dom.setAttribute(textElement, 'fill', text.color || '#2c3e50');
-    this.infra.dom.setAttribute(textElement, 'font-size', (text.fontSize || 14).toString());
+    this.infra.dom.setAttribute(textElement, 'fill', text.color !== null && text.color !== undefined && text.color !== '' ? text.color : '#2c3e50');
+    this.infra.dom.setAttribute(textElement, 'font-size', (text.fontSize !== null && text.fontSize !== undefined && text.fontSize !== 0 ? text.fontSize : 14).toString());
     this.infra.dom.setAttribute(textElement, 'cursor', 'pointer');
     this.infra.dom.setInnerHTML(textElement, text.content);
     return textElement;
@@ -1012,11 +1026,13 @@ export class ERViewerApplication {
    * Start entity drag
    */
   private startEntityDrag(entity: Element, startPoint: SVGMousePosition): void {
-    const tableName = this.infra.dom.getAttribute(entity, 'data-table-name') || '';
-    const transform = this.infra.dom.getAttribute(entity, 'transform') || '';
+    const tableNameAttr = this.infra.dom.getAttribute(entity, 'data-table-name');
+    const tableName = tableNameAttr !== null && tableNameAttr !== undefined ? tableNameAttr : '';
+    const transformAttr = this.infra.dom.getAttribute(entity, 'transform');
+    const transform = transformAttr !== null && transformAttr !== undefined ? transformAttr : '';
     const match = transform.match(/translate\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)\)/);
 
-    if (match?.[1] && match[2]) {
+    if (match !== null && match !== undefined && match[1] !== null && match[1] !== undefined && match[1] !== '' && match[2] !== null && match[2] !== undefined && match[2] !== '') {
       this.setState({
         interactionMode: 'dragging' as InteractionMode,
         dragState: {
@@ -1103,7 +1119,7 @@ export class ERViewerApplication {
     }
 
     // Update bounds
-    if (this.state.dragState.tableName) {
+    if (this.state.dragState.tableName !== null && this.state.dragState.tableName !== undefined && this.state.dragState.tableName !== '') {
       const bounds = this.state.entityBounds.get(this.state.dragState.tableName);
       if (bounds) {
         bounds.x = newX;
@@ -1168,7 +1184,7 @@ export class ERViewerApplication {
 
     if (this.state.interactionMode === 'dragging' && this.state.dragState) {
       // Save entity position
-      if (this.state.dragState.type === 'entity' && this.state.dragState.tableName) {
+      if (this.state.dragState.type === 'entity' && this.state.dragState.tableName !== null && this.state.dragState.tableName !== undefined && this.state.dragState.tableName !== '') {
         const bounds = this.state.entityBounds.get(this.state.dragState.tableName);
         if (bounds) {
           const newLayoutData = { ...this.state.layoutData };
@@ -1244,7 +1260,7 @@ export class ERViewerApplication {
       const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
       this.infra.browserAPI.log('Table name from entity:', tableName);
 
-      if (tableName) {
+      if (tableName !== null && tableName !== undefined && tableName !== '') {
         this.infra.browserAPI.log('Calling showTableDetails with tableName:', tableName);
         this.showTableDetails(tableName);
       } else {
@@ -1358,8 +1374,8 @@ export class ERViewerApplication {
 
     // Apply syntax highlighting
     const codeElement = this.infra.dom.querySelector('#sidebar-content code');
-    if (codeElement && typeof (window as any).Prism !== 'undefined') {
-      (window as any).Prism.highlightElement(codeElement);
+    if (codeElement && typeof window.Prism !== 'undefined') {
+      window.Prism.highlightElement(codeElement);
     }
 
     this.setState({ sidebarVisible: true, currentTable: tableName });
@@ -1472,7 +1488,7 @@ export class ERViewerApplication {
    */
   private addRectangleAtPosition(x: number, y: number): void {
     const newLayoutData = { ...this.state.layoutData };
-    if (!newLayoutData.rectangles) {
+    if (newLayoutData.rectangles === null || newLayoutData.rectangles === undefined) {
       newLayoutData.rectangles = [];
     }
 
@@ -1503,12 +1519,12 @@ export class ERViewerApplication {
    */
   private addTextAtPosition(x: number, y: number): void {
     const text = this.infra.browserAPI.prompt('テキストを入力してください:');
-    if (!text) {
+    if (text === null || text === undefined || text === '') {
       return;
     }
 
     const newLayoutData = { ...this.state.layoutData };
-    if (!newLayoutData.texts) {
+    if (newLayoutData.texts === null || newLayoutData.texts === undefined) {
       newLayoutData.texts = [];
     }
 
@@ -1638,9 +1654,9 @@ export class ERViewerApplication {
         // Create new layout data preserving existing positions
         const newLayoutData: LayoutData = {
           entities: {},
-          rectangles: currentLayout.rectangles || [],
-          texts: currentLayout.texts || [],
-          layers: currentLayout.layers || [],
+          rectangles: currentLayout.rectangles !== null && currentLayout.rectangles !== undefined ? currentLayout.rectangles : [],
+          texts: currentLayout.texts !== null && currentLayout.texts !== undefined ? currentLayout.texts : [],
+          layers: currentLayout.layers !== null && currentLayout.layers !== undefined ? currentLayout.layers : [],
         };
 
         // Process each entity
@@ -1840,11 +1856,18 @@ export class ERViewerApplication {
    * Setup layer order change events
    */
   private setupLayerOrderChangeEvents(): void {
-    this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'layerOrderChanged', (e: CustomEvent) => {
+    interface LayerOrderChangedDetail {
+      layerOrder?: Layer[];
+      layers?: Layer[];
+    }
+    
+    this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'layerOrderChanged', (e: CustomEvent<LayerOrderChangedDetail>) => {
       this.infra.browserAPI.log('Layer order changed:', e.detail);
-      if (e.detail?.layers) {
+      // Handle both possible property names for backward compatibility
+      const layers = e.detail?.layers ?? e.detail?.layerOrder;
+      if (layers !== null && layers !== undefined) {
         const newLayoutData = { ...this.state.layoutData };
-        newLayoutData.layers = e.detail.layers;
+        newLayoutData.layers = layers;
         this.setState({ layoutData: newLayoutData });
       }
     });
@@ -1994,7 +2017,7 @@ export class ERViewerApplication {
    */
   private highlightEntity(entity: Element): void {
     const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
-    if (!tableName || !this.state.erData) {
+    if (tableName === null || tableName === undefined || tableName === '' || this.state.erData === null || this.state.erData === undefined) {
       return;
     }
 
@@ -2043,7 +2066,7 @@ export class ERViewerApplication {
         const fromColumn = this.infra.dom.getAttribute(relationship, 'data-from-column');
         const toColumn = this.infra.dom.getAttribute(relationship, 'data-to-column');
 
-        if (fromColumn) {
+        if (fromColumn !== null && fromColumn !== undefined && fromColumn !== '') {
           const fromColumnElement = this.infra.dom.querySelector(
             `.entity[data-table-name="${fromTable}"] .column[data-column-name="${fromColumn}"]`,
           );
@@ -2052,7 +2075,7 @@ export class ERViewerApplication {
           }
         }
 
-        if (toColumn) {
+        if (toColumn !== null && toColumn !== undefined && toColumn !== '') {
           const toColumnElement = this.infra.dom.querySelector(
             `.entity[data-table-name="${toTable}"] .column[data-column-name="${toColumn}"]`,
           );

@@ -18,9 +18,9 @@ class MockResponse implements Response {
   readonly statusText: string;
   readonly type: ResponseType = 'default';
   readonly url: string;
-  private _data: any;
+  private _data: unknown;
 
-  constructor(data: any, init?: ResponseInit) {
+  constructor(data: unknown, init?: ResponseInit) {
     this._data = data;
     this.status = init?.status || 200;
     this.statusText = init?.statusText || 'OK';
@@ -41,8 +41,8 @@ class MockResponse implements Response {
     throw new Error('Not implemented');
   }
 
-  async json(): Promise<any> {
-    return this._data;
+  async json<T = unknown>(): Promise<T> {
+    return this._data as T;
   }
 
   async text(): Promise<string> {

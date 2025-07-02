@@ -9,7 +9,7 @@ interface CustomEventInit<T = unknown> extends EventInit {
 }
 
 // Mock global functions that might be missing in test environment
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 (global as any).CustomEvent = class CustomEvent<T = unknown> extends Event {
   detail?: T;
 
@@ -21,14 +21,13 @@ interface CustomEventInit<T = unknown> extends EventInit {
 
 // Mock for setImmediate if not available
 if (typeof global.setImmediate === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).setImmediate = (callback: () => void): ReturnType<typeof setTimeout> => {
     return setTimeout(callback, 0);
   };
 }
 
 // Mock for SVG namespace URI
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 (global as any).SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 // Type augmentation for global namespace

@@ -91,11 +91,11 @@ export class EventController {
   private eventHandlers: Map<string, Map<string, (event: Event, target: Element) => boolean | void>>;
 
   // Interaction state
-  private dragThreshold: number = 5; // pixels
+  private dragThreshold = 5; // pixels
   private dragStartPoint: Position | null = null;
   private dragCurrentPoint: Position | null = null;
-  private hasDragMovement: boolean = false;
-  private lastHadDragMovement: boolean = false;
+  private hasDragMovement = false;
+  private lastHadDragMovement = false;
 
   // Event handler bindings
   private boundHandlers: BoundHandlers;

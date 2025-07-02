@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "ER Diagram Viewer for MySQL databases",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development nodemon server.js",

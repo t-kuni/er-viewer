@@ -28,7 +28,7 @@ declare global {
 document.addEventListener('DOMContentLoaded', () => {
   try {
     // Initialize the ER Viewer core
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
+
     erViewer = new (ERViewerCoreClass as any)() as ERViewerCore;
 
     // Export for global access
@@ -189,20 +189,18 @@ async function reverseEngineer(): Promise<void> {
   try {
     const response = await fetch('/api/reverse-engineer', { method: 'POST' });
     if (response.ok) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const erData = await response.json();
 
       // Clear existing positions to force clustering
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
       erData.entities.forEach((entity: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         entity.position = null;
       });
 
       // Update state through StateManager
 
       erViewer.stateManager.setERData(erData);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       erViewer.stateManager.setLayoutData(erData.layout || { entities: {}, rectangles: [], texts: [] });
     } else {
       const errorText = await response.text();

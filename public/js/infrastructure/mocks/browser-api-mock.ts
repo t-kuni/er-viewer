@@ -65,7 +65,7 @@ export class BrowserAPIMock extends BrowserAPIInterface {
     this.confirmResponses = [...responses];
   }
 
-  prompt(message: string, defaultValue: string = ''): string | null {
+  prompt(message: string, defaultValue = ''): string | null {
     let response: string | null;
     if (this.promptResponses.length > 0) {
       const shifted = this.promptResponses.shift();

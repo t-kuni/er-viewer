@@ -67,7 +67,7 @@ export class ERViewerApplication {
   private readonly infra: Infrastructure;
   private state: ERViewerState;
   private subscribers: Set<StateUpdateCallback>;
-  private propertySubscribers: Map<keyof ERViewerState, Set<PropertyUpdateCallback<any>>>;
+  private propertySubscribers: Map<string, Set<PropertyUpdateCallback<any>>>;
   private layerManager: LayerManager | null = null;
   private clusteringEngine: ClusteringEngine;
 
@@ -336,7 +336,7 @@ export class ERViewerApplication {
   /**
    * Set state with notifications
    */
-  private setState(updates: Partial<ERViewerState>, saveToHistory: boolean = true): void {
+  private setState(updates: Partial<ERViewerState>, saveToHistory = true): void {
     const oldState = { ...this.state };
 
     // Apply updates
@@ -396,10 +396,11 @@ export class ERViewerApplication {
 
     // Notify property subscribers
     this.propertySubscribers.forEach((callbacks, key) => {
-      if (oldState[key] !== newState[key]) {
+      const stateKey = key as keyof ERViewerState;
+      if (oldState[stateKey] !== newState[stateKey]) {
         callbacks.forEach((callback) => {
           try {
-            callback(oldState[key], newState[key]);
+            callback(oldState[stateKey], newState[stateKey]);
           } catch (error) {
             this.infra.browserAPI.error(`Error in property subscriber for ${String(key)}:`, error);
           }

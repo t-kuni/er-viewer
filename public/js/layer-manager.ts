@@ -27,9 +27,9 @@ interface LayerElement extends HTMLDivElement {
 
 export class LayerManager {
   private layers: Layer[] = [];
-  private layerCounter: number = 0;
+  private layerCounter = 0;
   private draggedItem: Element | null = null;
-  private isCollapsed: boolean = false;
+  private isCollapsed = false;
   private readonly stateManager: StateManager | null;
   private readonly infra: Infrastructure | null;
 
@@ -226,7 +226,7 @@ export class LayerManager {
 
   // Collapse functionality is handled by ERViewerApplication
 
-  public addLayer(type: Layer['type'], name: string, icon: string = '📄'): Layer {
+  public addLayer(type: Layer['type'], name: string, icon = '📄'): Layer {
     const layer: Layer = {
       id: this.generateLayerId(),
       type: type,

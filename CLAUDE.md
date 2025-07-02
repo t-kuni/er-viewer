@@ -32,8 +32,9 @@ RDBからER図をリバースエンジニアリングし、ブラウザ上で視
   * プライベート関数をテストするのはNG
     * 必ずERViewerApplicationのパブリックメソッドを呼び出してテストする
   * ERViewerApplicationにテスト用のパブリックメソッドを追加するのはNG
-* タスクのキリが良いタイミングで `npm run lint:fix && npm run test && npm run typecheck` を実行しエラーが発生しないことを確認する
+* タスクのキリが良いタイミングで `npm test && npm run typecheck` を実行しエラーが発生しないことを確認する
   * エラーが発生する場合は修正する
+* eslint.config.js は編集禁止。
 * 機能を修正する場合はSPEC.mdから関連する要件を抽出し、すべての回答の冒頭に抽出した要件を出力する
 ```
 

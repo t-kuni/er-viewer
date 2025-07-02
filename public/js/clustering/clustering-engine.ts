@@ -170,15 +170,16 @@ export class ClusteringEngine {
       case 2:
         return entityIndex === 0 ? { x: baseX, y: baseY } : { x: baseX + spacing, y: baseY };
 
-      case 3:
+      case 3: {
         const trianglePositions: Position[] = [
           { x: baseX, y: baseY },
           { x: baseX + spacing, y: baseY },
           { x: baseX + spacing / 2, y: baseY + spacing * 0.866 },
         ];
         return trianglePositions[entityIndex] || { x: baseX, y: baseY };
+      }
 
-      case 4:
+      case 4: {
         const squarePositions: Position[] = [
           { x: baseX, y: baseY },
           { x: baseX + spacing, y: baseY },
@@ -186,6 +187,7 @@ export class ClusteringEngine {
           { x: baseX + spacing, y: baseY + spacing },
         ];
         return squarePositions[entityIndex] || { x: baseX, y: baseY };
+      }
 
       default:
         return { x: baseX, y: baseY };

@@ -112,11 +112,7 @@ export class CoordinateTransform {
   /**
    * Calculate optimal scale to fit content in viewport
    */
-  calculateFitScale(
-    contentBounds: Bounds,
-    viewportSize: { width: number; height: number },
-    padding: number = 0.1,
-  ): number {
+  calculateFitScale(contentBounds: Bounds, viewportSize: { width: number; height: number }, padding = 0.1): number {
     if (contentBounds.width === 0 || contentBounds.height === 0) {
       return 1;
     }

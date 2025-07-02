@@ -3,7 +3,12 @@
  * テスト用に副作用を排除したDOM操作を提供
  */
 import { DOMInterface } from '../interfaces/dom-interface.js';
-import type { EventHandler, BoundingRect, EventListenerOptions, CustomEventDetail } from '../../types/infrastructure.js';
+import type {
+  EventHandler,
+  BoundingRect,
+  EventListenerOptions,
+  CustomEventDetail,
+} from '../../types/infrastructure.js';
 
 export interface MockElementAttributes {
   tagName: string;
@@ -154,7 +159,7 @@ export class MockElement implements MockElementAttributes {
     if (selector.startsWith('[') && selector.endsWith(']')) {
       // Handle attribute selector
       const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
-      if (attributeMatch && attributeMatch[1] && attributeMatch[2]) {
+      if (attributeMatch?.[1] && attributeMatch[2]) {
         const [, attrName, attrValue] = attributeMatch;
         return this.findByAttribute(attrName, attrValue);
       }
@@ -260,7 +265,7 @@ export class MockElement implements MockElementAttributes {
     if (selector.startsWith('[') && selector.endsWith(']')) {
       // Handle attribute selector
       const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
-      if (attributeMatch && attributeMatch[1] && attributeMatch[2]) {
+      if (attributeMatch?.[1] && attributeMatch[2]) {
         const [, attrName, attrValue] = attributeMatch;
         return this.getAttribute(attrName) === attrValue;
       }
@@ -403,24 +408,24 @@ export class DOMMock extends DOMInterface {
       }),
     };
     this.body.appendChild(canvas);
-    
+
     // Create SVG structure
     const mainGroup = new MockElement('g', 'http://www.w3.org/2000/svg');
     mainGroup.setAttribute('id', 'main-group');
     canvas.appendChild(mainGroup);
-    
+
     const staticLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
     staticLayer.setAttribute('id', 'static-layer');
     mainGroup.appendChild(staticLayer);
-    
+
     const dynamicLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
     dynamicLayer.setAttribute('id', 'dynamic-layer');
     mainGroup.appendChild(dynamicLayer);
-    
+
     const annotationLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
     annotationLayer.setAttribute('id', 'annotation-layer');
     mainGroup.appendChild(annotationLayer);
-    
+
     const highlightLayer = new MockElement('g', 'http://www.w3.org/2000/svg');
     highlightLayer.setAttribute('id', 'highlight-layer');
     mainGroup.appendChild(highlightLayer);
@@ -652,22 +657,22 @@ export class DOMMock extends DOMInterface {
   cloneNode(element: Element, deep: boolean): Element {
     const mockElement = element as unknown as MockElement;
     const clone = new MockElement(mockElement.tagName, mockElement.namespace);
-    
+
     // Copy attributes
     for (const [key, value] of mockElement.attributes) {
       clone.setAttribute(key, value);
     }
-    
+
     // Copy styles
     for (const [key, value] of mockElement.style.entries) {
       clone.style.setProperty(key, value);
     }
-    
+
     // Copy classes
     for (const className of mockElement.classList.values) {
       clone.classList.add(className);
     }
-    
+
     // Deep clone children if requested
     if (deep && mockElement.children.length > 0) {
       for (const child of mockElement.children) {
@@ -675,7 +680,7 @@ export class DOMMock extends DOMInterface {
         clone.appendChild(childClone as unknown as MockElement);
       }
     }
-    
+
     return clone as unknown as Element;
   }
 }

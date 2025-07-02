@@ -50,7 +50,7 @@ interface ERViewerState extends ApplicationState {
 
   // Keyboard state
   isSpacePressed: boolean;
-  
+
   // Drawing state
   drawingMode: 'rectangle' | 'text' | null;
   isDrawing: boolean;
@@ -132,7 +132,7 @@ export class ERViewerApplication {
 
       // Keyboard state
       isSpacePressed: false,
-      
+
       // Drawing state
       drawingMode: null,
       isDrawing: false,
@@ -227,11 +227,11 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(marker, 'refX', '9');
     this.infra.dom.setAttribute(marker, 'refY', '3.5');
     this.infra.dom.setAttribute(marker, 'orient', 'auto');
-    
+
     const polygon = this.infra.dom.createElement('polygon', 'http://www.w3.org/2000/svg');
     this.infra.dom.setAttribute(polygon, 'points', '0 0, 10 3.5, 0 7');
     this.infra.dom.setAttribute(polygon, 'fill', '#666');
-    
+
     this.infra.dom.appendChild(marker, polygon);
     this.infra.dom.appendChild(defs, marker);
     this.infra.dom.appendChild(this.state.canvas, defs);
@@ -534,7 +534,7 @@ export class ERViewerApplication {
    */
   private getColumnEmojis(column: Column): string {
     const emojis: string[] = [];
-    
+
     // キー種別の絵文字
     if (column.key === 'PRI') {
       emojis.push('🔑'); // 主キー
@@ -543,28 +543,36 @@ export class ERViewerApplication {
     } else if (column.key === 'MUL') {
       emojis.push('🔗'); // 外部キー
     }
-    
+
     // 型に基づく絵文字
     const typeLC = column.type.toLowerCase();
-    if (typeLC.includes('int') || typeLC.includes('decimal') || 
-        typeLC.includes('numeric') || typeLC.includes('float') || 
-        typeLC.includes('double') || typeLC.includes('real')) {
+    if (
+      typeLC.includes('int') ||
+      typeLC.includes('decimal') ||
+      typeLC.includes('numeric') ||
+      typeLC.includes('float') ||
+      typeLC.includes('double') ||
+      typeLC.includes('real')
+    ) {
       emojis.push('🔢'); // 数値型
-    } else if (typeLC.includes('varchar') || typeLC.includes('char') || 
-               typeLC.includes('text') || typeLC.includes('string')) {
+    } else if (
+      typeLC.includes('varchar') ||
+      typeLC.includes('char') ||
+      typeLC.includes('text') ||
+      typeLC.includes('string')
+    ) {
       emojis.push('📝'); // 文字列型
-    } else if (typeLC.includes('date') || typeLC.includes('time') || 
-               typeLC.includes('timestamp')) {
+    } else if (typeLC.includes('date') || typeLC.includes('time') || typeLC.includes('timestamp')) {
       emojis.push('📅'); // 日付型
     }
-    
+
     // NULL制約の絵文字
     if (column.nullable) {
       emojis.push('❓'); // NULL許可
     } else {
       emojis.push('🚫'); // NOT NULL
     }
-    
+
     return emojis.length > 0 ? emojis.join(' ') + ' ' : '';
   }
 
@@ -767,7 +775,7 @@ export class ERViewerApplication {
   private calculatePolylinePath(fromBounds: Bounds, toBounds: Bounds): string {
     // Add padding to avoid overlapping with entity border
     const padding = 5;
-    
+
     // Calculate edge connection points
     const fromCenter = {
       x: fromBounds.x + fromBounds.width / 2,
@@ -781,7 +789,7 @@ export class ERViewerApplication {
     // Determine which sides to connect from/to
     const dx = toCenter.x - fromCenter.x;
     const dy = toCenter.y - fromCenter.y;
-    
+
     let fromPoint: Position;
     let toPoint: Position;
     let middlePoints: Position[] = [];
@@ -798,15 +806,15 @@ export class ERViewerApplication {
         fromPoint = { x: fromBounds.x - padding, y: fromCenter.y };
         toPoint = { x: toBounds.x + toBounds.width + padding, y: toCenter.y };
       }
-      
+
       // Add middle points for L-shape or Z-shape
       const middleX = (fromPoint.x + toPoint.x) / 2;
-      
+
       if (Math.abs(fromPoint.y - toPoint.y) > 1) {
         // L-shape or Z-shape needed
         middlePoints = [
           { x: middleX, y: fromPoint.y },
-          { x: middleX, y: toPoint.y }
+          { x: middleX, y: toPoint.y },
         ];
       } else {
         // Straight horizontal line - no middle points needed
@@ -823,15 +831,15 @@ export class ERViewerApplication {
         fromPoint = { x: fromCenter.x, y: fromBounds.y - padding };
         toPoint = { x: toCenter.x, y: toBounds.y + toBounds.height + padding };
       }
-      
+
       // Add middle points for L-shape or Z-shape
       const middleY = (fromPoint.y + toPoint.y) / 2;
-      
+
       if (Math.abs(fromPoint.x - toPoint.x) > 1) {
         // L-shape or Z-shape needed
         middlePoints = [
           { x: fromPoint.x, y: middleY },
-          { x: toPoint.x, y: middleY }
+          { x: toPoint.x, y: middleY },
         ];
       } else {
         // Straight vertical line - no middle points needed
@@ -841,13 +849,13 @@ export class ERViewerApplication {
 
     // Build path data
     let pathData = `M ${fromPoint.x} ${fromPoint.y}`;
-    
+
     for (const point of middlePoints) {
       pathData += ` L ${point.x} ${point.y}`;
     }
-    
+
     pathData += ` L ${toPoint.x} ${toPoint.y}`;
-    
+
     return pathData;
   }
 
@@ -966,7 +974,7 @@ export class ERViewerApplication {
       this.startRectangleDrawing(svgPoint);
       return;
     }
-    
+
     if (this.state.drawingMode === 'text') {
       event.preventDefault();
       this.addTextAtPosition(svgPoint.x, svgPoint.y);
@@ -989,7 +997,11 @@ export class ERViewerApplication {
     }
 
     // Start pan if middle mouse, shift+left, or space+left
-    if (event.button === 1 || (event.button === 0 && event.shiftKey) || (event.button === 0 && this.state.isSpacePressed)) {
+    if (
+      event.button === 1 ||
+      (event.button === 0 && event.shiftKey) ||
+      (event.button === 0 && this.state.isSpacePressed)
+    ) {
       event.preventDefault();
       this.startPan(screenX, screenY);
     }
@@ -1152,7 +1164,7 @@ export class ERViewerApplication {
       this.completeRectangleDrawing();
       return;
     }
-    
+
     if (this.state.interactionMode === 'dragging' && this.state.dragState) {
       // Save entity position
       if (this.state.dragState.type === 'entity' && this.state.dragState.tableName) {
@@ -1226,11 +1238,11 @@ export class ERViewerApplication {
     // Check if clicking on entity
     const entity = this.infra.dom.closest(target, '.entity');
     this.infra.browserAPI.log('Entity found:', entity);
-    
+
     if (entity) {
       const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
       this.infra.browserAPI.log('Table name from entity:', tableName);
-      
+
       if (tableName) {
         this.infra.browserAPI.log('Calling showTableDetails with tableName:', tableName);
         this.showTableDetails(tableName);
@@ -1510,12 +1522,12 @@ export class ERViewerApplication {
 
     newLayoutData.texts.push(newText);
     this.setState({ layoutData: newLayoutData });
-    
+
     // Add layer for the text
     if (this.layerManager) {
       this.layerManager.addTextLayer(text);
     }
-    
+
     // テキスト描画モードを終了
     this.endDrawingMode();
     const textBtn = this.infra.dom.getElementById('draw-text');
@@ -1559,7 +1571,7 @@ export class ERViewerApplication {
         this.closeSidebar();
       });
     }
-    
+
     // Rectangle Drawing button
     const rectBtn = this.infra.dom.getElementById('draw-rectangle');
     if (rectBtn) {
@@ -1572,7 +1584,7 @@ export class ERViewerApplication {
           // Start rectangle drawing mode
           this.startRectangleDrawingMode();
           this.infra.dom.addClass(rectBtn, 'active');
-          
+
           // Disable other drawing modes
           const textBtn = this.infra.dom.getElementById('draw-text');
           if (textBtn) {
@@ -1581,7 +1593,7 @@ export class ERViewerApplication {
         }
       });
     }
-    
+
     // Text Drawing button
     const textBtn = this.infra.dom.getElementById('draw-text');
     if (textBtn) {
@@ -1594,7 +1606,7 @@ export class ERViewerApplication {
           // Start text drawing mode
           this.startTextDrawingMode();
           this.infra.dom.addClass(textBtn, 'active');
-          
+
           // Disable other drawing modes
           const rectBtn = this.infra.dom.getElementById('draw-rectangle');
           if (rectBtn) {
@@ -1619,15 +1631,15 @@ export class ERViewerApplication {
 
         // Incremental reverse engineering: preserve existing layout
         const currentLayout = this.state.layoutData;
-        const currentEntities = new Set(this.state.erData?.entities.map(e => e.name) || []);
-        const newEntities = new Set(erData.entities.map(e => e.name));
+        const currentEntities = new Set(this.state.erData?.entities.map((e) => e.name) || []);
+        const newEntities = new Set(erData.entities.map((e) => e.name));
 
         // Create new layout data preserving existing positions
         const newLayoutData: LayoutData = {
           entities: {},
           rectangles: currentLayout.rectangles || [],
           texts: currentLayout.texts || [],
-          layers: currentLayout.layers || []
+          layers: currentLayout.layers || [],
         };
 
         // Process each entity
@@ -1644,7 +1656,7 @@ export class ERViewerApplication {
         });
 
         // Remove layout data for deleted entities
-        Object.keys(currentLayout.entities).forEach(entityName => {
+        Object.keys(currentLayout.entities).forEach((entityName) => {
           if (!newEntities.has(entityName)) {
             delete newLayoutData.entities[entityName];
           }
@@ -1861,7 +1873,7 @@ export class ERViewerApplication {
     // Setup collapse button click handler
     this.infra.dom.addEventListener(collapseBtn, 'click', () => {
       const isCurrentlyCollapsed = this.infra.dom.hasClass(layerSidebar, 'collapsed');
-      
+
       if (isCurrentlyCollapsed) {
         // Expand
         this.infra.dom.removeClass(layerSidebar, 'collapsed');
@@ -1946,7 +1958,7 @@ export class ERViewerApplication {
     if (highlightLayer) {
       this.infra.dom.setInnerHTML(highlightLayer, '');
     }
-    
+
     this.setState({ highlightedEntities: new Set(), highlightedRelationships: new Set() });
   }
 
@@ -1965,12 +1977,12 @@ export class ERViewerApplication {
     // Clone highlighted elements to the highlight layer for z-index effect
     const highlightedElements = this.infra.dom.querySelectorAll('.highlighted');
     highlightedElements.forEach((element) => {
-      const clone = this.infra.dom.cloneNode(element, true) as Element;
-      
+      const clone = this.infra.dom.cloneNode(element, true);
+
       // Add special styling to make it stand out
       this.infra.dom.addClass(clone, 'highlight-clone');
       this.infra.dom.setAttribute(clone, 'pointer-events', 'none');
-      
+
       // Add to highlight layer
       this.infra.dom.appendChild(highlightLayer, clone);
     });
@@ -2025,11 +2037,11 @@ export class ERViewerApplication {
       );
       if (relationship) {
         this.infra.dom.addClass(relationship, 'highlighted');
-        
+
         // Highlight the related columns
         const fromColumn = this.infra.dom.getAttribute(relationship, 'data-from-column');
         const toColumn = this.infra.dom.getAttribute(relationship, 'data-to-column');
-        
+
         if (fromColumn) {
           const fromColumnElement = this.infra.dom.querySelector(
             `.entity[data-table-name="${fromTable}"] .column[data-column-name="${fromColumn}"]`,
@@ -2038,7 +2050,7 @@ export class ERViewerApplication {
             this.infra.dom.addClass(fromColumnElement, 'highlighted');
           }
         }
-        
+
         if (toColumn) {
           const toColumnElement = this.infra.dom.querySelector(
             `.entity[data-table-name="${toTable}"] .column[data-column-name="${toColumn}"]`,
@@ -2115,48 +2127,53 @@ export class ERViewerApplication {
    * Select annotation
    */
   private selectAnnotation(element: Element): void {
-    const annotationId = this.infra.dom.getAttribute(element, 'data-rect-id') || 
-                       this.infra.dom.getAttribute(element, 'data-text-id') || '';
+    const annotationId =
+      this.infra.dom.getAttribute(element, 'data-rect-id') ||
+      this.infra.dom.getAttribute(element, 'data-text-id') ||
+      '';
     this.setState({ selectedAnnotation: annotationId });
 
     // Add selection visual
     this.infra.dom.addClass(element, 'selected');
-    
+
     // If it's a text element, allow editing on double click
     if (this.infra.dom.hasClass(element, 'annotation-text')) {
       const textId = this.infra.dom.getAttribute(element, 'data-text-id');
       const textIndex = parseInt(this.infra.dom.getAttribute(element, 'data-text-index') || '0');
-      
+
       // Set up double click event for text editing
       this.infra.dom.addEventListener(element, 'dblclick', () => {
         this.editTextAnnotation(textId!, textIndex);
       });
     }
   }
-  
+
   /**
    * Edit text annotation
    */
   private editTextAnnotation(_textId: string, textIndex: number): void {
-    if (!this.state.layoutData.texts || !this.state.layoutData.texts[textIndex]) {
+    if (!this.state.layoutData.texts?.[textIndex]) {
       return;
     }
-    
+
     const currentText = this.state.layoutData.texts[textIndex];
     const newContent = this.infra.browserAPI.prompt('テキストを編集してください:', currentText.content);
-    
+
     if (newContent !== null && newContent !== currentText.content) {
-      const newFontSize = this.infra.browserAPI.prompt('フォントサイズを編集してください:', currentText.fontSize?.toString() || '14');
+      const newFontSize = this.infra.browserAPI.prompt(
+        'フォントサイズを編集してください:',
+        currentText.fontSize?.toString() || '14',
+      );
       const newColor = this.infra.browserAPI.prompt('色を編集してください:', currentText.color || '#2c3e50');
-      
+
       const newLayoutData = { ...this.state.layoutData };
       newLayoutData.texts[textIndex] = {
         ...currentText,
         content: newContent,
         fontSize: newFontSize ? parseInt(newFontSize) : currentText.fontSize,
-        color: newColor || currentText.color
+        color: newColor || currentText.color,
       };
-      
+
       this.setState({ layoutData: newLayoutData });
     }
   }
@@ -2269,9 +2286,9 @@ export class ERViewerApplication {
     this.setState({
       drawingMode: 'rectangle',
       isDrawing: false,
-      currentDrawingRect: null
+      currentDrawingRect: null,
     });
-    
+
     // Change cursor
     if (this.state.canvas) {
       this.infra.dom.setStyles(this.state.canvas, { cursor: 'crosshair' });
@@ -2285,9 +2302,9 @@ export class ERViewerApplication {
     this.setState({
       drawingMode: 'text',
       isDrawing: false,
-      currentDrawingRect: null
+      currentDrawingRect: null,
     });
-    
+
     // Change cursor
     if (this.state.canvas) {
       this.infra.dom.setStyles(this.state.canvas, { cursor: 'text' });
@@ -2301,9 +2318,9 @@ export class ERViewerApplication {
     this.setState({
       drawingMode: null,
       isDrawing: false,
-      currentDrawingRect: null
+      currentDrawingRect: null,
     });
-    
+
     // Reset cursor
     if (this.state.canvas) {
       this.infra.dom.setStyles(this.state.canvas, { cursor: 'default' });
@@ -2314,9 +2331,11 @@ export class ERViewerApplication {
    * Update a rectangle's properties
    */
   public updateRectangle(id: string, updates: Partial<Rectangle>): void {
-    const layoutRectIndex = this.state.layoutData.rectangles.findIndex(r => r.id === id);
-    if (layoutRectIndex === -1) return;
-    
+    const layoutRectIndex = this.state.layoutData.rectangles.findIndex((r) => r.id === id);
+    if (layoutRectIndex === -1) {
+      return;
+    }
+
     // Update in layoutData
     const updatedRectangles = [...this.state.layoutData.rectangles];
     const existingRect = updatedRectangles[layoutRectIndex];
@@ -2327,15 +2346,15 @@ export class ERViewerApplication {
     updatedRectangles[layoutRectIndex] = {
       ...existingRect,
       ...updates,
-      id: existingRect.id // Ensure id is preserved
+      id: existingRect.id, // Ensure id is preserved
     } as Rectangle;
-    
+
     const updatedLayoutData = {
       ...this.state.layoutData,
-      rectangles: updatedRectangles
+      rectangles: updatedRectangles,
     };
     this.setState({ layoutData: updatedLayoutData });
-    
+
     // Update DOM element
     const rectElement = this.infra.dom.querySelector(`[data-rect-id="${id}"]`);
     if (rectElement) {
@@ -2376,14 +2395,14 @@ export class ERViewerApplication {
       height: 0,
       color: '#e3f2fd',
       stroke: '#1976d2',
-      strokeWidth: 2
+      strokeWidth: 2,
     };
-    
+
     this.setState({
       isDrawing: true,
-      currentDrawingRect: newRect
+      currentDrawingRect: newRect,
     });
-    
+
     // Create temporary rectangle element
     const annotationLayer = this.infra.dom.getElementById('annotation-layer');
     if (annotationLayer) {
@@ -2406,19 +2425,21 @@ export class ERViewerApplication {
    * Update rectangle drawing
    */
   private updateRectangleDrawing(event: MouseEvent): void {
-    if (!this.state.currentDrawingRect) return;
-    
+    if (!this.state.currentDrawingRect) {
+      return;
+    }
+
     const rect = this.infra.dom.getBoundingClientRect(this.state.canvas!);
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
     const svgPoint = this.screenToSVG(screenX, screenY);
-    
+
     // Calculate dimensions
     const width = Math.abs(svgPoint.x - this.state.currentDrawingRect.x);
     const height = Math.abs(svgPoint.y - this.state.currentDrawingRect.y);
     const x = Math.min(svgPoint.x, this.state.currentDrawingRect.x);
     const y = Math.min(svgPoint.y, this.state.currentDrawingRect.y);
-    
+
     // Update temporary rectangle
     const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect.id}`);
     if (tempRect) {
@@ -2427,7 +2448,7 @@ export class ERViewerApplication {
       this.infra.dom.setAttribute(tempRect, 'width', width.toString());
       this.infra.dom.setAttribute(tempRect, 'height', height.toString());
     }
-    
+
     // Update current drawing rect state
     this.setState({
       currentDrawingRect: {
@@ -2435,8 +2456,8 @@ export class ERViewerApplication {
         x,
         y,
         width,
-        height
-      }
+        height,
+      },
     });
   }
 
@@ -2444,22 +2465,24 @@ export class ERViewerApplication {
    * Complete rectangle drawing
    */
   private completeRectangleDrawing(): void {
-    if (!this.state.currentDrawingRect || 
-        this.state.currentDrawingRect.width === 0 || 
-        this.state.currentDrawingRect.height === 0) {
+    if (
+      !this.state.currentDrawingRect ||
+      this.state.currentDrawingRect.width === 0 ||
+      this.state.currentDrawingRect.height === 0
+    ) {
       // Remove temporary rectangle if too small
       const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect?.id}`);
       if (tempRect) {
         this.infra.dom.removeElement(tempRect);
       }
-      
+
       this.setState({
         isDrawing: false,
-        currentDrawingRect: null
+        currentDrawingRect: null,
       });
       return;
     }
-    
+
     // Remove opacity from temporary rectangle
     const tempRect = this.infra.dom.getElementById(`temp-${this.state.currentDrawingRect.id}`);
     if (tempRect) {
@@ -2467,20 +2490,20 @@ export class ERViewerApplication {
       this.infra.dom.setAttribute(tempRect, 'opacity', '1');
       this.infra.dom.setAttribute(tempRect, 'class', 'annotation-rectangle');
     }
-    
+
     // Add to layout data
     const updatedLayoutData = {
       ...this.state.layoutData,
-      rectangles: [...this.state.layoutData.rectangles, this.state.currentDrawingRect]
+      rectangles: [...this.state.layoutData.rectangles, this.state.currentDrawingRect],
     };
-    
+
     // First update the state with rectangles
     this.setState({
       layoutData: updatedLayoutData,
       isDrawing: false,
-      currentDrawingRect: null
+      currentDrawingRect: null,
     });
-    
+
     // Then add layer for this rectangle after state is updated
     if (this.layerManager) {
       const rectangleNumber = updatedLayoutData.rectangles.length;

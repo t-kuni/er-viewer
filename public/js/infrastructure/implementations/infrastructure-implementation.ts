@@ -3,7 +3,12 @@ import { DOMImplementation } from './dom-implementation.js';
 import { NetworkImplementation } from './network-implementation.js';
 import { StorageImplementation } from './storage-implementation.js';
 import { BrowserAPIImplementation } from './browser-api-implementation.js';
-import type { DOMInterface, NetworkInterface, StorageInterface, BrowserAPIInterface } from '../../types/infrastructure.js';
+import type {
+  DOMInterface,
+  NetworkInterface,
+  StorageInterface,
+  BrowserAPIInterface,
+} from '../../types/infrastructure.js';
 
 /**
  * インフラストラクチャー層の実装

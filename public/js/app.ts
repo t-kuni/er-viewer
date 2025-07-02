@@ -200,9 +200,9 @@ async function reverseEngineer(): Promise<void> {
       });
 
       // Update state through StateManager
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       erViewer.stateManager.setERData(erData);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       erViewer.stateManager.setLayoutData(erData.layout || { entities: {}, rectangles: [], texts: [] });
     } else {
       const errorText = await response.text();

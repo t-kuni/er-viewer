@@ -1,6 +1,6 @@
 /**
  * Infrastructure Mock呼び出しトラッキングユーティリティ
- * 
+ *
  * テスト実行中のMockメソッド呼び出しを追跡し、
  * カバレッジレポートを生成するための機能を提供します。
  */
@@ -111,8 +111,8 @@ export class MockCoverageTracker {
 
     for (const [mockName, methods] of this.allMethods.entries()) {
       const covered = new Set(Object.keys(this.coverageData[mockName] || {}));
-      const uncovered = Array.from(methods).filter(m => !covered.has(m));
-      
+      const uncovered = Array.from(methods).filter((m) => !covered.has(m));
+
       mockDetails[mockName] = {
         totalMethods: methods.size,
         coveredMethods: covered.size,
@@ -122,7 +122,7 @@ export class MockCoverageTracker {
 
       totalMethods += methods.size;
       coveredMethods += covered.size;
-      allUncoveredMethods.push(...uncovered.map(m => `${mockName}.${m}`));
+      allUncoveredMethods.push(...uncovered.map((m) => `${mockName}.${m}`));
     }
 
     return {
@@ -141,7 +141,7 @@ export class MockCoverageTracker {
   generateDetailedReport(): string {
     const summary = this.generateSummary();
     let report = '# Infrastructure Mock Coverage Report\n\n';
-    
+
     // サマリーセクション
     report += '## Summary\n\n';
     report += `- Total Mocks: ${summary.totalMocks}\n`;
@@ -154,10 +154,10 @@ export class MockCoverageTracker {
     for (const [mockName, details] of Object.entries(summary.mockDetails)) {
       report += `### ${mockName}\n\n`;
       report += `- Coverage: ${details.coverage.toFixed(2)}% (${details.coveredMethods}/${details.totalMethods})\n`;
-      
+
       if (details.uncoveredMethods.length > 0) {
         report += `- Uncovered Methods:\n`;
-        details.uncoveredMethods.forEach(method => {
+        details.uncoveredMethods.forEach((method) => {
           report += `  - ${method}\n`;
         });
       }
@@ -184,7 +184,7 @@ export class MockCoverageTracker {
     // 未使用メソッドの一覧
     if (summary.uncoveredMethods.length > 0) {
       report += '\n## Uncovered Methods\n\n';
-      summary.uncoveredMethods.forEach(method => {
+      summary.uncoveredMethods.forEach((method) => {
         report += `- ${method}\n`;
       });
     }

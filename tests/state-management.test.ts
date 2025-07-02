@@ -9,7 +9,7 @@ describe('状態管理', () => {
   afterEach(() => {
     // タイマーのクリア
     jest.clearAllTimers();
-    
+
     // 全モックのクリア
     jest.clearAllMocks();
   });
@@ -18,10 +18,10 @@ describe('状態管理', () => {
     test('状態の変更が正しく通知される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       const subscriber = jest.fn();
       app.subscribe(subscriber);
-      
+
       // 初期データを設定
       const mockERData = createERData();
 
@@ -37,18 +37,18 @@ describe('状態管理', () => {
     test('プロパティ変更の監視が正常に動作する', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      let app: any = new ERViewerApplication(infrastructure);
+      const app: any = new ERViewerApplication(infrastructure);
       const propertySubscriber = jest.fn();
       app.subscribeToProperty('layoutData', propertySubscriber);
-      
+
       // 新しいレイアウトデータを準備
       const newLayoutData = {
         entities: {
-          users: { x: 100, y: 100, width: 150, height: 100 }
+          users: { x: 100, y: 100, width: 150, height: 100 },
         },
         rectangles: [],
         texts: [],
-        layers: []
+        layers: [],
       };
 
       // Act - レイアウトデータを変更
@@ -58,7 +58,7 @@ describe('状態管理', () => {
       expect(propertySubscriber).toHaveBeenCalled();
       expect(propertySubscriber).toHaveBeenCalledWith(
         expect.any(Object), // 旧layoutData
-        newLayoutData // 新layoutData
+        newLayoutData, // 新layoutData
       );
     });
   });
@@ -67,26 +67,26 @@ describe('状態管理', () => {
     test('ヒストリー機能が正常に動作する', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      let app: any = new ERViewerApplication(infrastructure);
-      
+      const app: any = new ERViewerApplication(infrastructure);
+
       // 初期データを設定
       const initialLayoutData = {
         entities: {
-          users: { x: 100, y: 100, width: 150, height: 100 }
+          users: { x: 100, y: 100, width: 150, height: 100 },
         },
         rectangles: [],
         texts: [],
-        layers: []
+        layers: [],
       };
-      
+
       // 変更後のデータ
       const modifiedLayoutData = {
         entities: {
-          users: { x: 200, y: 200, width: 150, height: 100 }
+          users: { x: 200, y: 200, width: 150, height: 100 },
         },
         rectangles: [],
         texts: [],
-        layers: []
+        layers: [],
       };
 
       // Act - レイアウトを2回変更（ヒストリーエントリーを作成）
@@ -98,18 +98,18 @@ describe('状態管理', () => {
       // setLayoutDataで通知されることを利用して検証
       const subscriber = jest.fn();
       app.subscribe(subscriber);
-      
+
       // 3回目のレイアウト変更
       const finalLayoutData = {
         entities: {
-          users: { x: 300, y: 300, width: 150, height: 100 }
+          users: { x: 300, y: 300, width: 150, height: 100 },
         },
         rectangles: [],
         texts: [],
-        layers: []
+        layers: [],
       };
       app.setLayoutData(finalLayoutData);
-      
+
       // subscriberが呼ばれたことは、状態が変更され
       // ヒストリー機能が機能していることを示す
       expect(subscriber).toHaveBeenCalled();

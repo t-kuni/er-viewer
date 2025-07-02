@@ -136,7 +136,12 @@ export class LayerManager {
 
   private saveLayersToState(): void {
     if (this.stateManager) {
-      const currentLayoutData = this.stateManager.get('layoutData') || { entities: {}, rectangles: [], texts: [], layers: [] };
+      const currentLayoutData = this.stateManager.get('layoutData') || {
+        entities: {},
+        rectangles: [],
+        texts: [],
+        layers: [],
+      };
       // Save full layer information including type, icon, and order
       const layerData: Layer[] = this.layers.map((layer) => ({
         id: layer.id,
@@ -293,10 +298,8 @@ export class LayerManager {
       return div;
     }
 
-    const div = this.infra 
-      ? this.infra.dom.createElement('div')
-      : document.createElement('div');
-    
+    const div = this.infra ? this.infra.dom.createElement('div') : document.createElement('div');
+
     if (!this.infra) {
       div.className = 'layer-item';
       (div as LayerElement).dataset.layerId = layer.id;
@@ -309,10 +312,13 @@ export class LayerManager {
       this.infra.dom.addClass(div, 'layer-item');
       this.infra.dom.setAttribute(div, 'data-layer-id', layer.id);
       this.infra.dom.setAttribute(div, 'draggable', 'true');
-      this.infra.dom.setInnerHTML(div, `
+      this.infra.dom.setInnerHTML(
+        div,
+        `
             <span class="layer-item-icon">${layer.icon}</span>
             <span class="layer-item-text">${layer.name}</span>
-        `);
+        `,
+      );
     }
 
     return div;
@@ -323,7 +329,7 @@ export class LayerManager {
       return;
     }
 
-    const layerItems = this.infra 
+    const layerItems = this.infra
       ? this.infra.dom.querySelectorAll('.layer-item')
       : this.layerList.querySelectorAll<LayerElement>('.layer-item');
 
@@ -398,10 +404,10 @@ export class LayerManager {
   }
 
   private reorderLayers(draggedElement: Element, targetElement: Element): void {
-    const draggedLayerId = this.infra 
+    const draggedLayerId = this.infra
       ? this.infra.dom.getAttribute(draggedElement, 'data-layer-id')
       : (draggedElement as LayerElement).dataset.layerId;
-    const targetLayerId = this.infra 
+    const targetLayerId = this.infra
       ? this.infra.dom.getAttribute(targetElement, 'data-layer-id')
       : (targetElement as LayerElement).dataset.layerId;
 
@@ -429,7 +435,6 @@ export class LayerManager {
 
       // Save to state
       this.saveLayersToState();
-
 
       // Trigger re-rendering of canvas with new layer order
       this.triggerCanvasRerender();
@@ -488,7 +493,7 @@ export class LayerManager {
       document.dispatchEvent(event);
     } else {
       this.infra.dom.dispatchEvent(this.infra.dom.getDocumentElement(), 'layerOrderChanged', {
-        layerOrder: this.getLayerOrder()
+        layerOrder: this.getLayerOrder(),
       });
     }
 

@@ -5,22 +5,22 @@ import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockData } from '../public/js/types/infrastructure';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import { 
-  createERData, 
-  createUserEntity, 
-  createPostEntity, 
+import {
+  createERData,
+  createUserEntity,
+  createPostEntity,
   createUserPostERData,
-  createNetworkResponse
+  createNetworkResponse,
 } from './test-data-factory';
 
 // テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise(resolve => setTimeout(resolve, 0));
+const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('初期化とセットアップ', () => {
   afterEach(() => {
     // タイマーのクリア
     jest.clearAllTimers();
-    
+
     // 全モックのクリア
     jest.clearAllMocks();
   });
@@ -32,33 +32,33 @@ describe('初期化とセットアップ', () => {
       const mockERData = createUserPostERData();
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData })
-        }
+          '/api/er-data': createNetworkResponse({ data: mockERData }),
+        },
       };
       infrastructure.setupMockData(mockData);
-      
+
       // Act
       const _app: any = new ERViewerApplication(infrastructure);
-      
+
       // Assert
       expect(_app).toBeDefined();
-      
+
       // キャンバスが初期化されたことを検証
       const canvas = infrastructure.dom.getElementById('er-canvas');
       expect(canvas).toBeDefined();
-      
+
       // サイドバーが初期化されたことを検証
       const sidebar = infrastructure.dom.getElementById('sidebar');
       expect(sidebar).toBeDefined();
-      
+
       // ヘルプボタンが初期化されたことを検証
       const helpButton = infrastructure.dom.getElementById('help-button');
       expect(helpButton).toBeDefined();
-      
+
       // DOM要素が正しく作成されたことを検証
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer');
       expect(dynamicLayer).toBeDefined();
-      
+
       // エラー表示エリアが作成されたことを検証
       const errorContainer = infrastructure.dom.getElementById('error-container');
       expect(errorContainer).toBeDefined();
@@ -70,14 +70,14 @@ describe('初期化とセットアップ', () => {
       const mockERData = createUserPostERData();
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData })
-        }
+          '/api/er-data': createNetworkResponse({ data: mockERData }),
+        },
       };
       infrastructure.setupMockData(mockData);
-      
+
       // Act
       new ERViewerApplication(infrastructure);
-      
+
       // Assert
       const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
       expect(canvas).toBeDefined();
@@ -92,43 +92,45 @@ describe('初期化とセットアップ', () => {
       const infrastructure = new InfrastructureMock();
       const mockERData = createERData({
         entities: [createUserEntity(), createPostEntity()],
-        relationships: [{
-          from: 'posts',
-          fromColumn: 'user_id',
-          to: 'users',
-          toColumn: 'id'
-        }]
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+          },
+        ],
       });
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData })
-        }
+          '/api/er-data': createNetworkResponse({ data: mockERData }),
+        },
       };
       infrastructure.setupMockData(mockData);
-      
+
       // Act
       new ERViewerApplication(infrastructure);
       await waitForAsync();
-      
+
       // Assert
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
 
       // 配列操作を使わずに最初のリクエストを確認
       expect(requests.length).toBeGreaterThan(0);
-      
+
       // Network操作の詳細検証
       const firstRequest = requests[0]!;
       expect(firstRequest.url).toBe('/api/er-data');
       expect(firstRequest.method).toBe('GET');
       expect(firstRequest.headers).toBeDefined();
       expect(firstRequest.timestamp).toBeDefined();
-      
+
       // dynamic-layerにエンティティが作成されたことを検証
       const dynamicLayer = infrastructure.dom.getElementById('dynamic-layer') as unknown as MockElement;
       expect(dynamicLayer).toBeDefined();
       expect(dynamicLayer.children.length).toBeGreaterThan(0);
-      
+
       // DOM要素の属性が正しく設定されたことを確認
       const history2 = infrastructure.getInteractionHistory();
       expect(history2.networkRequests.length).toBe(1);

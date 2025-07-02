@@ -1,6 +1,6 @@
 /**
  * Jest グローバルセットアップ
- * 
+ *
  * 全てのテストファイルで利用可能なグローバル設定
  */
 import { setupInfrastructureMatchers } from './infrastructure-matchers';
@@ -12,7 +12,7 @@ setupInfrastructureMatchers();
 // Mock Coverageトラッキングを初期化
 if (process.env.COLLECT_COVERAGE === 'true' || process.env.NODE_ENV === 'test') {
   // 各テスト実行前にテスト情報を設定
-  beforeEach(function() {
+  beforeEach(function () {
     const testName = expect.getState().currentTestName || 'Unknown Test';
     const testPath = expect.getState().testPath || 'Unknown Path';
     MockCoverageTracker.getInstance().setCurrentTest(testName, testPath);
@@ -28,11 +28,11 @@ afterAll(() => {
     // シングルトンインスタンスを完全にクリア
     MockCoverageTracker.clearInstance();
   }
-  
+
   // グローバルオブジェクトのクリーンアップ
   // Jestのカスタムマッチャーはexpect.extendで登録されているため、
   // 明示的なクリーンアップは不要（Jestが自動的に管理）
-  
+
   // その他のグローバル変数やタイマーのクリーンアップ
   // 必要に応じて以下を追加：
   // - clearAllTimers()

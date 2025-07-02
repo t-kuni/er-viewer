@@ -21,7 +21,7 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
 
   test('レイヤー一覧に複数のレイヤーが表示される', () => {
     // Arrange
-    
+
     // Act - 矩形を追加してレイヤーを作成
     app.startRectangleDrawingMode();
     const canvas = infrastructure.dom.getElementById('er-canvas') as unknown as MockElement;
@@ -29,13 +29,13 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     // mousemoveはdocumentに対して発火する必要がある
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     // Assert - レイヤーリストにレイヤーアイテムが存在する
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     expect(layerItems.length).toBeGreaterThanOrEqual(2); // デフォルトのER図 + 矩形1
-    
+
     // 矩形レイヤーが追加されているか確認
-    const rectangleLayer = Array.from(layerItems).find(item => {
+    const rectangleLayer = Array.from(layerItems).find((item) => {
       const innerHTML = (item as unknown as MockElement).innerHTML;
       return innerHTML.includes('矩形No');
     });
@@ -49,13 +49,13 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     // Assert - レイヤーアイテムを取得してdraggable属性を確認
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     expect(layerItems.length).toBeGreaterThanOrEqual(2);
-    
+
     // 各レイヤーアイテムがdraggable属性を持っているか確認
-    layerItems.forEach(item => {
+    layerItems.forEach((item) => {
       const draggable = infrastructure.dom.getAttribute(item, 'draggable');
       expect(draggable).toBe('true');
     });
@@ -69,40 +69,40 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     // 矩形2を追加
     app.startRectangleDrawingMode();
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     // レイヤーアイテムを取得
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     expect(layerItems.length).toBeGreaterThanOrEqual(3); // ER図 + 矩形1 + 矩形2
-    
+
     const firstItem = layerItems[1] as unknown as MockElement; // 矩形1
     const secondItem = layerItems[2] as unknown as MockElement; // 矩形2
-    
+
     // Act - 最初のアイテムを2番目のアイテムの位置にドラッグ&ドロップ
     const dragEvent = new Event('dragstart') as any;
     Object.defineProperty(dragEvent, 'dataTransfer', {
       value: { effectAllowed: '', dropEffect: '' },
-      writable: true
+      writable: true,
     });
     firstItem.dispatchEvent(dragEvent);
-    
+
     const dragOverEvent = new Event('dragover') as any;
     Object.defineProperty(dragOverEvent, 'dataTransfer', {
       value: { dropEffect: '' },
-      writable: true
+      writable: true,
     });
     secondItem.dispatchEvent(dragOverEvent);
-    
+
     const dropEvent = new Event('drop') as any;
     secondItem.dispatchEvent(dropEvent);
-    
+
     firstItem.dispatchEvent(new Event('dragend'));
-    
+
     // Assert - レイヤーの順番が変更される
     const updatedLayerItems = infrastructure.dom.querySelectorAll('.layer-item');
     // ドラッグ&ドロップ後の順番を確認（内容で比較）
@@ -117,27 +117,27 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     const firstItem = layerItems[0] as unknown as MockElement;
-    
+
     const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
     const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
-    
+
     // Act - ドラッグ開始
     const dragEvent = new Event('dragstart') as any;
     Object.defineProperty(dragEvent, 'dataTransfer', {
       value: { effectAllowed: '' },
-      writable: true
+      writable: true,
     });
     firstItem.dispatchEvent(dragEvent);
-    
+
     // Assert - draggingクラスが追加される
     expect(addClassSpy).toHaveBeenCalledWith(firstItem, 'dragging');
-    
+
     // Act - ドラッグ終了
     firstItem.dispatchEvent(new Event('dragend'));
-    
+
     // Assert - draggingクラスが削除される
     expect(removeClassSpy).toHaveBeenCalledWith(firstItem, 'dragging');
   });
@@ -149,37 +149,37 @@ describe('レイヤー一覧のドラッグ&ドロップ', () => {
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     app.startRectangleDrawingMode();
     canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: 300, clientY: 100 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 150 }));
     infrastructure.dom.getDocumentElement().dispatchEvent(new MouseEvent('mouseup'));
-    
+
     const layerItems = infrastructure.dom.querySelectorAll('.layer-item');
     const firstItem = layerItems[1] as unknown as MockElement;
     const secondItem = layerItems[2] as unknown as MockElement;
-    
+
     // DocumentにdispatchEventが呼ばれるかスパイ
     const dispatchEventSpy = jest.spyOn(infrastructure.dom.getDocumentElement(), 'dispatchEvent');
-    
+
     // Act - ドラッグ&ドロップ
     const dragEvent = new Event('dragstart') as any;
     Object.defineProperty(dragEvent, 'dataTransfer', {
       value: { effectAllowed: '' },
-      writable: true
+      writable: true,
     });
     firstItem.dispatchEvent(dragEvent);
-    
+
     const dropEvent = new Event('drop') as any;
     secondItem.dispatchEvent(dropEvent);
-    
+
     firstItem.dispatchEvent(new Event('dragend'));
-    
+
     // Assert - layerOrderChangedイベントが発火される
     expect(dispatchEventSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'layerOrderChanged'
-      })
+        type: 'layerOrderChanged',
+      }),
     );
   });
 });

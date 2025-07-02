@@ -1,4 +1,8 @@
-import type { BrowserAPIInterface as IBrowserAPIInterface, WindowSize, EventHandler } from '../../types/infrastructure.js';
+import type {
+  BrowserAPIInterface as IBrowserAPIInterface,
+  WindowSize,
+  EventHandler,
+} from '../../types/infrastructure.js';
 
 /**
  * ブラウザAPI操作の抽象インタフェース

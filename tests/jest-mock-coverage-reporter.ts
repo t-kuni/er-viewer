@@ -1,6 +1,6 @@
 /**
  * Jest Mock Coverage Reporter
- * 
+ *
  * Infrastructure Mockの呼び出しカバレッジをレポートするカスタムレポーター
  */
 
@@ -44,7 +44,7 @@ export default class MockCoverageReporter implements Reporter {
    */
   onRunComplete(_contexts: Set<any>, _results: AggregatedResult): void {
     const tracker = MockCoverageTracker.getInstance();
-    
+
     // カバレッジディレクトリを作成
     const coverageDir = path.join(process.cwd(), 'coverage', 'mock-coverage');
     if (!fs.existsSync(coverageDir)) {
@@ -57,10 +57,7 @@ export default class MockCoverageReporter implements Reporter {
 
     // JSONレポートを生成
     const jsonReport = tracker.generateJsonReport();
-    fs.writeFileSync(
-      path.join(coverageDir, 'mock-coverage.json'),
-      JSON.stringify(jsonReport, null, 2)
-    );
+    fs.writeFileSync(path.join(coverageDir, 'mock-coverage.json'), JSON.stringify(jsonReport, null, 2));
 
     // HTMLレポートを生成
     const htmlReport = this.generateHtmlReport(tracker);
@@ -73,17 +70,17 @@ export default class MockCoverageReporter implements Reporter {
     console.log('=====================================');
     console.log(`Total Coverage: ${summary.coveragePercentage.toFixed(2)}%`);
     console.log(`Covered Methods: ${summary.coveredMethods}/${summary.totalMethods}`);
-    
+
     if (summary.uncoveredMethods.length > 0) {
       console.log('\nUncovered Methods:');
-      summary.uncoveredMethods.slice(0, 10).forEach(method => {
+      summary.uncoveredMethods.slice(0, 10).forEach((method) => {
         console.log(`  - ${method}`);
       });
       if (summary.uncoveredMethods.length > 10) {
         console.log(`  ... and ${summary.uncoveredMethods.length - 10} more`);
       }
     }
-    
+
     console.log('\nDetailed report: coverage/mock-coverage/index.html');
     console.log('=====================================\n');
 
@@ -255,7 +252,9 @@ export default class MockCoverageReporter implements Reporter {
 
     <h2>Mock Details</h2>
     <div class="mock-details">
-      ${Object.entries(summary.mockDetails).map(([mockName, details]) => `
+      ${Object.entries(summary.mockDetails)
+        .map(
+          ([mockName, details]) => `
         <div class="mock-card">
           <div class="mock-header">
             <h3>${mockName}</h3>
@@ -266,15 +265,21 @@ export default class MockCoverageReporter implements Reporter {
           <div class="mock-body">
             <h4>Methods:</h4>
             <div class="method-list">
-              ${this.getAllMethodsForMock(mockName, details, coverageData).map(method => `
+              ${this.getAllMethodsForMock(mockName, details, coverageData)
+                .map(
+                  (method) => `
                 <div class="method ${method.covered ? 'covered' : 'uncovered'}">
                   ${method.name}${method.covered ? ` (${method.callCount} calls)` : ''}
                 </div>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </div>
           </div>
         </div>
-      `).join('')}
+      `,
+        )
+        .join('')}
     </div>
 
     <h2>Most Called Methods</h2>
@@ -287,13 +292,17 @@ export default class MockCoverageReporter implements Reporter {
         </tr>
       </thead>
       <tbody>
-        ${this.getTopMethods(coverageData, 10).map(item => `
+        ${this.getTopMethods(coverageData, 10)
+          .map(
+            (item) => `
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${item.mock}</td>
             <td style="padding: 8px; border-bottom: 1px solid #dee2e6; font-family: monospace;">${item.method}</td>
             <td style="padding: 8px; border-bottom: 1px solid #dee2e6; text-align: right;">${item.count}</td>
           </tr>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </tbody>
     </table>
   </div>
@@ -329,7 +338,7 @@ export default class MockCoverageReporter implements Reporter {
 
   private getTopMethods(coverageData: any, limit: number): any[] {
     const allCalls: any[] = [];
-    
+
     Object.entries(coverageData).forEach(([mockName, methods]) => {
       Object.entries(methods as any).forEach(([methodName, data]: [string, any]) => {
         allCalls.push({
@@ -340,8 +349,6 @@ export default class MockCoverageReporter implements Reporter {
       });
     });
 
-    return allCalls
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit);
+    return allCalls.sort((a, b) => b.count - a.count).slice(0, limit);
   }
 }

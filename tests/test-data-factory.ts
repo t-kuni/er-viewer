@@ -15,27 +15,29 @@ export function createColumn(options: Partial<Column> = {}): Column {
     nullable: false,
     default: null,
     extra: '',
-    ...options
+    ...options,
   };
 }
 
 /**
  * エンティティのテストデータを生成
  */
-export function createEntity(options: {
-  name?: string;
-  columns?: Array<Partial<Column>>;
-  foreignKeys?: ForeignKey[];
-  ddl?: string;
-} = {}): Entity {
+export function createEntity(
+  options: {
+    name?: string;
+    columns?: Array<Partial<Column>>;
+    foreignKeys?: ForeignKey[];
+    ddl?: string;
+  } = {},
+): Entity {
   const name = options.name || 'test_table';
-  const columns = (options.columns || [{ name: 'id' }]).map(col => createColumn(col));
-  
+  const columns = (options.columns || [{ name: 'id' }]).map((col) => createColumn(col));
+
   return {
     name,
     columns,
     foreignKeys: options.foreignKeys || [],
-    ddl: options.ddl || `CREATE TABLE ${name} (${columns.map(c => `${c.name} ${c.type}`).join(', ')});`
+    ddl: options.ddl || `CREATE TABLE ${name} (${columns.map((c) => `${c.name} ${c.type}`).join(', ')});`,
   };
 }
 
@@ -49,19 +51,21 @@ export function createRelationship(options: Partial<Relationship> = {}): Relatio
     to: 'parent_table',
     toColumn: 'id',
     constraintName: 'fk_child_parent',
-    ...options
+    ...options,
   };
 }
 
 /**
  * レイアウトデータのテストデータを生成
  */
-export function createLayoutData(options: {
-  entities?: Record<string, { position: { x: number; y: number } }>;
-  rectangles?: Array<{ x: number; y: number; width: number; height: number; color?: string; id?: string }>;
-  texts?: Array<{ x: number; y: number; content: string; fontSize?: number; color?: string; id?: string }>;
-  layers?: Array<{ id: string; name: string; visible: boolean; zIndex: number }>;
-} = {}): LayoutData {
+export function createLayoutData(
+  options: {
+    entities?: Record<string, { position: { x: number; y: number } }>;
+    rectangles?: Array<{ x: number; y: number; width: number; height: number; color?: string; id?: string }>;
+    texts?: Array<{ x: number; y: number; content: string; fontSize?: number; color?: string; id?: string }>;
+    layers?: Array<{ id: string; name: string; visible: boolean; zIndex: number }>;
+  } = {},
+): LayoutData {
   return {
     entities: options.entities || {},
     rectangles: (options.rectangles || []).map((rect, index) => ({
@@ -70,7 +74,7 @@ export function createLayoutData(options: {
       y: rect.y,
       width: rect.width,
       height: rect.height,
-      color: rect.color
+      color: rect.color,
     })),
     texts: (options.texts || []).map((text, index) => ({
       id: text.id || `text-${index}`,
@@ -78,22 +82,24 @@ export function createLayoutData(options: {
       y: text.y,
       content: text.content,
       fontSize: text.fontSize,
-      color: text.color
+      color: text.color,
     })),
-    layers: options.layers || []
+    layers: options.layers || [],
   };
 }
 
 /**
  * ERデータのテストデータを生成
  */
-export function createERData(options: {
-  entities?: Array<Partial<Entity> | string>;
-  relationships?: Array<Partial<Relationship>>;
-  layout?: Partial<LayoutData>;
-} = {}): ERData {
+export function createERData(
+  options: {
+    entities?: Array<Partial<Entity> | string>;
+    relationships?: Array<Partial<Relationship>>;
+    layout?: Partial<LayoutData>;
+  } = {},
+): ERData {
   // エンティティの生成
-  const entities = (options.entities || ['users']).map(e => {
+  const entities = (options.entities || ['users']).map((e) => {
     if (typeof e === 'string') {
       return createEntity({ name: e });
     }
@@ -101,7 +107,7 @@ export function createERData(options: {
   });
 
   // リレーションシップの生成
-  const relationships = (options.relationships || []).map(r => createRelationship(r));
+  const relationships = (options.relationships || []).map((r) => createRelationship(r));
 
   // レイアウトの生成（エンティティの位置を自動設定）
   const entityPositions: Record<string, { position: { x: number; y: number } }> = {};
@@ -109,20 +115,20 @@ export function createERData(options: {
     entityPositions[entity.name] = {
       position: {
         x: 100 + index * 250,
-        y: 100
-      }
+        y: 100,
+      },
     };
   });
 
   const layout = createLayoutData({
     entities: entityPositions,
-    ...options.layout
+    ...options.layout,
   });
 
   return {
     entities,
     relationships,
-    layout
+    layout,
   };
 }
 
@@ -135,8 +141,8 @@ export function createUserEntity(): Entity {
     columns: [
       { name: 'id', type: 'int', key: 'PRI' },
       { name: 'name', type: 'varchar(255)', nullable: false },
-      { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false }
-    ]
+      { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false },
+    ],
   });
 }
 
@@ -150,8 +156,8 @@ export function createPostEntity(): Entity {
       { name: 'id', type: 'int', key: 'PRI' },
       { name: 'title', type: 'varchar(255)', nullable: false },
       { name: 'content', type: 'text', nullable: false },
-      { name: 'user_id', type: 'int', key: 'MUL', nullable: false }
-    ]
+      { name: 'user_id', type: 'int', key: 'MUL', nullable: false },
+    ],
   });
 }
 
@@ -161,28 +167,32 @@ export function createPostEntity(): Entity {
 export function createUserPostERData(): ERData {
   return createERData({
     entities: [createUserEntity(), createPostEntity()],
-    relationships: [{
-      from: 'posts',
-      fromColumn: 'user_id',
-      to: 'users',
-      toColumn: 'id',
-      constraintName: 'posts_user_id_fkey'
-    }]
+    relationships: [
+      {
+        from: 'posts',
+        fromColumn: 'user_id',
+        to: 'users',
+        toColumn: 'id',
+        constraintName: 'posts_user_id_fkey',
+      },
+    ],
   });
 }
 
 /**
  * ネットワークレスポンスのテストデータを生成
  */
-export function createNetworkResponse<T = any>(options: {
-  status?: number;
-  statusText?: string;
-  data?: T;
-} = {}) {
+export function createNetworkResponse<T = any>(
+  options: {
+    status?: number;
+    statusText?: string;
+    data?: T;
+  } = {},
+) {
   return {
     status: options.status || 200,
     statusText: options.statusText,
-    data: options.data
+    data: options.data,
   };
 }
 
@@ -192,8 +202,8 @@ export function createNetworkResponse<T = any>(options: {
 export function createDDLResponse(tableName: string, ddl?: string) {
   return createNetworkResponse({
     data: {
-      ddl: ddl || `CREATE TABLE ${tableName} (id INT PRIMARY KEY);`
-    }
+      ddl: ddl || `CREATE TABLE ${tableName} (id INT PRIMARY KEY);`,
+    },
   });
 }
 
@@ -202,7 +212,7 @@ export function createDDLResponse(tableName: string, ddl?: string) {
  */
 export function createSuccessResponse() {
   return createNetworkResponse({
-    data: { success: true }
+    data: { success: true },
   });
 }
 
@@ -213,6 +223,6 @@ export function createErrorResponse(status: number, message?: string) {
   return createNetworkResponse({
     status,
     statusText: message || 'Error',
-    data: { error: message || 'An error occurred' }
+    data: { error: message || 'An error occurred' },
   });
 }

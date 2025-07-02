@@ -127,7 +127,7 @@ describe('UIコンポーネント', () => {
     await app.showTableDetails('users');
 
     // Assert - サイドバー表示のDOM操作を検証
-    expect(removeClassSpy).toHaveBeenCalledWith(expect.anything(), 'hidden');
+    expect(addClassSpy).toHaveBeenCalledWith(expect.anything(), 'open');
     expect(setInnerHTMLSpy).toHaveBeenCalledWith(
       expect.anything(),
       expect.stringContaining('<h2>users</h2>')
@@ -137,7 +137,7 @@ describe('UIコンポーネント', () => {
     app.closeSidebar();
 
     // Assert - サイドバー非表示のDOM操作を検証
-    expect(addClassSpy).toHaveBeenCalledWith(expect.anything(), 'hidden');
+    expect(removeClassSpy).toHaveBeenCalledWith(expect.anything(), 'open');
   });
   });
 

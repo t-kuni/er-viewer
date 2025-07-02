@@ -154,7 +154,7 @@ export class MockElement implements MockElementAttributes {
     if (selector.startsWith('[') && selector.endsWith(']')) {
       // Handle attribute selector
       const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
-      if (attributeMatch) {
+      if (attributeMatch && attributeMatch[1] && attributeMatch[2]) {
         const [, attrName, attrValue] = attributeMatch;
         return this.findByAttribute(attrName, attrValue);
       }
@@ -260,7 +260,7 @@ export class MockElement implements MockElementAttributes {
     if (selector.startsWith('[') && selector.endsWith(']')) {
       // Handle attribute selector
       const attributeMatch = selector.match(/\[([^=]+)="([^"]+)"\]/);
-      if (attributeMatch) {
+      if (attributeMatch && attributeMatch[1] && attributeMatch[2]) {
         const [, attrName, attrValue] = attributeMatch;
         return this.getAttribute(attrName) === attrValue;
       }
@@ -328,6 +328,10 @@ class MockClassList {
       return true;
     }
   }
+
+  get values(): Set<string> {
+    return new Set(this.classes);
+  }
 }
 
 class MockStyle {
@@ -343,6 +347,10 @@ class MockStyle {
 
   getProperty(property: string): string {
     return this._styles.get(property) || '';
+  }
+
+  get entries(): Map<string, string> {
+    return new Map(this._styles);
   }
 
   // Allow direct property access
@@ -639,5 +647,35 @@ export class DOMMock extends DOMInterface {
 
   getBodyElement(): Element {
     return this.body as unknown as Element;
+  }
+
+  cloneNode(element: Element, deep: boolean): Element {
+    const mockElement = element as unknown as MockElement;
+    const clone = new MockElement(mockElement.tagName, mockElement.namespace);
+    
+    // Copy attributes
+    for (const [key, value] of mockElement.attributes) {
+      clone.setAttribute(key, value);
+    }
+    
+    // Copy styles
+    for (const [key, value] of mockElement.style.entries) {
+      clone.style.setProperty(key, value);
+    }
+    
+    // Copy classes
+    for (const className of mockElement.classList.values) {
+      clone.classList.add(className);
+    }
+    
+    // Deep clone children if requested
+    if (deep && mockElement.children.length > 0) {
+      for (const child of mockElement.children) {
+        const childClone = this.cloneNode(child as unknown as Element, true);
+        clone.appendChild(childClone as unknown as MockElement);
+      }
+    }
+    
+    return clone as unknown as Element;
   }
 }

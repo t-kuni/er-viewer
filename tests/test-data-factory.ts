@@ -60,7 +60,7 @@ export function createLayoutData(options: {
   entities?: Record<string, { position: { x: number; y: number } }>;
   rectangles?: Array<{ x: number; y: number; width: number; height: number; color?: string; id?: string }>;
   texts?: Array<{ x: number; y: number; content: string; fontSize?: number; color?: string; id?: string }>;
-  layers?: string[];
+  layers?: Array<{ id: string; name: string; visible: boolean; zIndex: number }>;
 } = {}): LayoutData {
   return {
     entities: options.entities || {},

@@ -26,6 +26,9 @@ export class DOMImplementation extends DOMInterface {
     appendChild(parent, child) {
         return parent.appendChild(child);
     }
+    insertBefore(parent, newChild, referenceChild) {
+        return parent.insertBefore(newChild, referenceChild);
+    }
     removeElement(element) {
         if (element && element.parentNode) {
             element.parentNode.removeChild(element);
@@ -51,6 +54,9 @@ export class DOMImplementation extends DOMInterface {
     }
     setInnerHTML(element, html) {
         element.innerHTML = html;
+    }
+    setTextContent(element, text) {
+        element.textContent = text;
     }
     addEventListener(element, event, handler, options) {
         element.addEventListener(event, handler, options);
@@ -116,5 +122,8 @@ export class DOMImplementation extends DOMInterface {
     }
     getBodyElement() {
         return document.body;
+    }
+    cloneNode(element, deep) {
+        return element.cloneNode(deep);
     }
 }

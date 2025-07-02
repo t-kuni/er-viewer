@@ -42,7 +42,9 @@ export interface DOMInterface {
   // Element creation and manipulation
   createElement(tagName: string, namespace?: string | null): Element;
   appendChild(parent: Element, child: Element): void;
+  insertBefore(parent: Element, newChild: Element, referenceChild: Element | null): void;
   removeElement(element: Element): void;
+  cloneNode(element: Element, deep: boolean): Element;
 
   // Attributes
   setAttribute(element: Element, name: string, value: string): void;

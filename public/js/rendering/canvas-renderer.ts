@@ -214,7 +214,7 @@ export class CanvasRenderer {
       // Render based on layer order
       this.renderByLayerOrder(
         erData || { entities: [], relationships: [] },
-        layoutData || { entities: {}, rectangles: [], texts: [] },
+        layoutData || { entities: {}, rectangles: [], texts: [], layers: [] },
         layerManager,
       );
     } else {

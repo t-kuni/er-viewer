@@ -37,9 +37,19 @@ export abstract class DOMInterface implements IDOMInterface {
   abstract appendChild(parent: Element, child: Element): void;
 
   /**
+   * 要素を指定した子要素の前に挿入
+   */
+  abstract insertBefore(parent: Element, newChild: Element, referenceChild: Element | null): void;
+
+  /**
    * 要素を削除
    */
   abstract removeElement(element: Element): void;
+
+  /**
+   * 要素を複製
+   */
+  abstract cloneNode(element: Element, deep: boolean): Element;
 
   /**
    * 要素の属性を設定

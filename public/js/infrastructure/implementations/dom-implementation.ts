@@ -36,10 +36,18 @@ export class DOMImplementation extends DOMInterface {
     return parent.appendChild(child);
   }
 
+  insertBefore(parent: Element, newChild: Element, referenceChild: Element | null): Element {
+    return parent.insertBefore(newChild, referenceChild);
+  }
+
   removeElement(element: Element): void {
     if (element && element.parentNode) {
       element.parentNode.removeChild(element);
     }
+  }
+
+  cloneNode(element: Element, deep: boolean): Element {
+    return element.cloneNode(deep) as Element;
   }
 
   setAttribute(element: Element, name: string, value: string): void {

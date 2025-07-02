@@ -47,8 +47,8 @@ describe('ユーザーインタラクション', () => {
       let app: any = new ERViewerApplication(infrastructure);
       
       // DOM操作をスパイ
-      const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
       const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
+      const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
       
       app.render();
 
@@ -73,7 +73,7 @@ describe('ユーザーインタラクション', () => {
       expect(ddlRequest!.body).toBeUndefined(); // GETリクエストなのでbodyは無い
       
       // DOM操作のMock検証
-      expect(removeClassSpy).toHaveBeenCalledWith(expect.anything(), 'hidden');
+      expect(addClassSpy).toHaveBeenCalledWith(expect.anything(), 'open');
       expect(setInnerHTMLSpy).toHaveBeenCalledWith(
         expect.anything(),
         expect.stringContaining('<h2>users</h2>')

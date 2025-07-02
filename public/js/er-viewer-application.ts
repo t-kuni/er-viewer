@@ -218,6 +218,24 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(this.state.canvas, 'viewBox', `0 0 ${width} ${height}`);
     this.infra.dom.setAttribute(this.state.canvas, 'xmlns', 'http://www.w3.org/2000/svg');
 
+    // Recreate defs element with arrowhead marker
+    const defs = this.infra.dom.createElement('defs', 'http://www.w3.org/2000/svg');
+    const marker = this.infra.dom.createElement('marker', 'http://www.w3.org/2000/svg');
+    this.infra.dom.setAttribute(marker, 'id', 'arrowhead');
+    this.infra.dom.setAttribute(marker, 'markerWidth', '10');
+    this.infra.dom.setAttribute(marker, 'markerHeight', '7');
+    this.infra.dom.setAttribute(marker, 'refX', '9');
+    this.infra.dom.setAttribute(marker, 'refY', '3.5');
+    this.infra.dom.setAttribute(marker, 'orient', 'auto');
+    
+    const polygon = this.infra.dom.createElement('polygon', 'http://www.w3.org/2000/svg');
+    this.infra.dom.setAttribute(polygon, 'points', '0 0, 10 3.5, 0 7');
+    this.infra.dom.setAttribute(polygon, 'fill', '#666');
+    
+    this.infra.dom.appendChild(marker, polygon);
+    this.infra.dom.appendChild(defs, marker);
+    this.infra.dom.appendChild(this.state.canvas, defs);
+
     // Create main group for transformations
     const mainGroup = this.infra.dom.createElement('g', 'http://www.w3.org/2000/svg');
     this.infra.dom.setAttribute(mainGroup, 'id', 'main-group');
@@ -667,11 +685,15 @@ export class ERViewerApplication {
    */
   private renderRelationships(): void {
     if (!this.state.erData?.relationships) {
+      this.infra.browserAPI.log('No relationships to render');
       return;
     }
 
+    this.infra.browserAPI.log('Rendering relationships:', this.state.erData.relationships.length);
+
     const dynamicLayer = this.infra.dom.getElementById('dynamic-layer');
     if (!dynamicLayer) {
+      this.infra.browserAPI.log('Dynamic layer not found');
       return;
     }
 
@@ -688,9 +710,12 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(relationshipsGroup, 'class', 'relationships');
 
     this.state.erData.relationships.forEach((relationship) => {
+      this.infra.browserAPI.log('Creating path for relationship:', relationship.from, '->', relationship.to);
       const path = this.createRelationshipPath(relationship);
       if (path) {
         this.infra.dom.appendChild(relationshipsGroup, path);
+      } else {
+        this.infra.browserAPI.log('Failed to create path for:', relationship.from, '->', relationship.to);
       }
     });
 
@@ -700,7 +725,7 @@ export class ERViewerApplication {
     );
 
     if (firstEntity) {
-      dynamicLayer.insertBefore(relationshipsGroup, firstEntity);
+      this.infra.dom.insertBefore(dynamicLayer, relationshipsGroup, firstEntity);
     } else {
       this.infra.dom.appendChild(dynamicLayer, relationshipsGroup);
     }
@@ -714,6 +739,7 @@ export class ERViewerApplication {
     const toBounds = this.state.entityBounds.get(relationship.to);
 
     if (!fromBounds || !toBounds) {
+      this.infra.browserAPI.log('Missing bounds for:', relationship.from, fromBounds, relationship.to, toBounds);
       return null;
     }
 
@@ -1195,14 +1221,24 @@ export class ERViewerApplication {
    */
   private handleCanvasClick(event: MouseEvent): void {
     const target = event.target as Element;
+    this.infra.browserAPI.log('handleCanvasClick called with target:', target);
 
     // Check if clicking on entity
     const entity = this.infra.dom.closest(target, '.entity');
+    this.infra.browserAPI.log('Entity found:', entity);
+    
     if (entity) {
       const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
+      this.infra.browserAPI.log('Table name from entity:', tableName);
+      
       if (tableName) {
+        this.infra.browserAPI.log('Calling showTableDetails with tableName:', tableName);
         this.showTableDetails(tableName);
+      } else {
+        this.infra.browserAPI.log('No table name found on entity');
       }
+    } else {
+      this.infra.browserAPI.log('No entity found - clicked on background or other element');
     }
   }
 
@@ -1305,9 +1341,9 @@ export class ERViewerApplication {
     this.infra.dom.setInnerHTML(this.state.sidebarContent, content);
 
     // Show sidebar
-    this.infra.dom.removeClass(this.state.sidebar, 'hidden');
+    this.infra.dom.addClass(this.state.sidebar, 'open');
 
-    // Highlight syntax if available
+    // Apply syntax highlighting
     const codeElement = this.infra.dom.querySelector('#sidebar-content code');
     if (codeElement && typeof (window as any).Prism !== 'undefined') {
       (window as any).Prism.highlightElement(codeElement);
@@ -1321,7 +1357,7 @@ export class ERViewerApplication {
    */
   private closeSidebar(): void {
     if (this.state.sidebar) {
-      this.infra.dom.addClass(this.state.sidebar, 'hidden');
+      this.infra.dom.removeClass(this.state.sidebar, 'open');
       this.setState({ sidebarVisible: false, currentTable: null });
     }
   }
@@ -1596,10 +1632,11 @@ export class ERViewerApplication {
 
         // Process each entity
         erData.entities.forEach((entity) => {
-          if (currentEntities.has(entity.name) && currentLayout.entities[entity.name]) {
+          const existingLayout = currentLayout.entities[entity.name];
+          if (currentEntities.has(entity.name) && existingLayout) {
             // Existing entity: preserve its layout
-            entity.position = currentLayout.entities[entity.name].position;
-            newLayoutData.entities[entity.name] = currentLayout.entities[entity.name];
+            entity.position = existingLayout.position;
+            newLayoutData.entities[entity.name] = existingLayout;
           } else {
             // New entity: will be clustered
             delete entity.position;
@@ -1961,12 +1998,12 @@ export class ERViewerApplication {
 
     // Find relationships connected to this entity
     this.state.erData.relationships.forEach((rel) => {
-      if (rel.from.table === tableName) {
-        relatedTables.add(rel.to.table);
-        relatedRelationships.add(`${rel.from.table}-${rel.to.table}`);
-      } else if (rel.to.table === tableName) {
-        relatedTables.add(rel.from.table);
-        relatedRelationships.add(`${rel.from.table}-${rel.to.table}`);
+      if (rel.from === tableName) {
+        relatedTables.add(rel.to);
+        relatedRelationships.add(`${rel.from}-${rel.to}`);
+      } else if (rel.to === tableName) {
+        relatedTables.add(rel.from);
+        relatedRelationships.add(`${rel.from}-${rel.to}`);
       }
     });
 
@@ -2282,10 +2319,16 @@ export class ERViewerApplication {
     
     // Update in layoutData
     const updatedRectangles = [...this.state.layoutData.rectangles];
+    const existingRect = updatedRectangles[layoutRectIndex];
+    if (!existingRect) {
+      this.infra.browserAPI.error('Rectangle not found in layoutData:', id);
+      return;
+    }
     updatedRectangles[layoutRectIndex] = {
-      ...updatedRectangles[layoutRectIndex],
-      ...updates
-    };
+      ...existingRect,
+      ...updates,
+      id: existingRect.id // Ensure id is preserved
+    } as Rectangle;
     
     const updatedLayoutData = {
       ...this.state.layoutData,

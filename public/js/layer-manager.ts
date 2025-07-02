@@ -36,7 +36,6 @@ export class LayerManager {
   // DOM elements
   private sidebar: Element | null = null;
   private layerList: Element | null = null;
-  private collapseBtn: Element | null = null;
   private resizeHandle: Element | null = null;
 
   constructor(stateManager: StateManager | null = null, infra: Infrastructure | null = null) {
@@ -162,12 +161,10 @@ export class LayerManager {
     if (!this.infra) {
       this.sidebar = document.getElementById('layer-sidebar');
       this.layerList = document.getElementById('layer-list');
-      this.collapseBtn = document.getElementById('collapse-layer-sidebar');
       this.resizeHandle = this.sidebar ? this.sidebar.querySelector('.layer-sidebar-resize-handle') : null;
     } else {
       this.sidebar = this.infra.dom.getElementById('layer-sidebar');
       this.layerList = this.infra.dom.getElementById('layer-list');
-      this.collapseBtn = this.infra.dom.getElementById('collapse-layer-sidebar');
       this.resizeHandle = this.sidebar ? this.infra.dom.querySelector('.layer-sidebar-resize-handle') : null;
     }
   }
@@ -189,13 +186,14 @@ export class LayerManager {
     let startX = 0;
     let startWidth = 0;
 
-    this.resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
+    this.resizeHandle.addEventListener('mousedown', (e) => {
+      const mouseEvent = e as MouseEvent;
       isResizing = true;
-      startX = e.clientX;
-      startWidth = this.sidebar!.offsetWidth;
+      startX = mouseEvent.clientX;
+      startWidth = (this.sidebar as HTMLElement).offsetWidth;
       this.resizeHandle!.classList.add('dragging');
       document.body.style.cursor = 'col-resize';
-      e.preventDefault();
+      mouseEvent.preventDefault();
     });
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
@@ -208,7 +206,7 @@ export class LayerManager {
 
       // Respect min/max width constraints
       if (newWidth >= 150 && newWidth <= 400) {
-        this.sidebar.style.width = newWidth + 'px';
+        (this.sidebar as HTMLElement).style.width = newWidth + 'px';
       }
     });
 
@@ -331,11 +329,12 @@ export class LayerManager {
 
     layerItems.forEach((item) => {
       if (!this.infra) {
-        item.addEventListener('dragstart', (e: DragEvent) => {
+        item.addEventListener('dragstart', (e) => {
+          const dragEvent = e as DragEvent;
           this.draggedItem = item;
           item.classList.add('dragging');
-          if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = 'move';
+          if (dragEvent.dataTransfer) {
+            dragEvent.dataTransfer.effectAllowed = 'move';
           }
         });
 
@@ -346,15 +345,17 @@ export class LayerManager {
           }
         });
 
-        item.addEventListener('dragover', (e: DragEvent) => {
-          e.preventDefault();
-          if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'move';
+        item.addEventListener('dragover', (e) => {
+          const dragEvent = e as DragEvent;
+          dragEvent.preventDefault();
+          if (dragEvent.dataTransfer) {
+            dragEvent.dataTransfer.dropEffect = 'move';
           }
         });
 
-        item.addEventListener('drop', (e: DragEvent) => {
-          e.preventDefault();
+        item.addEventListener('drop', (e) => {
+          const dragEvent = e as DragEvent;
+          dragEvent.preventDefault();
 
           if (this.draggedItem && this.draggedItem !== item) {
             this.reorderLayers(this.draggedItem as LayerElement, item as LayerElement);

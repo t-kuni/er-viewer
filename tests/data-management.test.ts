@@ -10,9 +10,7 @@ import {
   createLayoutData,
   createUserEntity, 
   createPostEntity, 
-  createUserPostERData,
   createNetworkResponse,
-  createDDLResponse,
   createSuccessResponse
 } from './test-data-factory';
 
@@ -52,7 +50,7 @@ describe('データ管理', () => {
       const requests = history.networkRequests;
       expect(requests.length).toBeGreaterThan(0);
       
-      const ddlRequest = requests[requests.length - 1];
+      const ddlRequest = requests[requests.length - 1]!;
       expect(ddlRequest.url).toBe('/api/table/users/ddl');
       expect(ddlRequest.method).toBe('GET');
       expect(ddlRequest.headers).toBeDefined();
@@ -124,7 +122,7 @@ describe('データ管理', () => {
     expect(requests.length).toBeGreaterThan(0);
     
     // Network操作の詳細検証
-    const reverseRequest = requests[requests.length - 1];
+    const reverseRequest = requests[requests.length - 1]!;
     expect(reverseRequest.url).toBe('/api/reverse-engineer');
     expect(reverseRequest.method).toBe('POST');
     expect(reverseRequest.headers).toBeDefined();
@@ -161,8 +159,7 @@ describe('データ管理', () => {
       entities: [
         createEntity({
           name: 'users',
-          columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          position: { x: 100, y: 100 } // 既存の位置を保持
+          columns: [{ name: 'id', type: 'int', key: 'PRI' }]
         }),
         createEntity({
           name: 'posts',
@@ -170,7 +167,6 @@ describe('データ管理', () => {
             { name: 'id', type: 'int', key: 'PRI' },
             { name: 'user_id', type: 'int', key: 'MUL' }
           ]
-          // 新しいエンティティはpositionがない（クラスタリング対象）
         })
       ],
       relationships: [{
@@ -178,7 +174,15 @@ describe('データ管理', () => {
         fromColumn: 'user_id',
         to: 'users',
         toColumn: 'id'
-      }]
+      }],
+      layout: {
+        entities: {
+          users: { position: { x: 100, y: 100 } } // 既存の位置を保持
+          // postsはpositionがない（クラスタリング対象）
+        },
+        rectangles: [],
+        texts: []
+      }
     });
     
     const mockData: MockData = {
@@ -202,9 +206,6 @@ describe('データ管理', () => {
     // Assert
     // レイアウト保存をテスト
     await app.saveLayout();
-    
-    const history = infrastructure.getInteractionHistory();
-    const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
     expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
@@ -259,8 +260,7 @@ describe('データ管理', () => {
       entities: [
         createEntity({
           name: 'users',
-          columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          position: { x: 100, y: 100 } // 既存の位置を保持
+          columns: [{ name: 'id', type: 'int', key: 'PRI' }]
         })
       ],
       layout: {
@@ -294,9 +294,6 @@ describe('データ管理', () => {
     // Assert
     // レイアウト保存をテスト
     await app.saveLayout();
-    
-    const history = infrastructure.getInteractionHistory();
-    const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
     expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
@@ -334,7 +331,7 @@ describe('データ管理', () => {
       ],
       layout: {
         entities: {
-          users: { position: { x: 150, y: 250, width: 200, height: 120 } }
+          users: { position: { x: 150, y: 250 } }
         },
         rectangles: [],
         texts: []
@@ -350,10 +347,16 @@ describe('データ管理', () => {
             { name: 'id', type: 'int', key: 'PRI' },
             { name: 'name', type: 'varchar(100)', key: '' },
             { name: 'email', type: 'varchar(255)', key: 'UNI' } // 新しいカラム
-          ],
-          position: { x: 150, y: 250, width: 200, height: 120 } // 既存の位置とサイズを保持
+          ]
         })
-      ]
+      ],
+      layout: {
+        entities: {
+          users: { position: { x: 150, y: 250 } } // 既存の位置を保持
+        },
+        rectangles: [],
+        texts: []
+      }
     });
     
     const mockData: MockData = {
@@ -378,9 +381,6 @@ describe('データ管理', () => {
     // レイアウト保存をテスト
     await app.saveLayout();
     
-    const history = infrastructure.getInteractionHistory();
-    const requests = history.networkRequests;
-    
     // saveLayoutのリクエストを確認
     expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
       '/api/layout',
@@ -391,9 +391,9 @@ describe('データ管理', () => {
     const layoutCall = postCalls[postCalls.length - 1];
     const requestBody = layoutCall[1];
     
-    // usersエンティティの位置とサイズが保持されている
+    // usersエンティティの位置が保持されている
     expect(requestBody.entities.users).toBeDefined();
-    expect(requestBody.entities.users.position).toEqual({ x: 150, y: 250, width: 200, height: 120 });
+    expect(requestBody.entities.users.position).toEqual({ x: 150, y: 250 });
   });
 
   test('増分リバースエンジニアリング - 複数の新規エンティティが適切にクラスタリングされる', async () => {
@@ -423,8 +423,7 @@ describe('データ管理', () => {
       entities: [
         createEntity({
           name: 'users',
-          columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          position: { x: 100, y: 100 } // 既存の位置を保持
+          columns: [{ name: 'id', type: 'int', key: 'PRI' }]
         }),
         createEntity({
           name: 'posts',
@@ -458,7 +457,15 @@ describe('データ管理', () => {
           to: 'posts',
           toColumn: 'id'
         }
-      ]
+      ],
+      layout: {
+        entities: {
+          users: { position: { x: 100, y: 100 } } // 既存の位置を保持
+          // 他のエンティティはpositionがない（クラスタリング対象）
+        },
+        rectangles: [],
+        texts: []
+      }
     });
     
     const mockData: MockData = {
@@ -482,9 +489,6 @@ describe('データ管理', () => {
     // Assert
     // レイアウト保存をテスト
     await app.saveLayout();
-    
-    const history = infrastructure.getInteractionHistory();
-    const requests = history.networkRequests;
     
     // saveLayoutのリクエストを確認
     expect(infrastructure.network.postJSON).toHaveBeenCalledWith(
@@ -541,11 +545,7 @@ describe('データ管理', () => {
       { id: 'layer-1', name: 'users', visible: true, zIndex: 1 }
     ];
     
-    const event = new CustomEvent('layerOrderChanged', {
-      detail: { layers: newLayers }
-    });
-    
-    infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), event);
+    infrastructure.dom.dispatchEvent(infrastructure.dom.getDocumentElement(), 'layerOrderChanged', { layers: newLayers });
     
     // イベント処理を待つ（最適化：不要と判断）
     // await waitForAsync();
@@ -554,8 +554,9 @@ describe('データ管理', () => {
     await (app as any).saveLayout();
     
     // Assert - 保存リクエストが送信されたことを確認
-    const requests = infrastructure.network.getRequestHistory();
-    const layoutRequest = requests.find(req => req.url === '/api/layout' && req.method === 'POST');
+    const history = infrastructure.getInteractionHistory();
+    const requests = history.networkRequests;
+    const layoutRequest = requests.find((req: any) => req.url === '/api/layout' && req.method === 'POST');
     
     expect(layoutRequest).toBeDefined();
     expect(layoutRequest?.method).toBe('POST');

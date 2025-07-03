@@ -1117,7 +1117,7 @@ svg:has(.highlighted) .relationship:not(.highlighted) {
 
 /* Modal Styles */
 .modal {
-  display: flex;
+  display: none;
   position: fixed;
   z-index: 3000;
   left: 0;
@@ -1130,8 +1130,8 @@ svg:has(.highlighted) .relationship:not(.highlighted) {
   backdrop-filter: blur(2px);
 }
 
-.modal.hidden {
-  display: none;
+.modal.show {
+  display: flex;
 }
 
 .modal-content {

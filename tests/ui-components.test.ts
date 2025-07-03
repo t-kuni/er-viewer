@@ -6,10 +6,7 @@ import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastruc
 import type { MockData } from '../public/js/types/infrastructure';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { StorageMock } from '../public/js/infrastructure/mocks/storage-mock';
-import { createERData, createSuccessResponse } from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('UIコンポーネント', () => {
   afterEach(() => {
@@ -312,8 +309,9 @@ describe('UIコンポーネント', () => {
       const infrastructure = new InfrastructureMock();
 
       // Mock the network getJSON to return ER data with rectangles
-      const mockERData = createERData({
+      const mockERData = {
         entities: [],
+        relationships: [],
         layout: {
           entities: {},
           rectangles: [
@@ -330,7 +328,7 @@ describe('UIコンポーネント', () => {
           ],
           texts: [],
         },
-      });
+      };
 
       jest.spyOn(infrastructure.network, 'getJSON').mockResolvedValue(mockERData);
 
@@ -355,7 +353,7 @@ describe('UIコンポーネント', () => {
       (app as any).initialize();
 
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Clear previous calls from setup
       setAttributeSpy.mockClear();
@@ -376,8 +374,9 @@ describe('UIコンポーネント', () => {
       const infrastructure = new InfrastructureMock();
 
       // Mock the network getJSON to return ER data with rectangles
-      const mockERData = createERData({
+      const mockERData = {
         entities: [],
+        relationships: [],
         layout: {
           entities: {},
           rectangles: [
@@ -394,7 +393,7 @@ describe('UIコンポーネント', () => {
           ],
           texts: [],
         },
-      });
+      };
 
       jest.spyOn(infrastructure.network, 'getJSON').mockResolvedValue(mockERData);
 
@@ -415,7 +414,7 @@ describe('UIコンポーネント', () => {
 
       const app = new ERViewerApplication(infrastructure);
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Clear previous calls from setup
       setAttributeSpy.mockClear();
@@ -440,7 +439,11 @@ describe('UIコンポーネント', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/layout': createSuccessResponse(),
+          '/api/layout': {
+            status: 200,
+            statusText: undefined,
+            data: { success: true },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -507,7 +510,11 @@ describe('UIコンポーネント', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/layout': createSuccessResponse(),
+          '/api/layout': {
+            status: 200,
+            statusText: undefined,
+            data: { success: true },
+          },
         },
       };
       infrastructure.setupMockData(mockData);

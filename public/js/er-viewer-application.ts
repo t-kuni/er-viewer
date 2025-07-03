@@ -2725,12 +2725,6 @@ export class ERViewerApplication {
     this.setState({ erData });
   }
 
-  /**
-   * Update layout data
-   */
-  public setLayoutData(layoutData: LayoutData): void {
-    this.setState({ layoutData });
-  }
 
   /**
    * Start rectangle drawing mode

@@ -14,8 +14,6 @@ import {
   createDDLResponse,
 } from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 interface MockERData {
   entities: any[];
@@ -54,7 +52,7 @@ describe('ユーザーインタラクション', () => {
       app.showTableDetails('users');
 
       // ネットワークリクエストが送信されることを確認
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       const history = infrastructure.getInteractionHistory();
       const requests = history.networkRequests;
@@ -124,7 +122,7 @@ describe('ユーザーインタラクション', () => {
       app.handleCanvasClick(clickEvent);
 
       // 非同期処理を待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // closest が正しく呼ばれたことを確認
       expect(closestSpy).toHaveBeenCalledWith(mockEntityElement, '.entity');
@@ -179,7 +177,7 @@ describe('ユーザーインタラクション', () => {
       app.showTableDetails('users');
 
       // 非同期処理を待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // querySelector が正しいセレクタで呼ばれたことを確認
       expect(querySelectorSpy).toHaveBeenCalledWith('#sidebar-content code');
@@ -231,7 +229,7 @@ describe('ユーザーインタラクション', () => {
         });
 
         const app: any = new ERViewerApplication(infrastructure);
-        await waitForAsync();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         app.render();
 
         // DOM操作をスパイ
@@ -272,7 +270,7 @@ describe('ユーザーインタラクション', () => {
         });
 
         const app: any = new ERViewerApplication(infrastructure);
-        await waitForAsync();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         app.render();
 
         // DOM操作をスパイ
@@ -340,7 +338,7 @@ describe('ユーザーインタラクション', () => {
         });
 
         const app: any = new ERViewerApplication(infrastructure);
-        await waitForAsync();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         app.render();
 
         // DOM操作をスパイ
@@ -393,7 +391,7 @@ describe('ユーザーインタラクション', () => {
         });
 
         const app: any = new ERViewerApplication(infrastructure);
-        await waitForAsync();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         app.render();
 
         // DOM操作をスパイ
@@ -577,7 +575,7 @@ describe('ユーザーインタラクション', () => {
       const app: any = new ERViewerApplication(infrastructure);
 
       // 初期データロード完了を待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // モックエンティティ要素を作成
       const mockUserEntity = new MockElement('g');
@@ -646,7 +644,7 @@ describe('ユーザーインタラクション', () => {
       const app: any = new ERViewerApplication(infrastructure);
 
       // 初期データロード完了を待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // モックリレーション要素を作成
       const mockRelationship = new MockElement('path');
@@ -724,7 +722,7 @@ describe('ユーザーインタラクション', () => {
       const app: any = new ERViewerApplication(infrastructure);
 
       // 初期データロード完了を待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // ハイライトレイヤーのモック - getElementByIdSpy.mockImplementationは削除
       // InfrastructureMockが自動的にハイライトレイヤーを提供する
@@ -961,18 +959,18 @@ describe('ユーザーインタラクション', () => {
 
       // Act - 大幅にズームアウト（縮小）
       // 複数回ズームアウトして最小スケールに到達させる
-      for (let i = 0; i < 30; i++) {
-        const mockWheelEvent = new WheelEvent('wheel', {
-          clientX: 400,
-          clientY: 300,
-          deltaY: 100, // 正の値でズームアウト
-          bubbles: true,
-          cancelable: true,
-        });
-        if (wheelHandler?.[2]) {
-          wheelHandler[2](mockWheelEvent);
-        }
-      }
+      const zoomOutEvent = new WheelEvent('wheel', {
+        clientX: 400,
+        clientY: 300,
+        deltaY: 100, // 正の値でズームアウト
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      // 30回ズームアウトを実行
+      Array(30).fill(null).forEach(() => {
+        wheelHandler?.[2]?.(zoomOutEvent);
+      });
 
       // Assert - 最小値0.1を下回らない
       expect(setAttributeSpy).toHaveBeenCalledWith(
@@ -983,18 +981,18 @@ describe('ユーザーインタラクション', () => {
 
       // Act - 大幅にズームイン（拡大）
       // 複数回ズームインして最大スケールに到達させる
-      for (let i = 0; i < 50; i++) {
-        const mockWheelEvent = new WheelEvent('wheel', {
-          clientX: 400,
-          clientY: 300,
-          deltaY: -100, // 負の値でズームイン
-          bubbles: true,
-          cancelable: true,
-        });
-        if (wheelHandler?.[2]) {
-          wheelHandler[2](mockWheelEvent);
-        }
-      }
+      const zoomInEvent = new WheelEvent('wheel', {
+        clientX: 400,
+        clientY: 300,
+        deltaY: -100, // 負の値でズームイン
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      // 50回ズームインを実行
+      Array(50).fill(null).forEach(() => {
+        wheelHandler?.[2]?.(zoomInEvent);
+      });
 
       // Assert - 最大値5.0を上回らない
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'transform', expect.stringContaining('scale(5)'));

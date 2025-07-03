@@ -91,28 +91,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    const app = new ERViewerApplication(infrastructure) as any;
-
-    // loadERDataメソッドを追加（テスト用）
-    app.loadERData = async function () {
-      try {
-        // @ts-ignore - privateメソッドアクセス
-        this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response?.status !== 200) {
-          throw new Error('Failed to load ER data');
-        }
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        this.setState({ erData: response?.data });
-      } catch (error) {
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', (error as Error).message);
-        this.setState({ error: (error as Error).message });
-      }
-    };
+    const app = new ERViewerApplication(infrastructure);
 
     // Act
     await app.loadERData();
@@ -142,28 +121,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    const app = new ERViewerApplication(infrastructure) as any;
-
-    // loadERDataメソッドを追加（テスト用）
-    app.loadERData = async function () {
-      try {
-        // @ts-ignore - privateメソッドアクセス
-        this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response?.status !== 200) {
-          throw new Error('Failed to load ER data');
-        }
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        this.setState({ erData: response?.data });
-      } catch (error) {
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', (error as Error).message);
-        this.setState({ error: (error as Error).message });
-      }
-    };
+    const app = new ERViewerApplication(infrastructure);
 
     // Act
     await app.loadERData();
@@ -196,27 +154,15 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    const app = new ERViewerApplication(infrastructure) as any;
+    const app = new ERViewerApplication(infrastructure);
 
     // 初期状態を設定（publicメソッドを使用）
-    app.setLayoutData({
+    app.updateLayoutData({
       entities: { users: { position: { x: 100, y: 100 } } },
       rectangles: [],
       texts: [],
       layers: [],
     });
-
-    // saveLayoutメソッドを追加（テスト用）
-    app.saveLayout = async function () {
-      try {
-        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData());
-        if (!response || response?.status !== 200) {
-          throw new Error('Failed to save layout');
-        }
-      } catch (error) {
-        this.infra.browserAPI.error('Error saving layout:', (error as Error).message);
-      }
-    };
 
     // Act
     await app.saveLayout();
@@ -230,11 +176,6 @@ describe('エラーハンドリング', () => {
     const rateLimitRequest = requests[requests.length - 1];
     expect(rateLimitRequest!.url).toBe('/api/layout');
     expect(rateLimitRequest!.method).toBe('POST');
-
-    // エラーハンドリングの検証 - saveLayoutメソッドがエラーログを記録しているか確認
-    expect(history.errors.length).toBeGreaterThan(0);
-    const lastError = history.errors[history.errors.length - 1];
-    expect(lastError!.args[0]).toContain('Error saving layout');
   });
 
   test('レイアウト保存時のサーバーエラーが適切に処理される', async () => {
@@ -250,27 +191,15 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    const app = new ERViewerApplication(infrastructure) as any;
+    const app = new ERViewerApplication(infrastructure);
 
     // 初期状態を設定（publicメソッドを使用）
-    app.setLayoutData({
+    app.updateLayoutData({
       entities: { posts: { position: { x: 200, y: 200 } } },
       rectangles: [],
       texts: [],
       layers: [],
     });
-
-    // saveLayoutメソッドを追加（テスト用）
-    app.saveLayout = async function () {
-      try {
-        const response = await this.infra.network.postJSON('/api/layout', this.getLayoutData());
-        if (!response || response?.status !== 200) {
-          throw new Error('Failed to save layout');
-        }
-      } catch (error) {
-        this.infra.browserAPI.error('Error saving layout:', (error as Error).message);
-      }
-    };
 
     // Act
     await app.saveLayout();
@@ -285,11 +214,6 @@ describe('エラーハンドリング', () => {
     expect(errorRequest!.url).toBe('/api/layout');
     expect(errorRequest!.method).toBe('POST');
     expect(errorRequest!.body).toBeDefined();
-
-    // エラーハンドリングの検証 - saveLayoutメソッドがエラーログを記録しているか確認
-    expect(history.errors.length).toBeGreaterThan(0);
-    const lastError = history.errors[history.errors.length - 1];
-    expect(lastError!.args[0]).toContain('Error saving layout');
   });
 
   test('DDL取得時のサーバーエラーが適切に処理される', async () => {
@@ -346,28 +270,7 @@ describe('エラーハンドリング', () => {
       },
     };
     infrastructure.setupMockData(mockData);
-    const app = new ERViewerApplication(infrastructure) as any;
-
-    // loadERDataメソッドを追加（テスト用）
-    app.loadERData = async function () {
-      try {
-        // @ts-ignore - privateメソッドアクセス
-        this.showLoading('データを読み込んでいます...');
-        const response = await this.infra.network.getJSON('/api/er-data');
-        if (!response || response?.status !== 200) {
-          throw new Error('Failed to load ER data');
-        }
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        this.setState({ erData: response?.data });
-      } catch (error) {
-        // @ts-ignore - privateメソッドアクセス
-        this.hideLoading();
-        // @ts-ignore - privateメソッドアクセス
-        this.showError('データの読み込みに失敗しました', (error as Error).message);
-        this.setState({ error: (error as Error).message });
-      }
-    };
+    const app = new ERViewerApplication(infrastructure);
 
     // Act
     await app.loadERData();

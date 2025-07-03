@@ -52,7 +52,7 @@ describe('状態管理', () => {
       };
 
       // Act - レイアウトデータを変更
-      app.setLayoutData(newLayoutData);
+      app.updateLayoutData(newLayoutData);
 
       // Assert - propertySubscriberが呼ばれることを確認
       expect(propertySubscriber).toHaveBeenCalled();
@@ -90,12 +90,12 @@ describe('状態管理', () => {
       };
 
       // Act - レイアウトを2回変更（ヒストリーエントリーを作成）
-      app.setLayoutData(initialLayoutData);
-      app.setLayoutData(modifiedLayoutData);
+      app.updateLayoutData(initialLayoutData);
+      app.updateLayoutData(modifiedLayoutData);
 
       // Assert - レイアウト変更が適用されていることを確認
       // ヒストリー機能は内部状態だが、その効果としてレイアウト変更が
-      // setLayoutDataで通知されることを利用して検証
+      // updateLayoutDataで通知されることを利用して検証
       const subscriber = jest.fn();
       app.subscribe(subscriber);
 
@@ -108,7 +108,7 @@ describe('状態管理', () => {
         texts: [],
         layers: [],
       };
-      app.setLayoutData(finalLayoutData);
+      app.updateLayoutData(finalLayoutData);
 
       // subscriberが呼ばれたことは、状態が変更され
       // ヒストリー機能が機能していることを示す

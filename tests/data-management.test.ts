@@ -4,18 +4,7 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockData } from '../public/js/types/infrastructure';
-import {
-  createERData,
-  createEntity,
-  createLayoutData,
-  createUserEntity,
-  createPostEntity,
-  createNetworkResponse,
-  createSuccessResponse,
-} from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('データ管理', () => {
   afterEach(() => {
@@ -96,17 +85,35 @@ describe('データ管理', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       jest.spyOn(infrastructure.network, 'postJSON');
-      const mockERData = createERData({
-        entities: [
-          createEntity({
-            name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
-        ],
-      });
       const mockData: MockData = {
         networkResponses: {
-          '/api/reverse-engineer': createNetworkResponse({ data: mockERData }),
+          '/api/reverse-engineer': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int);'
+                }
+              ],
+              relationships: [],
+              layout: {
+                entities: {
+                  users: {
+                    position: {
+                      x: 100,
+                      y: 100
+                    }
+                  }
+                },
+                rectangles: [],
+                texts: [],
+                layers: []
+              }
+            }
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -138,36 +145,44 @@ describe('データ管理', () => {
       jest.spyOn(infrastructure.network, 'postJSON');
 
       // 初期状態：usersエンティティのみ存在
-      const initialERData = createERData({
+      const initialERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
-            users: { position: { x: 100, y: 100 } },
+            users: { position: { x: 100, y: 100 } }
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       // リバースエンジニアリング後：postsエンティティが追加される
-      const updatedERData = createERData({
+      const updatedERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
-          createEntity({
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          },
+          {
             name: 'posts',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'user_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
             ],
-          }),
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, user_id int);'
+          }
         ],
         relationships: [
           {
@@ -175,7 +190,8 @@ describe('データ管理', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
-          },
+            constraintName: 'posts_user_id_fkey'
+          }
         ],
         layout: {
           entities: {
@@ -184,14 +200,15 @@ describe('データ管理', () => {
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: initialERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: updatedERData }),
-          '/api/layout': createSuccessResponse(),
+          '/api/er-data': { status: 200, data: initialERData },
+          '/api/reverse-engineer': { status: 200, data: updatedERData },
+          '/api/layout': { status: 200, data: { success: true } },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -199,11 +216,11 @@ describe('データ管理', () => {
 
       // 初期データをロード
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Act - 増分リバースエンジニアリングを実行
       await app.reverseEngineer();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
       // レイアウト保存をテスト
@@ -230,20 +247,25 @@ describe('データ管理', () => {
       jest.spyOn(infrastructure.network, 'postJSON');
 
       // 初期状態：users, postsエンティティが存在
-      const initialERData = createERData({
+      const initialERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
-          createEntity({
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          },
+          {
             name: 'posts',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'user_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
             ],
-          }),
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, user_id int);'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
@@ -251,17 +273,21 @@ describe('データ管理', () => {
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       // リバースエンジニアリング後：postsエンティティが削除される
-      const updatedERData = createERData({
+      const updatedERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
@@ -269,14 +295,15 @@ describe('データ管理', () => {
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: initialERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: updatedERData }),
-          '/api/layout': createSuccessResponse(),
+          '/api/er-data': { status: 200, data: initialERData },
+          '/api/reverse-engineer': { status: 200, data: updatedERData },
+          '/api/layout': { status: 200, data: { success: true } },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -284,11 +311,11 @@ describe('データ管理', () => {
 
       // 初期データをロード
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Act - 増分リバースエンジニアリングを実行
       await app.reverseEngineer();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
       // レイアウト保存をテスト
@@ -315,51 +342,59 @@ describe('データ管理', () => {
       jest.spyOn(infrastructure.network, 'postJSON');
 
       // 初期状態：usersエンティティが既存の位置とサイズを持つ
-      const initialERData = createERData({
+      const initialERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'name', type: 'varchar(100)', key: '' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' }
             ],
-          }),
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(100));'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
-            users: { position: { x: 150, y: 250 } },
+            users: { position: { x: 150, y: 250 } }
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       // リバースエンジニアリング後：usersにカラムが追加される
-      const updatedERData = createERData({
+      const updatedERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'name', type: 'varchar(100)', key: '' },
-              { name: 'email', type: 'varchar(255)', key: 'UNI' }, // 新しいカラム
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' } // 新しいカラム
             ],
-          }),
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(100), email varchar(255));'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
-            users: { position: { x: 150, y: 250 } }, // 既存の位置を保持
+            users: { position: { x: 150, y: 250 } } // 既存の位置を保持
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: initialERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: updatedERData }),
-          '/api/layout': createSuccessResponse(),
+          '/api/er-data': { status: 200, data: initialERData },
+          '/api/reverse-engineer': { status: 200, data: updatedERData },
+          '/api/layout': { status: 200, data: { success: true } },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -367,11 +402,11 @@ describe('データ管理', () => {
 
       // 初期データをロード
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Act - 増分リバースエンジニアリングを実行
       await app.reverseEngineer();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
       // レイアウト保存をテスト
@@ -395,47 +430,59 @@ describe('データ管理', () => {
       jest.spyOn(infrastructure.network, 'postJSON');
 
       // 初期状態：usersエンティティのみ
-      const initialERData = createERData({
+      const initialERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          }
         ],
+        relationships: [],
         layout: {
           entities: {
-            users: { position: { x: 100, y: 100 } },
+            users: { position: { x: 100, y: 100 } }
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       // リバースエンジニアリング後：3つの新しいエンティティが追加される
-      const updatedERData = createERData({
+      const updatedERData = {
         entities: [
-          createEntity({
+          {
             name: 'users',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
-          createEntity({
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int);'
+          },
+          {
             name: 'posts',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'user_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
             ],
-          }),
-          createEntity({
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, user_id int);'
+          },
+          {
             name: 'comments',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'post_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'post_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
             ],
-          }),
-          createEntity({
+            foreignKeys: [],
+            ddl: 'CREATE TABLE comments (id int, post_id int);'
+          },
+          {
             name: 'categories',
-            columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-          }),
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE categories (id int);'
+          }
         ],
         relationships: [
           {
@@ -443,13 +490,15 @@ describe('データ管理', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'posts_user_id_fkey'
           },
           {
             from: 'comments',
             fromColumn: 'post_id',
             to: 'posts',
             toColumn: 'id',
-          },
+            constraintName: 'comments_post_id_fkey'
+          }
         ],
         layout: {
           entities: {
@@ -458,14 +507,15 @@ describe('データ管理', () => {
           },
           rectangles: [],
           texts: [],
-        },
-      });
+          layers: []
+        }
+      };
 
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: initialERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: updatedERData }),
-          '/api/layout': createSuccessResponse(),
+          '/api/er-data': { status: 200, data: initialERData },
+          '/api/reverse-engineer': { status: 200, data: updatedERData },
+          '/api/layout': { status: 200, data: { success: true } },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -473,11 +523,11 @@ describe('データ管理', () => {
 
       // 初期データをロード
       await app.loadERData();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Act - 増分リバースエンジニアリングを実行
       await app.reverseEngineer();
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
       // レイアウト保存をテスト
@@ -507,27 +557,56 @@ describe('データ管理', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
       jest.spyOn(infrastructure.network, 'postJSON');
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-        layout: createLayoutData({
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));'
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);'
+          }
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } }
+          },
+          rectangles: [],
+          texts: [],
           layers: [
             { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
             { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
-          ],
-        }),
-      });
+          ]
+        }
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
-          '/api/layout': createSuccessResponse(),
+          '/api/er-data': { status: 200, data: mockERData },
+          '/api/layout': { status: 200, data: { success: true } },
         },
       });
 
       const app: any = new ERViewerApplication(infrastructure);
 
       // データ読み込みを待つ
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Act - レイヤー順序を変更してから保存
       const newLayers = [
@@ -540,7 +619,7 @@ describe('データ管理', () => {
       });
 
       // イベント処理を待つ（最適化：不要と判断）
-      // await waitForAsync();
+      // await new Promise((resolve) => setTimeout(resolve, 0));
 
       // レイアウトを保存
       await app.saveLayout();
@@ -586,9 +665,41 @@ describe('データ管理', () => {
       const app: any = new ERViewerApplication(infrastructure);
 
       // ERデータを設定
-      const erData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-      });
+      const erData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));'
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);'
+          }
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } }
+          },
+          rectangles: [],
+          texts: [],
+          layers: []
+        }
+      };
       await app.setState({ erData });
 
       // Act
@@ -619,19 +730,54 @@ describe('データ管理', () => {
     test('全データ読み込みが正常に動作する（左サイドバー状態を含む）', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-      });
-      const mockLayoutData = createLayoutData({
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));'
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' }
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);'
+          }
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } }
+          },
+          rectangles: [],
+          texts: [],
+          layers: []
+        }
+      };
+      const mockLayoutData = {
         entities: {
           users: { position: { x: 100, y: 100 } },
           posts: { position: { x: 300, y: 200 } },
         },
+        rectangles: [],
+        texts: [],
+        layers: [],
         leftSidebar: {
           visible: false,
           width: 300,
-        },
-      });
+        }
+      };
 
       const mockData: MockData = {
         networkResponses: {

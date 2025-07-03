@@ -5,16 +5,7 @@ import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockData } from '../public/js/types/infrastructure';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import {
-  createERData,
-  createUserEntity,
-  createPostEntity,
-  createUserPostERData,
-  createNetworkResponse,
-} from './test-data-factory';
 
-// テスト用ヘルパー関数 - 非同期処理の完了を待つ
-const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('初期化とセットアップ', () => {
   afterEach(() => {
@@ -29,10 +20,47 @@ describe('初期化とセットアップ', () => {
     test('アプリケーションが正常に初期化される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            position: { x: 100, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'name', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'email', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+          {
+            name: 'posts',
+            position: { x: 400, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'user_id', type: 'INTEGER', primary: false, notNull: true },
+              { name: 'title', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'content', type: 'TEXT', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+          },
+        ],
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            success: true,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -67,10 +95,47 @@ describe('初期化とセットアップ', () => {
     test('キャンバスが正しく初期化される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            position: { x: 100, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'name', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'email', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+          {
+            name: 'posts',
+            position: { x: 400, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'user_id', type: 'INTEGER', primary: false, notNull: true },
+              { name: 'title', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'content', type: 'TEXT', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+          },
+        ],
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            success: true,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -90,8 +155,32 @@ describe('初期化とセットアップ', () => {
     test('初期データがロードされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            position: { x: 100, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'name', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'email', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+          {
+            name: 'posts',
+            position: { x: 400, y: 100 },
+            size: { width: 200, height: 200 },
+            columns: [
+              { name: 'id', type: 'INTEGER', primary: true, notNull: true },
+              { name: 'user_id', type: 'INTEGER', primary: false, notNull: true },
+              { name: 'title', type: 'VARCHAR(255)', primary: false, notNull: true },
+              { name: 'content', type: 'TEXT', primary: false, notNull: true },
+              { name: 'created_at', type: 'TIMESTAMP', primary: false, notNull: true },
+            ],
+          },
+        ],
         relationships: [
           {
             from: 'posts',
@@ -100,17 +189,20 @@ describe('初期化とセットアップ', () => {
             toColumn: 'id',
           },
         ],
-      });
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            success: true,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
 
       // Act
       new ERViewerApplication(infrastructure);
-      await waitForAsync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
       const history = infrastructure.getInteractionHistory();

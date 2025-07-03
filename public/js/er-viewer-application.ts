@@ -1097,9 +1097,9 @@ export class ERViewerApplication {
   private handleCanvasMouseDown(event: MouseEvent): void {
     const target = event.target as Element;
     const rect = this.infra.dom.getBoundingClientRect(this.state.canvas!);
-    const screenX = event.clientX - rect.left;
-    const screenY = event.clientY - rect.top;
-    const svgPoint = this.screenToSVG(screenX, screenY);
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    const svgPoint = this.screenToSVG(canvasX, canvasY);
 
     // Check if in drawing mode
     if (this.state.drawingMode === 'rectangle') {
@@ -1146,7 +1146,7 @@ export class ERViewerApplication {
       (event.button === 0 && this.state.isSpacePressed)
     ) {
       event.preventDefault();
-      this.startPan(screenX, screenY);
+      this.startPan(event.clientX, event.clientY);
     }
   }
 
@@ -1546,6 +1546,7 @@ export class ERViewerApplication {
     const screenY = event.clientY;
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
+    // Convert canvas coordinates to SVG coordinates accounting for viewport transform
     const svgPoint = this.screenToSVG(canvasX, canvasY);
 
     this.showContextMenu(screenX, screenY, svgPoint, event.target as Element);

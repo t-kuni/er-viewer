@@ -1,320 +1,268 @@
-# テストコードのコーディングルール違反修正タスク
+# SPEC.md要件適合性チェック・修正タスク
 
 ## 概要
 
-CLAUDE.mdで定められているテストコーディングルールに違反している箇所を洗い出し、修正すべき項目をまとめました。
+2025-07-03にSPEC.mdの要件と現在の実装状況を比較検証した結果、以下の未実装・修正が必要な機能を特定しました。
 
-#### error-handling.test.ts  
-- [x] **96-115行目**: `app.loadERData` テスト用メソッドを削除し、パブリックメソッドを使用 ✅ 完了（2025-07-03）
-  - 既存のパブリックメソッド`loadERData`を使用するよう修正
-  - テスト実行成功を確認
-- [x] **147-166行目**: `app.loadERData` テスト用メソッドを削除し、パブリックメソッドを使用 ✅ 完了（2025-07-03）
-  - テスト用のloadERDataメソッドの追加を削除
-  - 既存のパブリックメソッド`loadERData`を使用するよう修正
-  - テスト実行成功を確認
-- [x] **209-219行目**: `app.setLayoutData` テスト用メソッドを削除し、パブリックメソッドを使用 ✅ 完了（2025-07-03）
-  - setLayoutDataメソッドをupdateLayoutDataに変更
-  - ERViewerApplicationからsetLayoutDataメソッドを削除
-  - state-management.test.tsのsetLayoutData使用箇所も同時に修正
-  - テスト実行成功を確認
-- [x] **263-273行目**: `app.loadERData` テスト用メソッド追加を削除し、既存のパブリックメソッドを使用 ✅ 完了（2025-07-03）
-  - テスト用のloadERDataメソッドの追加を削除
-  - 既存のloadERDataメソッドをそのまま使用
-  - テスト実行成功を確認
-- [x] **351-370行目**: 既にパブリックメソッドreverseEngineerを使用していることを確認 ✅ 完了（2025-07-03）
-- [x] **407-424行目**: TASK.mdの記載誤り（ファイルは369行まで）✅ 確認済み（2025-07-03）
+## リレーション表示・動作
 
-## 修正の優先順位
+- [ ] リレーション線が正しく表示されているか確認・修正
+- [ ] 上下左右方向のみのPolyline接続が実装されているか確認（斜めの直線はNG）
+- [ ] エンティティホバー時の関連エンティティとリレーションのハイライト機能を確認・実装
+  - [ ] リレーションが貼られているカラムもハイライトされるか確認
+  - [ ] 一時的に最前面に来る強調表示が実装されているか確認
+- [ ] リレーションホバー時のリレーションと両端カラムのハイライト機能を確認・実装
+  - [ ] 一時的に最前面に来る強調表示が実装されているか確認
 
-1. **高優先度**: ERViewerApplicationへのテスト用メソッド追加（ルール6違反）
-2. **中優先度**: 制御構造排除（ルール3違反）  
-3. **低優先度**: 共通化による可読性の低下（ルール2違反）
+## エンティティ・UI インタラクション
 
-## 修正完了後の確認事項
+- [ ] エンティティクリック時の右サイドバーDDL表示機能を確認・修正
+- [ ] DDLのsyntax highlight機能が実装されているか確認・実装
+- [ ] マウスホイールでの拡大縮小機能（0.1倍〜5倍）を確認・修正
+- [ ] スペース押しながらドラッグでスクロール機能を確認・修正
+- [ ] ホイール押し込みながらマウス移動でスクロール機能を確認・修正
+- [ ] エンティティドラッグでの位置変更機能を確認・修正
 
-- [x] `npm test && npm run typecheck` でエラーが発生しないことを確認 ✅ 完了（2025-07-03）
-- [x] 全てのテストが通ることを確認 ✅ 完了（2025-07-03）
-- [x] コーディングルールに準拠していることを確認 ✅ 完了（2025-07-03）
+## 描画機能
+
+- [ ] 矩形描画機能の動作確認・修正
+  - [ ] 線の色、塗りつぶしの色、サイズ、位置をインタラクティブに編集可能か確認
+  - [ ] 矩形ダブルクリックでの編集機能確認
+  - [ ] 矩形ドラッグでの位置変更機能確認
+- [ ] テキスト描画機能の動作確認・修正
+  - [ ] 位置、色、サイズをインタラクティブに編集可能か確認
+  - [ ] テキストダブルクリックでの編集機能確認
+  - [ ] テキストドラッグでの位置変更機能確認
+- [ ] 右クリックコンテキストメニュー（矩形・テキスト追加）の動作確認・修正
+
+## レイヤー管理機能
+
+- [ ] レイヤー一覧に「矩形NoX」「テキスト "xxx"」が表示されるか確認・実装
+- [ ] レイヤー一覧のドラッグ&ドロップでの順番入れ替え機能を確認・実装
+- [ ] レイヤー順序に従ったキャンバス要素のレンダリング確認・修正
+  - [ ] 一番上の要素が最前面に描画されるか確認
+  - [ ] 一番下の要素が最背面に描画されるか確認
+
+## サイドバー機能
+
+- [ ] 左サイドバーのリサイズ機能（150px〜500px）を確認・実装
+- [ ] 左サイドバー開閉時の「完全に非表示にならない」仕様の確認・修正
+- [ ] 右サイドバーの×ボタンでの閉じる機能確認・修正
+
+## データ管理機能
+
+- [ ] リバースエンジニア機能の動作確認・修正
+- [ ] 増分リバース機能の動作確認・実装
+  - [ ] 差分が正しく反映されるか確認
+  - [ ] 「エンティティの配置に関するデータ」が維持されるか確認
+  - [ ] 配置データがないエンティティが左上にまとめて表示されるか確認
+- [ ] レイアウト保存機能の動作確認・修正
+- [ ] データ読み込み機能の動作確認・修正
+- [ ] エンティティ配置データが正しく保存・復元されるか確認
+
+## 表示・レイアウト改善
+
+- [ ] エンティティの初期配置クラスタリングの最適化
+- [ ] 「テーブル名」と「カラム名」の長さに応じたエンティティ幅調整の確認・修正
+- [ ] 操作ガイドの折りたたみ機能が正しく動作しているか確認
+
+## システム・環境設定
+
+- [ ] 環境変数でのDB接続設定が正しく動作しているか確認
+- [ ] docker-composeのvolume機能でのデータ保存先切り替えが動作しているか確認
+- [ ] ビルド情報表示機能の修正（現在「読み込み中...」で止まっている）
+
+## テスト・品質保証
+
+- [ ] `npm run typecheck && npm test`の実行確認・エラー修正
+- [ ] 各機能の統合テストの実行・修正
+- [ ] エラーハンドリングの確認・改善
+
+## 検証状況（2025-07-03現在）
+
+### 確認済み・動作中の機能 ✅
+- RDBからER図のリバースエンジニアリング
+- エンティティの表示（テーブル名、カラム名一覧）
+- カラム種類による絵文字表示（🔑🔗📝🔢📅❓など）
+- 左サイドバーのレイヤー表示
+- 左サイドバーの開閉（◀ボタン）
+- 操作ガイドの表示と折りたたみ
+- 各種操作ボタン（リバースエンジニア、レイアウト保存、データ読み込み、矩形描画、テキスト描画、ビルド情報）
+- 右サイドバーの枠組み（テーブル詳細表示用）
+
+### 要確認・修正が必要な機能 ⚠️
+- リレーション線の表示（モーダルで見えず、確認要）
+- 各種インタラクション機能（ホバー、クリック、ドラッグ、ズーム等）
+- 描画機能の詳細動作
+- DDLのシンタックスハイライト
+- 増分リバース機能
+- ビルド情報の表示（現在読み込み中で止まっている）
+
+## 検証方法
+
+1. ブラウザでlocalhost:30033にアクセス
+2. 各機能を手動操作で確認
+3. 期待される動作と実際の動作を比較
+4. 不具合・未実装機能を特定し修正
+5. `npm run typecheck && npm test`で品質確認
+
+## stateレベル位置情報重複の根本修正 🔧
+
+### 背景
+現在のERViewerApplicationで位置情報が重複管理されている：
+
+1. **stateレベルの重複**: 
+   - `state.erData.entities[].position` - 既存エンティティに設定される
+   - `state.layoutData.entities[entityName].position` - 同じ位置情報が別構造で保存
+2. **ファイルレベルの重複**: 
+   - `er-data.json`内の各エンティティに`position: { x: 50, y: 50 }`
+   - `layout-data.json`の`entities`オブジェクト（現在は空）
+3. **実装上の問題**: `getEntityPosition()`で`layoutData`を優先使用するため、`erData.entities[].position`は無駄
+
+### 修正方針
+
+#### 位置情報の単一管理への統一
+- **Entity型**: `position`プロパティを削除
+- **layoutData.entities**: 位置情報の唯一の管理場所
+- **stateとファイル**: 位置情報重複の完全排除
+
+### 修正タスク
+
+#### Phase 1: TypeScript型定義修正
+- [ ] **types/index.ts修正**
+  - [ ] `Entity`インターフェースから`position?: Position`プロパティを削除
+  - [ ] 型定義の整合性確認
+
+#### Phase 2: フロントエンド修正（ERViewerApplication）
+- [ ] **位置情報設定処理の修正**
+  - [ ] `reverseEngineering()`メソッド内の`entity.position`設定処理を削除
+  - [ ] 既存エンティティの位置情報は`layoutData.entities`のみで管理するよう修正
+  - [ ] 新規エンティティの位置情報は`clusteredPositions`で管理し、最終的に`layoutData.entities`に反映
+
+- [ ] **位置取得処理の確認**
+  - [ ] `getEntityPosition()`メソッドが`layoutData.entities`のみを参照することを確認
+  - [ ] `clusteredPositions`から`layoutData.entities`への反映処理の確認
+
+- [ ] **位置更新処理の強化**
+  - [ ] エンティティドラッグ時の`layoutData.entities`更新処理の確認・実装
+  - [ ] `updateEntityPosition()`メソッドの実装（存在しない場合は新規作成）
+
+#### Phase 3: バックエンド修正（lib/storage.js）
+- [ ] **データ保存処理の修正**
+  - [ ] `saveERData()`メソッド内でposition情報を除去する処理を追加
+  - [ ] `mergeERDataWithLayout()`メソッドの修正（positionマージ処理を削除）
+
+#### Phase 4: 既存データのクリーンアップ
+- [ ] **ファイルデータの修正**
+  - [ ] 既存の`./data/er-data.json`からposition情報を削除
+  - [ ] `./data/layout-data.json`のentitiesオブジェクトに実際の位置情報を設定
+
+#### Phase 5: テスト修正
+- [ ] **テストコードの修正**
+  - [ ] Entity型のposition削除に伴うテストデータの修正
+  - [ ] 位置情報関連のテストケースの見直し・修正
+  - [ ] `npm test`でエラーが出ないことを確認
+
+#### Phase 6: 統合テスト
+- [ ] **機能テスト**
+  - [ ] リバースエンジニアリング機能のテスト
+  - [ ] エンティティドラッグによる位置変更テスト
+  - [ ] 保存・読み込み処理のテスト
+  - [ ] 増分リバース時の位置情報保持テスト
+
+- [ ] **品質確認**
+  - [ ] `npm run typecheck`の実行・エラー修正
+  - [ ] `npm test`の実行・エラー修正
+  - [ ] データファイルの内容確認
+
+### 具体的な修正内容
+
+#### types/index.ts
+```typescript
+// 修正前
+export interface Entity {
+  name: string;
+  columns: Column[];
+  foreignKeys: ForeignKey[];
+  ddl: string;
+  position?: Position;  // ←削除
+}
+
+// 修正後
+export interface Entity {
+  name: string;
+  columns: Column[];
+  foreignKeys: ForeignKey[];
+  ddl: string;
+  // position プロパティ削除
+}
+```
+
+#### ERViewerApplication修正箇所
+```typescript
+// reverseEngineering()メソッド内
+erData.entities.forEach((entity) => {
+  const existingLayout = currentLayout.entities[entity.name];
+  if (currentEntities.has(entity.name) && existingLayout) {
+    // entity.position = existingLayout.position; ←削除
+    newLayoutData.entities[entity.name] = existingLayout;
+  } else {
+    // delete entity.position; ←不要（positionプロパティが存在しないため）
+    this.state.clusteredPositions.set(entity.name, position);
+  }
+});
+```
+
+### 期待される結果
+
+**修正後のer-data.json**:
+```json
+{
+  "entities": [
+    {
+      "name": "users",
+      "columns": [...],
+      "foreignKeys": [...],
+      "ddl": "..."
+      // position プロパティなし
+    }
+  ]
+}
+```
+
+**修正後のlayout-data.json**:
+```json
+{
+  "entities": {
+    "users": { "position": { "x": 120, "y": 80 } },
+    "posts": { "position": { "x": 350, "y": 200 } }
+  },
+  "rectangles": [],
+  "texts": [],
+  "layers": [...]
+}
+```
+
+### 完了条件
+1. Entity型にpositionプロパティが存在しない
+2. stateレベルで位置情報の重複がない
+3. er-data.jsonにposition情報が含まれない
+4. layout-data.jsonのentitiesに実際の位置情報が保存される
+5. エンティティドラッグ操作が正常に動作する
+6. 保存・読み込み処理が正常に動作する
+7. 増分リバース時に位置情報が正しく保持される
+8. 全テストがパスする
+9. TypeScriptエラーがない
+
+**優先度**: 高  
+**推定工数**: 3-4時間  
+**依存関係**: この修正は他の機能実装よりも優先して実施すべき
+
+---
 
 ## 備考
 
-- 一部のファイル（state-management.test.ts、left-sidebar-toggle.test.ts、ui-components.test.ts）は概ねルールに準拠しており、大きな修正は不要
-- 修正時は既存のテストロジックを破壊しないよう注意深く行う
-- Mockの呼び出し履歴検証を重視し、state検証は避ける
+このタスクリストは、SPEC.mdの要件と2025-07-03時点の実装状況を比較して作成しました。
+各項目は動作確認後、実装されていれば✅に、未実装・不具合があれば修正作業を行ってください。
 
-## 完了した作業（2025-07-03）
-
-### error-handling.test.tsの修正完了
-- **全てのテスト用メソッド追加を削除**: ERViewerApplicationへのテスト用メソッド追加違反を解消
-- **setLayoutDataメソッドの削除**: テスト専用のパブリックメソッドをERViewerApplicationから削除し、既存のupdateLayoutDataを使用
-- **loadERDataメソッド追加の削除**: テスト用のメソッド追加を削除し、既存のパブリックメソッドを使用
-- **state-management.test.tsも同時修正**: setLayoutDataを使用していた箇所を全てupdateLayoutDataに変更
-- **全テスト成功確認**: 113個のテストが全て成功することを確認
-
-### 残りのタスク
-- 他のテストファイルにおける制御構造（if/for/switch）の削除
-- 共通化による可読性低下の改善（必要に応じて）
-
-## 制御構造削除タスクの進捗（2025-07-03）
-
-### 制御構造の洗い出し完了
-全テストファイルを調査し、以下の制御構造使用箇所を特定：
-
-1. **rendering.test.ts**: for文とif文の組み合わせ（4箇所）
-2. **ui-components.test.ts**: querySelectorモック内のif文（2箇所）
-3. **entity-hover-highlight.test.ts**: DOMモック内の多数のif文
-4. **rectangle-edit.test.ts**: DOMモック内のif文
-5. **relationship-hover-highlight.test.ts**: DOMモック内のif文
-6. **text-drag.test.ts**: DOMモック内のif文
-7. **user-interaction.test.ts**: for文（2箇所）とイベントハンドラー存在チェックのif文
-
-### 修正試行と課題
-
-#### rendering.test.ts
-- 制御構造を完全に削除して固定値でアクセスするよう修正を試みた
-- **結果**: テストが失敗。動的な要素数に対応できなくなった
-- **問題点**: DOM要素の数がテストケースや実装状態によって異なるため、固定値でのアクセスは不適切
-- **結論**: 元のコードに戻した
-
-#### user-interaction.test.ts
-- [x] 964行目と986行目のfor文をArray.forEach()に置き換え ✅ 完了（2025-07-03）
-- **問題点**: Array.forEach()も配列操作の一種であり、CLAUDE.mdの「配列操作や条件分岐を避ける」ルールに完全には準拠していない
-
-### 現状の考察
-
-1. **モック実装内の制御構造**: 多くの制御構造がDOMモックの実装内で使用されている。特定のセレクターに対して特定の要素を返すために必要。
-
-2. **動的な要素数への対応**: rendering.test.tsのように、DOM要素の数が動的に変わる場合、制御構造なしでの対応が困難。
-
-3. **ルールの解釈**: CLAUDE.mdでは「可能な限り」if/for/switch文を使用しないとされている。完全な排除が困難な場合は、最小限の使用に留めることも許容される可能性がある。
-
-### 今後の方針
-
-1. **優先度の再評価**: 制御構造の完全な削除が困難な場合、他のルール違反（共通化による可読性低下など）の修正を優先する。
-
-2. **部分的な改善**: 制御構造を完全に削除できない場合でも、可能な限り削減し、よりシンプルな形に置き換える。
-
-3. **テストの可読性を優先**: CLAUDE.mdのルール2「可読性最優先」に従い、制御構造を削除することでテストの可読性が著しく低下する場合は、現状維持も検討する。
-
-## 共通化による可読性低下の改善（2025-07-03）
-
-### waitForAsync関数の削除 ✅ 完了
-
-以下のファイルからwaitForAsync関数を削除し、直接Promiseを記述するように修正：
-- [x] user-interaction.test.ts
-- [x] ui-components.test.ts
-- [x] data-management.test.ts
-- [x] initialization-setup.test.ts
-
-**修正内容**:
-```typescript
-// 修正前
-const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
-await waitForAsync();
-
-// 修正後
-await new Promise((resolve) => setTimeout(resolve, 0));
-```
-
-**結果**: 全テストが成功。テストの意図がより明確になった。
-
-### test-data-factory.tsの過度な使用の改善 ✅ 完了（2025-07-03）
-
-#### data-management.test.tsの修正完了
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createEntity、createUserEntity、createPostEntity、createLayoutData、createNetworkResponse、createSuccessResponse
-- **メリット**: 
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - 別ファイルを参照する必要がなくなり、テストの可読性が向上
-  - デフォルト値に依存しないため、テストの意図が明確
-- **結果**: 全11個のテストが成功。npm test && npm run typecheckも成功
-
-### 残りの共通化問題
-
-1. **他のテストファイルでのtest-data-factory.ts使用**: 14個のテストファイルで使用されているため、順次改善が必要
-2. **配列操作の使用**: filter、find、mapなどの使用
-
-## test-data-factory.ts使用の改善（2025-07-03）
-
-### initialization-setup.test.tsの修正 ✅ 完了
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createUserEntity、createPostEntity、createUserPostERData、createNetworkResponse
-- **結果**: 全3個のテストが成功
-
-### ui-components.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createSuccessResponse
-- **結果**: 全15個のテストが成功
-
-### 残りのtest-data-factory.ts使用ファイル（12個→11個→10個→9個→8個→7個→6個→5個→4個→3個→2個）
-- [x] user-interaction.test.ts ✅ 完了（2025-07-03）
-- [x] rendering.test.ts ✅ 完了（2025-07-03）
-- [x] state-management.test.ts ✅ 完了（2025-07-03）
-- [x] error-handling.test.ts ✅ 完了（2025-07-03）
-- [x] left-sidebar-toggle.test.ts ✅ 完了（2025-07-03）
-- [x] left-sidebar-resize.test.ts ✅ 完了（2025-07-03）
-- [x] text-drag.test.ts ✅ 完了（2025-07-03）
-- [x] rectangle-edit.test.ts ✅ 完了（2025-07-03）
-- [x] infrastructure-matchers.test.ts ✅ 完了（2025-07-03）
-- relationship-hover-highlight.test.ts
-- entity-hover-highlight.test.ts
-
-### 発見された問題
-- [x] initialization-setup.test.tsにタイプエラーが存在（MockNetworkResponseのsuccessプロパティ） ✅ 完了（2025-07-03）
-  - MockNetworkResponseインターフェースに`success`プロパティが存在しないため、正しい形式に修正
-  - `success: true`を削除し、`status: 200, statusText: 'OK'`に置き換え
-  - 3箇所すべて修正完了
-  - npm test && npm run typecheckで成功を確認
-
-### left-sidebar-toggle.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createLayoutData
-- **結果**: 全5個のテストが成功
-
-### error-handling.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのcreateErrorResponseインポートを削除し、エラーレスポンスを直接リテラル値として記述
-- **削除した関数**: createErrorResponse
-- **結果**: 全9個のテストが成功
-
-## 進捗サマリー（2025-07-03）
-
-### 本日完了したタスク
-1. initialization-setup.test.tsのタイプエラー修正
-2. left-sidebar-toggle.test.tsのtest-data-factory削除
-3. error-handling.test.tsのtest-data-factory削除
-4. user-interaction.test.tsのtest-data-factory削除
-5. rendering.test.tsのtest-data-factory削除
-6. state-management.test.tsのtest-data-factory削除
-7. left-sidebar-resize.test.tsのtest-data-factory削除
-8. text-drag.test.tsのtest-data-factory削除
-9. rectangle-edit.test.tsのtest-data-factory削除
-
-### 全体テスト結果
-- **npm test && npm run typecheck**: 113個のテストすべて成功 ✅
-
-### 次回の作業
-- 残り3個のファイルでのtest-data-factory.ts使用の改善を継続
-  - infrastructure-matchers.test.ts
-  - relationship-hover-highlight.test.ts
-  - entity-hover-highlight.test.ts
-
-### user-interaction.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createUserEntity、createUserPostERData、createNetworkResponse、createDDLResponse
-- **結果**: 全38個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - 可読性が大幅に向上
-
-### 残りのtest-data-factory.ts使用ファイル（9個→8個→7個→6個→5個→4個→3個）
-- [x] rendering.test.ts ✅ 完了（2025-07-03）
-- [x] state-management.test.ts ✅ 完了（2025-07-03）
-- [x] left-sidebar-resize.test.ts ✅ 完了（2025-07-03）
-- [x] text-drag.test.ts ✅ 完了（2025-07-03）
-- [x] rectangle-edit.test.ts ✅ 完了（2025-07-03）
-- infrastructure-matchers.test.ts
-- relationship-hover-highlight.test.ts
-- entity-hover-highlight.test.ts
-
-### rendering.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createEntity、createLayoutData、createUserEntity、createPostEntity、createNetworkResponse
-- **結果**: コンパイル成功。ただし、テスト実行時に14個のテストが失敗
-- **原因**: テストの期待値と実際の動作の不一致（test-data-factoryが生成していたデフォルト値の欠落などが原因の可能性）
-- **今後の対応**: テストの失敗原因を調査し、必要に応じてテストを修正する必要があるが、本タスクの範囲（test-data-factory使用の削除）は完了
-- **追加修正（2025-07-03）**: タイプエラーの修正を実施
-  - エンティティのforeignKeysとddlプロパティの追加
-  - Columnのdefaultとextraプロパティの追加
-  - 未使用変数appの削除
-  - 結果：全テスト（17個）が成功、typecheckも成功
-
-### state-management.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのcreateERDataインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData
-- **結果**: 全3個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - 可読性が向上
-
-### left-sidebar-resize.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのcreateLayoutDataインポートを削除し、レイアウトデータを直接リテラル値として記述
-- **削除した関数**: createLayoutData
-- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - 左サイドバーのリサイズ機能に必要なレイアウトデータ構造が明確に表現された
-
-### text-drag.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのcreateUserPostERDataインポートを削除し、ER図データを直接リテラル値として記述
-- **削除した関数**: createUserPostERData
-- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - テキストドラッグ機能テストに必要なERデータ構造が明確に表現された
-
-### rectangle-edit.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createLayoutData
-- **結果**: 全4個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - 矩形編集機能テストに必要なデータ構造が明確に表現された
-- **備考**: タイマー関連の警告が表示されるが、テスト自体は問題なく動作
-
-### infrastructure-matchers.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createUserPostERData、createNetworkResponse
-- **修正箇所**: 5箇所すべてのtest-data-factory使用箇所を直接リテラル値に置き換え
-- **結果**: 全13個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - カスタムマッチャーの使用例が明確に表現された
-
-### relationship-hover-highlight.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
-- **削除した関数**: createERData、createEntity、createNetworkResponse
-- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - リレーションホバー機能に必要なERデータ構造が明確に表現された
-
-### entity-hover-highlight.test.tsの修正 ✅ 完了（2025-07-03）
-- **修正内容**: test-data-factoryからのcreateLayoutDataインポートを削除し、レイアウトデータを直接リテラル値として記述
-- **削除した関数**: createLayoutData
-- **LayoutData型定義の修正**: 正しい型定義に合わせてレイアウトデータ構造を修正
-- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
-- **メリット**:
-  - 外部ファイルへの依存を完全に除去
-  - テストデータが直接記述されることで、何をテストしているかが明確になった
-  - エンティティホバー機能に必要なデータ構造が明確に表現された
-
-## テストコーディングルール違反修正タスクの完了 ✅（2025-07-03）
-
-### 完了したタスク総括
-1. **ERViewerApplicationへのテスト用メソッド追加の削除**: 全て完了
-2. **test-data-factory.ts使用の削除**: 全15ファイルで完了
-3. **waitForAsync関数の削除**: 全4ファイルで完了
-4. **制御構造の部分的改善**: user-interaction.test.tsでfor文をforEachに変更
-
-### 最終テスト結果
-- **全113個のテスト**: すべて成功 ✅
-- **npm test && npm run typecheck**: エラーなし ✅
-- **タイマー警告**: rectangle-edit.test.tsで警告は出るが、テスト自体は正常動作
-
-### 達成した改善点
-1. **テストの可読性向上**: テストデータが直接記述され、何をテストしているかが明確に
-2. **外部依存の削除**: test-data-factory.tsへの依存を完全に除去
-3. **ルール準拠**: CLAUDE.mdで定められたテストコーディングルールに準拠
-4. **保守性向上**: デフォルト値に依存せず、テストの意図が明確に表現される
-
-### 制御構造に関する考察
-- 完全な削除は困難（動的な要素数への対応やモック実装内での必要性）
-- CLAUDE.mdの「可能な限り」という表現に従い、部分的な改善に留めた
-- テストの可読性を優先し、無理な削除は行わなかった
+データファイル分割の不整合修正は、データの整合性とアプリケーションの安定性に関わる重要な修正です。

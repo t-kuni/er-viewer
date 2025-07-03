@@ -29,7 +29,7 @@ RDBからER図をリバースエンジニアリングし、ブラウザ上で視
   * Mock検証中心
     * stateを検証するのはNG
     * Infrastructure Mockの呼び出し履歴を検証する
-  * プライベート関数をテストするのはNG
+  * プライベートメソッドをテストするのはNG
     * 必ずERViewerApplicationのパブリックメソッドを呼び出してテストする
   * ERViewerApplicationにテスト用のパブリックメソッドを追加するのはNG
 * タスクのキリが良いタイミングで `npm test && npm run typecheck` を実行しエラーが発生しないことを確認する

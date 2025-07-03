@@ -1,6 +1,5 @@
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import { ERViewerApplication } from '../public/js/er-viewer-application';
-import { createERData, createEntity, createNetworkResponse } from './test-data-factory';
 
 describe('リレーションホバー時のハイライト機能', () => {
   test('リレーションにホバーするとリレーションと両端のカラムがハイライトされる', async () => {
@@ -8,10 +7,75 @@ describe('リレーションホバー時のハイライト機能', () => {
     const infrastructure = new InfrastructureMock();
     const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
     const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
-    const erData = createERData({
+    const erData = {
       entities: [
-        createEntity({ name: 'users', columns: [{ name: 'id' }, { name: 'name' }] }),
-        createEntity({ name: 'posts', columns: [{ name: 'id' }, { name: 'user_id' }, { name: 'title' }] }),
+        {
+          name: 'users',
+          schema: 'public',
+          type: 'table',
+          columns: [
+            {
+              name: 'id',
+              type: 'INT',
+              nullable: false,
+              key: 'PRI',
+              extra: 'auto_increment',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'name',
+              type: 'VARCHAR(255)',
+              nullable: true,
+              key: '',
+              extra: '',
+              comment: '',
+              default: null
+            }
+          ],
+          indexes: [],
+          comment: '',
+          foreignKeys: [],
+          ddl: 'CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(255))'
+        },
+        {
+          name: 'posts',
+          schema: 'public',
+          type: 'table',
+          columns: [
+            {
+              name: 'id',
+              type: 'INT',
+              nullable: false,
+              key: 'PRI',
+              extra: 'auto_increment',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'user_id',
+              type: 'INT',
+              nullable: true,
+              key: 'MUL',
+              extra: '',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'title',
+              type: 'VARCHAR(255)',
+              nullable: true,
+              key: '',
+              extra: '',
+              comment: '',
+              default: null
+            }
+          ],
+          indexes: [],
+          comment: '',
+          foreignKeys: [],
+          ddl: 'CREATE TABLE posts (id INT PRIMARY KEY, user_id INT, title VARCHAR(255))'
+        }
       ],
       relationships: [
         {
@@ -28,11 +92,16 @@ describe('リレーションホバー時のハイライト機能', () => {
           posts: { position: { x: 300, y: 100 } },
         },
       },
-    });
+    };
 
     infrastructure.setupMockData({
       networkResponses: {
-        '/api/er-data': createNetworkResponse({ data: erData }),
+        '/api/er-data': {
+          data: erData,
+          status: 200,
+          statusText: 'OK',
+          headers: {}
+        },
       },
     });
 
@@ -106,10 +175,75 @@ describe('リレーションホバー時のハイライト機能', () => {
     const infrastructure = new InfrastructureMock();
     const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
     const setInnerHTMLSpy = jest.spyOn(infrastructure.dom, 'setInnerHTML');
-    const erData = createERData({
+    const erData = {
       entities: [
-        createEntity({ name: 'users', columns: [{ name: 'id' }, { name: 'name' }] }),
-        createEntity({ name: 'posts', columns: [{ name: 'id' }, { name: 'user_id' }, { name: 'title' }] }),
+        {
+          name: 'users',
+          schema: 'public',
+          type: 'table',
+          columns: [
+            {
+              name: 'id',
+              type: 'INT',
+              nullable: false,
+              key: 'PRI',
+              extra: 'auto_increment',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'name',
+              type: 'VARCHAR(255)',
+              nullable: true,
+              key: '',
+              extra: '',
+              comment: '',
+              default: null
+            }
+          ],
+          indexes: [],
+          comment: '',
+          foreignKeys: [],
+          ddl: 'CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(255))'
+        },
+        {
+          name: 'posts',
+          schema: 'public',
+          type: 'table',
+          columns: [
+            {
+              name: 'id',
+              type: 'INT',
+              nullable: false,
+              key: 'PRI',
+              extra: 'auto_increment',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'user_id',
+              type: 'INT',
+              nullable: true,
+              key: 'MUL',
+              extra: '',
+              comment: '',
+              default: null
+            },
+            {
+              name: 'title',
+              type: 'VARCHAR(255)',
+              nullable: true,
+              key: '',
+              extra: '',
+              comment: '',
+              default: null
+            }
+          ],
+          indexes: [],
+          comment: '',
+          foreignKeys: [],
+          ddl: 'CREATE TABLE posts (id INT PRIMARY KEY, user_id INT, title VARCHAR(255))'
+        }
       ],
       relationships: [
         {
@@ -126,11 +260,16 @@ describe('リレーションホバー時のハイライト機能', () => {
           posts: { position: { x: 300, y: 100 } },
         },
       },
-    });
+    };
 
     infrastructure.setupMockData({
       networkResponses: {
-        '/api/er-data': createNetworkResponse({ data: erData }),
+        '/api/er-data': {
+          data: erData,
+          status: 200,
+          statusText: 'OK',
+          headers: {}
+        },
       },
     });
 

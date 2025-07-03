@@ -5,7 +5,6 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import { ERData } from '../public/js/types';
-import { createLayoutData } from './test-data-factory';
 
 describe('Entity Hover Highlight', () => {
   let app: ERViewerApplication;
@@ -68,7 +67,16 @@ describe('Entity Hover Highlight', () => {
         { from: 'comments', to: 'users', fromColumn: 'user_id', toColumn: 'id', constraintName: 'fk_comments_users' },
         { from: 'comments', to: 'posts', fromColumn: 'post_id', toColumn: 'id', constraintName: 'fk_comments_posts' }
       ],
-      layout: createLayoutData()
+      layout: {
+        entities: {},
+        rectangles: [],
+        texts: [],
+        layers: [],
+        leftSidebar: {
+          visible: true,
+          width: 250
+        }
+      }
     };
 
     // Canvas要素の設定

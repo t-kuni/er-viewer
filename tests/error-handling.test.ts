@@ -4,7 +4,6 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockData } from '../public/js/types/infrastructure';
-import { createErrorResponse } from './test-data-factory';
 
 describe('エラーハンドリング', () => {
   afterEach(() => {
@@ -20,7 +19,11 @@ describe('エラーハンドリング', () => {
     const infrastructure = new InfrastructureMock();
     const mockData: MockData = {
       networkResponses: {
-        '/api/er-data': createErrorResponse(500, 'Internal Server Error'),
+        '/api/er-data': {
+          status: 500,
+          statusText: 'Internal Server Error',
+          data: { error: 'Internal Server Error' },
+        },
       },
     };
     infrastructure.setupMockData(mockData);

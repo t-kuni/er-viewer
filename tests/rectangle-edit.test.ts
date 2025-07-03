@@ -1,6 +1,5 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
-import { createERData, createLayoutData } from './test-data-factory';
 
 describe('Rectangle Edit Functionality', () => {
   let app: any;
@@ -21,18 +20,26 @@ describe('Rectangle Edit Functionality', () => {
     });
 
     // Setup initial state with a rectangle
-    const erData = createERData();
-    const layoutData = createLayoutData();
-    layoutData.rectangles = [{
-      id: 'rect-1',
-      x: 100,
-      y: 100,
-      width: 200,
-      height: 100,
-      color: '#e3f2fd',
-      stroke: '#1976d2',
-      strokeWidth: 2,
-    }];
+    const erData = {
+      entities: []
+    };
+    const layoutData = {
+      entities: {},
+      rectangles: [{
+        id: 'rect-1',
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 100,
+        color: '#e3f2fd',
+        stroke: '#1976d2',
+        strokeWidth: 2,
+      }],
+      sidebarWidth: 0,
+      scale: 1,
+      translateX: 0,
+      translateY: 0
+    };
 
     // Set initial state using setState
     app.setState({

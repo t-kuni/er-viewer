@@ -1,6 +1,5 @@
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import { ERViewerApplication } from '../public/js/er-viewer-application';
-import { createLayoutData } from './test-data-factory';
 import type { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 
 describe('左サイドバーのリサイズ機能', () => {
@@ -39,9 +38,13 @@ describe('左サイドバーのリサイズ機能', () => {
 
   test('保存されたレイアウトデータから幅が復元される', async () => {
     // Arrange
-    const layoutData = createLayoutData({
+    const layoutData = {
+      entities: {},
+      rectangles: [],
+      texts: [],
+      layers: [],
       leftSidebar: { visible: true, width: 320 }
-    });
+    };
     
     jest.spyOn(infrastructure.network, 'fetch').mockResolvedValue({
       ok: true,

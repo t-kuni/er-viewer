@@ -58,8 +58,9 @@ describe('初期化とセットアップ', () => {
       const mockData: MockData = {
         networkResponses: {
           '/api/er-data': {
-            success: true,
             data: mockERData,
+            status: 200,
+            statusText: 'OK',
           },
         },
       };
@@ -133,8 +134,9 @@ describe('初期化とセットアップ', () => {
       const mockData: MockData = {
         networkResponses: {
           '/api/er-data': {
-            success: true,
             data: mockERData,
+            status: 200,
+            statusText: 'OK',
           },
         },
       };
@@ -193,8 +195,9 @@ describe('初期化とセットアップ', () => {
       const mockData: MockData = {
         networkResponses: {
           '/api/er-data': {
-            success: true,
             data: mockERData,
+            status: 200,
+            statusText: 'OK',
           },
         },
       };

@@ -1,10 +1,6 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import {
-  createERData,
-  createLayoutData,
-} from './test-data-factory';
 
 describe('左サイドバーの開閉機能', () => {
   afterEach(() => {
@@ -98,9 +94,13 @@ describe('左サイドバーの開閉機能', () => {
   test('保存された左サイドバーの状態が読み込まれる', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
-    const layoutData = createLayoutData({
+    const layoutData = {
+      entities: {},
+      rectangles: [],
+      texts: [],
+      layers: [],
       leftSidebar: { visible: false, width: 250 }
-    });
+    };
 
     jest.spyOn(infrastructure.network, 'fetch').mockResolvedValue({
       ok: true,
@@ -118,7 +118,21 @@ describe('左サイドバーの開閉機能', () => {
       formData: () => Promise.resolve(new FormData()),
       text: () => Promise.resolve(''),
       json: () => Promise.resolve({
-        erData: createERData(),
+        erData: {
+          entities: [
+            {
+              name: 'users',
+              position: { x: 100, y: 100 },
+              size: { width: 200, height: 150 },
+              columns: [
+                { name: 'id', type: 'INTEGER', primary: true, notNull: true, autoIncrement: true, unique: false, defaultValue: null, comment: '' },
+                { name: 'name', type: 'VARCHAR(100)', primary: false, notNull: true, autoIncrement: false, unique: false, defaultValue: null, comment: '' },
+                { name: 'email', type: 'VARCHAR(100)', primary: false, notNull: true, autoIncrement: false, unique: true, defaultValue: null, comment: '' }
+              ]
+            }
+          ],
+          relationships: []
+        },
         layoutData
       })
     } as Response);

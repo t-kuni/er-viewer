@@ -7,7 +7,6 @@ import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import { setupInfrastructureMatchers } from './infrastructure-matchers';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import { createUserPostERData, createNetworkResponse } from './test-data-factory';
 
 // カスタムマッチャーをセットアップ
 setupInfrastructureMatchers();
@@ -57,10 +56,52 @@ describe('Infrastructure Matchers 使用例', () => {
     test('toHaveMadeRequest - リクエストの実行を検証', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': { status: 200, statusText: undefined, data: mockERData },
         },
       });
 
@@ -78,7 +119,7 @@ describe('Infrastructure Matchers 使用例', () => {
       const infrastructure = new InfrastructureMock();
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/layout': createNetworkResponse({ data: { success: true } }),
+          '/api/layout': { status: 200, statusText: undefined, data: { success: true } },
         },
       });
       const app = new ERViewerApplication(infrastructure);
@@ -179,11 +220,53 @@ describe('Infrastructure Matchers 使用例', () => {
     test('toHaveInteractionCount - インタラクション回数を検証', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': { status: 200, statusText: undefined, data: mockERData },
+          '/api/reverse-engineer': { status: 200, statusText: undefined, data: mockERData },
         },
       });
 
@@ -227,10 +310,52 @@ describe('カスタムマッチャーを使用したテストの例', () => {
   test('ネットワークリクエストの検証 - 従来', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
-    const mockERData = createUserPostERData();
+    const mockERData = {
+      entities: [
+        {
+          name: 'users',
+          columns: [
+            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+          ],
+          foreignKeys: [],
+          ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+        },
+        {
+          name: 'posts',
+          columns: [
+            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+            { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+          ],
+          foreignKeys: [],
+          ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+        },
+      ],
+      relationships: [
+        {
+          from: 'posts',
+          fromColumn: 'user_id',
+          to: 'users',
+          toColumn: 'id',
+          constraintName: 'posts_user_id_fkey',
+        },
+      ],
+      layout: {
+        entities: {
+          users: { position: { x: 100, y: 100 } },
+          posts: { position: { x: 350, y: 100 } },
+        },
+        rectangles: [],
+        texts: [],
+        layers: [],
+      },
+    };
     infrastructure.setupMockData({
       networkResponses: {
-        '/api/er-data': createNetworkResponse({ data: mockERData }),
+        '/api/er-data': { status: 200, statusText: undefined, data: mockERData },
       },
     });
 
@@ -249,10 +374,52 @@ describe('カスタムマッチャーを使用したテストの例', () => {
   test('ネットワークリクエストの検証 - カスタムマッチャー', async () => {
     // Arrange
     const infrastructure = new InfrastructureMock();
-    const mockERData = createUserPostERData();
+    const mockERData = {
+      entities: [
+        {
+          name: 'users',
+          columns: [
+            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+          ],
+          foreignKeys: [],
+          ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+        },
+        {
+          name: 'posts',
+          columns: [
+            { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+            { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+            { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+            { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+          ],
+          foreignKeys: [],
+          ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+        },
+      ],
+      relationships: [
+        {
+          from: 'posts',
+          fromColumn: 'user_id',
+          to: 'users',
+          toColumn: 'id',
+          constraintName: 'posts_user_id_fkey',
+        },
+      ],
+      layout: {
+        entities: {
+          users: { position: { x: 100, y: 100 } },
+          posts: { position: { x: 350, y: 100 } },
+        },
+        rectangles: [],
+        texts: [],
+        layers: [],
+      },
+    };
     infrastructure.setupMockData({
       networkResponses: {
-        '/api/er-data': createNetworkResponse({ data: mockERData }),
+        '/api/er-data': { status: 200, statusText: undefined, data: mockERData },
       },
     });
 

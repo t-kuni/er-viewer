@@ -5,14 +5,6 @@ import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
 import type { ERData } from '../public/js/types/index';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
-import {
-  createERData,
-  createEntity,
-  createLayoutData,
-  createUserEntity,
-  createPostEntity,
-  createNetworkResponse,
-} from './test-data-factory';
 
 describe('レンダリング', () => {
   afterEach(() => {
@@ -27,34 +19,44 @@ describe('レンダリング', () => {
     test('カラムの種別に応じて絵文字が表示される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({
+          {
             name: 'test_table',
             columns: [
-              { name: 'id', type: 'bigint', key: 'PRI', nullable: false },
-              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false },
-              { name: 'user_id', type: 'int', key: 'MUL', nullable: false },
-              { name: 'age', type: 'int', key: '', nullable: false },
-              { name: 'name', type: 'varchar(100)', key: '', nullable: true },
-              { name: 'description', type: 'text', key: '', nullable: true },
-              { name: 'created_at', type: 'datetime', key: '', nullable: false },
-              { name: 'updated_at', type: 'timestamp', key: '', nullable: true },
-              { name: 'birth_date', type: 'date', key: '', nullable: true },
-              { name: 'price', type: 'decimal(10,2)', key: '', nullable: false },
+              { name: 'id', type: 'bigint', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+              { name: 'age', type: 'int', key: '', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+              { name: 'description', type: 'text', key: '', nullable: true, default: null, extra: '' },
+              { name: 'created_at', type: 'datetime', key: '', nullable: false, default: null, extra: '' },
+              { name: 'updated_at', type: 'timestamp', key: '', nullable: true, default: null, extra: '' },
+              { name: 'birth_date', type: 'date', key: '', nullable: true, default: null, extra: '' },
+              { name: 'price', type: 'decimal(10,2)', key: '', nullable: false, default: null, extra: '' },
             ],
-          }),
+            foreignKeys: [],
+            ddl: '',
+          },
         ],
+        relationships: [],
         layout: {
           entities: {
             test_table: { position: { x: 100, y: 100 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -63,7 +65,9 @@ describe('レンダリング', () => {
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert - DOMに描画されたエンティティを確認
@@ -104,10 +108,10 @@ describe('レンダリング', () => {
     test('エンティティが正しく描画される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
         relationships: [
           {
@@ -115,6 +119,7 @@ describe('レンダリング', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'fk_posts_users',
           },
         ],
         layout: {
@@ -122,18 +127,27 @@ describe('レンダリング', () => {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 100 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // エンティティがキャンバスに描画されることを確認
@@ -153,28 +167,38 @@ describe('レンダリング', () => {
       const infrastructure = new InfrastructureMock();
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
 
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
+        relationships: [],
         layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 200 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert
@@ -196,10 +220,10 @@ describe('レンダリング', () => {
     test('リレーションシップが正しく描画される - dynamicLayer.children.filter エラー修正', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
         relationships: [
           {
@@ -207,6 +231,7 @@ describe('レンダリング', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'fk_posts_users',
           },
         ],
         layout: {
@@ -214,12 +239,19 @@ describe('レンダリング', () => {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 100 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -255,10 +287,10 @@ describe('レンダリング', () => {
     test('リレーションシップレンダリングの詳細検証', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
         relationships: [
           {
@@ -266,6 +298,7 @@ describe('レンダリング', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'fk_posts_users',
           },
         ],
         layout: {
@@ -273,18 +306,27 @@ describe('レンダリング', () => {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 100 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert - リレーションシップが描画されていることを確認
@@ -301,10 +343,10 @@ describe('レンダリング', () => {
     test('リレーションシップパスの座標が正しく計算される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
         relationships: [
           {
@@ -312,6 +354,7 @@ describe('レンダリング', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'fk_posts_users',
           },
         ],
         layout: {
@@ -319,18 +362,27 @@ describe('レンダリング', () => {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 100 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // リレーションシップが描画されていることを確認
@@ -361,16 +413,18 @@ describe('レンダリング', () => {
     test('リレーションシップがPolyline（直角線）で描画される', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          {
             name: 'posts',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'user_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
             ],
-          }),
+            foreignKeys: [],
+            ddl: '',
+          },
         ],
         relationships: [
           {
@@ -378,6 +432,7 @@ describe('レンダリング', () => {
             fromColumn: 'user_id',
             to: 'users',
             toColumn: 'id',
+            constraintName: 'fk_posts_users',
           },
         ],
         layout: {
@@ -385,18 +440,27 @@ describe('レンダリング', () => {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 300, y: 200 } },
           },
+          rectangles: [],
+          texts: [],
+          layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // リレーションシップグループを取得
@@ -486,23 +550,28 @@ describe('レンダリング', () => {
     test('エンティティにpositionがない場合、自動的にクラスタリングされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'comments', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'comments', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
+        relationships: [],
         layout: {
           entities: {}, // positionを持たない
           rectangles: [],
           texts: [],
           layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -553,11 +622,12 @@ describe('レンダリング', () => {
     test('既存のpositionがある場合はクラスタリングされない', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
+      const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'posts', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
+        relationships: [],
         layout: {
           entities: {
             users: { position: { x: 150, y: 150 } },
@@ -567,11 +637,15 @@ describe('レンダリング', () => {
           texts: [],
           layers: [],
         },
-      });
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -597,14 +671,14 @@ describe('レンダリング', () => {
       const infrastructure = new InfrastructureMock();
 
       // エンティティを作成し、positionプロパティを手動で追加
-      const usersEntity = createEntity({
+      const usersEntity = {
         name: 'users',
-        columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-      });
-      const postsEntity = createEntity({
+        columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+      };
+      const postsEntity = {
         name: 'posts',
-        columns: [{ name: 'id', type: 'int', key: 'PRI' }],
-      });
+        columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }],
+      };
 
       // positionプロパティを追加
       (usersEntity as any).position = { x: 100, y: 100 };
@@ -613,30 +687,44 @@ describe('レンダリング', () => {
       const mockERData = {
         entities: [usersEntity, postsEntity],
         relationships: [],
-        layout: createLayoutData({
+        layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 200, y: 200 } },
           },
-        }),
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
       };
 
       // 初期データとして既存のレイアウトを設定
       const initialERData = {
         entities: [usersEntity, postsEntity],
         relationships: [],
-        layout: createLayoutData({
+        layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 200, y: 200 } },
           },
-        }),
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
       };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: initialERData }),
-          '/api/reverse-engineer': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: initialERData,
+            status: 200,
+            statusText: 'OK',
+          },
+          '/api/reverse-engineer': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -699,20 +787,59 @@ describe('レンダリング', () => {
       const infrastructure = new InfrastructureMock();
       const setAttributeSpy = jest.spyOn(infrastructure.dom, 'setAttribute');
 
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-        layout: createLayoutData({
+      const mockERData: ERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(200)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'fk_posts_users',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 300, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
           layers: [
             { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
             { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
             { id: 'layer-3', name: 'rect-1', visible: true, zIndex: 2 },
           ],
-        }),
-      });
+        },
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -736,19 +863,58 @@ describe('レンダリング', () => {
     test('レイヤー順序変更イベントが状態を更新する', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-        layout: createLayoutData({
+      const mockERData: ERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(200)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'fk_posts_users',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 300, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
           layers: [
             { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
             { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
           ],
-        }),
-      });
+        },
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -783,19 +949,58 @@ describe('レンダリング', () => {
     test('レイヤー順序変更時にDOM操作が行われる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-        layout: createLayoutData({
+      const mockERData: ERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(200)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'fk_posts_users',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 300, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
           layers: [
             { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
             { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
           ],
-        }),
-      });
+        },
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -840,23 +1045,58 @@ describe('レンダリング', () => {
     test('レイヤーの表示/非表示切り替えが機能する', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createERData({
-        entities: [createUserEntity(), createPostEntity()],
-        layout: createLayoutData({
+      const mockERData: ERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(100)', key: '', nullable: true, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(200)', key: '', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: '',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'fk_posts_users',
+          },
+        ],
+        layout: {
           entities: {
             users: { position: { x: 100, y: 100 } },
             posts: { position: { x: 200, y: 200 } },
           },
+          rectangles: [],
+          texts: [],
           layers: [
             { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
             { id: 'layer-2', name: 'posts', visible: false, zIndex: 1 },
           ],
-        }),
-      });
+        },
+      };
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
@@ -905,23 +1145,27 @@ describe('レンダリング', () => {
       // 手動でERDataを作成して、layoutを完全に空にする
       const mockERData: ERData = {
         entities: [
-          createEntity({ name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({
+          { name: 'users', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          {
             name: 'posts',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'user_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
             ],
-          }),
-          createEntity({
+            foreignKeys: [],
+            ddl: '',
+          },
+          {
             name: 'comments',
             columns: [
-              { name: 'id', type: 'int', key: 'PRI' },
-              { name: 'post_id', type: 'int', key: 'MUL' },
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'post_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
             ],
-          }),
-          createEntity({ name: 'categories', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
-          createEntity({ name: 'tags', columns: [{ name: 'id', type: 'int', key: 'PRI' }] }),
+            foreignKeys: [],
+            ddl: '',
+          },
+          { name: 'categories', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
+          { name: 'tags', columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], foreignKeys: [], ddl: '' },
         ],
         relationships: [
           { from: 'posts', fromColumn: 'user_id', to: 'users', toColumn: 'id', constraintName: 'fk_posts_users' },
@@ -938,13 +1182,19 @@ describe('レンダリング', () => {
 
       infrastructure.setupMockData({
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
         },
       });
 
       new ERViewerApplication(infrastructure);
 
-      // Act - データロードを待つ
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Assert

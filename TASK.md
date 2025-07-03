@@ -146,19 +146,175 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 - **削除した関数**: createERData、createSuccessResponse
 - **結果**: 全15個のテストが成功
 
-### 残りのtest-data-factory.ts使用ファイル（12個→11個）
-- user-interaction.test.ts
-- rendering.test.ts
-- state-management.test.ts
-- error-handling.test.ts
-- left-sidebar-toggle.test.ts
-- left-sidebar-resize.test.ts
-- text-drag.test.ts
-- rectangle-edit.test.ts
-- infrastructure-matchers.test.ts
+### 残りのtest-data-factory.ts使用ファイル（12個→11個→10個→9個→8個→7個→6個→5個→4個→3個→2個）
+- [x] user-interaction.test.ts ✅ 完了（2025-07-03）
+- [x] rendering.test.ts ✅ 完了（2025-07-03）
+- [x] state-management.test.ts ✅ 完了（2025-07-03）
+- [x] error-handling.test.ts ✅ 完了（2025-07-03）
+- [x] left-sidebar-toggle.test.ts ✅ 完了（2025-07-03）
+- [x] left-sidebar-resize.test.ts ✅ 完了（2025-07-03）
+- [x] text-drag.test.ts ✅ 完了（2025-07-03）
+- [x] rectangle-edit.test.ts ✅ 完了（2025-07-03）
+- [x] infrastructure-matchers.test.ts ✅ 完了（2025-07-03）
 - relationship-hover-highlight.test.ts
 - entity-hover-highlight.test.ts
 
 ### 発見された問題
-- initialization-setup.test.tsにタイプエラーが存在（MockNetworkResponseのsuccessプロパティ）
-  - 次のタスクで修正予定
+- [x] initialization-setup.test.tsにタイプエラーが存在（MockNetworkResponseのsuccessプロパティ） ✅ 完了（2025-07-03）
+  - MockNetworkResponseインターフェースに`success`プロパティが存在しないため、正しい形式に修正
+  - `success: true`を削除し、`status: 200, statusText: 'OK'`に置き換え
+  - 3箇所すべて修正完了
+  - npm test && npm run typecheckで成功を確認
+
+### left-sidebar-toggle.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData、createLayoutData
+- **結果**: 全5個のテストが成功
+
+### error-handling.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのcreateErrorResponseインポートを削除し、エラーレスポンスを直接リテラル値として記述
+- **削除した関数**: createErrorResponse
+- **結果**: 全9個のテストが成功
+
+## 進捗サマリー（2025-07-03）
+
+### 本日完了したタスク
+1. initialization-setup.test.tsのタイプエラー修正
+2. left-sidebar-toggle.test.tsのtest-data-factory削除
+3. error-handling.test.tsのtest-data-factory削除
+4. user-interaction.test.tsのtest-data-factory削除
+5. rendering.test.tsのtest-data-factory削除
+6. state-management.test.tsのtest-data-factory削除
+7. left-sidebar-resize.test.tsのtest-data-factory削除
+8. text-drag.test.tsのtest-data-factory削除
+9. rectangle-edit.test.tsのtest-data-factory削除
+
+### 全体テスト結果
+- **npm test && npm run typecheck**: 113個のテストすべて成功 ✅
+
+### 次回の作業
+- 残り3個のファイルでのtest-data-factory.ts使用の改善を継続
+  - infrastructure-matchers.test.ts
+  - relationship-hover-highlight.test.ts
+  - entity-hover-highlight.test.ts
+
+### user-interaction.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData、createUserEntity、createUserPostERData、createNetworkResponse、createDDLResponse
+- **結果**: 全38個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - 可読性が大幅に向上
+
+### 残りのtest-data-factory.ts使用ファイル（9個→8個→7個→6個→5個→4個→3個）
+- [x] rendering.test.ts ✅ 完了（2025-07-03）
+- [x] state-management.test.ts ✅ 完了（2025-07-03）
+- [x] left-sidebar-resize.test.ts ✅ 完了（2025-07-03）
+- [x] text-drag.test.ts ✅ 完了（2025-07-03）
+- [x] rectangle-edit.test.ts ✅ 完了（2025-07-03）
+- infrastructure-matchers.test.ts
+- relationship-hover-highlight.test.ts
+- entity-hover-highlight.test.ts
+
+### rendering.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData、createEntity、createLayoutData、createUserEntity、createPostEntity、createNetworkResponse
+- **結果**: コンパイル成功。ただし、テスト実行時に14個のテストが失敗
+- **原因**: テストの期待値と実際の動作の不一致（test-data-factoryが生成していたデフォルト値の欠落などが原因の可能性）
+- **今後の対応**: テストの失敗原因を調査し、必要に応じてテストを修正する必要があるが、本タスクの範囲（test-data-factory使用の削除）は完了
+- **追加修正（2025-07-03）**: タイプエラーの修正を実施
+  - エンティティのforeignKeysとddlプロパティの追加
+  - Columnのdefaultとextraプロパティの追加
+  - 未使用変数appの削除
+  - 結果：全テスト（17個）が成功、typecheckも成功
+
+### state-management.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのcreateERDataインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData
+- **結果**: 全3個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - 可読性が向上
+
+### left-sidebar-resize.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのcreateLayoutDataインポートを削除し、レイアウトデータを直接リテラル値として記述
+- **削除した関数**: createLayoutData
+- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - 左サイドバーのリサイズ機能に必要なレイアウトデータ構造が明確に表現された
+
+### text-drag.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのcreateUserPostERDataインポートを削除し、ER図データを直接リテラル値として記述
+- **削除した関数**: createUserPostERData
+- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - テキストドラッグ機能テストに必要なERデータ構造が明確に表現された
+
+### rectangle-edit.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData、createLayoutData
+- **結果**: 全4個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - 矩形編集機能テストに必要なデータ構造が明確に表現された
+- **備考**: タイマー関連の警告が表示されるが、テスト自体は問題なく動作
+
+### infrastructure-matchers.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createUserPostERData、createNetworkResponse
+- **修正箇所**: 5箇所すべてのtest-data-factory使用箇所を直接リテラル値に置き換え
+- **結果**: 全13個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - カスタムマッチャーの使用例が明確に表現された
+
+### relationship-hover-highlight.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのすべてのインポートを削除し、テストデータを直接リテラル値として記述
+- **削除した関数**: createERData、createEntity、createNetworkResponse
+- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - リレーションホバー機能に必要なERデータ構造が明確に表現された
+
+### entity-hover-highlight.test.tsの修正 ✅ 完了（2025-07-03）
+- **修正内容**: test-data-factoryからのcreateLayoutDataインポートを削除し、レイアウトデータを直接リテラル値として記述
+- **削除した関数**: createLayoutData
+- **LayoutData型定義の修正**: 正しい型定義に合わせてレイアウトデータ構造を修正
+- **結果**: 全2個のテストが成功。npm test && npm run typecheckも成功（113個のテスト全体）
+- **メリット**:
+  - 外部ファイルへの依存を完全に除去
+  - テストデータが直接記述されることで、何をテストしているかが明確になった
+  - エンティティホバー機能に必要なデータ構造が明確に表現された
+
+## テストコーディングルール違反修正タスクの完了 ✅（2025-07-03）
+
+### 完了したタスク総括
+1. **ERViewerApplicationへのテスト用メソッド追加の削除**: 全て完了
+2. **test-data-factory.ts使用の削除**: 全15ファイルで完了
+3. **waitForAsync関数の削除**: 全4ファイルで完了
+4. **制御構造の部分的改善**: user-interaction.test.tsでfor文をforEachに変更
+
+### 最終テスト結果
+- **全113個のテスト**: すべて成功 ✅
+- **npm test && npm run typecheck**: エラーなし ✅
+- **タイマー警告**: rectangle-edit.test.tsで警告は出るが、テスト自体は正常動作
+
+### 達成した改善点
+1. **テストの可読性向上**: テストデータが直接記述され、何をテストしているかが明確に
+2. **外部依存の削除**: test-data-factory.tsへの依存を完全に除去
+3. **ルール準拠**: CLAUDE.mdで定められたテストコーディングルールに準拠
+4. **保守性向上**: デフォルト値に依存せず、テストの意図が明確に表現される
+
+### 制御構造に関する考察
+- 完全な削除は困難（動的な要素数への対応やモック実装内での必要性）
+- CLAUDE.mdの「可能な限り」という表現に従い、部分的な改善に留めた
+- テストの可読性を優先し、無理な削除は行わなかった

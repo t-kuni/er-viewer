@@ -3,7 +3,6 @@
  */
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
-import { createERData } from './test-data-factory';
 
 describe('状態管理', () => {
   afterEach(() => {
@@ -23,7 +22,36 @@ describe('状態管理', () => {
       app.subscribe(subscriber);
 
       // 初期データを設定
-      const mockERData = createERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: { isPrimary: true, isUnique: false, isForeign: false } },
+              { name: 'name', type: 'varchar', key: { isPrimary: false, isUnique: false, isForeign: false } },
+            ],
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: { isPrimary: true, isUnique: false, isForeign: false } },
+              { name: 'user_id', type: 'int', key: { isPrimary: false, isUnique: false, isForeign: true } },
+              { name: 'title', type: 'varchar', key: { isPrimary: false, isUnique: false, isForeign: false } },
+            ],
+          },
+        ],
+        relationships: [
+          {
+            source: 'users',
+            target: 'posts',
+            sourceColumn: 'id',
+            targetColumn: 'user_id',
+            type: 'one-to-many',
+          },
+        ],
+        timestamp: '2024-01-01T00:00:00.000Z',
+        dataHash: 'test-hash',
+      };
 
       // Act - データを設定（stateの変更をトリガー）
       app.setERData(mockERData);

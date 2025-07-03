@@ -1,6 +1,5 @@
 import { ERViewerApplication } from '../public/js/er-viewer-application';
 import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastructure-mock';
-import { createUserPostERData } from './test-data-factory';
 
 describe('Text Drag Functionality', () => {
   let app: any;
@@ -10,7 +9,62 @@ describe('Text Drag Functionality', () => {
     infrastructure = new InfrastructureMock();
     const mockData = {
       networkResponses: {
-        '/api/tables': { status: 200, data: createUserPostERData() },
+        '/api/tables': { 
+          status: 200, 
+          data: {
+            entities: [
+              {
+                name: 'users',
+                columns: [
+                  { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                  { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                  { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                ],
+                foreignKeys: [],
+                ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+              },
+              {
+                name: 'posts',
+                columns: [
+                  { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                  { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                  { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                  { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                ],
+                foreignKeys: [],
+                ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+              },
+            ],
+            relationships: [
+              {
+                from: 'posts',
+                fromColumn: 'user_id',
+                to: 'users',
+                toColumn: 'id',
+                constraintName: 'posts_user_id_fkey',
+              },
+            ],
+            layout: {
+              entities: {
+                users: {
+                  position: {
+                    x: 100,
+                    y: 100,
+                  },
+                },
+                posts: {
+                  position: {
+                    x: 350,
+                    y: 100,
+                  },
+                },
+              },
+              rectangles: [],
+              texts: [],
+              layers: [],
+            },
+          },
+        },
       },
     };
     infrastructure.setupMockData(mockData);

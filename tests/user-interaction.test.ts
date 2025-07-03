@@ -6,13 +6,6 @@ import { InfrastructureMock } from '../public/js/infrastructure/mocks/infrastruc
 import type { MockData } from '../public/js/types/infrastructure';
 import { MockElement } from '../public/js/infrastructure/mocks/dom-mock';
 import { BrowserAPIMock } from '../public/js/infrastructure/mocks/browser-api-mock';
-import {
-  createERData,
-  createUserEntity,
-  createUserPostERData,
-  createNetworkResponse,
-  createDDLResponse,
-} from './test-data-factory';
 
 
 interface MockERData {
@@ -36,7 +29,10 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/table/users/ddl': createDDLResponse('CREATE TABLE users (id INT PRIMARY KEY);'),
+          '/api/table/users/ddl': {
+            status: 200,
+            data: { ddl: 'CREATE TABLE users (id INT PRIMARY KEY);' },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -80,7 +76,10 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/table/users/ddl': createDDLResponse('CREATE TABLE users (id INT PRIMARY KEY);'),
+          '/api/table/users/ddl': {
+            status: 200,
+            data: { ddl: 'CREATE TABLE users (id INT PRIMARY KEY);' },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -147,12 +146,17 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/table/users/ddl': createDDLResponse(`CREATE TABLE users (
+          '/api/table/users/ddl': {
+            status: 200,
+            data: {
+              ddl: `CREATE TABLE users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`),
+);`,
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -254,18 +258,36 @@ describe('ユーザーインタラクション', () => {
       test('エンティティドラッグでレイアウトが更新される', async () => {
         // Arrange
         const infrastructure = new InfrastructureMock();
-        const mockERData = createERData({
-          entities: [createUserEntity()],
+        const mockERData = {
+          entities: [
+            {
+              name: 'users',
+              columns: [
+                { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+              ],
+              foreignKeys: [],
+              ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+            },
+          ],
+          relationships: [],
           layout: {
             entities: {
               users: { position: { x: 100, y: 100 } },
             },
+            rectangles: [],
+            texts: [],
+            layers: [],
           },
-        });
+        };
 
         infrastructure.setupMockData({
           networkResponses: {
-            '/api/er-data': createNetworkResponse({ data: mockERData }),
+            '/api/er-data': {
+              status: 200,
+              data: mockERData,
+            },
           },
         });
 
@@ -558,10 +580,55 @@ describe('ユーザーインタラクション', () => {
     test('エンティティにホバーすると関連エンティティとリレーションがハイライトされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            status: 200,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -626,10 +693,55 @@ describe('ユーザーインタラクション', () => {
     test('リレーションにホバーすると両端のエンティティとカラムがハイライトされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            status: 200,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -705,10 +817,55 @@ describe('ユーザーインタラクション', () => {
     test('ホバーを外すとハイライトがクリアされる', async () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-      const mockERData = createUserPostERData();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+              { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+              { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+              { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+            ],
+            foreignKeys: [],
+            ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            fromColumn: 'user_id',
+            to: 'users',
+            toColumn: 'id',
+            constraintName: 'posts_user_id_fkey',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+            posts: { position: { x: 350, y: 100 } },
+          },
+          rectangles: [],
+          texts: [],
+          layers: [],
+        },
+      };
       const mockData: MockData = {
         networkResponses: {
-          '/api/er-data': createNetworkResponse({ data: mockERData }),
+          '/api/er-data': {
+            status: 200,
+            data: mockERData,
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -786,7 +943,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -853,7 +1055,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -920,7 +1167,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -1015,7 +1307,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -1150,7 +1487,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);
@@ -1324,7 +1706,52 @@ describe('ユーザーインタラクション', () => {
       const infrastructure = new InfrastructureMock();
       const mockData: MockData = {
         networkResponses: {
-          '/api/tables': { status: 200, data: createUserPostERData() },
+          '/api/tables': {
+            status: 200,
+            data: {
+              entities: [
+                {
+                  name: 'users',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'name', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'email', type: 'varchar(255)', key: 'UNI', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE users (id int, name varchar(255), email varchar(255));',
+                },
+                {
+                  name: 'posts',
+                  columns: [
+                    { name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' },
+                    { name: 'title', type: 'varchar(255)', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'content', type: 'text', key: '', nullable: false, default: null, extra: '' },
+                    { name: 'user_id', type: 'int', key: 'MUL', nullable: false, default: null, extra: '' },
+                  ],
+                  foreignKeys: [],
+                  ddl: 'CREATE TABLE posts (id int, title varchar(255), content text, user_id int);',
+                },
+              ],
+              relationships: [
+                {
+                  from: 'posts',
+                  fromColumn: 'user_id',
+                  to: 'users',
+                  toColumn: 'id',
+                  constraintName: 'posts_user_id_fkey',
+                },
+              ],
+              layout: {
+                entities: {
+                  users: { position: { x: 100, y: 100 } },
+                  posts: { position: { x: 350, y: 100 } },
+                },
+                rectangles: [],
+                texts: [],
+                layers: [],
+              },
+            },
+          },
         },
       };
       infrastructure.setupMockData(mockData);

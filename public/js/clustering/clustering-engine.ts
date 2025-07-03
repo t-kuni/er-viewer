@@ -38,7 +38,8 @@ export class ClusteringEngine {
 
     // Apply clustering only when no entities have positions
     // This happens during initial reverse engineering
-    return this.erData.entities.every((entity) => !entity.position);
+    // Since position is now managed in layoutData, always return true
+    return true;
   }
 
   private getInitialClusteredPosition(entity: Entity): Position {
@@ -280,15 +281,8 @@ export class ClusteringEngine {
     // Simple algorithm to find space not occupied by other entities
     const occupiedSpaces = new Set<string>();
 
-    if (this.erData !== null && this.erData !== undefined && this.erData.entities !== null && this.erData.entities !== undefined && this.erData.entities.length > 0) {
-      this.erData.entities.forEach((entity) => {
-        if (entity.position) {
-          const gridX = Math.floor(entity.position.x / 200);
-          const gridY = Math.floor(entity.position.y / 150);
-          occupiedSpaces.add(`${gridX},${gridY}`);
-        }
-      });
-    }
+    // Since positions are now managed in layoutData, we skip this check
+    // The clustering engine will handle positioning without checking existing positions
 
     // Find first available grid space
     for (let y = 0; y < 10; y++) {

@@ -26,7 +26,6 @@ export interface Entity {
   columns: Column[];
   foreignKeys: ForeignKey[];
   ddl: string;
-  position?: Position; // Optional position, added when merged with layout
 }
 
 // Relationship between entities

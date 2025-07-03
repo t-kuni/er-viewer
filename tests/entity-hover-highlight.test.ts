@@ -31,7 +31,6 @@ describe('Entity Hover Highlight', () => {
             { name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
             { name: 'name', type: 'varchar(255)', nullable: true, key: '', default: null, extra: '' }
           ],
-          position: { x: 100, y: 100 },
           foreignKeys: [],
           ddl: 'CREATE TABLE users (id int, name varchar(255))'
         },
@@ -42,7 +41,6 @@ describe('Entity Hover Highlight', () => {
             { name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
             { name: 'title', type: 'varchar(255)', nullable: false, key: '', default: null, extra: '' }
           ],
-          position: { x: 300, y: 100 },
           foreignKeys: [{ column: 'user_id', referencedTable: 'users', referencedColumn: 'id', constraintName: 'fk_posts_users' }],
           ddl: 'CREATE TABLE posts (id int, user_id int, title varchar(255))'
         },
@@ -54,7 +52,6 @@ describe('Entity Hover Highlight', () => {
             { name: 'post_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
             { name: 'content', type: 'text', nullable: false, key: '', default: null, extra: '' }
           ],
-          position: { x: 500, y: 100 },
           foreignKeys: [
             { column: 'user_id', referencedTable: 'users', referencedColumn: 'id', constraintName: 'fk_comments_users' },
             { column: 'post_id', referencedTable: 'posts', referencedColumn: 'id', constraintName: 'fk_comments_posts' }

@@ -1848,11 +1848,9 @@ export class ERViewerApplication {
           const existingLayout = currentLayout.entities[entity.name];
           if (currentEntities.has(entity.name) && existingLayout) {
             // Existing entity: preserve its layout
-            entity.position = existingLayout.position;
             newLayoutData.entities[entity.name] = existingLayout;
           } else {
             // New entity: will be clustered
-            delete entity.position;
           }
         });
 

@@ -6,7 +6,6 @@ import { fileURLToPath } from 'url';
 
 import DatabaseManager from './lib/database.js';
 import StorageManager from './lib/storage.js';
-import Logger from './lib/logger.js';
 
 dotenv.config();
 
@@ -26,40 +25,34 @@ app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();
 const storageManager = new StorageManager();
-const logger = new Logger();
 
 app.get('/api/er-data', async (req, res) => {
   try {
-    await logger.info('Loading ER data requested');
     const erData = await storageManager.loadERData();
     if (erData) {
       // Merge with layout data to ensure positions are preserved
       const layoutData = await storageManager.loadLayoutData();
       const mergedData = await storageManager.mergeERDataWithLayout(erData, layoutData);
-      await logger.info('ER data loaded and merged with layout successfully');
       res.json(mergedData);
     } else {
-      await logger.warn('No ER data found');
       res.status(404).json({ error: 'No ER data found' });
     }
   } catch (error) {
-    await logger.error('Error loading ER data', error);
+    console.error('Error loading ER data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.post('/api/reverse-engineer', async (req, res) => {
   try {
-    await logger.info('Starting reverse engineering process');
     await dbManager.connect();
     const newERData = await dbManager.generateERData();
     const mergedData = await storageManager.performIncrementalUpdate(newERData);
     await dbManager.disconnect();
-    await logger.info('Reverse engineering completed successfully');
 
     res.json(mergedData);
   } catch (error) {
-    await logger.error('Error during reverse engineering', error);
+    console.error('Error during reverse engineering:', error);
     res.status(500).json({ error: 'Failed to reverse engineer database' });
   }
 });
@@ -100,10 +93,9 @@ app.post('/api/data/all', async (req, res) => {
       await storageManager.saveLayoutData(layoutData);
     }
     
-    await logger.info('All data saved successfully');
     res.json({ success: true });
   } catch (error) {
-    await logger.error('Error saving all data', error);
+    console.error('Error saving all data:', error);
     res.status(500).json({ error: 'Failed to save all data' });
   }
 });
@@ -122,7 +114,7 @@ app.get('/api/data/all', async (req, res) => {
       layoutData: layoutData
     });
   } catch (error) {
-    await logger.error('Error loading all data', error);
+    console.error('Error loading all data:', error);
     res.status(500).json({ error: 'Failed to load all data' });
   }
 });
@@ -172,96 +164,14 @@ app.get('/api/build-info', async (req, res) => {
   }
 });
 
-// Client-side log collection endpoint
-app.post('/api/logs', async (req, res) => {
-  const { level, message, timestamp, url, line, column, stack, userAgent } = req.body;
 
-  const logExtra = {
-    url,
-    line,
-    column,
-    stack,
-    userAgent,
-    ip: req.ip || req.connection.remoteAddress,
-  };
-
-  // Format log output based on level
-  const logMessage = `[CLIENT ${level.toUpperCase()}] ${message}`;
-  const details = url ? ` (${url}:${line}:${column})` : '';
-
-  switch (level) {
-    case 'error':
-      console.error(`${logMessage}${details}`);
-      if (stack) console.error('Stack:', stack);
-      await logger.logClient('error', message, logExtra);
-      break;
-    case 'warn':
-      console.warn(`${logMessage}${details}`);
-      await logger.logClient('warn', message, logExtra);
-      break;
-    case 'info':
-      console.info(`${logMessage}${details}`);
-      await logger.logClient('info', message, logExtra);
-      break;
-    default:
-      console.log(`${logMessage}${details}`);
-      await logger.logClient('info', message, logExtra);
-  }
-
-  res.json({ success: true });
-});
-
-// Log file access endpoints
-app.get('/api/logs/server', async (req, res) => {
-  try {
-    const lines = parseInt(req.query.lines) || 100;
-    const logs = await logger.getServerLogs(lines);
-    res.json({ logs, type: 'server' });
-  } catch (error) {
-    console.error('Error reading server logs:', error);
-    res.status(500).json({ error: 'Failed to read server logs' });
-  }
-});
-
-app.get('/api/logs/client', async (req, res) => {
-  try {
-    const lines = parseInt(req.query.lines) || 100;
-    const logs = await logger.getClientLogs(lines);
-    res.json({ logs, type: 'client' });
-  } catch (error) {
-    console.error('Error reading client logs:', error);
-    res.status(500).json({ error: 'Failed to read client logs' });
-  }
-});
-
-app.get('/api/logs/error', async (req, res) => {
-  try {
-    const lines = parseInt(req.query.lines) || 100;
-    const logs = await logger.getErrorLogs(lines);
-    res.json({ logs, type: 'error' });
-  } catch (error) {
-    console.error('Error reading error logs:', error);
-    res.status(500).json({ error: 'Failed to read error logs' });
-  }
-});
-
-app.get('/api/logs/all', async (req, res) => {
-  try {
-    const lines = parseInt(req.query.lines) || 100;
-    const logs = await logger.getAllLogs(lines);
-    res.json({ logs, type: 'all' });
-  } catch (error) {
-    console.error('Error reading all logs:', error);
-    res.status(500).json({ error: 'Failed to read all logs' });
-  }
-});
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, async () => {
-  await logger.info(`ER Viewer server running on port ${port}`);
+  console.log(`ER Viewer server running on port ${port}`);
 
   // Setup livereload in development mode
   if (process.env.NODE_ENV === 'development') {
@@ -293,7 +203,7 @@ app.listen(port, async () => {
         liveReloadServer.refresh(filePath);
       });
 
-      await logger.info('LiveReload server running on port 35729');
+      console.log('LiveReload server running on port 35729');
     } catch (error) {
       console.warn('LiveReload setup failed:', error.message);
     }

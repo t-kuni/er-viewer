@@ -510,14 +510,41 @@ export class ERViewerApplication {
       this.infra.dom.setInnerHTML(dynamicLayer, '');
     }
 
-    // Render entities
-    this.renderEntities();
+    // Clear annotation layer
+    const annotationLayer = this.infra.dom.getElementById('annotation-layer');
+    if (annotationLayer) {
+      this.infra.dom.setInnerHTML(annotationLayer, '');
+    }
 
-    // Render relationships
-    this.renderRelationships();
-
-    // Render annotations
-    this.renderAnnotations();
+    // Get layer order from state
+    const layers = this.state.layoutData.layers || [];
+    
+    // Create default layer order if no layers defined
+    if (layers.length === 0) {
+      // Default order: ER diagram at the bottom (rendered first)
+      this.renderERDiagram();
+      this.renderAnnotations();
+    } else {
+      // Render layers in reverse order (bottom to top in the layer list = first to last in rendering)
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (!layer || !layer.type) {
+          continue;
+        }
+        
+        switch (layer.type) {
+          case 'er-diagram':
+            this.renderERDiagram();
+            break;
+          case 'rectangle':
+            this.renderRectangles();
+            break;
+          case 'text':
+            this.renderTexts();
+            break;
+        }
+      }
+    }
 
     // Update transform
     this.updateTransform();
@@ -948,6 +975,52 @@ export class ERViewerApplication {
   }
 
   /**
+   * Render ER diagram (entities and relationships)
+   */
+  private renderERDiagram(): void {
+    // Render entities first
+    this.renderEntities();
+    // Then render relationships on top
+    this.renderRelationships();
+  }
+
+  /**
+   * Render rectangles only
+   */
+  private renderRectangles(): void {
+    const annotationLayer = this.infra.dom.getElementById('annotation-layer');
+    if (!annotationLayer) {
+      return;
+    }
+
+    // Render rectangles
+    if (this.state.layoutData.rectangles !== null && this.state.layoutData.rectangles !== undefined && this.state.layoutData.rectangles.length > 0) {
+      this.state.layoutData.rectangles.forEach((rect, index) => {
+        const rectElement = this.createRectangleAnnotation(rect, index);
+        this.infra.dom.appendChild(annotationLayer, rectElement);
+      });
+    }
+  }
+
+  /**
+   * Render texts only
+   */
+  private renderTexts(): void {
+    const annotationLayer = this.infra.dom.getElementById('annotation-layer');
+    if (!annotationLayer) {
+      return;
+    }
+
+    // Render texts
+    if (this.state.layoutData.texts !== null && this.state.layoutData.texts !== undefined && this.state.layoutData.texts.length > 0) {
+      this.state.layoutData.texts.forEach((text, index) => {
+        const textElement = this.createTextAnnotation(text, index);
+        this.infra.dom.appendChild(annotationLayer, textElement);
+      });
+    }
+  }
+
+  /**
    * Create rectangle annotation
    */
   private createRectangleAnnotation(rect: Rectangle, index: number): Element {
@@ -978,7 +1051,7 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(textElement, 'fill', text.color !== null && text.color !== undefined && text.color !== '' ? text.color : '#2c3e50');
     this.infra.dom.setAttribute(textElement, 'font-size', (text.fontSize !== null && text.fontSize !== undefined && text.fontSize !== 0 ? text.fontSize : 14).toString());
     this.infra.dom.setAttribute(textElement, 'cursor', 'pointer');
-    this.infra.dom.setInnerHTML(textElement, text.content);
+    this.infra.dom.setTextContent(textElement, text.content);
     return textElement;
   }
 

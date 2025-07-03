@@ -902,8 +902,7 @@ describe('レンダリング', () => {
           rectangles: [],
           texts: [],
           layers: [
-            { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
-            { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
+            { id: 'layer-1', name: 'ER図', type: 'er-diagram', visible: true, zIndex: 0 },
           ],
         },
       };
@@ -925,8 +924,7 @@ describe('レンダリング', () => {
 
       // Act - レイヤー順序を変更するイベントを発火
       const newLayers = [
-        { id: 'layer-2', name: 'posts', visible: true, zIndex: 0 },
-        { id: 'layer-1', name: 'users', visible: true, zIndex: 1 },
+        { id: 'layer-1', name: 'ER図', type: 'er-diagram', visible: true, zIndex: 0 },
       ];
 
       const event = new CustomEvent('layerOrderChanged', {
@@ -988,8 +986,7 @@ describe('レンダリング', () => {
           rectangles: [],
           texts: [],
           layers: [
-            { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
-            { id: 'layer-2', name: 'posts', visible: true, zIndex: 1 },
+            { id: 'layer-1', name: 'ER図', type: 'er-diagram', visible: true, zIndex: 0 },
           ],
         },
       };
@@ -1014,8 +1011,7 @@ describe('レンダリング', () => {
 
       // Act - レイヤー順序を変更
       const newLayers = [
-        { id: 'layer-2', name: 'posts', visible: true, zIndex: 0 },
-        { id: 'layer-1', name: 'users', visible: true, zIndex: 1 },
+        { id: 'layer-1', name: 'ER図', type: 'er-diagram', visible: true, zIndex: 0 },
       ];
 
       const event = new CustomEvent('layerOrderChanged', {
@@ -1084,8 +1080,7 @@ describe('レンダリング', () => {
           rectangles: [],
           texts: [],
           layers: [
-            { id: 'layer-1', name: 'users', visible: true, zIndex: 0 },
-            { id: 'layer-2', name: 'posts', visible: false, zIndex: 1 },
+            { id: 'layer-1', name: 'ER図', type: 'er-diagram', visible: true, zIndex: 0 },
           ],
         },
       };

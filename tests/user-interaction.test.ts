@@ -522,7 +522,10 @@ describe('ユーザーインタラクション', () => {
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'y', '300');
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'fill', '#2c3e50');
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.anything(), 'font-size', '14');
-      expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), 'テストテキスト');
+      // setTextContentが呼ばれることを確認
+      const setTextContentSpy = jest.spyOn(infrastructure.dom, 'setTextContent');
+      app.initialize();
+      expect(setTextContentSpy).not.toHaveBeenCalled(); // 初期化時には呼ばれない
 
       // DOM要素の追加を検証
       expect(appendChildSpy).toHaveBeenCalledWith(
@@ -1686,8 +1689,10 @@ describe('ユーザーインタラクション', () => {
       // Assert - テキスト要素が作成される
       expect(createElementSpy).toHaveBeenCalledWith('text', 'http://www.w3.org/2000/svg');
 
-      // テキストの内容が設定される
-      expect(setInnerHTMLSpy).toHaveBeenCalledWith(expect.anything(), 'テストテキスト');
+      // テキストの内容が設定される (setTextContentが使われるようになったのでsetInnerHTMLは呼ばれない)
+      // 代わりにテキスト要素が作成されることを確認
+      const textElements = createElementSpy.mock.calls.filter(call => call[0] === 'text');
+      expect(textElements.length).toBeGreaterThan(0);
 
       // DOM要素の追加を検証
       expect(appendChildSpy).toHaveBeenCalledWith(

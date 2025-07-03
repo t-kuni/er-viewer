@@ -96,6 +96,7 @@ main {
 #er-canvas {
   cursor: grab;
   user-select: none;
+  overflow: hidden;
 }
 
 #er-canvas:active {
@@ -1056,7 +1057,7 @@ main {
 
 /* Highlight layer clones for z-index effect */
 #highlight-layer .highlight-clone {
-  opacity: 0.9;
+  opacity: 1;
   filter: brightness(1.2);
 }
 

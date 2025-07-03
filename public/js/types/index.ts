@@ -85,6 +85,9 @@ export interface Text {
 export interface Layer {
   id: string;
   name: string;
+  type?: 'er-diagram' | 'rectangle' | 'text';
+  icon?: string;
+  order?: number;
   visible: boolean;
   zIndex: number;
 }

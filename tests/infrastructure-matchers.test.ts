@@ -102,6 +102,10 @@ describe('Infrastructure Matchers 使用例', () => {
             zIndex: 0,
           },
         ],
+        leftSidebar: {
+          visible: true,
+          width: 250,
+        },
       });
     });
   });

@@ -85,6 +85,48 @@ app.get('/api/layout', async (req, res) => {
   }
 });
 
+// Save all data (ER data and layout data)
+app.post('/api/data/all', async (req, res) => {
+  try {
+    const { erData, layoutData } = req.body;
+    
+    // Save ER data
+    if (erData) {
+      await storageManager.saveERData(erData);
+    }
+    
+    // Save layout data
+    if (layoutData) {
+      await storageManager.saveLayoutData(layoutData);
+    }
+    
+    await logger.info('All data saved successfully');
+    res.json({ success: true });
+  } catch (error) {
+    await logger.error('Error saving all data', error);
+    res.status(500).json({ error: 'Failed to save all data' });
+  }
+});
+
+// Load all data (ER data and layout data)
+app.get('/api/data/all', async (req, res) => {
+  try {
+    const erData = await storageManager.loadERData();
+    const layoutData = await storageManager.loadLayoutData();
+    
+    // Merge ER data with layout data
+    const mergedData = erData ? await storageManager.mergeERDataWithLayout(erData, layoutData) : null;
+    
+    res.json({
+      erData: mergedData,
+      layoutData: layoutData
+    });
+  } catch (error) {
+    await logger.error('Error loading all data', error);
+    res.status(500).json({ error: 'Failed to load all data' });
+  }
+});
+
 app.get('/api/table/:tableName/ddl', async (req, res) => {
   try {
     await dbManager.connect();

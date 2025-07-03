@@ -21,6 +21,23 @@ import type { SVGMousePosition } from './types/dom.js';
 import { LayerManager } from './layer-manager.js';
 import { ClusteringEngine } from './clustering/clustering-engine.js';
 
+// Build info type definition
+interface BuildInfo {
+  version?: string;
+  name?: string;
+  buildTime?: string;
+  buildDate?: string;
+  git?: {
+    commit?: string;
+    commitShort?: string;
+    branch?: string;
+    tag?: string | null;
+  };
+  nodeVersion?: string;
+  platform?: string;
+  arch?: string;
+}
+
 // Global type declarations
 declare global {
   interface Window {
@@ -102,6 +119,10 @@ export class ERViewerApplication {
       sidebarVisible: false,
       currentTable: null,
       contextMenu: null,
+      leftSidebarState: {
+        visible: true,
+        width: 250,
+      },
 
       // Interaction state
       interactionMode: 'default' as InteractionMode,
@@ -1029,9 +1050,19 @@ export class ERViewerApplication {
     }
 
     // Check if clicking on annotation
-    if (this.infra.dom.hasClass(target, 'annotation-rectangle') || this.infra.dom.hasClass(target, 'annotation-text')) {
+    if (this.infra.dom.hasClass(target, 'annotation-rectangle')) {
       event.preventDefault();
       this.selectAnnotation(target);
+      // Start rectangle drag
+      this.startRectangleDrag(target, svgPoint);
+      return;
+    }
+    
+    if (this.infra.dom.hasClass(target, 'annotation-text')) {
+      event.preventDefault();
+      this.selectAnnotation(target);
+      // Start text drag
+      this.startTextDrag(target, svgPoint);
       return;
     }
 
@@ -1075,6 +1106,64 @@ export class ERViewerApplication {
         },
       });
     }
+  }
+
+  /**
+   * Start text drag
+   */
+  private startTextDrag(text: Element, startPoint: SVGMousePosition): void {
+    const textId = this.infra.dom.getAttribute(text, 'data-text-id');
+    const textIndex = parseInt(this.infra.dom.getAttribute(text, 'data-text-index') || '0');
+    const x = parseFloat(this.infra.dom.getAttribute(text, 'x') || '0');
+    const y = parseFloat(this.infra.dom.getAttribute(text, 'y') || '0');
+
+    // Add dragging class for visual feedback
+    this.infra.dom.addClass(text, 'dragging');
+    
+    this.setState({
+      interactionMode: 'dragging' as InteractionMode,
+      dragState: {
+        type: 'annotation',
+        element: text,
+        rectId: textId || '',
+        rectIndex: textIndex,
+        startX: startPoint.x,
+        startY: startPoint.y,
+        originalX: x,
+        originalY: y,
+        currentX: startPoint.x,
+        currentY: startPoint.y,
+      },
+    });
+  }
+
+  /**
+   * Start rectangle drag
+   */
+  private startRectangleDrag(rectangle: Element, startPoint: SVGMousePosition): void {
+    const rectId = this.infra.dom.getAttribute(rectangle, 'data-rect-id');
+    const rectIndex = parseInt(this.infra.dom.getAttribute(rectangle, 'data-rect-index') || '0');
+    const x = parseFloat(this.infra.dom.getAttribute(rectangle, 'x') || '0');
+    const y = parseFloat(this.infra.dom.getAttribute(rectangle, 'y') || '0');
+
+    // Add dragging class for visual feedback
+    this.infra.dom.addClass(rectangle, 'dragging');
+    
+    this.setState({
+      interactionMode: 'dragging' as InteractionMode,
+      dragState: {
+        type: 'rectangle',
+        element: rectangle,
+        rectId: rectId || '',
+        rectIndex: rectIndex,
+        startX: startPoint.x,
+        startY: startPoint.y,
+        originalX: x,
+        originalY: y,
+        currentX: startPoint.x,
+        currentY: startPoint.y,
+      },
+    });
   }
 
   /**
@@ -1125,7 +1214,7 @@ export class ERViewerApplication {
    * Update entity drag
    */
   private updateDrag(event: MouseEvent): void {
-    if (!this.state.dragState || this.state.dragState.type !== 'entity') {
+    if (!this.state.dragState) {
       return;
     }
 
@@ -1140,22 +1229,36 @@ export class ERViewerApplication {
     const newX = this.state.dragState.originalX + deltaX;
     const newY = this.state.dragState.originalY + deltaY;
 
-    // Update entity position
-    if (this.state.dragState.element) {
-      this.infra.dom.setAttribute(this.state.dragState.element, 'transform', `translate(${newX}, ${newY})`);
-    }
+    if (this.state.dragState.type === 'entity') {
+      // Update entity position
+      if (this.state.dragState.element) {
+        this.infra.dom.setAttribute(this.state.dragState.element, 'transform', `translate(${newX}, ${newY})`);
+      }
 
-    // Update bounds
-    if (this.state.dragState.tableName !== null && this.state.dragState.tableName !== undefined && this.state.dragState.tableName !== '') {
-      const bounds = this.state.entityBounds.get(this.state.dragState.tableName);
-      if (bounds) {
-        bounds.x = newX;
-        bounds.y = newY;
+      // Update bounds
+      if (this.state.dragState.tableName !== null && this.state.dragState.tableName !== undefined && this.state.dragState.tableName !== '') {
+        const bounds = this.state.entityBounds.get(this.state.dragState.tableName);
+        if (bounds) {
+          bounds.x = newX;
+          bounds.y = newY;
+        }
+      }
+
+      // Re-render relationships
+      this.renderRelationships();
+    } else if (this.state.dragState.type === 'rectangle') {
+      // Update rectangle position
+      if (this.state.dragState.element) {
+        this.infra.dom.setAttribute(this.state.dragState.element, 'x', newX.toString());
+        this.infra.dom.setAttribute(this.state.dragState.element, 'y', newY.toString());
+      }
+    } else if (this.state.dragState.type === 'annotation') {
+      // Update text position
+      if (this.state.dragState.element) {
+        this.infra.dom.setAttribute(this.state.dragState.element, 'x', newX.toString());
+        this.infra.dom.setAttribute(this.state.dragState.element, 'y', newY.toString());
       }
     }
-
-    // Re-render relationships
-    this.renderRelationships();
   }
 
   /**
@@ -1225,6 +1328,55 @@ export class ERViewerApplication {
               x: bounds.x,
               y: bounds.y,
             },
+          };
+          this.setState({ layoutData: newLayoutData });
+        }
+      }
+      
+      // Save rectangle position
+      if (this.state.dragState.type === 'rectangle' && this.state.dragState.rectIndex !== undefined) {
+        // Remove dragging class
+        if (this.state.dragState.element) {
+          this.infra.dom.removeClass(this.state.dragState.element, 'dragging');
+        }
+        
+        const newX = parseFloat(this.infra.dom.getAttribute(this.state.dragState.element!, 'x') || '0');
+        const newY = parseFloat(this.infra.dom.getAttribute(this.state.dragState.element!, 'y') || '0');
+        
+        const newLayoutData = { ...this.state.layoutData };
+        const currentRect = newLayoutData.rectangles?.[this.state.dragState.rectIndex];
+        if (currentRect) {
+          newLayoutData.rectangles![this.state.dragState.rectIndex] = {
+            id: currentRect.id,
+            x: newX,
+            y: newY,
+            width: currentRect.width,
+            height: currentRect.height,
+            color: currentRect.color,
+            stroke: currentRect.stroke,
+            strokeWidth: currentRect.strokeWidth,
+          };
+          this.setState({ layoutData: newLayoutData });
+        }
+      }
+      
+      // Save text position
+      if (this.state.dragState.type === 'annotation' && this.state.dragState.rectIndex !== undefined) {
+        // Remove dragging class
+        if (this.state.dragState.element) {
+          this.infra.dom.removeClass(this.state.dragState.element, 'dragging');
+        }
+        
+        const newX = parseFloat(this.infra.dom.getAttribute(this.state.dragState.element!, 'x') || '0');
+        const newY = parseFloat(this.infra.dom.getAttribute(this.state.dragState.element!, 'y') || '0');
+        
+        const newLayoutData = { ...this.state.layoutData };
+        const currentText = newLayoutData.texts?.[this.state.dragState.rectIndex];
+        if (currentText) {
+          newLayoutData.texts![this.state.dragState.rectIndex] = {
+            ...currentText,
+            x: newX,
+            y: newY,
           };
           this.setState({ layoutData: newLayoutData });
         }
@@ -1736,11 +1888,88 @@ export class ERViewerApplication {
    */
   public async saveLayout(): Promise<void> {
     try {
-      await this.infra.network.postJSON('/api/layout', this.state.layoutData);
+      // Prepare layout data with left sidebar state
+      const layoutDataToSave = {
+        ...this.state.layoutData,
+        leftSidebar: this.state.leftSidebarState,
+      };
+      
+      await this.infra.network.postJSON('/api/layout', layoutDataToSave);
       this.showSuccess('レイアウトが保存されました');
     } catch (error) {
       this.infra.browserAPI.error('Error saving layout:', error);
       this.showError('レイアウトの保存に失敗しました', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Save all data (ER data and layout data)
+   */
+  public async saveAllData(): Promise<void> {
+    try {
+      // Prepare data to save
+      const dataToSave = {
+        erData: this.state.erData,
+        layoutData: {
+          ...this.state.layoutData,
+          leftSidebar: this.state.leftSidebarState,
+        },
+      };
+      
+      await this.infra.network.postJSON('/api/data/all', dataToSave);
+      this.showSuccess('データが保存されました');
+    } catch (error) {
+      this.infra.browserAPI.error('Error saving all data:', error);
+      this.showError('データの保存に失敗しました', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Load all data (ER data and layout data)
+   */
+  public async loadAllData(): Promise<void> {
+    try {
+      this.showLoading('データを読み込み中...');
+      
+      const response = await this.infra.network.fetch('/api/data/all');
+      if (!response.ok) {
+        throw new Error('Failed to load data');
+      }
+      
+      const data = await response.json();
+      
+      // Update state with loaded data
+      if (data.erData) {
+        await this.setState({ erData: data.erData });
+      }
+      
+      if (data.layoutData) {
+        const layoutData = data.layoutData;
+        
+        // Update left sidebar state if present
+        if (layoutData.leftSidebar) {
+          await this.setState({ leftSidebarState: layoutData.leftSidebar });
+          this.applyLeftSidebarState();
+        }
+        
+        // Update layout data
+        await this.setState({ layoutData });
+        
+        // Update layer manager
+        if (this.layerManager) {
+          this.layerManager.setLayers(layoutData.layers || []);
+        }
+      }
+      
+      // Re-render canvas
+      await this.render();
+      
+      this.hideLoading();
+      this.showSuccess('データが読み込まれました');
+    } catch (error) {
+      this.hideLoading();
+      this.infra.browserAPI.error('Error loading all data:', error);
+      this.showError('データの読み込みに失敗しました', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -1846,8 +2075,8 @@ export class ERViewerApplication {
     const closeBuildInfo = this.infra.dom.getElementById('close-build-info');
 
     if (buildInfo && buildInfoModal) {
-      this.infra.dom.addEventListener(buildInfo, 'click', () => {
-        this.showBuildInfo();
+      this.infra.dom.addEventListener(buildInfo, 'click', async () => {
+        await this.showBuildInfo();
       });
     }
 
@@ -1869,9 +2098,47 @@ export class ERViewerApplication {
   /**
    * Show build info modal
    */
-  private showBuildInfo(): void {
-    if (this.state.buildInfoModal) {
-      this.infra.dom.removeClass(this.state.buildInfoModal, 'hidden');
+  private async showBuildInfo(): Promise<void> {
+    if (!this.state.buildInfoModal) {
+      return;
+    }
+
+    this.infra.dom.addClass(this.state.buildInfoModal, 'show');
+
+    const buildInfoContent = this.infra.dom.getElementById('build-info-content');
+    if (!buildInfoContent) {
+      return;
+    }
+
+    try {
+      const buildInfo = await this.infra.network.getJSON<BuildInfo>('/api/build-info');
+
+      let html = '<div class="build-info-section">';
+      html += `<h4>バージョン情報</h4>`;
+      html += `<p><strong>バージョン:</strong> ${buildInfo.version || 'unknown'}</p>`;
+      html += `<p><strong>ビルド日時:</strong> ${buildInfo.buildDate || 'unknown'}</p>`;
+      html += '</div>';
+
+      html += '<div class="build-info-section">';
+      html += `<h4>Git情報</h4>`;
+      html += `<p><strong>ブランチ:</strong> ${buildInfo.git?.branch || 'unknown'}</p>`;
+      html += `<p><strong>コミット:</strong> ${buildInfo.git?.commitShort || 'unknown'}</p>`;
+      if (buildInfo.git?.tag) {
+        html += `<p><strong>タグ:</strong> ${buildInfo.git.tag}</p>`;
+      }
+      html += '</div>';
+
+      html += '<div class="build-info-section">';
+      html += `<h4>環境情報</h4>`;
+      html += `<p><strong>Node.js:</strong> ${buildInfo.nodeVersion || 'unknown'}</p>`;
+      html += `<p><strong>プラットフォーム:</strong> ${buildInfo.platform || 'unknown'}</p>`;
+      html += `<p><strong>アーキテクチャ:</strong> ${buildInfo.arch || 'unknown'}</p>`;
+      html += '</div>';
+
+      this.infra.dom.setInnerHTML(buildInfoContent, html);
+    } catch (error) {
+      this.infra.browserAPI.error('Failed to load build info:', error);
+      this.infra.dom.setInnerHTML(buildInfoContent, '<p>ビルド情報の読み込みに失敗しました。</p>');
     }
   }
 
@@ -1880,7 +2147,7 @@ export class ERViewerApplication {
    */
   private hideBuildInfo(): void {
     if (this.state.buildInfoModal) {
-      this.infra.dom.addClass(this.state.buildInfoModal, 'hidden');
+      this.infra.dom.removeClass(this.state.buildInfoModal, 'show');
     }
   }
 
@@ -1919,12 +2186,8 @@ export class ERViewerApplication {
     // Initialize LayerManager with state management and infrastructure
     this.layerManager = new LayerManager(this, this.infra);
 
-    // Load collapsed state from localStorage
-    const storedValue = this.infra.storage.getItem('layerSidebarCollapsed');
-    const isCollapsed = storedValue === 'true' || storedValue === true;
-    if (isCollapsed) {
-      this.infra.dom.addClass(layerSidebar, 'collapsed');
-    }
+    // Apply initial state from ApplicationState
+    this.applyLeftSidebarState();
 
     // Setup collapse button click handler
     this.infra.dom.addEventListener(collapseBtn, 'click', () => {
@@ -1933,15 +2196,95 @@ export class ERViewerApplication {
       if (isCurrentlyCollapsed) {
         // Expand
         this.infra.dom.removeClass(layerSidebar, 'collapsed');
-        this.infra.storage.setItem('layerSidebarCollapsed', 'false');
+        this.setState({ 
+          leftSidebarState: { ...this.state.leftSidebarState, visible: true } 
+        });
         this.infra.browserAPI.log('Layer sidebar expanded');
       } else {
         // Collapse
         this.infra.dom.addClass(layerSidebar, 'collapsed');
-        this.infra.storage.setItem('layerSidebarCollapsed', 'true');
+        this.setState({ 
+          leftSidebarState: { ...this.state.leftSidebarState, visible: false } 
+        });
         this.infra.browserAPI.log('Layer sidebar collapsed');
       }
     });
+
+    // Setup resize handle
+    const resizeHandle = this.infra.dom.querySelector('.layer-sidebar-resize-handle');
+    if (resizeHandle) {
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      // Mouse down on resize handle
+      this.infra.dom.addEventListener(resizeHandle, 'mousedown', (e: Event) => {
+        const mouseEvent = e as MouseEvent;
+        isResizing = true;
+        startX = mouseEvent.clientX;
+        startWidth = this.state.leftSidebarState.width;
+        
+        this.infra.dom.addClass(resizeHandle, 'dragging');
+        this.infra.dom.setStyles(document.body as any as Element, { cursor: 'col-resize' });
+        mouseEvent.preventDefault();
+      });
+
+      // Mouse move on document
+      this.infra.dom.addEventListener(document.documentElement, 'mousemove', (e: Event) => {
+        if (!isResizing) return;
+        
+        const mouseEvent = e as MouseEvent;
+        const deltaX = mouseEvent.clientX - startX;
+        const newWidth = Math.max(150, Math.min(500, startWidth + deltaX)); // Min 150px, Max 500px
+        
+        // Apply width immediately for smooth feedback
+        this.infra.dom.setStyles(layerSidebar, {
+          width: `${newWidth}px`,
+          minWidth: `${newWidth}px`
+        });
+      });
+
+      // Mouse up on document
+      this.infra.dom.addEventListener(document.documentElement, 'mouseup', (e: Event) => {
+        if (!isResizing) return;
+        
+        const mouseEvent = e as MouseEvent;
+        const deltaX = mouseEvent.clientX - startX;
+        const newWidth = Math.max(150, Math.min(500, startWidth + deltaX));
+        
+        // Update state
+        this.setState({
+          leftSidebarState: { ...this.state.leftSidebarState, width: newWidth }
+        });
+        
+        isResizing = false;
+        this.infra.dom.removeClass(resizeHandle, 'dragging');
+        this.infra.dom.setStyles(document.body as any as Element, { cursor: '' });
+        
+        this.infra.browserAPI.log(`Layer sidebar resized to ${newWidth}px`);
+      });
+    }
+  }
+
+  /**
+   * Apply left sidebar state to UI
+   */
+  private applyLeftSidebarState(): void {
+    const layerSidebar = this.infra.dom.getElementById('layer-sidebar');
+    if (!layerSidebar) {
+      return;
+    }
+
+    if (this.state.leftSidebarState.visible) {
+      this.infra.dom.removeClass(layerSidebar, 'collapsed');
+      // Apply width
+      this.infra.dom.setStyles(layerSidebar, {
+        width: `${this.state.leftSidebarState.width}px`,
+        minWidth: `${this.state.leftSidebarState.width}px`
+      });
+    } else {
+      this.infra.dom.addClass(layerSidebar, 'collapsed');
+    }
   }
 
   /**
@@ -2192,6 +2535,17 @@ export class ERViewerApplication {
     // Add selection visual
     this.infra.dom.addClass(element, 'selected');
 
+    // If it's a rectangle element, allow editing on double click
+    if (this.infra.dom.hasClass(element, 'annotation-rectangle')) {
+      const rectId = this.infra.dom.getAttribute(element, 'data-rect-id');
+      const rectIndex = parseInt(this.infra.dom.getAttribute(element, 'data-rect-index') || '0');
+
+      // Set up double click event for rectangle editing
+      this.infra.dom.addEventListener(element, 'dblclick', () => {
+        this.editRectangleAnnotation(rectId!, rectIndex);
+      });
+    }
+
     // If it's a text element, allow editing on double click
     if (this.infra.dom.hasClass(element, 'annotation-text')) {
       const textId = this.infra.dom.getAttribute(element, 'data-text-id');
@@ -2202,6 +2556,49 @@ export class ERViewerApplication {
         this.editTextAnnotation(textId!, textIndex);
       });
     }
+  }
+
+  /**
+   * Edit rectangle annotation
+   */
+  private editRectangleAnnotation(_rectId: string, rectIndex: number): void {
+    if (!this.state.layoutData.rectangles?.[rectIndex]) {
+      return;
+    }
+
+    const currentRect = this.state.layoutData.rectangles[rectIndex];
+    
+    // Edit color
+    const newColor = this.infra.browserAPI.prompt('塗りつぶしの色を編集してください (例: #e3f2fd):', currentRect.color || '#e3f2fd');
+    if (newColor === null) return;
+    
+    // Edit stroke color
+    const newStroke = this.infra.browserAPI.prompt('線の色を編集してください (例: #1976d2):', currentRect.stroke || '#1976d2');
+    if (newStroke === null) return;
+    
+    // Edit stroke width
+    const newStrokeWidth = this.infra.browserAPI.prompt('線の太さを編集してください (例: 2):', currentRect.strokeWidth?.toString() || '2');
+    if (newStrokeWidth === null) return;
+    
+    // Edit width
+    const newWidth = this.infra.browserAPI.prompt('幅を編集してください (例: 100):', currentRect.width.toString());
+    if (newWidth === null) return;
+    
+    // Edit height
+    const newHeight = this.infra.browserAPI.prompt('高さを編集してください (例: 60):', currentRect.height.toString());
+    if (newHeight === null) return;
+
+    const newLayoutData = { ...this.state.layoutData };
+    newLayoutData.rectangles[rectIndex] = {
+      ...currentRect,
+      color: newColor || currentRect.color,
+      stroke: newStroke || currentRect.stroke,
+      strokeWidth: newStrokeWidth ? parseInt(newStrokeWidth) : currentRect.strokeWidth,
+      width: newWidth ? parseInt(newWidth) : currentRect.width,
+      height: newHeight ? parseInt(newHeight) : currentRect.height,
+    };
+
+    this.setState({ layoutData: newLayoutData });
   }
 
   /**

@@ -90,12 +90,19 @@ export interface Layer {
   zIndex: number;
 }
 
+// Left sidebar state
+export interface LeftSidebarState {
+  visible: boolean;
+  width: number;
+}
+
 // Complete layout data structure
 export interface LayoutData {
   entities: Record<string, EntityLayout>;
   rectangles: Rectangle[];
   texts: Text[];
   layers: Layer[];
+  leftSidebar?: LeftSidebarState;
 }
 
 // Viewport state for pan and zoom
@@ -107,9 +114,11 @@ export interface Viewport {
 
 // Drag state during interactions
 export interface DragState {
-  type: 'entity' | 'annotation' | 'pan';
+  type: 'entity' | 'annotation' | 'pan' | 'rectangle';
   element?: Element;
   tableName?: string;
+  rectId?: string;
+  rectIndex?: number;
   startX: number;
   startY: number;
   originalX: number;
@@ -163,6 +172,7 @@ export interface ApplicationState {
   sidebarVisible: boolean;
   currentTable: string | null;
   contextMenu: ContextMenu | null;
+  leftSidebarState: LeftSidebarState;
 
   // Interaction state
   interactionMode: InteractionMode;

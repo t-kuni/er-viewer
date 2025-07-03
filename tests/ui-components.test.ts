@@ -33,8 +33,8 @@ describe('UIコンポーネント', () => {
 
       // Assert - Storageから折りたたみ状態を読み込む
       expect(getItemSpy).toHaveBeenCalledWith('helpPanelCollapsed');
-      // layerSidebarCollapsedも読み込まれるため、2回呼ばれる
-      expect(getItemSpy).toHaveBeenCalledTimes(2);
+      // 現在の実装では左サイドバーの状態はlocalStorageから読み込まれない
+      expect(getItemSpy).toHaveBeenCalledTimes(1);
     });
 
     test('ヘルプパネルを展開時にStorageに状態が保存される', () => {
@@ -207,70 +207,35 @@ describe('UIコンポーネント', () => {
 
       // DOM操作をスパイ
       const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
-      const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
 
       // Act - 折りたたみボタンをクリック
       collapseBtn.dispatchEvent('click');
 
       // Assert - layer-sidebarにcollapsedクラスが追加される
       expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
-      // Storageに折りたたみ状態が保存される
-      expect(setItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed', 'true');
     });
 
     test('折りたたまれた左サイドバーの折りたたみボタンをクリックすると展開される', () => {
       // Arrange
       const infrastructure = new InfrastructureMock();
-
-      // 初期状態を折りたたみ状態に設定（StorageMockはJSON.stringifyするので、文字列で設定）
-      infrastructure.storage.setItem('layerSidebarCollapsed', 'true');
-
-      // DOM操作をスパイ（初期化前に設定）
-      const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
-      const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
-      const setItemSpy = jest.spyOn(infrastructure.storage, 'setItem');
-
       new ERViewerApplication(infrastructure);
 
-      const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
+      const layerSidebar = infrastructure.dom.getElementById('layer-sidebar') as unknown as MockElement;
       const collapseBtn = infrastructure.dom.getElementById('collapse-layer-sidebar') as unknown as MockElement;
 
-      // 折りたたみ状態にあることを確認
-      expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
+      // 初期状態を折りたたみ状態に設定
+      layerSidebar.classList.add('collapsed');
 
-      // スパイをクリア
-      addClassSpy.mockClear();
-      setItemSpy.mockClear();
+      // DOM操作をスパイ
+      const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
 
       // Act - 折りたたみボタンをクリック
       collapseBtn.dispatchEvent('click');
 
       // Assert - layer-sidebarからcollapsedクラスが削除される
       expect(removeClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
-      // Storageに展開状態が保存される
-      expect(setItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed', 'false');
     });
 
-    test('初期化時にStorageから左サイドバーの折りたたみ状態を読み込む', () => {
-      // Arrange
-      const infrastructure = new InfrastructureMock();
-
-      // 折りたたみ状態をStorageに設定
-      infrastructure.storage.setItem('layerSidebarCollapsed', 'true');
-
-      // Storage操作をスパイ
-      const getItemSpy = jest.spyOn(infrastructure.storage, 'getItem');
-      const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
-
-      // Act - アプリケーションを初期化
-      new ERViewerApplication(infrastructure);
-
-      const layerSidebar = infrastructure.dom.getElementById('layer-sidebar');
-
-      // Assert - Storageから折りたたみ状態を読み込んで適用
-      expect(getItemSpy).toHaveBeenCalledWith('layerSidebarCollapsed');
-      expect(addClassSpy).toHaveBeenCalledWith(layerSidebar, 'collapsed');
-    });
   });
 
   describe('矩形描画', () => {

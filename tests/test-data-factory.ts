@@ -64,9 +64,10 @@ export function createLayoutData(
     rectangles?: Array<{ x: number; y: number; width: number; height: number; color?: string; id?: string }>;
     texts?: Array<{ x: number; y: number; content: string; fontSize?: number; color?: string; id?: string }>;
     layers?: Array<{ id: string; name: string; visible: boolean; zIndex: number }>;
+    leftSidebar?: { visible: boolean; width: number };
   } = {},
 ): LayoutData {
-  return {
+  const layoutData: any = {
     entities: options.entities || {},
     rectangles: (options.rectangles || []).map((rect, index) => ({
       id: rect.id || `rect-${index}`,
@@ -86,6 +87,12 @@ export function createLayoutData(
     })),
     layers: options.layers || [],
   };
+
+  if (options.leftSidebar) {
+    layoutData.leftSidebar = options.leftSidebar;
+  }
+
+  return layoutData;
 }
 
 /**

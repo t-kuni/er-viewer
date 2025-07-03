@@ -484,6 +484,47 @@ export class LayerManager {
     this.triggerCanvasRerender();
   }
 
+  public setLayers(layers: BaseLayer[]): void {
+    // Clear existing layers except for the default ER diagram layer
+    this.layers = this.layers.filter(layer => layer.type === 'er-diagram');
+    
+    // Add new layers
+    layers.forEach((layer) => {
+      if (layer.id !== 'er-diagram-layer') {
+        const layerData: Layer = {
+          ...layer,
+          type: this.getLayerType(layer.name),
+          icon: this.getLayerIcon(layer.name),
+          order: layer.zIndex || this.layers.length,
+        };
+        this.layers.push(layerData);
+      }
+    });
+
+    this.renderLayers();
+  }
+
+  private getLayerType(name: string): 'er-diagram' | 'rectangle' | 'text' {
+    if (name.includes('矩形') || name.includes('Rectangle')) {
+      return 'rectangle';
+    } else if (name.includes('テキスト') || name.includes('Text')) {
+      return 'text';
+    }
+    return 'er-diagram';
+  }
+
+  private getLayerIcon(name: string): string {
+    const type = this.getLayerType(name);
+    switch (type) {
+      case 'rectangle':
+        return '⬜';
+      case 'text':
+        return '📝';
+      default:
+        return '🗂️';
+    }
+  }
+
   private triggerCanvasRerender(): void {
     // Dispatch custom event to notify canvas renderer about layer order change
     if (!this.infra) {

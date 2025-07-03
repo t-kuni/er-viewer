@@ -436,10 +436,24 @@ export class DOMMock extends DOMInterface {
     layerSidebar.classList.add('layer-sidebar');
     this.body.appendChild(layerSidebar);
 
+    // Add resize handle
+    const resizeHandle = new MockElement('div');
+    resizeHandle.classList.add('layer-sidebar-resize-handle');
+    layerSidebar.appendChild(resizeHandle);
+
+    // Create layer sidebar header
+    const layerSidebarHeader = new MockElement('div');
+    layerSidebarHeader.classList.add('layer-sidebar-header');
+    layerSidebar.appendChild(layerSidebarHeader);
+
+    const layerTitle = new MockElement('h3');
+    layerTitle.textContent = 'レイヤー';
+    layerSidebarHeader.appendChild(layerTitle);
+
     const collapseLayerSidebarBtn = new MockElement('button');
     collapseLayerSidebarBtn.setAttribute('id', 'collapse-layer-sidebar');
     collapseLayerSidebarBtn.classList.add('collapse-btn');
-    layerSidebar.appendChild(collapseLayerSidebarBtn);
+    layerSidebarHeader.appendChild(collapseLayerSidebarBtn);
 
     // Create mock layer list
     const layerList = new MockElement('div');

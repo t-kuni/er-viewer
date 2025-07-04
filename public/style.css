@@ -1057,17 +1057,17 @@ main {
 
 /* Highlight layer clones for z-index effect */
 #highlight-layer .highlight-clone {
-  opacity: 1;
-  filter: brightness(1.2);
+  display: none; /* クローン要素を非表示にする */
 }
 
 /* Ensure non-highlighted elements are dimmed when something is highlighted */
 svg:has(.highlighted) .entity:not(.highlighted) {
-  opacity: 0.3;
+  opacity: 0.7;
+  filter: grayscale(0.3);
 }
 
 svg:has(.highlighted) .relationship:not(.highlighted) {
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 /* Rectangle Annotation Styles */

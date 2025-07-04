@@ -1207,5 +1207,86 @@ describe('レンダリング', () => {
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.any(Object), 'data-table-name', 'categories');
       expect(setAttributeSpy).toHaveBeenCalledWith(expect.any(Object), 'data-table-name', 'tags');
     });
+
+    test('レイヤー一覧の順番に従ってキャンバスの各要素がレンダリングされる', async () => {
+      // Arrange
+      const infrastructure = new InfrastructureMock();
+      const mockERData: ERData = {
+        entities: [
+          { 
+            name: 'users', 
+            columns: [{ name: 'id', type: 'int', key: 'PRI', nullable: false, default: null, extra: '' }], 
+            foreignKeys: [], 
+            ddl: '' 
+          },
+        ],
+        relationships: [],
+        layout: {
+          entities: {
+            users: { position: { x: 100, y: 100 } },
+          },
+          rectangles: [
+            { 
+              id: 'rect-1', 
+              x: 50, 
+              y: 50, 
+              width: 200, 
+              height: 100, 
+              color: '#ff0000', 
+              stroke: '#000000', 
+              strokeWidth: 2 
+            },
+          ],
+          texts: [
+            {
+              id: 'text-1',
+              x: 150,
+              y: 150,
+              content: 'Test Text',
+              fontSize: 16,
+              color: '#0000ff',
+            },
+          ],
+          layers: [
+            { id: 'layer-1', name: 'Text Layer', type: 'text', visible: true, zIndex: 2 },
+            { id: 'layer-2', name: 'Rectangle Layer', type: 'rectangle', visible: true, zIndex: 1 },
+            { id: 'layer-3', name: 'ER Diagram', type: 'er-diagram', visible: true, zIndex: 0 },
+          ],
+        },
+      };
+
+      infrastructure.setupMockData({
+        networkResponses: {
+          '/api/er-data': {
+            data: mockERData,
+            status: 200,
+            statusText: 'OK',
+          },
+        },
+      });
+
+      new ERViewerApplication(infrastructure);
+
+      // Act - データロードとレンダリングを待つ
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Assert - レンダリング順序を確認
+      const annotationLayer = infrastructure.dom.getElementById('annotation-layer') as unknown as MockElement;
+      
+      // レイヤーリストの順番に従って最前面から最背面の順でレンダリングされることを確認
+      // レイヤーリストの一番上（layer-1: text）が最前面
+      // レイヤーリストの一番下（layer-3: er-diagram）が最背面
+      
+      // 最後にレンダリングされたもの（最前面）がテキストであることを確認
+      const annotationChildren = annotationLayer.children;
+      expect(annotationChildren.length).toBeGreaterThan(0);
+      
+      // 最後の子要素がテキストであることを確認
+      const lastChild = annotationChildren[annotationChildren.length - 1] as MockElement;
+      expect(lastChild.tagName).toBe('text');
+      expect(lastChild.getAttribute('id')).toBe('text-1');
+    });
   });
 });

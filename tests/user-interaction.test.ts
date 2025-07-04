@@ -192,6 +192,113 @@ describe('ユーザーインタラクション', () => {
       // Cleanup
       delete (global as any).window.Prism;
     });
+
+    test('エンティティにホバーしたときに適切にハイライトされる', () => {
+      // Arrange
+      const infrastructure = new InfrastructureMock();
+      const mockERData = {
+        entities: [
+          {
+            name: 'users',
+            columns: [
+              { name: 'id', type: 'INT', nullable: false, isPrimary: true, isForeign: false },
+              { name: 'name', type: 'VARCHAR(100)', nullable: false, isPrimary: false, isForeign: false },
+            ],
+          },
+          {
+            name: 'posts',
+            columns: [
+              { name: 'id', type: 'INT', nullable: false, isPrimary: true, isForeign: false },
+              { name: 'user_id', type: 'INT', nullable: false, isPrimary: false, isForeign: true },
+            ],
+          },
+        ],
+        relationships: [
+          {
+            from: 'posts',
+            to: 'users',
+            fromColumn: 'user_id',
+            toColumn: 'id',
+            relationshipType: 'many-to-one',
+          },
+        ],
+        layout: {
+          entities: {
+            users: { x: 100, y: 100 },
+            posts: { x: 400, y: 100 },
+          },
+        },
+      };
+      const mockData: MockData = {
+        networkResponses: {
+          '/api/er-data': {
+            status: 200,
+            data: mockERData,
+          },
+        },
+      };
+      infrastructure.setupMockData(mockData);
+      const app: any = new ERViewerApplication(infrastructure);
+
+      // DOM操作をスパイ
+      const addClassSpy = jest.spyOn(infrastructure.dom, 'addClass');
+      const querySelectorSpy = jest.spyOn(infrastructure.dom, 'querySelector');
+      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
+
+      // ERデータをセット
+      app.state.erData = mockERData;
+
+      // usersエンティティのモック要素を作成
+      const usersEntity = new MockElement('g');
+      usersEntity.setAttribute('class', 'entity');
+      usersEntity.setAttribute('data-table-name', 'users');
+      
+      // closestメソッドが適切な要素を返すようにモック
+      jest.spyOn(infrastructure.dom, 'closest').mockReturnValue(usersEntity as any);
+
+      // updateHoverを呼び出すためのモックイベント
+      const mockEvent = {
+        target: usersEntity,
+      } as any;
+
+      // Act
+      app['updateHover'](mockEvent);
+
+      // Assert
+      // usersエンティティにhighlightedクラスが追加される
+      expect(addClassSpy).toHaveBeenCalledWith(usersEntity, 'highlighted');
+      
+      // 関連エンティティ（posts）にもhighlightedクラスが追加される
+      expect(querySelectorSpy).toHaveBeenCalledWith('.entity[data-table-name="posts"]');
+      
+      // updateHighlightLayerが呼ばれることを確認（クローン作成）
+      expect(getElementByIdSpy).toHaveBeenCalledWith('highlight-layer');
+    });
+
+    test('エンティティからマウスが離れたときにハイライトがクリアされる', () => {
+      // Arrange
+      const infrastructure = new InfrastructureMock();
+      const app: any = new ERViewerApplication(infrastructure);
+
+      // DOM操作をスパイ
+      const removeClassSpy = jest.spyOn(infrastructure.dom, 'removeClass');
+      const getElementByIdSpy = jest.spyOn(infrastructure.dom, 'getElementById');
+
+      // highlightedクラスを持つ要素のモック
+      const highlightedElement = new MockElement('g');
+      highlightedElement.classList.add('highlighted');
+      infrastructure.dom.querySelectorAll = jest.fn().mockReturnValue([highlightedElement]);
+
+      // Act
+      app['clearHighlights']();
+
+      // Assert
+      // highlightedクラスが削除される
+      expect(removeClassSpy).toHaveBeenCalledWith(highlightedElement, 'highlighted');
+      
+      // highlight-layerの内容がクリアされる
+      expect(getElementByIdSpy).toHaveBeenCalledWith('highlight-layer');
+    });
   });
 
   describe('エンティティ移動', () => {

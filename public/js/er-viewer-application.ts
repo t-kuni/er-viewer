@@ -525,7 +525,8 @@ export class ERViewerApplication {
       this.renderERDiagram();
       this.renderAnnotations();
     } else {
-      // Render layers in reverse order (bottom to top in the layer list = first to last in rendering)
+      // Render layers in order (top of layer list = rendered last = frontmost)
+      // Bottom of layer list = rendered first = backmost
       for (let i = layers.length - 1; i >= 0; i--) {
         const layer = layers[i];
         if (!layer || !layer.type) {
@@ -1043,6 +1044,7 @@ export class ERViewerApplication {
    */
   private createTextAnnotation(text: Text, index: number): Element {
     const textElement = this.infra.dom.createElement('text', 'http://www.w3.org/2000/svg');
+    this.infra.dom.setAttribute(textElement, 'id', text.id);
     this.infra.dom.setAttribute(textElement, 'class', 'annotation-text');
     this.infra.dom.setAttribute(textElement, 'data-text-index', index.toString());
     this.infra.dom.setAttribute(textElement, 'data-text-id', text.id);
@@ -1531,8 +1533,26 @@ export class ERViewerApplication {
   /**
    * Handle canvas double click
    */
-  private handleCanvasDoubleClick(_event: MouseEvent): void {
-    // Implement double click behavior
+  private handleCanvasDoubleClick(event: MouseEvent): void {
+    const target = event.target as Element;
+    
+    // Handle double click on rectangle
+    if (this.infra.dom.hasClass(target, 'annotation-rectangle')) {
+      const rectId = this.infra.dom.getAttribute(target, 'data-rect-id');
+      const rectIndex = parseInt(this.infra.dom.getAttribute(target, 'data-rect-index') || '0');
+      if (rectId) {
+        this.editRectangleAnnotation(rectId, rectIndex);
+      }
+    }
+    
+    // Handle double click on text
+    if (this.infra.dom.hasClass(target, 'annotation-text')) {
+      const textId = this.infra.dom.getAttribute(target, 'data-text-id');
+      const textIndex = parseInt(this.infra.dom.getAttribute(target, 'data-text-index') || '0');
+      if (textId) {
+        this.editTextAnnotation(textId, textIndex);
+      }
+    }
   }
 
   /**
@@ -2433,31 +2453,6 @@ export class ERViewerApplication {
     this.setState({ highlightedEntities: new Set(), highlightedRelationships: new Set() });
   }
 
-  /**
-   * Update highlight layer to ensure highlighted elements are on top
-   */
-  private updateHighlightLayer(): void {
-    const highlightLayer = this.infra.dom.getElementById('highlight-layer');
-    if (!highlightLayer) {
-      return;
-    }
-
-    // Clear the highlight layer
-    this.infra.dom.setInnerHTML(highlightLayer, '');
-
-    // Clone highlighted elements to the highlight layer for z-index effect
-    const highlightedElements = this.infra.dom.querySelectorAll('.highlighted');
-    highlightedElements.forEach((element) => {
-      const clone = this.infra.dom.cloneNode(element, true);
-
-      // Add special styling to make it stand out
-      this.infra.dom.addClass(clone, 'highlight-clone');
-      this.infra.dom.setAttribute(clone, 'pointer-events', 'none');
-
-      // Add to highlight layer
-      this.infra.dom.appendChild(highlightLayer, clone);
-    });
-  }
 
   /**
    * Highlight entity
@@ -2534,7 +2529,7 @@ export class ERViewerApplication {
     });
 
     // Update the highlight layer to ensure highlighted elements are on top
-    this.updateHighlightLayer();
+    // this.updateHighlightLayer(); // クローン要素が問題を引き起こしているためコメントアウト
   }
 
   /**
@@ -2591,7 +2586,7 @@ export class ERViewerApplication {
     }
 
     // Update the highlight layer to ensure highlighted elements are on top
-    this.updateHighlightLayer();
+    // this.updateHighlightLayer(); // クローン要素が問題を引き起こしているためコメントアウト
   }
 
   /**
@@ -2606,28 +2601,6 @@ export class ERViewerApplication {
 
     // Add selection visual
     this.infra.dom.addClass(element, 'selected');
-
-    // If it's a rectangle element, allow editing on double click
-    if (this.infra.dom.hasClass(element, 'annotation-rectangle')) {
-      const rectId = this.infra.dom.getAttribute(element, 'data-rect-id');
-      const rectIndex = parseInt(this.infra.dom.getAttribute(element, 'data-rect-index') || '0');
-
-      // Set up double click event for rectangle editing
-      this.infra.dom.addEventListener(element, 'dblclick', () => {
-        this.editRectangleAnnotation(rectId!, rectIndex);
-      });
-    }
-
-    // If it's a text element, allow editing on double click
-    if (this.infra.dom.hasClass(element, 'annotation-text')) {
-      const textId = this.infra.dom.getAttribute(element, 'data-text-id');
-      const textIndex = parseInt(this.infra.dom.getAttribute(element, 'data-text-index') || '0');
-
-      // Set up double click event for text editing
-      this.infra.dom.addEventListener(element, 'dblclick', () => {
-        this.editTextAnnotation(textId!, textIndex);
-      });
-    }
   }
 
   /**

@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
 import DatabaseManager from './lib/database.js';
-import StorageManager from './lib/storage.js';
 
 dotenv.config();
 
@@ -24,19 +23,10 @@ app.use('/js', express.static(path.join(__dirname, 'dist/public/js')));
 app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();
-const storageManager = new StorageManager();
 
 app.get('/api/er-data', async (req, res) => {
   try {
-    const erData = await storageManager.loadERData();
-    if (erData) {
-      // Merge with layout data to ensure positions are preserved
-      const layoutData = await storageManager.loadLayoutData();
-      const mergedData = await storageManager.mergeERDataWithLayout(erData, layoutData);
-      res.json(mergedData);
-    } else {
-      res.status(404).json({ error: 'No ER data found' });
-    }
+    res.status(404).json({ error: 'No ER data found' });
   } catch (error) {
     console.error('Error loading ER data:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -47,10 +37,9 @@ app.post('/api/reverse-engineer', async (req, res) => {
   try {
     await dbManager.connect();
     const newERData = await dbManager.generateERData();
-    const mergedData = await storageManager.performIncrementalUpdate(newERData);
     await dbManager.disconnect();
 
-    res.json(mergedData);
+    res.json(newERData);
   } catch (error) {
     console.error('Error during reverse engineering:', error);
     res.status(500).json({ error: 'Failed to reverse engineer database' });
@@ -59,8 +48,6 @@ app.post('/api/reverse-engineer', async (req, res) => {
 
 app.post('/api/layout', async (req, res) => {
   try {
-    const layoutData = req.body;
-    await storageManager.saveLayoutData(layoutData);
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving layout data:', error);
@@ -70,8 +57,11 @@ app.post('/api/layout', async (req, res) => {
 
 app.get('/api/layout', async (req, res) => {
   try {
-    const layoutData = await storageManager.loadLayoutData();
-    res.json(layoutData);
+    res.json({
+      entities: {},
+      rectangles: [],
+      texts: [],
+    });
   } catch (error) {
     console.error('Error loading layout data:', error);
     res.status(500).json({ error: 'Failed to load layout data' });
@@ -81,18 +71,6 @@ app.get('/api/layout', async (req, res) => {
 // Save all data (ER data and layout data)
 app.post('/api/data/all', async (req, res) => {
   try {
-    const { erData, layoutData } = req.body;
-    
-    // Save ER data
-    if (erData) {
-      await storageManager.saveERData(erData);
-    }
-    
-    // Save layout data
-    if (layoutData) {
-      await storageManager.saveLayoutData(layoutData);
-    }
-    
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving all data:', error);
@@ -103,15 +81,13 @@ app.post('/api/data/all', async (req, res) => {
 // Load all data (ER data and layout data)
 app.get('/api/data/all', async (req, res) => {
   try {
-    const erData = await storageManager.loadERData();
-    const layoutData = await storageManager.loadLayoutData();
-    
-    // Merge ER data with layout data
-    const mergedData = erData ? await storageManager.mergeERDataWithLayout(erData, layoutData) : null;
-    
     res.json({
-      erData: mergedData,
-      layoutData: layoutData
+      erData: null,
+      layoutData: {
+        entities: {},
+        rectangles: [],
+        texts: [],
+      }
     });
   } catch (error) {
     console.error('Error loading all data:', error);

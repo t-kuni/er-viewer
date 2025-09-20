@@ -70,40 +70,20 @@ cp .env.example .env
 # 必要に応じてDB設定を変更
 vi .env
 
-# 依存関係のインストール
+# バックエンドの依存関係のインストール
 npm install
+
+# フロントエンドの依存関係のインストール
+cd public && npm install
 ```
 
 ### 起動
 
 ```bash
-# Docker Composeで起動
-docker compose up -d
+npm run dev
 
 # ブラウザでアクセス
-open http://localhost:30033
-```
-
-### 開発コマンド
-
-```bash
-# TypeScriptコンパイル
-npm run build:ts
-
-# TypeScript監視モード
-npm run dev:ts
-
-# 型チェック
-npm run typecheck
-
-# テスト実行
-npm test
-
-# Lintチェック
-npm run lint
-
-# コードフォーマット
-npm run format
+open http://localhost:5173
 ```
 
 ### claude起動

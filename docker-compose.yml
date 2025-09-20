@@ -1,41 +1,10 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - "30033:30033"
-      - "5173:5173"
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_USER=${DB_USER:-root}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
-      - DB_NAME=${DB_NAME:-test}
-    volumes:
-      - ./:/app
-      - /app/node_modules
-      - /app/public/node_modules
-    depends_on:
-      - db
-    restart: unless-stopped
-    command: ["npm", "run", "dev"]
-    develop:
-      watch:
-        - action: sync+restart
-          path: .
-          target: /app
-          ignore:
-            - node_modules
-            - dist
-            - public/dist
-
   db:
     image: mysql:8
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
-      MYSQL_DATABASE: ${DB_NAME:-test}
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: erviewer
+    ports:
+      - "30177:3306"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    restart: unless-stopped

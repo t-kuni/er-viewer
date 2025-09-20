@@ -10,16 +10,18 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
-RUN npm install -g concurrently tsx
 
 # Copy source code
 COPY . .
 
 # Install frontend dependencies
 RUN cd public && npm install
-RUN npm install -g vite
 
-EXPOSE 30033 5173
+# Build the application
+RUN npm run build
 
-# Use npm run dev for development with hot reload
-CMD ["npm", "run", "dev"]
+# Expose the application port
+EXPOSE 30033
+
+# Start the production server
+CMD ["npm", "start"]

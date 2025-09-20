@@ -29,25 +29,25 @@
 
 ### フロントエンド構成変更
 
-- [ ] **publicディレクトリ構成の変更**
+- [x] **publicディレクトリ構成の変更**
   - 現在の`public/js/`から`public/src/`構成への移行
   - `public/src/components/`, `public/src/services/`, `public/src/api/`ディレクトリの作成
   - 既存の`app-new.ts`の適切な場所への移動・拡張
   - 参照: `spec/rearchitecture_overview.md` L29-36
 
-- [ ] **Vite設定の追加**
+- [x] **Vite設定の追加**
   - `public/vite.config.ts`ファイルの作成
   - TypeScriptビルド設定
   - ホットリロード設定
   - 参照: `spec/rearchitecture_overview.md` L36, L85, L104
 
-- [ ] **フロントエンド用package.jsonの作成**
+- [x] **フロントエンド用package.jsonの作成**
   - `public/package.json`の作成
   - Vite関連の依存関係定義
   - フロントエンド用ビルドスクリプト
   - 参照: `spec/rearchitecture_overview.md` L34
 
-- [ ] **フロントエンド用tsconfig.jsonの作成**
+- [x] **フロントエンド用tsconfig.jsonの作成**
   - `public/tsconfig.json`の作成
   - フロントエンド専用のTypeScript設定
   - 参照: `spec/rearchitecture_overview.md` L35

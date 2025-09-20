@@ -119,6 +119,14 @@ docker build -t tkuni83/er-viewer .
 docker push tkuni83/er-viewer
 ```
 
+## 外部のLLMに投げる時の要件整理プロンプト
+
+```
+以下のリサーチプロンプトを作成して
+
+* 要件
+```
+
 ## 仕様検討プロンプト
 
 ```

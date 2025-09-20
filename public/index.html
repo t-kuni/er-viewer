@@ -134,21 +134,6 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
-    <script type="module" src="js/app-new.js"></script>
-    
-    <!-- LiveReload script for development -->
-    <script>
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            (function() {
-                const script = document.createElement('script');
-                script.src = 'http://localhost:35729/livereload.js?snipver=1';
-                script.async = true;
-                script.onerror = function() {
-                    console.log('LiveReload not available');
-                };
-                document.head.appendChild(script);
-            })();
-        }
-    </script>
+    <script type="module" src="/src/app-new.ts"></script>
 </body>
 </html>

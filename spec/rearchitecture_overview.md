@@ -12,21 +12,20 @@
 * **バックエンド**: TypeScript + Express + MySQL
 * **フロントエンド**: TypeScript
 * **API定義**: TypeSpec
-* **開発環境**: Docker Compose
+* **開発環境**: Docker Compose（DB用）+ npm run dev（アプリケーション用）
 * **本番運用**: Docker コンテナ
 
 ### ディレクトリ構成
 
 ```
 /er-viewer
-├─ docker-compose.yml
+├─ docker-compose.yml           （MySQL用）
 ├─ .env.example
 ├─ server.ts                    （バックエンド統合ファイル - API + 静的ファイル配信）
 ├─ package.json
 ├─ tsconfig.base.json           （共通TypeScript設定）
 ├─ tsconfig.server.json         （バックエンド用TypeScript設定）
-├─ Dockerfile.dev
-├─ Dockerfile.prod
+├─ Dockerfile.prod              （本番用）
 ├─ public/                      （フロントエンドのコード）
 │   ├─ src/
 │   │   ├─ components/
@@ -45,36 +44,34 @@
 
 `docker-compose.yml`で以下のサービスを定義：
 
-* **app**
-  * ベースイメージ: `node:20-alpine`
-  * 起動コマンド: `npm run dev`（内部で`tsx`と`vite`を並列実行）
-  * ポート: `30033:30033`
-  * 依存サービス: `db`
-  * ボリュームマウント: `./:/app`
-  * ホットリロード: 
-    * `tsx watch`によるバックエンドコード変更時の自動再起動
-    * `vite`による`public`フォルダ変更時の自動ビルドとブラウザ更新
-    * Docker Compose v2.22+の`develop.watch`機能対応
-  * 機能: 
-    * フロントエンドのビルドと静的ファイル配信
-    * バックエンドAPIの提供
-
 * **db (MySQL)**
   * ベースイメージ: `mysql:8`
   * 環境変数: `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`
-  * 内部ネットワークのみ公開（ホストOSからの接続不可）
+  * ポート: `30177:3306`（ホストOSから接続可能）
   * 用途: ER図リバースエンジニアリング用のテストデータ
   * `init.sql`によるテストデータの自動投入
 
 ### 開発環境の起動
 
+#### データベースの起動
+
 ```bash
 docker compose up
 ```
 
+* MySQL 8がポート30177で起動
+* ホストOSからの接続が可能
+* `init.sql`によるテストデータの自動投入
+
+#### アプリケーションの起動
+
+```bash
+npm run dev
+```
+
 * 開発用Webサーバーが30033ポートで待ち受け
 * `public`フォルダのコード変更で自動再ビルドとブラウザ更新
-* DBはコンテナ内部のみアクセス可能
+* バックエンドコード変更時の自動再起動
 
 ## アプリケーション仕様
 
@@ -367,26 +364,15 @@ export default defineConfig({
 
 ```yaml
 services:
-  app:
-    build:
-      dockerfile: Dockerfile.dev
-    ports:
-      - "30033:30033"
+  db:
+    image: mysql:8
     environment:
-      - NODE_ENV=development
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: erviewer
+    ports:
+      - "30177:3306"
     volumes:
-      - ./:/app
-      - /app/node_modules
-    command: ["npm", "run", "dev"]
-    develop:
-      watch:
-        - action: sync+restart
-          path: .
-          target: /app
-          ignore:
-            - node_modules
-            - dist
-            - public/dist
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 ```
 
 ### 6. 統合オプション（vite-plugin-node使用）
@@ -422,21 +408,26 @@ export default defineConfig({
 
 ### 7. 移行後の確認事項
 
-1. **開発サーバーの起動確認**
+1. **データベースの起動確認**
    ```bash
    docker compose up
    ```
 
-2. **ホットリロードの動作確認**
+2. **アプリケーションの起動確認**
+   ```bash
+   npm run dev
+   ```
+
+3. **ホットリロードの動作確認**
    - バックエンドコード（`server.ts`, `lib/`）の変更
    - フロントエンドコード（`public/src/`）の変更
 
-3. **型チェックの実行確認**
+4. **型チェックの実行確認**
    ```bash
    npm run typecheck
    ```
 
-4. **本番ビルドの確認**
+5. **本番ビルドの確認**
    ```bash
    npm run build
    ```

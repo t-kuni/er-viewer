@@ -23,6 +23,10 @@
     "test:quality": "node .github/scripts/check-test-rules.js",
     "test:lint": "eslint --ext .js,.ts --config .eslintrc.test.js tests/**/*.test.*",
     "test:all": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run test:quality",
+    "spec:compile": "tsp compile ./api-spec && npm run spec:copy",
+    "spec:copy": "cp ./api-spec/public/src/api/openapi/openapi.yaml ./public/src/api/openapi/",
+    "spec:watch": "tsp compile ./api-spec --watch",
+    "spec:init": "tsp init",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -39,6 +43,10 @@
     "@eslint/js": "^9.30.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
+    "@typespec/compiler": "^0.60.0",
+    "@typespec/http": "^0.60.0",
+    "@typespec/openapi3": "^0.60.0",
+    "@typespec/rest": "^0.60.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",

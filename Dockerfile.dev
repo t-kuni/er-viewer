@@ -16,5 +16,5 @@ COPY . .
 
 EXPOSE 30033
 
-# Use ts-node-dev for development with hot reload
-CMD ["npx", "ts-node-dev", "--respawn", "server.ts"]
+# Use npm run dev for development with hot reload
+CMD ["npm", "run", "dev"]

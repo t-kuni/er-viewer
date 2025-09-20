@@ -17,6 +17,7 @@ COPY . .
 
 # Install frontend dependencies
 RUN cd public && npm install
+RUN npm install -g vite
 
 EXPOSE 30033 5173
 

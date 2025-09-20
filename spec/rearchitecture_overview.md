@@ -21,29 +21,21 @@
 /er-viewer
 ├─ docker-compose.yml
 ├─ .env.example
-├─ backend/
-│   ├─ src/
-│   │   ├─ index.ts
-│   │   ├─ routes/
-│   │   ├─ models/
-│   │   └─ services/
-│   ├─ Dockerfile.dev
-│   ├─ Dockerfile.prod
-│   ├─ package.json
-│   └─ tsconfig.json
-├─ frontend/
-│   ├─ public/
+├─ server.ts                    （バックエンド統合ファイル - API + 静的ファイル配信）
+├─ package.json
+├─ tsconfig.json
+├─ Dockerfile.dev
+├─ Dockerfile.prod
+├─ public/                      （フロントエンドのコード）
 │   ├─ src/
 │   │   ├─ components/
 │   │   ├─ services/
 │   │   └─ api/
-│   ├─ Dockerfile.dev
-│   ├─ Dockerfile.prod
 │   ├─ package.json
 │   ├─ tsconfig.json
 │   └─ vite.config.ts
 └─ api-spec/
-    └─ *.tsp   （TypeSpec定義ファイル）
+    └─ *.tsp                    （TypeSpec定義ファイル）
 ```
 
 ## 開発環境仕様
@@ -52,18 +44,18 @@
 
 `docker-compose.yml`で以下のサービスを定義：
 
-* **backend**
+* **app**
   * ベースイメージ: `node:20-alpine`
-  * 起動コマンド: `ts-node-dev --respawn src/index.ts`
+  * 起動コマンド: `ts-node-dev --respawn server.ts`
   * ポート: `30033:30033`
   * 依存サービス: `db`
-  * ホットリロード: ソースコード変更時の自動再起動
-
-* **frontend**
-  * ベースイメージ: `node:20-alpine`
-  * 起動コマンド: `vite --host --port 5173`
-  * ボリュームマウント: `./frontend:/app`
-  * ホットリロード: `public`フォルダ変更時の自動ビルドとブラウザ更新
+  * ボリュームマウント: `./:/app`
+  * ホットリロード: 
+    * バックエンドコード変更時の自動再起動
+    * `public`フォルダ変更時の自動ビルドとブラウザ更新
+  * 機能: 
+    * フロントエンドのビルドと静的ファイル配信
+    * バックエンドAPIの提供
 
 * **db (MySQL)**
   * ベースイメージ: `mysql:8`
@@ -82,7 +74,7 @@ docker compose up
 * `public`フォルダのコード変更で自動再ビルドとブラウザ更新
 * DBはコンテナ内部のみアクセス可能
 
-## バックエンド仕様
+## アプリケーション仕様
 
 ### 基本構成
 
@@ -90,6 +82,14 @@ docker compose up
 * **データベース**: MySQL（テスト用途のみ）
 * **データベースアクセス**: 生SQL（ORMは使用しない）
 * **ポート**: 30033（固定）
+* **フロントエンドビルドツール**: Vite
+* **フレームワーク**: 後日選定
+
+### アーキテクチャ
+
+* **統合サーバー**: `server.ts`単一ファイルにバックエンドAPIと静的ファイル配信の全ロジックを実装
+* **フロントエンド**: `public`フォルダ内のTypeScriptコードをViteでビルド
+* **バックエンド**: シンプルなAPIエンドポイント群を`server.ts`に直接実装（分割不要）
 
 ### API仕様管理
 
@@ -99,63 +99,43 @@ docker compose up
 
 ### 開発時ビルド
 
-* `ts-node-dev`による開発サーバー起動
-* ソースコード変更時の自動再起動
+* `ts-node-dev`による開発サーバー起動（`server.ts`）
+* バックエンドコード変更時の自動再起動
+* フロントエンドコード変更時のViteによる自動ビルドとブラウザ更新
+* 静的ファイルはExpressで配信
+
+### APIクライアント
+
+* TypeSpecから生成されたクライアントコードを`public/src/api/`に配置
+* 型安全なAPI通信を実現
 
 ### 本番ビルド
 
 * Multi-stage Dockerfileによる最適化
-* `npm ci && npm run build && npm prune --production`による軽量化
-
-## フロントエンド仕様
-
-### 基本構成
-
-* **言語**: TypeScript
-* **ビルドツール**: Vite
-* **フレームワーク**: 後日選定
-
-### APIクライアント
-
-* TypeSpecから生成されたクライアントコードを`src/api/`に配置
-* 型安全なAPI通信を実現
-
-### ホットリロード
-
-* Vite標準機能による`public`フォルダ変更の即時反映
-* ブラウザの自動更新
-
-### 本番ビルド
-
-* `npm run build`による静的ファイル生成
-* Nginx等での配信、またはNode.jsコンテナ内で`serve`による配信
+* フロントエンドの`npm run build`による静的ファイル生成
+* バックエンドの`npm ci && npm run build && npm prune --production`による軽量化
+* 単一コンテナで統合アプリケーションを実行
 
 ## 本番運用仕様
 
 ### コンテナビルド
 
-1. バックエンド用コンテナのビルド
+1. 統合アプリケーションコンテナのビルド
    ```bash
-   docker build -f backend/Dockerfile.prod -t yourrepo/er-viewer-backend:tag .
+   docker build -f Dockerfile.prod -t yourrepo/er-viewer:tag .
    ```
 
-2. フロントエンド用コンテナのビルド
+2. Docker Hubへの登録
    ```bash
-   docker build -f frontend/Dockerfile.prod -t yourrepo/er-viewer-frontend:tag .
-   ```
-
-3. Docker Hubへの登録
-   ```bash
-   docker push yourrepo/er-viewer-backend:tag
-   docker push yourrepo/er-viewer-frontend:tag
+   docker push yourrepo/er-viewer:tag
    ```
 
 ### エンドユーザーでの実行
 
 ```bash
-docker run -d --name er-viewer-backend \
+docker run -d --name er-viewer \
   -e DB_URL="mysql://user:pass@host:3306/db" \
-  -p 30033:30033 yourrepo/er-viewer-backend:tag
+  -p 30033:30033 yourrepo/er-viewer:tag
 ```
 
 ### データベース接続

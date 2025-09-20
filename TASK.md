@@ -1,120 +1,142 @@
-# ER Viewer リアーキテクチャタスク一覧
+# ER Viewer TypeScriptビルドツール移行タスク一覧
 
 ## 概要
 
-現在の実装と仕様書（`spec/rearchitecture_overview.md`）を比較した結果、大幅なリアーキテクチャが必要です。
-現在はJavaScript + Expressベースの構成ですが、仕様書ではTypeScript + Express + 統合サーバー構成への変更が定義されています。
+仕様書（`spec/rearchitecture_overview.md`）の更新により、TypeScriptビルドツールを以下のように変更する必要があります：
+- `ts-node-dev` → `tsx`（開発時実行）
+- 新規追加：`tsup`（本番ビルド）
+- 新規追加：`concurrently`（並列実行）
+- TypeScript設定の分離（`tsconfig.base.json`、`tsconfig.server.json`）
 
-## 開発環境構築タスク
+## 1. 依存関係の更新
 
-### サーバーサイド統合
+### 1.1 新しい依存関係の追加
+- [ ] **tsx、tsup、concurrentlyのインストール**
+  - `npm install -D tsx tsup concurrently`の実行
+  - 参照: `spec/rearchitecture_overview.md` L261
 
-- [x] **server.jsをserver.tsに変換**
-  - `server.js`を`server.ts`にリネーム・変換
-  - ES ModulesからCommonJSへの変更（仕様書では統合サーバーとして定義）
-  - TypeScriptの型定義を追加
-  - 参照: `spec/rearchitecture_overview.md` L24, L90-92
+### 1.2 古い依存関係の削除
+- [ ] **ts-node、ts-node-dev、nodemonの削除**
+  - `npm uninstall ts-node ts-node-dev nodemon`の実行
+  - package.jsonからの依存関係削除確認
+  - 参照: `spec/rearchitecture_overview.md` L265
 
-- [x] **TypeScript設定の調整**
-  - `tsconfig.json`を仕様書の構成に合わせて修正
-  - バックエンド・フロントエンド統合構成への変更
-  - 出力ディレクトリ設定の見直し
-  - 参照: `spec/rearchitecture_overview.md` L26
+## 2. package.json（ルート）の更新
 
-- [x] **package.jsonスクリプトの更新**
-  - `ts-node-dev --respawn server.ts`での開発サーバー起動に変更
-  - ビルドスクリプトの追加・修正
-  - 依存関係の追加（`ts-node-dev`等）
-  - 参照: `spec/rearchitecture_overview.md` L49, L102
+### 2.1 スクリプトの更新
+- [ ] **devスクリプトの変更**
+  - 現在: `NODE_ENV=development node --loader ts-node/esm server.ts`
+  - 変更後: `concurrently "tsx watch --clear-screen=false server.ts" "npm run --prefix public dev"`
+  - 参照: `spec/rearchitecture_overview.md` L274
 
-### フロントエンド構成変更
+- [ ] **buildスクリプトの変更**
+  - 現在: `node scripts/generate-build-info.js && echo 'Build completed'`
+  - 変更後: `tsup server.ts --format esm,cjs && npm run --prefix public build`
+  - 参照: `spec/rearchitecture_overview.md` L275
 
-- [x] **publicディレクトリ構成の変更**
-  - 現在の`public/js/`から`public/src/`構成への移行
-  - `public/src/components/`, `public/src/services/`, `public/src/api/`ディレクトリの作成
-  - 既存の`app-new.ts`の適切な場所への移動・拡張
-  - 参照: `spec/rearchitecture_overview.md` L29-36
+- [ ] **startスクリプトの変更**
+  - 現在: `node --loader ts-node/esm server.ts`
+  - 変更後: `node dist/server.js`
+  - 参照: `spec/rearchitecture_overview.md` L276
 
-- [x] **Vite設定の追加**
-  - `public/vite.config.ts`ファイルの作成
-  - TypeScriptビルド設定
-  - ホットリロード設定
-  - 参照: `spec/rearchitecture_overview.md` L36, L85, L104
+- [ ] **typecheckスクリプトの追加**
+  - `tsc -p tsconfig.server.json --noEmit && tsc -p public/tsconfig.json --noEmit`の追加
+  - 参照: `spec/rearchitecture_overview.md` L277
 
-- [x] **フロントエンド用package.jsonの作成**
-  - `public/package.json`の作成
-  - Vite関連の依存関係定義
-  - フロントエンド用ビルドスクリプト
-  - 参照: `spec/rearchitecture_overview.md` L34
+## 3. TypeScript設定の分離・最適化
 
-- [x] **フロントエンド用tsconfig.jsonの作成**
-  - `public/tsconfig.json`の作成
-  - フロントエンド専用のTypeScript設定
-  - 参照: `spec/rearchitecture_overview.md` L35
+### 3.1 tsconfig.base.json（新規作成）
+- [ ] **共通TypeScript設定ファイルの作成**
+  - ES2022、ESNext、bundlerモジュール解決の設定
+  - 厳密な型チェック設定
+  - パスエイリアス設定（`@/*`）
+  - 参照: `spec/rearchitecture_overview.md` L290-305
 
-### API仕様管理の導入
+### 3.2 tsconfig.server.json（新規作成）
+- [ ] **バックエンド用TypeScript設定の作成**
+  - `tsconfig.base.json`を継承
+  - サーバー専用の設定（outDir、rootDir、types）
+  - include/excludeの適切な設定
+  - 参照: `spec/rearchitecture_overview.md` L307-318
 
-- [x] **TypeSpec設定の追加**
-  - `api-spec/`ディレクトリの作成
-  - TypeSpec定義ファイル（`.tsp`）の作成
-  - 既存のAPIエンドポイントのTypeSpec定義
-  - 参照: `spec/rearchitecture_overview.md` L37-38, L94-98
+### 3.3 既存tsconfig.jsonの調整
+- [ ] **ルートtsconfig.jsonの削除または調整**
+  - 現在の統合設定から分離設定への移行
+  - 必要に応じて削除または簡素化
 
-- [x] **TypeSpecクライアント生成の設定**
-  - `tsp compile`コマンドの設定
-  - 生成されたクライアントコードの`public/src/api/`への配置設定
-  - 参照: `spec/rearchitecture_overview.md` L97-98, L107-110
+### 3.4 public/tsconfig.jsonの更新
+- [ ] **フロントエンド用TypeScript設定の更新**
+  - `../tsconfig.base.json`を継承
+  - フロントエンド専用設定の追加
+  - パスエイリアス設定の調整
+  - 参照: `spec/rearchitecture_overview.md` L320-336
 
-### Docker設定の更新
+## 4. Vite設定の更新
 
-- [x] **docker-compose.ymlの仕様書対応**
-  - 現在の構成から仕様書のapp + dbサービス構成への変更
-  - ポート設定の修正（30033:30033）
-  - ボリュームマウント設定の調整
-  - 参照: `spec/rearchitecture_overview.md` L45-66
+### 4.1 public/vite.config.tsの更新
+- [ ] **Docker環境対応設定の追加**
+  - `server.watch.usePolling: true`の設定
+  - `host: '0.0.0.0'`の設定
+  - ポート5173の明示的設定
+  - 参照: `spec/rearchitecture_overview.md` L338-350
 
-- [x] **Dockerfile.devの作成**
-  - 開発環境用Dockerfileの作成
-  - `node:20-alpine`ベースイメージ
-  - `ts-node-dev`での起動設定
-  - 参照: `spec/rearchitecture_overview.md` L27, L48
+## 5. Docker設定の更新
 
+### 5.1 docker-compose.ymlの更新
+- [ ] **コマンドの変更**
+  - 現在: デフォルト（CMD指定）
+  - 変更後: `["npm", "run", "dev"]`の明示的指定
+  - 参照: `spec/rearchitecture_overview.md` L367
 
-- [x] **.env.exampleファイルの作成**
-  - 環境変数のサンプルファイル作成
-  - DB接続設定等の定義
-  - 参照: `spec/rearchitecture_overview.md` L23
+- [ ] **develop.watchセクションの追加**
+  - Docker Compose v2.22+対応のwatch機能設定
+  - ファイル同期とignore設定
+  - 参照: `spec/rearchitecture_overview.md` L368-376
 
-### データベース設定の調整
+### 5.2 Dockerfile.devの調整確認
+- [ ] **開発環境Dockerfileの確認**
+  - 新しいnpmスクリプトとの互換性確認
+  - 必要に応じて調整
 
-- [x] **MySQL設定の仕様書対応**
-  - docker-compose.ymlのMySQL設定を内部ネットワークのみに変更
-  - 環境変数設定の調整
-  - 参照: `spec/rearchitecture_overview.md` L60-65
+## 6. 実装・テスト
 
-- [x] **DatabaseManagerの型定義追加**
-  - `lib/database.js`の`lib/database.ts`への変換
-  - TypeScript型定義の追加
-  - 生SQL継続の確認
+### 6.1 TypeScript型チェックの実行
+- [ ] **全ファイルの型エラー修正**
+  - `npm run typecheck`の実行
+  - 型エラーの修正
+  - 新しい設定での型チェック確認
 
-### ビルドシステムの整備
+### 6.2 開発環境ビルド確認
+- [ ] **開発環境での動作確認**
+  - `docker compose up`でのコンテナ起動確認
+  - フロントエンド・バックエンド並列起動の確認
+  - ホットリロード動作確認（tsx watch、vite）
 
-- [ ] **統合ビルドシステムの構築**
-  - フロントエンドViteビルドとバックエンドビルドの統合
-  - 静的ファイル配信の設定
-  - 参照: `spec/rearchitecture_overview.md` L100-105
+### 6.3 本番ビルド確認
+- [ ] **本番ビルドの確認**
+  - `npm run build`の実行確認
+  - tsupによるesbuildベースビルドの確認
+  - dist/ディレクトリの出力確認
+  - `npm start`での起動確認
 
-- [ ] **ホットリロード設定の更新**
-  - バックエンドコード変更時の自動再起動
-  - フロントエンドコード変更時の自動ビルド・ブラウザ更新
-  - 参照: `spec/rearchitecture_overview.md` L53-55, L104
+## 7. オプション機能（統合オプション）
 
-## 開発環境確認タスク
+### 7.1 vite-plugin-node導入の検討
+- [ ] **vite-plugin-nodeの評価**
+  - より統一的な開発環境の検討
+  - `vite-plugin-node`の依存関係追加
+  - プロジェクト直下vite.config.tsの作成
+  - 参照: `spec/rearchitecture_overview.md` L378-402
 
-- [ ] **TypeScript型チェックの実行**
-  - 全ファイルの型エラー修正
-  - `npm run typecheck`の実行確認
+## 注意事項
 
-- [ ] **開発環境ビルド確認**
-  - 開発環境ビルドの確認（`docker compose up`）
-  - ホットリロード動作確認
+- 現在のES Modules（`"type": "module"`）設定を維持
+- 既存の機能（API、DB接続等）に影響を与えないよう注意
+- 段階的な移行を行い、各ステップで動作確認を実施
+- 移行完了後、不要なファイル・設定の削除を実施
+
+## 参照
+
+- 仕様書: `spec/rearchitecture_overview.md`（L251-402: 移行手順）
+- 現在の設定: `package.json`, `tsconfig.json`, `public/tsconfig.json`
+- Docker設定: `docker-compose.yml`, `Dockerfile.dev`

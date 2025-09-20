@@ -48,13 +48,13 @@
     // パス設定
     "baseUrl": "./",
     "paths": {
-      "@/*": ["public/js/*"],
-      "@types/*": ["public/js/types/*"],
-      "@infrastructure/*": ["public/js/infrastructure/*"],
-      "@utils/*": ["public/js/utils/*"],
+      "@/*": ["public/src/*"],
+      "@types/*": ["public/src/types/*"],
+      "@infrastructure/*": ["public/src/infrastructure/*"],
+      "@utils/*": ["public/src/utils/*"],
       "@tests/*": ["tests/*"]
     }
   },
-  "include": ["public/js/**/*", "lib/**/*", "types/**/*", "tests/**/*", "server.js"],
-  "exclude": ["node_modules", "dist", "docker-data", "*.min.js", "**/*.spec.js", "public/js/**/*.min.js"]
+  "include": ["server.ts", "lib/**/*", "public/src/**/*", "types/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "docker-data", "*.min.js", "**/*.spec.js", "public/src/**/*.min.js"]
 }

@@ -1,16 +1,19 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const dotenv = require('dotenv');
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import path from 'path';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-const DatabaseManager = require('./lib/database.js');
+import DatabaseManager from './lib/database.js';
 
 dotenv.config();
 
-// __dirname is available in CommonJS
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port: number = parseInt(process.env.PORT || '30033', 10);
 
 app.use(cors());
 app.use(express.json());
@@ -22,7 +25,7 @@ app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();
 
-app.get('/api/er-data', async (req, res) => {
+app.get('/api/er-data', async (_req: Request, res: Response) => {
   try {
     res.status(404).json({ error: 'No ER data found' });
   } catch (error) {
@@ -31,7 +34,7 @@ app.get('/api/er-data', async (req, res) => {
   }
 });
 
-app.post('/api/reverse-engineer', async (req, res) => {
+app.post('/api/reverse-engineer', async (_req: Request, res: Response) => {
   try {
     await dbManager.connect();
     const newERData = await dbManager.generateERData();
@@ -44,7 +47,7 @@ app.post('/api/reverse-engineer', async (req, res) => {
   }
 });
 
-app.post('/api/layout', async (req, res) => {
+app.post('/api/layout', async (_req: Request, res: Response) => {
   try {
     res.json({ success: true });
   } catch (error) {
@@ -53,7 +56,7 @@ app.post('/api/layout', async (req, res) => {
   }
 });
 
-app.get('/api/layout', async (req, res) => {
+app.get('/api/layout', async (_req: Request, res: Response) => {
   try {
     res.json({
       entities: {},
@@ -67,7 +70,7 @@ app.get('/api/layout', async (req, res) => {
 });
 
 // Save all data (ER data and layout data)
-app.post('/api/data/all', async (req, res) => {
+app.post('/api/data/all', async (_req: Request, res: Response) => {
   try {
     res.json({ success: true });
   } catch (error) {
@@ -77,7 +80,7 @@ app.post('/api/data/all', async (req, res) => {
 });
 
 // Load all data (ER data and layout data)
-app.get('/api/data/all', async (req, res) => {
+app.get('/api/data/all', async (_req: Request, res: Response) => {
   try {
     res.json({
       erData: null,
@@ -93,7 +96,7 @@ app.get('/api/data/all', async (req, res) => {
   }
 });
 
-app.get('/api/table/:tableName/ddl', async (req, res) => {
+app.get('/api/table/:tableName/ddl', async (req: Request, res: Response) => {
   try {
     await dbManager.connect();
     const ddl = await dbManager.getTableDDL(req.params.tableName);
@@ -105,9 +108,8 @@ app.get('/api/table/:tableName/ddl', async (req, res) => {
   }
 });
 
-app.get('/api/build-info', async (req, res) => {
+app.get('/api/build-info', async (_req: Request, res: Response) => {
   try {
-    const fs = require('fs');
     const buildInfoPath = path.join(__dirname, 'build-info.json');
 
     if (fs.existsSync(buildInfoPath)) {
@@ -140,7 +142,7 @@ app.get('/api/build-info', async (req, res) => {
 
 
 
-app.get('/', (req, res) => {
+app.get('/', (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -150,15 +152,14 @@ app.listen(port, async () => {
   // Setup livereload in development mode
   if (process.env.NODE_ENV === 'development') {
     try {
-      const livereload = require('livereload');
-      const chokidar = require('chokidar');
+      const livereloadModule = await import('livereload');
+      const chokidarModule = await import('chokidar');
+      const livereload = livereloadModule.default;
+      const chokidar = chokidarModule.default;
 
       const liveReloadServer = livereload.createServer({
         port: 35729,
-        host: '0.0.0.0',
         exts: ['html', 'css', 'js'],
-        applyJSLive: true,
-        applyCSSLive: true,
       });
 
       // Watch public directory for changes
@@ -177,7 +178,7 @@ app.listen(port, async () => {
 
       console.log('LiveReload server running on port 35729');
     } catch (error) {
-      console.warn('LiveReload setup failed:', error.message);
+      console.warn('LiveReload setup failed:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 });

@@ -9,19 +9,19 @@
 
 ### サーバーサイド統合
 
-- [ ] **server.jsをserver.tsに変換**
+- [x] **server.jsをserver.tsに変換**
   - `server.js`を`server.ts`にリネーム・変換
   - ES ModulesからCommonJSへの変更（仕様書では統合サーバーとして定義）
   - TypeScriptの型定義を追加
   - 参照: `spec/rearchitecture_overview.md` L24, L90-92
 
-- [ ] **TypeScript設定の調整**
+- [x] **TypeScript設定の調整**
   - `tsconfig.json`を仕様書の構成に合わせて修正
   - バックエンド・フロントエンド統合構成への変更
   - 出力ディレクトリ設定の見直し
   - 参照: `spec/rearchitecture_overview.md` L26
 
-- [ ] **package.jsonスクリプトの更新**
+- [x] **package.jsonスクリプトの更新**
   - `ts-node-dev --respawn server.ts`での開発サーバー起動に変更
   - ビルドスクリプトの追加・修正
   - 依存関係の追加（`ts-node-dev`等）

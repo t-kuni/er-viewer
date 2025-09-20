@@ -114,27 +114,9 @@ main {
 }
 
 .entity.highlighted {
-  filter: drop-shadow(0 0 20px #e74c3c) drop-shadow(0 0 35px rgba(231, 76, 60, 0.6))
-    drop-shadow(0 0 50px rgba(231, 76, 60, 0.3));
-  transition: filter 0.2s ease-in-out;
-  animation: glow-entity 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes glow-entity {
-  0% {
-    filter: drop-shadow(0 0 20px #e74c3c) drop-shadow(0 0 35px rgba(231, 76, 60, 0.6))
-      drop-shadow(0 0 50px rgba(231, 76, 60, 0.3));
-  }
-  100% {
-    filter: drop-shadow(0 0 25px #e74c3c) drop-shadow(0 0 45px rgba(231, 76, 60, 0.8))
-      drop-shadow(0 0 65px rgba(231, 76, 60, 0.4));
-  }
 }
 
 .entity.highlighted-related {
-  filter: drop-shadow(0 0 12px #3498db) drop-shadow(0 0 20px rgba(52, 152, 219, 0.5));
-  transition: filter 0.2s ease-in-out;
-  animation: glow-related-entity 1.8s ease-in-out infinite alternate;
 }
 
 .entity.dragging {
@@ -142,15 +124,6 @@ main {
   opacity: 0.8;
   cursor: grabbing;
   z-index: 1000;
-}
-
-@keyframes glow-related-entity {
-  0% {
-    filter: drop-shadow(0 0 12px #3498db) drop-shadow(0 0 20px rgba(52, 152, 219, 0.5));
-  }
-  100% {
-    filter: drop-shadow(0 0 16px #3498db) drop-shadow(0 0 28px rgba(52, 152, 219, 0.7));
-  }
 }
 
 .entity-rect {
@@ -217,11 +190,6 @@ main {
 }
 
 .relationship.highlighted {
-  stroke: #e74c3c;
-  stroke-width: 4;
-  filter: drop-shadow(0 0 10px rgba(231, 76, 60, 0.7));
-  stroke-dasharray: none;
-  animation: pulse-line 1.5s ease-in-out infinite alternate;
 }
 
 @keyframes pulse-line {

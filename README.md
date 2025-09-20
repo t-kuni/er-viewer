@@ -78,7 +78,7 @@ npm install
 
 ```bash
 # Docker Composeで起動
-docker-compose up -d
+docker compose up -d
 
 # ブラウザでアクセス
 open http://localhost:30033

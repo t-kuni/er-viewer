@@ -54,45 +54,45 @@
 
 ### API仕様管理の導入
 
-- [ ] **TypeSpec設定の追加**
+- [x] **TypeSpec設定の追加**
   - `api-spec/`ディレクトリの作成
   - TypeSpec定義ファイル（`.tsp`）の作成
   - 既存のAPIエンドポイントのTypeSpec定義
   - 参照: `spec/rearchitecture_overview.md` L37-38, L94-98
 
-- [ ] **TypeSpecクライアント生成の設定**
+- [x] **TypeSpecクライアント生成の設定**
   - `tsp compile`コマンドの設定
   - 生成されたクライアントコードの`public/src/api/`への配置設定
   - 参照: `spec/rearchitecture_overview.md` L97-98, L107-110
 
 ### Docker設定の更新
 
-- [ ] **docker-compose.ymlの仕様書対応**
+- [x] **docker-compose.ymlの仕様書対応**
   - 現在の構成から仕様書のapp + dbサービス構成への変更
   - ポート設定の修正（30033:30033）
   - ボリュームマウント設定の調整
   - 参照: `spec/rearchitecture_overview.md` L45-66
 
-- [ ] **Dockerfile.devの作成**
+- [x] **Dockerfile.devの作成**
   - 開発環境用Dockerfileの作成
   - `node:20-alpine`ベースイメージ
   - `ts-node-dev`での起動設定
   - 参照: `spec/rearchitecture_overview.md` L27, L48
 
 
-- [ ] **.env.exampleファイルの作成**
+- [x] **.env.exampleファイルの作成**
   - 環境変数のサンプルファイル作成
   - DB接続設定等の定義
   - 参照: `spec/rearchitecture_overview.md` L23
 
 ### データベース設定の調整
 
-- [ ] **MySQL設定の仕様書対応**
+- [x] **MySQL設定の仕様書対応**
   - docker-compose.ymlのMySQL設定を内部ネットワークのみに変更
   - 環境変数設定の調整
   - 参照: `spec/rearchitecture_overview.md` L60-65
 
-- [ ] **DatabaseManagerの型定義追加**
+- [x] **DatabaseManagerの型定義追加**
   - `lib/database.js`の`lib/database.ts`への変換
   - TypeScript型定義の追加
   - 生SQL継続の確認

@@ -1,12 +1,13 @@
 services:
-  er-viewer:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     ports:
-      - "30033:3000"
-      - "35729:35729"
+      - "30033:30033"
     environment:
       - NODE_ENV=development
-      - DB_HOST=mysql
+      - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=${DB_USER:-root}
       - DB_PASSWORD=${DB_PASSWORD:-password}
@@ -15,11 +16,11 @@ services:
       - ./:/app
       - /app/node_modules
     depends_on:
-      - mysql
+      - db
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8.0
+  db:
+    image: mysql:8
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
       MYSQL_DATABASE: ${DB_NAME:-test}

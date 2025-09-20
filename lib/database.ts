@@ -1,19 +1,67 @@
 import mysql from 'mysql2/promise';
 
+interface DatabaseConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+}
+
+interface ColumnInfo {
+  name: string;
+  type: string;
+  nullable: boolean;
+  key: string;
+  default: any;
+  extra: string;
+}
+
+interface ForeignKeyInfo {
+  column: string;
+  referencedTable: string;
+  referencedColumn: string;
+  constraintName: string;
+}
+
+interface EntityInfo {
+  name: string;
+  columns: ColumnInfo[];
+  foreignKeys: ForeignKeyInfo[];
+  ddl: string;
+}
+
+interface RelationshipInfo {
+  from: string;
+  fromColumn: string;
+  to: string;
+  toColumn: string;
+  constraintName: string;
+}
+
+interface ERData {
+  entities: EntityInfo[];
+  relationships: RelationshipInfo[];
+}
+
 class DatabaseManager {
+  private connection: mysql.Connection | null;
+
   constructor() {
     this.connection = null;
   }
 
-  async connect() {
+  async connect(): Promise<void> {
     try {
-      this.connection = await mysql.createConnection({
+      const config: DatabaseConfig = {
         host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 3306,
+        port: parseInt(process.env.DB_PORT || '3306'),
         user: process.env.DB_USER || 'root',
         password: process.env.DB_PASSWORD || 'password',
         database: process.env.DB_NAME || 'test',
-      });
+      };
+
+      this.connection = await mysql.createConnection(config);
       console.log('Connected to MySQL database');
     } catch (error) {
       console.error('Database connection failed:', error);
@@ -21,21 +69,29 @@ class DatabaseManager {
     }
   }
 
-  async disconnect() {
+  async disconnect(): Promise<void> {
     if (this.connection) {
       await this.connection.end();
       this.connection = null;
     }
   }
 
-  async getTables() {
+  async getTables(): Promise<string[]> {
+    if (!this.connection) {
+      throw new Error('Database not connected');
+    }
+
     const [rows] = await this.connection.execute('SHOW TABLES');
-    return rows.map((row) => Object.values(row)[0]);
+    return (rows as any[]).map((row) => Object.values(row)[0] as string);
   }
 
-  async getTableColumns(tableName) {
+  async getTableColumns(tableName: string): Promise<ColumnInfo[]> {
+    if (!this.connection) {
+      throw new Error('Database not connected');
+    }
+
     const [rows] = await this.connection.execute(`SHOW COLUMNS FROM \`${tableName.replace(/`/g, '``')}\``);
-    return rows.map((row) => ({
+    return (rows as any[]).map((row) => ({
       name: row.Field,
       type: row.Type,
       nullable: row.Null === 'YES',
@@ -45,7 +101,11 @@ class DatabaseManager {
     }));
   }
 
-  async getForeignKeys(tableName) {
+  async getForeignKeys(tableName: string): Promise<ForeignKeyInfo[]> {
+    if (!this.connection) {
+      throw new Error('Database not connected');
+    }
+
     const [rows] = await this.connection.execute(
       `
             SELECT 
@@ -61,7 +121,7 @@ class DatabaseManager {
       [process.env.DB_NAME || 'test', tableName],
     );
 
-    return rows.map((row) => ({
+    return (rows as any[]).map((row) => ({
       column: row.COLUMN_NAME,
       referencedTable: row.REFERENCED_TABLE_NAME,
       referencedColumn: row.REFERENCED_COLUMN_NAME,
@@ -69,14 +129,18 @@ class DatabaseManager {
     }));
   }
 
-  async getTableDDL(tableName) {
+  async getTableDDL(tableName: string): Promise<string> {
+    if (!this.connection) {
+      throw new Error('Database not connected');
+    }
+
     const [rows] = await this.connection.execute(`SHOW CREATE TABLE \`${tableName.replace(/`/g, '``')}\``);
-    return rows[0]['Create Table'];
+    return (rows as any[])[0]['Create Table'];
   }
 
-  async generateERData() {
+  async generateERData(): Promise<ERData> {
     const tables = await this.getTables();
-    const erData = {
+    const erData: ERData = {
       entities: [],
       relationships: [],
     };
@@ -109,3 +173,4 @@ class DatabaseManager {
 }
 
 export default DatabaseManager;
+export type { DatabaseConfig, ColumnInfo, ForeignKeyInfo, EntityInfo, RelationshipInfo, ERData };

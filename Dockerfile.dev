@@ -10,11 +10,15 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
+RUN npm install -g concurrently tsx
 
 # Copy source code
 COPY . .
 
-EXPOSE 30033
+# Install frontend dependencies
+RUN cd public && npm install
+
+EXPOSE 30033 5173
 
 # Use npm run dev for development with hot reload
 CMD ["npm", "run", "dev"]

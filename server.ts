@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-import DatabaseManager from './lib/database.ts';
+import DatabaseManager from './lib/database';
 
 dotenv.config();
 

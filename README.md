@@ -119,6 +119,14 @@ docker build -t tkuni83/er-viewer .
 docker push tkuni83/er-viewer
 ```
 
+## 仕様検討プロンプト
+
+```
+以下を満たせる仕様を検討してください
+
+* 達成したいこと
+```
+
 ## バグの原因調査プロンプト
 
 ```

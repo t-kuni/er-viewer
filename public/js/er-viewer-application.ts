@@ -224,7 +224,6 @@ export class ERViewerApplication {
     // Setup resize handler
     this.setupResizeHandler();
 
-    this.infra.browserAPI.log('ER Viewer application initialized successfully');
   }
 
   /**
@@ -323,7 +322,6 @@ export class ERViewerApplication {
    */
   public async loadERData(): Promise<void> {
     try {
-      this.infra.browserAPI.log('Loading ER data...');
       this.setState({ loading: true, error: null });
 
       const erData = await this.infra.network.getJSON<ERData>('/api/er-data');
@@ -332,7 +330,6 @@ export class ERViewerApplication {
         layoutData: erData.layout || { entities: {}, rectangles: [], texts: [], layers: [] },
       });
 
-      this.infra.browserAPI.log('ER data loaded successfully:', erData);
     } catch (error) {
       this.infra.browserAPI.error('Error loading ER data:', error);
       this.setState({ error: error instanceof Error ? error.message : String(error) });
@@ -777,15 +774,12 @@ export class ERViewerApplication {
    */
   private renderRelationships(): void {
     if (!this.state.erData?.relationships) {
-      this.infra.browserAPI.log('No relationships to render');
       return;
     }
 
-    this.infra.browserAPI.log('Rendering relationships:', this.state.erData.relationships.length);
 
     const dynamicLayer = this.infra.dom.getElementById('dynamic-layer');
     if (!dynamicLayer) {
-      this.infra.browserAPI.log('Dynamic layer not found');
       return;
     }
 
@@ -802,12 +796,10 @@ export class ERViewerApplication {
     this.infra.dom.setAttribute(relationshipsGroup, 'class', 'relationships');
 
     this.state.erData.relationships.forEach((relationship) => {
-      this.infra.browserAPI.log('Creating path for relationship:', relationship.from, '->', relationship.to);
       const path = this.createRelationshipPath(relationship);
       if (path) {
         this.infra.dom.appendChild(relationshipsGroup, path);
       } else {
-        this.infra.browserAPI.log('Failed to create path for:', relationship.from, '->', relationship.to);
       }
     });
 
@@ -835,7 +827,6 @@ export class ERViewerApplication {
     const toBounds = this.state.entityBounds.get(relationship.to);
 
     if (!fromBounds || !toBounds) {
-      this.infra.browserAPI.log('Missing bounds for:', relationship.from, fromBounds, relationship.to, toBounds);
       return null;
     }
 
@@ -1509,24 +1500,18 @@ export class ERViewerApplication {
    */
   private handleCanvasClick(event: MouseEvent): void {
     const target = event.target as Element;
-    this.infra.browserAPI.log('handleCanvasClick called with target:', target);
 
     // Check if clicking on entity
     const entity = this.infra.dom.closest(target, '.entity');
-    this.infra.browserAPI.log('Entity found:', entity);
 
     if (entity) {
       const tableName = this.infra.dom.getAttribute(entity, 'data-table-name');
-      this.infra.browserAPI.log('Table name from entity:', tableName);
 
       if (tableName !== null && tableName !== undefined && tableName !== '') {
-        this.infra.browserAPI.log('Calling showTableDetails with tableName:', tableName);
         this.showTableDetails(tableName);
       } else {
-        this.infra.browserAPI.log('No table name found on entity');
       }
     } else {
-      this.infra.browserAPI.log('No entity found - clicked on background or other element');
     }
   }
 
@@ -1614,12 +1599,10 @@ export class ERViewerApplication {
    */
   private async showTableDetails(tableName: string): Promise<void> {
     try {
-      this.infra.browserAPI.log('showTableDetails called with tableName:', tableName);
       const response = await this.infra.network.fetch(`/api/table/${tableName}/ddl`);
 
       if (response.ok) {
         const data = (await response.json()) as { ddl: string };
-        this.infra.browserAPI.log('DDL data received:', data);
         this.showSidebar(tableName, data.ddl);
       } else {
         this.infra.browserAPI.error('Failed to fetch DDL:', response.status, response.statusText);
@@ -1789,7 +1772,6 @@ export class ERViewerApplication {
       this.layerManager.addRectangleLayer(newLayoutData.rectangles.length);
     }
 
-    this.infra.browserAPI.log('Rectangle added at:', x, y);
   }
 
   /**
@@ -1916,7 +1898,6 @@ export class ERViewerApplication {
    * Reverse engineer database
    */
   private async reverseEngineer(): Promise<void> {
-    this.infra.browserAPI.log('Starting reverse engineering...');
     this.showLoading('リバースエンジニアリング中...');
 
     try {
@@ -2253,7 +2234,6 @@ export class ERViewerApplication {
     }
     
     this.infra.dom.addEventListener(this.infra.dom.getDocumentElement(), 'layerOrderChanged', (e: CustomEvent<LayerOrderChangedDetail>) => {
-      this.infra.browserAPI.log('Layer order changed:', e.detail);
       // Handle both possible property names for backward compatibility
       const layers = e.detail?.layers ?? e.detail?.layerOrder;
       if (layers !== null && layers !== undefined) {
@@ -2291,14 +2271,12 @@ export class ERViewerApplication {
         this.setState({ 
           leftSidebarState: { ...this.state.leftSidebarState, visible: true } 
         });
-        this.infra.browserAPI.log('Layer sidebar expanded');
       } else {
         // Collapse
         this.infra.dom.addClass(layerSidebar, 'collapsed');
         this.setState({ 
           leftSidebarState: { ...this.state.leftSidebarState, visible: false } 
         });
-        this.infra.browserAPI.log('Layer sidebar collapsed');
       }
     });
 
@@ -2353,7 +2331,6 @@ export class ERViewerApplication {
         this.infra.dom.removeClass(resizeHandle, 'dragging');
         this.infra.dom.setStyles(document.body as any as Element, { cursor: '' });
         
-        this.infra.browserAPI.log(`Layer sidebar resized to ${newWidth}px`);
       });
     }
   }

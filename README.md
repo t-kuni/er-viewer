@@ -118,3 +118,20 @@ claude --max-turns 1000 --dangerously-skip-permissions --mcp-config mcp-servers.
 docker build -t tkuni83/er-viewer .
 docker push tkuni83/er-viewer
 ```
+
+## バグの原因調査プロンプト
+
+```
+以下のバグの原因を調査してください
+
+* バグの挙動
+```
+
+## 開発者ツールで任意の要素をホバー状態にする方法
+
+Elementsタブで任意の要素を選択した状態でConsoleタブで以下のコードを実行する
+
+```javascript
+allow paste
+$0.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+```

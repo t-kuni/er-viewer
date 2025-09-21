@@ -1,0 +1,139 @@
+title: diagram
+x-stoplight:
+  id: 5qm77twl916rx
+type: object
+properties:
+  dbms:
+    type: string
+    x-stoplight:
+      id: n0wo8qs6bs0g3
+  entities:
+    type: array
+    x-stoplight:
+      id: dew6c32v5nqa4
+    items:
+      x-stoplight:
+        id: 9ctmaj9sihrwp
+      type: object
+      properties:
+        id:
+          type: string
+          x-stoplight:
+            id: zcqrllfyogaxm
+          format: uuid
+        name:
+          type: string
+          x-stoplight:
+            id: wynei92cbwg56
+        attributes:
+          type: array
+          x-stoplight:
+            id: nfa4q9atv0tw1
+          items:
+            x-stoplight:
+              id: esvg3yi254fvd
+            type: object
+            properties:
+              id:
+                type: string
+                x-stoplight:
+                  id: 58j42fhg5jh9l
+                format: uuid
+              name:
+                type: string
+                x-stoplight:
+                  id: jk2nwfg6j37zb
+            required:
+              - id
+              - name
+        position:
+          type: object
+          x-stoplight:
+            id: akwehfmh7xf8c
+          required:
+            - x
+            - 'y'
+          properties:
+            x:
+              type: integer
+              x-stoplight:
+                id: b9j14qhrz5b1s
+            'y':
+              type: integer
+              x-stoplight:
+                id: 3et11zm9ys044
+        ddl:
+          type: string
+          x-stoplight:
+            id: 3690d6zaiyt9b
+      required:
+        - id
+        - name
+        - attributes
+        - position
+        - ddl
+  relations:
+    type: array
+    x-stoplight:
+      id: zctrvff7qnw07
+    items:
+      x-stoplight:
+        id: i86qpwp23m0uk
+      type: object
+      properties:
+        srcEntityId:
+          type: string
+          x-stoplight:
+            id: y5v2xhugzbxw1
+        from:
+          type: object
+          x-stoplight:
+            id: 2h143omi6iwo7
+          required:
+            - entityId
+            - attributeIDs
+          properties:
+            entityId:
+              type: string
+              x-stoplight:
+                id: 3m2nc44o5krch
+              format: uuid
+            attributeIDs:
+              type: array
+              x-stoplight:
+                id: nd6edxxvpc8cv
+              items:
+                x-stoplight:
+                  id: y6uj07y2dt2nf
+                type: string
+                format: uuid
+        to:
+          type: object
+          x-stoplight:
+            id: 2h143omi6iwo7
+          required:
+            - entityId
+            - attributeIDs
+          properties:
+            entityId:
+              type: string
+              x-stoplight:
+                id: 3m2nc44o5krch
+              format: uuid
+            attributeIDs:
+              type: array
+              x-stoplight:
+                id: nd6edxxvpc8cv
+              items:
+                x-stoplight:
+                  id: y6uj07y2dt2nf
+                type: string
+                format: uuid
+      required:
+        - srcEntityId
+        - from
+        - to
+required:
+  - dbms
+  - entities
+  - relations

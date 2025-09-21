@@ -1,0 +1,188 @@
+title: canvas
+x-stoplight:
+  id: 0tsk7z5bd2nps
+type: object
+properties:
+  objects:
+    type: array
+    x-stoplight:
+      id: 4ij9nl15qtblk
+    items:
+      x-stoplight:
+        id: h8su2hhqhcuzo
+      type: object
+      properties:
+        id:
+          type: string
+          x-stoplight:
+            id: shqcc973cd0b5
+          format: uuid
+        type:
+          type: string
+          x-stoplight:
+            id: dawv06ijiq3y3
+          enum:
+            - diagram
+            - text
+            - rectangle
+        text:
+          type: object
+          x-stoplight:
+            id: fe1il8kwbsrz1
+          properties:
+            id:
+              type: string
+              x-stoplight:
+                id: v84wfraht1yya
+              format: uuid
+            content:
+              type: string
+              x-stoplight:
+                id: lqm7a66uimohu
+            position:
+              type: object
+              x-stoplight:
+                id: e7k1zctvz5x7o
+              required:
+                - x
+                - 'y'
+              properties:
+                x:
+                  type: integer
+                  x-stoplight:
+                    id: n1k96zi8ize8n
+                'y':
+                  type: integer
+                  x-stoplight:
+                    id: xhh2xc63vjlcr
+            color:
+              type: string
+              x-stoplight:
+                id: fubl6x64fo5zy
+              pattern: '^[A-F]{6}$'
+            opacity:
+              type: number
+              x-stoplight:
+                id: p01rcs4j016me
+              minimum: 0
+              maximum: 1
+            size:
+              type: integer
+              x-stoplight:
+                id: tgp2b1qugejfm
+          required:
+            - id
+            - content
+            - position
+            - color
+            - opacity
+            - size
+        rectangle:
+          type: object
+          x-stoplight:
+            id: fe1il8kwbsrz1
+          properties:
+            id:
+              type: string
+              x-stoplight:
+                id: v84wfraht1yya
+              format: uuid
+            position:
+              type: object
+              x-stoplight:
+                id: e7k1zctvz5x7o
+              required:
+                - x
+                - 'y'
+              properties:
+                x:
+                  type: integer
+                  x-stoplight:
+                    id: n1k96zi8ize8n
+                'y':
+                  type: integer
+                  x-stoplight:
+                    id: xhh2xc63vjlcr
+            color:
+              type: string
+              x-stoplight:
+                id: fubl6x64fo5zy
+              pattern: '^[A-F]{6}$'
+            opacity:
+              type: number
+              x-stoplight:
+                id: zwthh6vfvvf0o
+              minimum: 0
+              maximum: 1
+            size:
+              type: object
+              x-stoplight:
+                id: nbaltr9kynvvm
+              required:
+                - width
+                - height
+              properties:
+                width:
+                  type: integer
+                  x-stoplight:
+                    id: 7xgyl7adi4bvw
+                height:
+                  type: integer
+                  x-stoplight:
+                    id: brsw14ad81tw8
+            background:
+              type: object
+              x-stoplight:
+                id: 6zymirtnlgkbl
+              required:
+                - color
+                - opacity
+              properties:
+                color:
+                  type: string
+                  x-stoplight:
+                    id: 1dvpr938r0p8k
+                  pattern: '^[A-F]{6}$'
+                opacity:
+                  type: number
+                  x-stoplight:
+                    id: jnn3p8q6h3jcc
+                  minimum: 0
+                  maximum: 1
+            border:
+              type: object
+              x-stoplight:
+                id: zoinxdqwpixke
+              required:
+                - width
+                - color
+                - opacity
+              properties:
+                width:
+                  type: integer
+                  x-stoplight:
+                    id: lzqrvsdn7u16q
+                color:
+                  type: string
+                  x-stoplight:
+                    id: uki63demmoikx
+                  pattern: '^[A-F]{6}$'
+                opacity:
+                  type: number
+                  x-stoplight:
+                    id: eei8i1hwi62yk
+                  minimum: 0
+                  maximum: 1
+          required:
+            - id
+            - position
+            - color
+            - opacity
+            - size
+            - background
+            - border
+      required:
+        - id
+        - type
+required:
+  - objects

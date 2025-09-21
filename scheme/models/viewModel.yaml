@@ -1,0 +1,42 @@
+title: viewModel
+x-stoplight:
+  id: cjz0gl8hj9x7i
+type: object
+properties:
+  canvas:
+    $ref: ./canvas.yaml
+    x-stoplight:
+      id: kmrxjzum3rk8i
+  diagram:
+    $ref: ./diagram.yaml
+    x-stoplight:
+      id: yqeg5tyne7k3t
+  highlightObjects:
+    type: array
+    x-stoplight:
+      id: b8rcexzdjn2kv
+    description: マウスがホバーされ、強調表示するobjectを表す
+    items:
+      x-stoplight:
+        id: 33s2kwx4gj1ee
+      type: object
+      properties:
+        type:
+          type: string
+          x-stoplight:
+            id: dos3inshrcrtr
+          enum:
+            - entity
+            - relation
+        targetId:
+          type: string
+          x-stoplight:
+            id: udxm6bt479qmm
+          format: uuid
+      required:
+        - type
+        - targetId
+required:
+  - canvas
+  - diagram
+  - highlightObjects

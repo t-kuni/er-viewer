@@ -28,6 +28,7 @@ properties:
           enum:
             - entity
             - relation
+            - attoribute
         targetId:
           type: string
           x-stoplight:

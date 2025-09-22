@@ -22,10 +22,7 @@
     "test:quality": "node .github/scripts/check-test-rules.js",
     "test:lint": "eslint --ext .js,.ts --config .eslintrc.test.js tests/**/*.test.*",
     "test:all": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run test:quality",
-    "spec:compile": "tsp compile ./api-spec && npm run spec:copy",
-    "spec:copy": "cp ./api-spec/public/src/api/openapi/openapi.yaml ./public/src/api/openapi/",
-    "spec:watch": "tsp compile ./api-spec --watch",
-    "spec:init": "tsp init",
+    "generate": "npx tsp compile scheme/main.tsp && npx openapi-typescript-codegen --input scheme/openapi.yaml --output public/src/api/client",
     "prepare": "husky install"
   },
   "dependencies": {

@@ -23,11 +23,17 @@ RDBからER図をリバースエンジニアリングし、ブラウザ上で視
 ```bash
 # 直前のコミットの差分確認
 git add -A && GIT_PAGER=cat git diff HEAD
+
+# コード生成（ビルドの前に実行すること）
+npm run generate
 ```
 
 # アーキテクチャ概要
 
 * `public`
   * フロントのコードが格納されている
-* 
+* `spec`
+  * 仕様書が格納されています
+* `scheme`
+  * APIのスキーマやJSON-Schemeが格納されています
 

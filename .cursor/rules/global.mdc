@@ -37,3 +37,4 @@ npm run generate
 * `scheme`
   * APIのスキーマやJSON-Schemeが格納されています
 
+[spec/rearchitecture_overview.md](spec/rearchitecture_overview.md) にもアーキテクチャの説明あり。

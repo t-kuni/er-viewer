@@ -1190,3 +1190,21 @@ svg:has(.highlighted) .relationship:not(.highlighted) {
   font-weight: 600;
   margin-right: 0.5rem;
 }
+
+/* Error Message Styles */
+.error-message {
+  background-color: #fee;
+  border: 1px solid #e74c3c;
+  border-radius: 4px;
+  padding: 1rem;
+  color: #c0392b;
+}
+
+.error-message p {
+  margin: 0.5rem 0;
+}
+
+.error-message p:first-child {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}

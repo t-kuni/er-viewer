@@ -1,47 +1,90 @@
-console.log("Init")
+import { DefaultService } from './api/client';
+import type { BuildInfo } from './api/client';
 
-// TypeScript機能のテスト
-interface TestInterface {
-  message: string;
-  timestamp: Date;
+// DOM要素の取得
+const buildInfoBtn = document.getElementById('build-info') as HTMLButtonElement;
+const buildInfoModal = document.getElementById('build-info-modal') as HTMLDivElement;
+const buildInfoContent = document.getElementById('build-info-content') as HTMLDivElement;
+const closeBuildInfoBtn = document.getElementById('close-build-info') as HTMLButtonElement;
+
+// ビルド情報をHTML形式に整形
+function formatBuildInfo(buildInfo: BuildInfo): string {
+  return `
+    <div class="build-info-details">
+      <div class="build-info-item">
+        <strong>アプリケーション名:</strong>
+        <span>${buildInfo.name}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>バージョン:</strong>
+        <span>${buildInfo.version}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>ビルド日時:</strong>
+        <span>${buildInfo.buildDate}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>ビルドタイムスタンプ:</strong>
+        <span>${buildInfo.buildTime}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>Git コミット:</strong>
+        <span>${buildInfo.git.commit}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>Git ブランチ:</strong>
+        <span>${buildInfo.git.branch}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>Git タグ:</strong>
+        <span>${buildInfo.git.tag || '(なし)'}</span>
+      </div>
+      <div class="build-info-item">
+        <strong>Git 状態:</strong>
+        <span>${buildInfo.git.dirty ? '変更あり' : 'クリーン'}</span>
+      </div>
+    </div>
+  `;
 }
 
-class TestClass {
-  private data: TestInterface;
-  
-  constructor(message: string) {
-    this.data = {
-      message,
-      timestamp: new Date()
-    };
-  }
-  
-  public display(): void {
-    console.log("TypeScript読み込み成功:", this.data);
+// ビルド情報を取得して表示
+async function loadBuildInfo(): Promise<void> {
+  try {
+    buildInfoContent.innerHTML = '<p>ビルド情報を読み込み中...</p>';
     
-    // DOM操作のテスト
-    const app = document.getElementById('app');
-    if (app) {
-      const testDiv = document.createElement('div');
-      testDiv.style.position = 'fixed';
-      testDiv.style.top = '10px';
-      testDiv.style.right = '10px';
-      testDiv.style.background = '#4CAF50';
-      testDiv.style.color = 'white';
-      testDiv.style.padding = '10px';
-      testDiv.style.borderRadius = '5px';
-      testDiv.style.zIndex = '9999';
-      testDiv.textContent = `TS読み込み成功: ${this.data.message}`;
-      app.appendChild(testDiv);
-      
-      // 3秒後に削除
-      setTimeout(() => {
-        testDiv.remove();
-      }, 3000);
-    }
+    const buildInfo = await DefaultService.apiGetBuildInfo();
+    buildInfoContent.innerHTML = formatBuildInfo(buildInfo);
+  } catch (error) {
+    console.error('ビルド情報の取得に失敗しました:', error);
+    buildInfoContent.innerHTML = `
+      <div class="error-message">
+        <p>ビルド情報の取得に失敗しました。</p>
+        <p>エラー: ${error instanceof Error ? error.message : String(error)}</p>
+      </div>
+    `;
   }
 }
 
-// 実行
-const test = new TestClass("フロントエンドTypeScript動作中");
-test.display();
+// モーダルを表示
+function showBuildInfoModal(): void {
+  buildInfoModal.style.display = 'block';
+  loadBuildInfo();
+}
+
+// モーダルを非表示
+function hideBuildInfoModal(): void {
+  buildInfoModal.style.display = 'none';
+}
+
+// イベントリスナーの設定
+buildInfoBtn.addEventListener('click', showBuildInfoModal);
+closeBuildInfoBtn.addEventListener('click', hideBuildInfoModal);
+
+// モーダル外をクリックしたら閉じる
+buildInfoModal.addEventListener('click', (event) => {
+  if (event.target === buildInfoModal) {
+    hideBuildInfoModal();
+  }
+});
+
+console.log('ER Diagram Viewer initialized');

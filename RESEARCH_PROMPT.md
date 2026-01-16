@@ -33,7 +33,7 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 │   └── database.ts             # データベース管理
 ├── public/                     # フロントエンドコード
 │   ├── src/
-│   │   ├── app-new.ts         # フロントエンドメイン
+│   │   ├── app.ts             # フロントエンドメイン
 │   │   ├── components/        # UIコンポーネント
 │   │   └── services/          # フロントサービス
 │   ├── index.html

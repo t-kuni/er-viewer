@@ -87,12 +87,6 @@ model LayoutData {
   texts: Text[];
 }
 
-// Combined data model
-model AllData {
-  erData: ERData | null;
-  layoutData: LayoutData;
-}
-
 // DDL response model
 model DDLResponse {
   ddl: string;
@@ -144,16 +138,6 @@ namespace API {
   @get
   @route("/layout")
   op getLayout(): LayoutData | ErrorResponse;
-
-  // Save all data (ER + layout)
-  @post
-  @route("/data/all")
-  op saveAllData(@body allData: AllData): SuccessResponse | ErrorResponse;
-
-  // Get all data (ER + layout)
-  @get
-  @route("/data/all")
-  op getAllData(): AllData | ErrorResponse;
 
   // Get table DDL
   @get

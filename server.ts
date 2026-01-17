@@ -80,33 +80,6 @@ app.get('/api/layout', async (_req: Request, res: Response) => {
   }
 });
 
-// Save all data (ER data and layout data)
-app.post('/api/data/all', async (_req: Request, res: Response) => {
-  try {
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving all data:', error);
-    res.status(500).json({ error: 'Failed to save all data' });
-  }
-});
-
-// Load all data (ER data and layout data)
-app.get('/api/data/all', async (_req: Request, res: Response) => {
-  try {
-    res.json({
-      erData: null,
-      layoutData: {
-        entities: {},
-        rectangles: [],
-        texts: [],
-      }
-    });
-  } catch (error) {
-    console.error('Error loading all data:', error);
-    res.status(500).json({ error: 'Failed to load all data' });
-  }
-});
-
 app.get('/api/table/:tableName/ddl', async (req: Request, res: Response) => {
   try {
     await dbManager.connect();

@@ -1,19 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createGetBuildInfoUsecase, GetBuildInfoDeps } from '../../lib/usecases/GetBuildInfoUsecase';
+import type { components } from '../../lib/generated/api-types';
 
 describe('GetBuildInfoUsecase', () => {
   it('build-info.json が存在する場合、その内容を返す', () => {
     // Arrange: モックの準備
-    const mockBuildInfo = {
+    const mockBuildInfo: components['schemas']['BuildInfo'] = {
       version: '1.0.0',
       name: 'test-app',
       buildTime: '2026-01-17T12:00:00.000Z',
+      buildTimestamp: 1737115200000,
       buildDate: '2026/01/17 12:00:00',
       git: {
-        commit: 'abc123',
-        commitShort: 'abc123',
+        commit: 'abc123def456',
+        commitShort: 'abc123de',
         branch: 'main',
+        tag: null,
       },
+      nodeVersion: 'v20.0.0',
+      platform: 'linux',
+      arch: 'x64',
     };
     
     const deps: GetBuildInfoDeps = {
@@ -58,10 +64,12 @@ describe('GetBuildInfoUsecase', () => {
     expect(result.version).toBe('2.0.0');
     expect(result.name).toBe('fallback-app');
     expect(result.buildTime).toBe('unknown');
+    expect(result.buildTimestamp).toBe(0);
     expect(result.buildDate).toBe('ビルド情報なし');
     expect(result.git.commit).toBe('unknown');
     expect(result.git.commitShort).toBe('unknown');
     expect(result.git.branch).toBe('unknown');
+    expect(result.git.tag).toBe(null);
     expect(result.nodeVersion).toBe('v20.0.0');
     expect(result.platform).toBe('linux');
     expect(result.arch).toBe('x64');

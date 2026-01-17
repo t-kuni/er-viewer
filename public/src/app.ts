@@ -39,10 +39,6 @@ function formatBuildInfo(buildInfo: BuildInfo): string {
         <strong>Git タグ:</strong>
         <span>${buildInfo.git.tag || '(なし)'}</span>
       </div>
-      <div class="build-info-item">
-        <strong>Git 状態:</strong>
-        <span>${buildInfo.git.dirty ? '変更あり' : 'クリーン'}</span>
-      </div>
     </div>
   `;
 }
@@ -52,8 +48,14 @@ async function loadBuildInfo(): Promise<void> {
   try {
     buildInfoContent.innerHTML = '<p>ビルド情報を読み込み中...</p>';
     
-    const buildInfo = await DefaultService.apiGetBuildInfo();
-    buildInfoContent.innerHTML = formatBuildInfo(buildInfo);
+    const response = await DefaultService.apiGetBuildInfo();
+    
+    // エラーレスポンスのチェック
+    if ('error' in response) {
+      throw new Error(response.error);
+    }
+    
+    buildInfoContent.innerHTML = formatBuildInfo(response);
   } catch (error) {
     console.error('ビルド情報の取得に失敗しました:', error);
     buildInfoContent.innerHTML = `

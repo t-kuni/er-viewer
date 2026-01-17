@@ -1,20 +1,8 @@
 import path from 'path';
+import type { components } from '../generated/api-types.js';
 
-// BuildInfo型定義（OpenAPIスキーマに合わせる）
-export type BuildInfo = {
-  version: string;
-  name: string;
-  buildTime: string;
-  buildDate: string;
-  git: {
-    commit: string;
-    commitShort: string;
-    branch: string;
-  };
-  nodeVersion?: string;
-  platform?: string;
-  arch?: string;
-};
+// TypeSpecから生成された型を使用
+export type BuildInfo = components['schemas']['BuildInfo'];
 
 // 依存性の型定義
 export type GetBuildInfoDeps = {
@@ -44,11 +32,13 @@ export function createGetBuildInfoUsecase(deps: GetBuildInfoDeps) {
         version: packageJson.version,
         name: packageJson.name,
         buildTime: 'unknown',
+        buildTimestamp: 0,
         buildDate: 'ビルド情報なし',
         git: {
           commit: 'unknown',
           commitShort: 'unknown',
           branch: 'unknown',
+          tag: null,
         },
         nodeVersion: deps.processVersion,
         platform: deps.processPlatform,

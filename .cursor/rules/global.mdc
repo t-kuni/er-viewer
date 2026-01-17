@@ -26,6 +26,9 @@ git add -A && GIT_PAGER=cat git diff HEAD
 
 # コード生成（ビルドの前に実行すること）
 npm run generate
+
+# テスト実行
+npm run test
 ```
 
 # アーキテクチャ概要

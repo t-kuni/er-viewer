@@ -103,12 +103,17 @@ model BuildInfo {
   version: string;
   name: string;
   buildTime: string;
+  buildTimestamp: int64;
   buildDate: string;
   git: {
     commit: string;
     commitShort: string;
     branch: string;
+    tag: string | null;
   };
+  nodeVersion: string;
+  platform: string;
+  arch: string;
 }
 
 // Success response model

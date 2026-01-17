@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import DatabaseManager from './lib/database';
+import { createGetBuildInfoUsecase } from './lib/usecases/GetBuildInfoUsecase';
 
 dotenv.config();
 
@@ -24,6 +25,16 @@ app.use('/js', express.static(path.join(__dirname, 'dist/public/js')));
 app.use(express.static('public'));
 
 const dbManager = new DatabaseManager();
+
+// GetBuildInfoUsecaseの依存性注入
+const getBuildInfoUsecase = createGetBuildInfoUsecase({
+  existsSync: fs.existsSync,
+  readFileSync: (path: string, encoding: BufferEncoding) => fs.readFileSync(path, encoding),
+  rootDir: __dirname,
+  processVersion: process.version,
+  processPlatform: process.platform,
+  processArch: process.arch,
+});
 
 app.get('/api/er-data', async (_req: Request, res: Response) => {
   try {
@@ -110,30 +121,8 @@ app.get('/api/table/:tableName/ddl', async (req: Request, res: Response) => {
 
 app.get('/api/build-info', async (_req: Request, res: Response) => {
   try {
-    const buildInfoPath = path.join(__dirname, 'build-info.json');
-
-    if (fs.existsSync(buildInfoPath)) {
-      const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, 'utf8'));
-      res.json(buildInfo);
-    } else {
-      // Fallback build info if file doesn't exist
-      const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
-      res.json({
-        version: packageJson.version,
-        name: packageJson.name,
-        buildTime: 'unknown',
-        buildDate: 'ビルド情報なし',
-        git: {
-          commit: 'unknown',
-          commitShort: 'unknown',
-          branch: 'unknown',
-          tag: null,
-        },
-        nodeVersion: process.version,
-        platform: process.platform,
-        arch: process.arch,
-      });
-    }
+    const buildInfo = getBuildInfoUsecase();
+    res.json(buildInfo);
   } catch (error) {
     console.error('Error getting build info:', error);
     res.status(500).json({ error: 'Failed to get build info' });

@@ -77,6 +77,12 @@ npm install
 cd public && npm install
 ```
 
+### テストコード実行
+
+```bash
+npm run test
+```
+
 ### 起動
 
 ```bash

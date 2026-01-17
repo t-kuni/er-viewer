@@ -19,13 +19,13 @@
 **担当ファイル**: `package.json`, `vitest.config.ts`
 
 #### 1-1. package.jsonの更新
-- [ ] scriptsセクションの更新
+- [x] scriptsセクションの更新
   - `"test": "vitest run"` に変更
   - `"test:watch": "vitest"` に変更
 
 #### 1-2. vitest.config.ts作成
-- [ ] `vitest.config.ts` をルートディレクトリに作成
-- [ ] 以下の設定を含める
+- [x] `vitest.config.ts` をルートディレクトリに作成
+- [x] 以下の設定を含める
   - `environment: 'node'`
   - `include: ['tests/**/*.test.ts']`
   - `fileParallelism: false`（直列実行）
@@ -54,20 +54,20 @@ export default defineConfig({
 **担当ファイル**: `lib/usecases/GetBuildInfoUsecase.ts`
 
 #### 2-1. Usecaseディレクトリの作成
-- [ ] `lib/usecases/` ディレクトリを作成
+- [x] `lib/usecases/` ディレクトリを作成
 
 #### 2-2. GetBuildInfoUsecase実装
-- [ ] `lib/usecases/GetBuildInfoUsecase.ts` を作成
-- [ ] 依存性の型定義（Dependencies interface）
+- [x] `lib/usecases/GetBuildInfoUsecase.ts` を作成
+- [x] 依存性の型定義（Dependencies interface）
   - `fs.existsSync`
   - `fs.readFileSync`
   - `process.version`
   - `process.platform`
   - `process.arch`
   - `__dirname` または `rootDir`
-- [ ] `createGetBuildInfoUsecase(deps)` 関数を実装
-- [ ] 戻り値は `() => Promise<BuildInfo>` または `() => BuildInfo` 型
-- [ ] 既存の `server.ts` のロジックを移植
+- [x] `createGetBuildInfoUsecase(deps)` 関数を実装
+- [x] 戻り値は `() => Promise<BuildInfo>` または `() => BuildInfo` 型
+- [x] 既存の `server.ts` のロジックを移植
   - build-info.json が存在する場合はその内容を返す
   - 存在しない場合は package.json からフォールバック情報を返す
 
@@ -95,14 +95,14 @@ export function createGetBuildInfoUsecase(deps: GetBuildInfoDeps) {
 **担当ファイル**: `server.ts`
 
 #### 3-1. Usecaseのimportと依存性注入
-- [ ] `createGetBuildInfoUsecase` をimport
-- [ ] 依存性オブジェクトを作成（実際のfs、processを使用）
-- [ ] Usecaseインスタンスを生成
+- [x] `createGetBuildInfoUsecase` をimport
+- [x] 依存性オブジェクトを作成（実際のfs、processを使用）
+- [x] Usecaseインスタンスを生成
 
 #### 3-2. ハンドラのリファクタリング
-- [ ] `/api/build-info` ハンドラ内の実装をUsecaseの呼び出しに置き換え
-- [ ] エラーハンドリングはハンドラ内に残す
-- [ ] HTTPレスポンス処理もハンドラ内に残す
+- [x] `/api/build-info` ハンドラ内の実装をUsecaseの呼び出しに置き換え
+- [x] エラーハンドリングはハンドラ内に残す
+- [x] HTTPレスポンス処理もハンドラ内に残す
 
 **実装内容**:
 ```typescript
@@ -135,12 +135,12 @@ app.get('/api/build-info', async (_req: Request, res: Response) => {
 **担当ファイル**: `tests/usecases/GetBuildInfoUsecase.test.ts`
 
 #### 4-1. テストディレクトリの作成
-- [ ] `tests/usecases/` ディレクトリを作成
+- [x] `tests/usecases/` ディレクトリを作成
 
 #### 4-2. テストコード実装
-- [ ] `tests/usecases/GetBuildInfoUsecase.test.ts` を作成
-- [ ] モックオブジェクトの準備（`vi.fn()`を使用）
-- [ ] テストケース: build-info.json が存在する場合（正常系）
+- [x] `tests/usecases/GetBuildInfoUsecase.test.ts` を作成
+- [x] モックオブジェクトの準備（`vi.fn()`を使用）
+- [x] テストケース: build-info.json が存在する場合（正常系）
   - `existsSync` が `true` を返すようモック
   - `readFileSync` が有効なJSONを返すようモック
   - 結果がモックしたJSONの内容と一致することを検証

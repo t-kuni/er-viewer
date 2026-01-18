@@ -1,8 +1,8 @@
-# TypeScriptバックエンドのUsecaseテスト実装方針のリサーチ
+# フロントエンドER図レンダリング技術選定のリサーチ
 
 ## リサーチ要件
 
-backend_usecase_architecture.mdの方針でテストコードを追加しようと思っている。TypeScriptのテストコードはどういう方針やライブラリを使うのがよいか？
+フロントでER図をレンダリングする必要がある。reactなどが必要か？canvasを使うのがよいか？なにかライブラリを使うのがよいか？
 
 ## プロジェクト概要
 
@@ -25,298 +25,261 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 - 後方互換も考慮しない
 - 不要になったコードは捨てる
 
-## Usecaseアーキテクチャの方針
+## 現在のフロントエンド構成
 
-以下は、backend_usecase_architecture.mdに記載されているバックエンドのUsecaseアーキテクチャ方針です。
-
-### Usecaseレイヤーの責務
-
-- **1API = 1Usecase**: 各APIエンドポイントに対応する1つのUsecaseを作成
-- **副作用の分離**: テストの妨げとなる副作用（ファイルシステムアクセス等）は依存性注入（DI）で受け取る
-- **DBアクセスの扱い**: DBアクセスはUsecaseに直接記述（テスト時はテスト用DBインスタンスを使用するため、DIしない）
-
-### テスト方針
-
-- Usecaseに対してユニットテストを作成
-- テストはDBのインスタンスを立てた状態で実行
-- DBアクセス以外の副作用（ファイルI/O、外部API呼び出し等）はモック化
-
-### ディレクトリ構成
+### ディレクトリ構造
 
 ```
-/er-viewer
-├─ lib/
-│   ├─ database.ts                 （既存のDatabaseManager）
-│   └─ usecases/
-│       └─ *.ts                    （各Usecaseファイル）
-├─ tests/
-│   └─ usecases/
-│       └─ *.test.ts               （各Usecaseのテスト）
-└─ server.ts                       （Expressのルーティングと依存性注入のみ）
+/er-viewer/public/
+├─ src/
+│   ├─ api/
+│   │   ├─ client/          （TypeSpecから自動生成されたAPIクライアント）
+│   │   └─ index.ts
+│   ├─ components/          （現在未使用）
+│   ├─ services/            （現在未使用）
+│   └─ app.ts              （エントリーポイント）
+├─ index.html
+├─ style.css
+├─ package.json
+├─ tsconfig.json
+└─ vite.config.ts
 ```
 
-### Usecaseの設計パターン
-
-#### クロージャパターンによる依存性注入
-
-- Usecaseは`create*Usecase(deps: Dependencies)`関数でインスタンス化
-- `Dependencies`型で注入する副作用の型を定義
-- 返り値は実際のビジネスロジックを実行する関数
-
-#### 依存性注入の対象となる副作用
-
-以下のような副作用はテストの妨げになるため、DIで注入する：
-
-- ファイルシステムへのアクセス（`fs.readFile`, `fs.existsSync`等）
-- 環境変数へのアクセス（`process.env`）
-- プロセス情報へのアクセス（`process.version`, `process.platform`等）
-- 外部サービスへのAPI呼び出し
-- 日時取得（`new Date()`）
-- DatabaseManagerのインスタンス生成（ファクトリ関数として注入）
-
-#### DIしない要素
-
-- DBへのクエリ実行（テスト時は実際のテスト用DBを使用）
-- ビジネスロジック自体
-
-### server.tsの役割
-
-Usecaseレイヤー導入後、server.tsは以下の責務のみを持つ：
-
-- **ルーティング定義**: Expressのルートハンドラを定義
-- **依存性注入**: Usecaseに必要な依存性（副作用）を注入してインスタンス化
-- **HTTPレスポンス処理**: Usecaseの結果をHTTPレスポンスに変換
-- **エラーハンドリング**: エラーを適切なHTTPステータスコードに変換
-
-### テスト実装方針
-
-#### テスト用データベース
-
-- 実際のDBインスタンスを使用（Docker Compose等で起動）
-- **テストデータは初期化SQLで準備済み**: Docker Compose起動時に`init.sql`でテスト用レコードが投入される
-- **DBは参照のみ**: Usecaseでは既存DBのスキーマ情報を読み取るのみで、書き込みは行わない
-- **テストケース毎のデータ操作は不要**: レコードの挿入・削除・更新などは不要
-- **重厚なエコシステムは不要**: 複雑なマイグレーションツールやフィクスチャ管理は不要
-
-#### モック化の対象
-
-- ファイルシステムアクセス
-- 環境変数
-- プロセス情報
-- その他、Usecaseに注入された副作用すべて
-
-### 実装時の注意事項
-
-- 各Usecaseファイルは`lib/usecases/`配下に配置
-- 各テストファイルは`tests/usecases/`配下に配置
-- Usecase名は対応するAPIの処理内容を表す命名にする（例: `ReverseEngineerUsecase`）
-- テストフレームワークは後日選定（Jest または Vitest）
-- 既存の実装があるAPIから優先的にUsecaseへ切り出す
-- ダミー実装のAPIについては、データ保存仕様の確定後に実装
-
-### テストの実行方針
-
-- **直列実行**: テストケースは直列実行で十分（それほど数が増えない想定）
-- **速度より可読性**: 実行速度よりも、テストコードの可読性と変更のしやすさを重視
-- **ローカル実行のみ**: CI/CDは行わず、ローカル環境でのテスト実行のみを想定
-- **カバレッジ不要**: テストカバレッジの計測・レポートは不要
-
-### 確認事項
-
-- **テストフレームワークの選定**: Jest と Vitest のどちらを使用するか
-- **データ保存の仕様**: 現在ダミー実装のAPIのデータ保存方法（ファイル or DB 等）
-
-## 現在のプロジェクト構成
-
-### package.json（バックエンド）
+### package.json（フロントエンド）
 
 ```json
 {
-  "name": "er-viewer",
+  "name": "er-viewer-frontend",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node dist/server.js",
-    "dev": "concurrently \"tsx watch --clear-screen=false server.ts\" \"npm run --prefix public dev\"",
-    "build": "tsup server.ts --format esm,cjs && npm run --prefix public build",
-    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p public/tsconfig.json --noEmit",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "generate": "npx tsp compile scheme/main.tsp && npx openapi-typescript-codegen --input scheme/openapi.yaml --output public/src/api/client"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "livereload": "^0.9.3",
-    "mysql2": "^3.6.1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "@babel/core": "^7.27.4",
-    "@babel/preset-env": "^7.27.2",
-    "@babel/preset-typescript": "^7.27.1",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/jest": "^30.0.0",
-    "@types/livereload": "^0.9.5",
-    "@types/node": "^24.0.7",
-    "@typespec/compiler": "^0.60.0",
-    "@typespec/http": "^0.60.0",
-    "@typespec/openapi3": "^0.60.0",
-    "@typespec/rest": "^0.60.0",
-    "babel-jest": "^30.0.0",
-    "chokidar": "^3.5.3",
-    "concurrently": "^9.2.1",
-    "jest": "^30.0.0",
-    "jest-environment-jsdom": "^30.0.0",
-    "jsdom": "^26.1.0",
-    "ts-jest": "^29.4.0",
-    "tsup": "^8.5.0",
-    "tsx": "^4.20.5",
-    "typescript": "^5.8.3"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
   }
 }
 ```
 
-### TypeScript設定
+### 現在の実装状況
 
-#### tsconfig.base.json
+- Vite + TypeScriptのみを使用（フレームワークなし）
+- 純粋なDOM操作でUIを実装
+- APIクライアントはTypeSpecから自動生成
+- ER図レンダリング機能はまだ未実装（ビルド情報表示のみ実装済み）
 
-共通のTypeScript設定を定義。
+## ER図レンダリングの機能要件
 
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["public/src/*"]
-    }
-  }
+rearchitecture_overview.mdで定義されている機能要件：
+
+### ER図表示・操作
+
+- インタラクティブなER図表示
+- エンティティのドラッグ&ドロップ配置
+- ズーム・パン操作
+- リレーション線の表示（直角ポリライン）
+
+### ビジュアル表現
+
+- ホバー時のハイライト表示
+- プライマリキー・外部キーの視覚的区別
+- カスタマイズ可能な色・サイズ
+
+### インタラクティブ操作
+
+- エンティティクリックでDDL表示
+- サイドバーでの詳細情報表示
+
+### 図形描画・注釈機能
+
+- 矩形描画（エンティティのグループ化用）
+- テキスト追加（補足情報記載用）
+
+### データ構造
+
+バックエンドAPIから取得されるER図データの構造（TypeSpecで定義）：
+
+```typescript
+// エンティティ（テーブル）
+interface Entity {
+  name: string;
+  columns: Column[];
+  ddl: string;
+}
+
+// カラム情報
+interface Column {
+  name: string;
+  type: string;
+  nullable: boolean;
+  key: string; // 'PRI', 'MUL', ''など
+  default: string | null;
+  extra: string;
+}
+
+// リレーション（外部キー）
+interface Relationship {
+  fromTable: string;
+  fromColumn: string;
+  toTable: string;
+  toColumn: string;
+  constraintName: string;
+}
+
+// レイアウト情報（エンティティの配置）
+interface EntityLayout {
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// 矩形（補助図形）
+interface Rectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  label: string;
+}
+
+// テキスト（注釈）
+interface Text {
+  x: number;
+  y: number;
+  content: string;
+  fontSize: number;
+  fill: string;
+}
+
+// ER図データ全体
+interface ERData {
+  entities: Entity[];
+  relationships: Relationship[];
+}
+
+// レイアウトデータ全体
+interface LayoutData {
+  entities: EntityLayout[];
+  rectangles: Rectangle[];
+  texts: Text[];
 }
 ```
 
-#### tsconfig.server.json
+## データフロー
 
-バックエンド用のTypeScript設定。
-
-```json
-{
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./",
-    "noEmit": true,
-    "types": ["node"]
-  },
-  "include": ["server.ts", "lib/**/*"],
-  "exclude": ["node_modules", "dist", "public"]
-}
-```
-
-### データベース環境
-
-Docker Composeを使用してMySQL 8を実行：
-
-```yaml
-services:
-  db:
-    image: mysql:8
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: erviewer
-    ports:
-      - "30177:3306"
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-```
-
-### データベースアクセス
-
-`lib/database.ts`でDatabaseManagerクラスを実装。生SQL（ORMなし）でMySQLにアクセス。
-
-### 現在のテスト状況
-
-- package.jsonにJest関連のスクリプトとパッケージが含まれているが、実際のテストコードは未実装
-- `tests/`ディレクトリは存在するが、内容は空または不完全
-- テストフレームワークとしてJestとts-jestがインストール済み
-- jest-environment-jsdomもインストールされているが、バックエンドUsecaseテストには不要の可能性
+1. バックエンドAPIからER図データを取得（`GET /api/reverse-engineer`）
+2. レイアウト情報を取得または初期レイアウトを生成
+3. フロントエンドでER図をレンダリング
+4. ユーザー操作（ドラッグ&ドロップ、図形追加など）でレイアウトを変更
+5. レイアウト情報を保存（`POST /api/layouts`）
 
 ## 期待する回答
 
-以下の観点から、TypeScriptバックエンドのUsecaseテスト実装に最適な方針とライブラリを提案してください：
+以下の観点から、フロントエンドでER図をレンダリングするための技術選定について提案してください：
 
-### 1. テストフレームワークの選定
+### 1. レンダリング技術の選択
 
-- **Jest vs Vitest**: どちらを使用すべきか
-  - ES Modules対応状況
-  - TypeScript統合の品質
-  - モック機能の充実度
-  - 実行速度
-  - メンテナンス性
-  - コミュニティとエコシステム
-- すでにJestがインストールされているが、Vitestに移行する価値はあるか
+- **DOM操作 vs Canvas vs SVG**: それぞれのメリット・デメリット
+  - パフォーマンス（多数のエンティティを扱う場合）
+  - インタラクティブ性（ドラッグ&ドロップ、ホバーなど）
+  - 実装の複雑さ
+  - ズーム・パン操作の実装難易度
+- **Canvas 2D vs WebGL**: Canvasを選択する場合、2DコンテキストとWebGLのどちらが適切か
 
-### 2. TypeScript統合
+### 2. UIフレームワークの必要性
 
-- **ts-jest vs tsx/tsup vs その他**: TypeScriptテストの実行方法
-  - 設定の複雑さ
-  - ビルド速度
-  - ES Modules対応
-  - 型チェックの扱い
+- **React, Vue, Svelteなどのフレームワークは必要か**: 現在はVanilla TypeScriptを使用
+  - フレームワークを使うメリット（状態管理、コンポーネント化など）
+  - フレームワークなしで実装する場合の課題
+  - MVPフェーズでの学習コスト
+- **フレームワークが必要な場合、どれを選ぶべきか**
+  - Viteとの相性
+  - TypeScriptサポート
+  - 学習コスト
+  - バンドルサイズ
 
-### 3. モック戦略
+### 3. ER図専用ライブラリの検討
 
-- **モックライブラリ**: 依存性注入された副作用のモック方法
-  - Jest組み込みモック vs 外部ライブラリ
-  - ファイルシステムのモック（`fs`）
-  - 環境変数のモック（`process.env`）
-  - 日時のモック（`new Date()`）
-- **モックの型安全性**: TypeScriptでのモック型定義
+- **既存のER図ライブラリ**: 以下のようなライブラリは利用可能か
+  - ダイアグラム描画ライブラリ（例: joint.js, gojs, reactflow, d3.jsなど）
+  - ER図特化ライブラリ
+  - グラフ描画ライブラリ
+- **ライブラリを使うメリット・デメリット**
+  - 機能の充実度（ドラッグ&ドロップ、ズーム、パンなど）
+  - カスタマイズ性
+  - ライセンス（商用利用の可否）
+  - 学習コスト
+  - バンドルサイズ
+  - メンテナンス状況
 
-### 4. データベーステスト
+### 4. ドラッグ&ドロップの実装
 
-- **テスト用DBのセットアップ**: Docker ComposeでのMySQL起動と接続方法
-  - テスト実行前のDB接続確認
-  - テストコード内でのDatabaseManagerの初期化
-- **テストデータ**: Docker Compose起動時の`init.sql`で準備済みのデータを使用
-  - テストケース毎のデータ操作は不要（参照のみ）
-  - 複雑なフィクスチャ管理やクリーンアップは不要
+- **ネイティブAPI vs ライブラリ**: ドラッグ&ドロップ機能の実装方法
+  - HTML5 Drag and Drop API
+  - Pointer Events API
+  - 専用ライブラリ（例: interact.js, dnd-kitなど）
+- **Canvas上でのドラッグ&ドロップ実装の難易度**
 
-### 5. テストの構造化
+### 5. ズーム・パン機能の実装
 
-- **ディレクトリ構成**: tests/usecases/配下のファイル構成
-- **命名規則**: テストファイルとテストケースの命名
-- **テストパターン**: Given-When-Then、AAA（Arrange-Act-Assert）等
-- **可読性**: テストコードの読みやすさと理解しやすさを重視
+- **実装方法**: Canvas/SVGでのズーム・パン機能
+  - 変換行列による実装
+  - 専用ライブラリの利用
+- **スムーズなユーザー体験**: マウスホイール、タッチジェスチャーへの対応
 
-### 6. 設定ファイル
+### 6. リレーション線の描画
 
-- **jest.config.js/vitest.config.ts**: 具体的な設定例
-- **TypeScript設定**: テスト用のtsconfig設定
-- **シンプルな設定**: 必要最小限の設定で動作させる方法
+- **直角ポリライン**: エンティティ間を結ぶ線を直角で描画
+  - アルゴリズムの複雑さ
+  - パフォーマンス
+  - ライブラリでの実装可否
 
-### 7. その他の考慮事項
+### 7. 実装の容易さとメンテナンス性
 
-- **デバッグ方法**: VSCodeでのテストデバッグ設定
-- **変更のしやすさ**: テストコードのメンテナンス性を高める方法
-- **ベストプラクティス**: TypeScript + Node.js + MySQLのテストにおける、シンプルで保守しやすいベストプラクティス
+- **MVPフェーズでの実装スピード**: プロトタイピングに適した技術
+- **コードの保守性**: シンプルで理解しやすいコード
+- **機能追加の容易さ**: 後から機能を追加しやすい設計
 
-### 重視しないこと
+### 8. パフォーマンス
 
-以下の項目は本プロジェクトでは不要です：
+- **多数のエンティティ**: 50-100個程度のエンティティとリレーションを扱う場合のパフォーマンス
+- **リアルタイム更新**: ドラッグ中のスムーズな描画更新
 
-- **CI/CD対応**: ローカル環境でのテスト実行のみを想定
-- **テストカバレッジ**: カバレッジ計測やレポート生成は不要
-- **並列実行**: テストは直列実行で十分（速度より可読性を重視）
-- **重厚なDBテストツール**: 参照のみなので複雑なフィクスチャ管理やトランザクション制御は不要
+### 9. 推奨される技術スタック
 
-現在のプロジェクト構成（ES Modules、tsx/tsup使用、Docker Compose環境）を考慮した上で、シンプルで可読性が高く、変更しやすいテスト環境を提案してください。
+以下のようなパターンの提案：
+
+- **パターンA**: Vanilla TypeScript + Canvas 2D + 専用ライブラリ
+- **パターンB**: React + SVG + 専用ライブラリ
+- **パターンC**: その他の組み合わせ
+
+各パターンについて：
+- メリット・デメリット
+- 実装の複雑さ
+- 学習コスト
+- 実装期間の見積もり
+- コード例の可能性
+
+### 重視する点
+
+- **MVPフェーズに適していること**: 実現可能性の検証が目的
+- **実装のシンプルさ**: 複雑すぎない、理解しやすいコード
+- **機能の実現可能性**: 必要な機能（ドラッグ&ドロップ、ズーム、パンなど）が実装できること
+- **Viteとの相性**: 現在のビルド環境との統合
+
+### 重視しない点
+
+- **パフォーマンスの最適化**: MVPフェーズでは過度な最適化は不要
+- **セキュリティ**: プロトタイピング段階では考慮しない
+- **後方互換性**: 考慮不要
+- **プロダクションレディ**: 商用利用レベルの品質は不要
+
+現在のプロジェクト構成（Vite + Vanilla TypeScript、MVPフェーズ、プロトタイピング）を考慮した上で、シンプルで実装しやすく、必要な機能を実現できる技術スタックを提案してください。

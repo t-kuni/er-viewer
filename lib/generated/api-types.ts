@@ -121,12 +121,15 @@ export interface components {
             relationships: components["schemas"]["Relationship"][];
         };
         Entity: {
+            id: string;
             name: string;
             columns: components["schemas"]["Column"][];
             foreignKeys: components["schemas"]["ForeignKey"][];
             ddl: string;
         };
-        EntityLayout: {
+        EntityLayoutItem: {
+            id: string;
+            name: string;
             /** Format: double */
             x: number;
             /** Format: double */
@@ -143,10 +146,14 @@ export interface components {
         };
         LayoutData: {
             entities: {
-                [key: string]: components["schemas"]["EntityLayout"];
+                [key: string]: components["schemas"]["EntityLayoutItem"];
             };
-            rectangles: components["schemas"]["Rectangle"][];
-            texts: components["schemas"]["Text"][];
+            rectangles: {
+                [key: string]: components["schemas"]["Rectangle"];
+            };
+            texts: {
+                [key: string]: components["schemas"]["Text"];
+            };
         };
         Rectangle: {
             id: string;
@@ -167,6 +174,10 @@ export interface components {
             to: string;
             toColumn: string;
             constraintName: string;
+        };
+        ReverseEngineerResponse: {
+            erData: components["schemas"]["ERData"];
+            layoutData: components["schemas"]["LayoutData"];
         };
         SuccessResponse: {
             success: boolean;
@@ -326,7 +337,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ERData"];
+                    "application/json": components["schemas"]["ReverseEngineerResponse"];
                 };
             };
             /** @description An unexpected error response. */

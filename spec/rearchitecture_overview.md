@@ -34,8 +34,11 @@
 │   ├─ package.json
 │   ├─ tsconfig.json            （フロントエンド用TypeScript設定）
 │   └─ vite.config.ts
-└─ api-spec/
-    └─ *.tsp                    （TypeSpec定義ファイル）
+├─ scheme/                      （TypeSpec定義ファイル）
+│   ├─ main.tsp                 （すべての型を包括的に管理）
+│   └─ tspconfig.yaml
+└─ lib/
+    └─ generated/               （バックエンド用TypeScript型定義）
 ```
 
 ## 開発環境仕様
@@ -95,9 +98,10 @@ npm run dev
 
 ### API仕様管理
 
-* TypeSpecファイル（`api-spec/*.tsp`）でAPI仕様を定義
-* `tsp compile`でOpenAPI仕様とTypeScriptクライアントを自動生成
-* 生成されたクライアントコードをフロントエンドで利用
+* TypeSpecファイル（`scheme/main.tsp`）でAPI仕様と型を包括的に定義
+* `npm run generate`でOpenAPI仕様、TypeScriptクライアント、バックエンド用型定義を自動生成
+* フロントエンドは生成されたクライアントコード（`public/src/api/client/`）を利用
+* バックエンドは生成された型定義（`lib/generated/api-types.ts`）を利用
 
 ### 開発時ビルド
 

@@ -1,4 +1,16 @@
 import mysql from 'mysql2/promise';
+import type { components } from './generated/api-types.js';
+
+// api-types.tsから生成された型を使用
+type Column = components['schemas']['Column'];
+type ForeignKey = components['schemas']['ForeignKey'];
+type Entity = components['schemas']['Entity'];
+type Relationship = components['schemas']['Relationship'];
+type ERData = components['schemas']['ERData'];
+type LayoutData = components['schemas']['LayoutData'];
+type EntityLayoutItem = components['schemas']['EntityLayoutItem'];
+type Rectangle = components['schemas']['Rectangle'];
+type Text = components['schemas']['Text'];
 
 interface DatabaseConfig {
   host: string;
@@ -6,42 +18,6 @@ interface DatabaseConfig {
   user: string;
   password: string;
   database: string;
-}
-
-interface ColumnInfo {
-  name: string;
-  type: string;
-  nullable: boolean;
-  key: string;
-  default: any;
-  extra: string;
-}
-
-interface ForeignKeyInfo {
-  column: string;
-  referencedTable: string;
-  referencedColumn: string;
-  constraintName: string;
-}
-
-interface EntityInfo {
-  name: string;
-  columns: ColumnInfo[];
-  foreignKeys: ForeignKeyInfo[];
-  ddl: string;
-}
-
-interface RelationshipInfo {
-  from: string;
-  fromColumn: string;
-  to: string;
-  toColumn: string;
-  constraintName: string;
-}
-
-interface ERData {
-  entities: EntityInfo[];
-  relationships: RelationshipInfo[];
 }
 
 class DatabaseManager {
@@ -92,7 +68,7 @@ class DatabaseManager {
     return (rows as any[]).map((row) => Object.values(row)[0] as string);
   }
 
-  async getTableColumns(tableName: string): Promise<ColumnInfo[]> {
+  async getTableColumns(tableName: string): Promise<Column[]> {
     if (!this.connection) {
       throw new Error('Database not connected');
     }
@@ -108,7 +84,7 @@ class DatabaseManager {
     }));
   }
 
-  async getForeignKeys(tableName: string): Promise<ForeignKeyInfo[]> {
+  async getForeignKeys(tableName: string): Promise<ForeignKey[]> {
     if (!this.connection) {
       throw new Error('Database not connected');
     }
@@ -158,6 +134,7 @@ class DatabaseManager {
       const ddl = await this.getTableDDL(tableName);
 
       erData.entities.push({
+        id: crypto.randomUUID(), // UUID生成
         name: tableName,
         columns: columns,
         foreignKeys: foreignKeys,
@@ -177,7 +154,39 @@ class DatabaseManager {
 
     return erData;
   }
+
+  generateDefaultLayoutData(entities: Entity[]): LayoutData {
+    const layoutEntities: Record<string, EntityLayoutItem> = {};
+    
+    entities.forEach((entity, index) => {
+      const col = index % 4;
+      const row = Math.floor(index / 4);
+      layoutEntities[entity.id] = {
+        id: entity.id,
+        name: entity.name,
+        x: 50 + col * 300,
+        y: 50 + row * 200,
+      };
+    });
+    
+    return {
+      entities: layoutEntities,
+      rectangles: {},
+      texts: {},
+    };
+  }
 }
 
 export default DatabaseManager;
-export type { DatabaseConfig, ColumnInfo, ForeignKeyInfo, EntityInfo, RelationshipInfo, ERData };
+export type { 
+  DatabaseConfig, 
+  Column, 
+  ForeignKey, 
+  Entity, 
+  Relationship, 
+  ERData,
+  LayoutData,
+  EntityLayoutItem,
+  Rectangle,
+  Text,
+};

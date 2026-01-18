@@ -73,7 +73,7 @@ async generateERData(): Promise<ERData> {
   // ...
 }
 
-generateDefaultLayoutData(entities: EntityInfo[]): LayoutData {
+generateDefaultLayoutData(entities: Entity[]): LayoutData {
   const layoutEntities: Record<string, EntityLayoutItem> = {};
   
   entities.forEach((entity, index) => {

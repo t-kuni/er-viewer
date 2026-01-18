@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 import DatabaseManager from './lib/database';
 import { createGetBuildInfoUsecase } from './lib/usecases/GetBuildInfoUsecase';
+import { createReverseEngineerUsecase } from './lib/usecases/ReverseEngineerUsecase';
 
 dotenv.config();
 
@@ -36,6 +37,11 @@ const getBuildInfoUsecase = createGetBuildInfoUsecase({
   processArch: process.arch,
 });
 
+// ReverseEngineerUsecaseの依存性注入
+const reverseEngineerUsecase = createReverseEngineerUsecase({
+  createDatabaseManager: () => new DatabaseManager(),
+});
+
 app.get('/api/er-data', async (_req: Request, res: Response) => {
   try {
     res.status(404).json({ error: 'No ER data found' });
@@ -47,11 +53,8 @@ app.get('/api/er-data', async (_req: Request, res: Response) => {
 
 app.post('/api/reverse-engineer', async (_req: Request, res: Response) => {
   try {
-    await dbManager.connect();
-    const newERData = await dbManager.generateERData();
-    await dbManager.disconnect();
-
-    res.json(newERData);
+    const response = await reverseEngineerUsecase();
+    res.json(response);
   } catch (error) {
     console.error('Error during reverse engineering:', error);
     res.status(500).json({ error: 'Failed to reverse engineer database' });
@@ -71,8 +74,8 @@ app.get('/api/layout', async (_req: Request, res: Response) => {
   try {
     res.json({
       entities: {},
-      rectangles: [],
-      texts: [],
+      rectangles: {},
+      texts: {},
     });
   } catch (error) {
     console.error('Error loading layout data:', error);

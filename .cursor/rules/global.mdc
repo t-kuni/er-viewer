@@ -21,8 +21,10 @@ RDBからER図をリバースエンジニアリングし、ブラウザ上で視
 # 利用可能なコマンド
 
 ```bash
-# 直前のコミットの差分確認
+# 差分確認
 git add -A && GIT_PAGER=cat git diff HEAD
+# 直前のコミットの差分確認
+GIT_PAGER=cat git diff HEAD^ HEAD
 
 # コード生成（ビルドの前に実行すること）
 npm run generate

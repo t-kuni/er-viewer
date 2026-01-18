@@ -28,8 +28,8 @@ function RelationshipEdge({
         style={{
           stroke: '#333',
           strokeWidth: 2,
+          fill: 'none',
         }}
-        markerEnd="url(#arrow)"
       />
       {data?.constraintName && (
         <text>

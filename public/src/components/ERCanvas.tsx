@@ -8,6 +8,7 @@ import ReactFlow, {
   applyEdgeChanges,
   OnNodesChange,
   OnEdgesChange,
+  MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { DefaultService } from '../api/client'
@@ -68,6 +69,10 @@ function ERCanvas() {
         type: 'relationshipEdge',
         source: response.erData.entities.find((e: any) => e.name === rel.from)?.id || '',
         target: response.erData.entities.find((e: any) => e.name === rel.to)?.id || '',
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#333',
+        },
         data: {
           fromColumn: rel.fromColumn,
           toColumn: rel.toColumn,

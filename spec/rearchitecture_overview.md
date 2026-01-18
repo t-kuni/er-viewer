@@ -10,7 +10,7 @@
 ### 技術スタック
 
 * **バックエンド**: TypeScript + Express + MySQL
-* **フロントエンド**: TypeScript
+* **フロントエンド**: TypeScript + React + React Flow
 * **API定義**: TypeSpec
 * **開発環境**: Docker Compose（DB用）+ npm run dev（アプリケーション用）
 * **本番運用**: Docker コンテナ
@@ -82,8 +82,8 @@ npm run dev
 * **データベースアクセス**: 生SQL（ORMは使用しない）
 * **ポート**: 30033（固定）
 * **フロントエンドビルドツール**: Vite
+* **フロントエンドフレームワーク**: React + React Flow（詳細は[frontend_er_rendering.md](./frontend_er_rendering.md)を参照）
 * **バックエンド実行ツール**: tsx（開発時）、tsup（本番ビルド）
-* **フレームワーク**: 後日選定
 
 ### アーキテクチャ
 
@@ -208,7 +208,8 @@ docker run -d --name er-viewer \
 * 生SQLによるスキーマ情報取得: 標準的なアプローチ
 * TypeSpec: Microsoft製のAPI定義ツールで安定性あり
 * Docker Compose: 開発環境の標準的な構成管理
-* Vite: 高速なビルドツールでホットリロード対応
+* Vite: 高速なビルドツールでホットリロード対応、React統合も標準サポート
+* React + React Flow: 図エディタ実装に必要な機能が揃っている
 * tsx: esbuildベースで高速なTypeScript実行
 * tsup: esbuildベースで高速なTypeScriptビルド
 
@@ -236,7 +237,7 @@ docker run -d --name er-viewer \
 ### 技術的懸念
 
 * TypeSpec学習コストと開発チームの習熟度
-* フロントエンドフレームワークの選定（後日決定）
+* React + React Flowの学習コスト（詳細は[frontend_er_rendering.md](./frontend_er_rendering.md)を参照）
 * 生SQLによるDBアクセスのメンテナンス性
 
 ### 運用面の懸念
@@ -247,6 +248,5 @@ docker run -d --name er-viewer \
 
 ### 確認が必要な項目
 
-* フロントエンドフレームワークの具体的な選定
 * 本番環境のインフラ構成（クラウド等）
 * データ保存の永続化戦略

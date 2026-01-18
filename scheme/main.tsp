@@ -35,6 +35,7 @@ model ForeignKey {
 
 // Entity (table) model
 model Entity {
+  id: string;
   name: string;
   columns: Column[];
   foreignKeys: ForeignKey[];
@@ -57,7 +58,9 @@ model ERData {
 }
 
 // Layout models
-model EntityLayout {
+model EntityLayoutItem {
+  id: string;
+  name: string;
   x: float64;
   y: float64;
 }
@@ -82,9 +85,9 @@ model Text {
 }
 
 model LayoutData {
-  entities: Record<EntityLayout>;
-  rectangles: Rectangle[];
-  texts: Text[];
+  entities: Record<EntityLayoutItem>;
+  rectangles: Record<Rectangle>;
+  texts: Record<Text>;
 }
 
 // DDL response model
@@ -115,6 +118,12 @@ model SuccessResponse {
   success: boolean;
 }
 
+// Reverse engineer response model
+model ReverseEngineerResponse {
+  erData: ERData;
+  layoutData: LayoutData;
+}
+
 // API Routes
 @route("/api")
 namespace API {
@@ -124,10 +133,10 @@ namespace API {
   @route("/er-data")
   op getERData(): ERData | ErrorResponse;
 
-  // Reverse engineer database to generate ER data
+  // Reverse engineer database to generate ER data and default layout
   @post
   @route("/reverse-engineer")
-  op reverseEngineer(): ERData | ErrorResponse;
+  op reverseEngineer(): ReverseEngineerResponse | ErrorResponse;
 
   // Save layout data
   @post

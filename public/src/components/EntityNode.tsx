@@ -78,7 +78,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
             >
               {col.key === 'PRI' && '🔑 '}
               {col.key === 'MUL' && '🔗 '}
-              {col.name}: {col.type}
+              {col.name}
             </div>
           )
         })}

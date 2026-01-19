@@ -13,7 +13,7 @@
 
 ### EntityNode.tsx の修正
 
-- [ ] カラム表示部分を修正
+- [x] カラム表示部分を修正
   - **ファイル**: `public/src/components/EntityNode.tsx`
   - **変更箇所**: 81行目付近
   - **変更内容**: 
@@ -24,7 +24,7 @@
 
 ### RelationshipEdge.tsx の修正
 
-- [ ] 制約名の表示を削除
+- [x] 制約名の表示を削除
   - **ファイル**: `public/src/components/RelationshipEdge.tsx`
   - **変更箇所**: 51-57行目
   - **変更内容**:

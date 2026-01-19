@@ -48,13 +48,6 @@ function RelationshipEdge({
           transition: 'all 0.2s ease-in-out',
         }}
       />
-      {data?.constraintName && (
-        <text style={{ opacity: isDimmed ? 0.2 : 1 }}>
-          <textPath href={`#${id}`} startOffset="50%" textAnchor="middle">
-            {data.constraintName}
-          </textPath>
-        </text>
-      )}
     </g>
   )
 }

@@ -1,17 +1,11 @@
 import React from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
+import type { Column } from '../api/client'
 
 interface EntityNodeData {
   id: string
   name: string
-  columns: Array<{
-    name: string
-    type: string
-    nullable: boolean
-    key: string
-    default: string | null
-    extra: string
-  }>
+  columns: Column[]
   ddl: string
 }
 

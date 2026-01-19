@@ -120,6 +120,10 @@ export interface components {
             entities: components["schemas"]["Entity"][];
             relationships: components["schemas"]["Relationship"][];
         };
+        ERDiagramViewModel: {
+            nodes: components["schemas"]["EntityNodeViewModel"][];
+            edges: components["schemas"]["RelationshipEdgeViewModel"][];
+        };
         Entity: {
             id: string;
             name: string;
@@ -134,6 +138,16 @@ export interface components {
             x: number;
             /** Format: double */
             y: number;
+        };
+        EntityNodeViewModel: {
+            id: string;
+            name: string;
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+            columns: components["schemas"]["Column"][];
+            ddl: string;
         };
         ErrorResponse: {
             error: string;
@@ -172,6 +186,14 @@ export interface components {
             from: string;
             fromColumn: string;
             to: string;
+            toColumn: string;
+            constraintName: string;
+        };
+        RelationshipEdgeViewModel: {
+            id: string;
+            source: string;
+            target: string;
+            fromColumn: string;
             toColumn: string;
             constraintName: string;
         };

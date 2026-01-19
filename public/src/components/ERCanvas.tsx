@@ -11,7 +11,7 @@ import ReactFlow, {
   MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { DefaultService } from '../api/client'
+import { DefaultService, type Entity, type Column } from '../api/client'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
 
@@ -49,7 +49,7 @@ function ERCanvas() {
       }
       
       // ERDataとLayoutDataをReact Flowのnodesとedgesにマッピング
-      const newNodes: Node[] = response.erData.entities.map((entity: any) => {
+      const newNodes: Node[] = response.erData.entities.map((entity: Entity) => {
         const layout = response.layoutData.entities[entity.id]
         return {
           id: entity.id,
@@ -64,11 +64,11 @@ function ERCanvas() {
         }
       })
       
-      const newEdges: Edge[] = response.erData.relationships.map((rel: any, index: number) => ({
+      const newEdges: Edge[] = response.erData.relationships.map((rel, index: number) => ({
         id: `${rel.from}_${rel.fromColumn}_to_${rel.to}_${rel.toColumn}_${index}`,
         type: 'relationshipEdge',
-        source: response.erData.entities.find((e: any) => e.name === rel.from)?.id || '',
-        target: response.erData.entities.find((e: any) => e.name === rel.to)?.id || '',
+        source: response.erData.entities.find((e: Entity) => e.name === rel.from)?.id || '',
+        target: response.erData.entities.find((e: Entity) => e.name === rel.to)?.id || '',
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: '#333',

@@ -124,6 +124,35 @@ model ReverseEngineerResponse {
   layoutData: LayoutData;
 }
 
+// ViewModel for ER diagram rendering
+// These models represent the data structure used by the frontend to render the ER diagram
+
+// Entity node view model (used by React Flow Node)
+model EntityNodeViewModel {
+  id: string;
+  name: string;
+  x: float64;
+  y: float64;
+  columns: Column[];
+  ddl: string;
+}
+
+// Relationship edge view model (used by React Flow Edge)
+model RelationshipEdgeViewModel {
+  id: string;
+  source: string; // entity id
+  target: string; // entity id
+  fromColumn: string;
+  toColumn: string;
+  constraintName: string;
+}
+
+// Complete ER diagram view model
+model ERDiagramViewModel {
+  nodes: EntityNodeViewModel[];
+  edges: RelationshipEdgeViewModel[];
+}
+
 // API Routes
 @route("/api")
 namespace API {

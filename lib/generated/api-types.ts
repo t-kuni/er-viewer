@@ -106,6 +106,7 @@ export interface components {
             arch: string;
         };
         Column: {
+            id: string;
             name: string;
             type: string;
             nullable: boolean;
@@ -157,6 +158,7 @@ export interface components {
             error: string;
         };
         ForeignKey: {
+            id: string;
             column: string;
             referencedTable: string;
             referencedColumn: string;
@@ -187,9 +189,12 @@ export interface components {
             stroke: string;
         };
         Relationship: {
+            id: string;
             from: string;
+            fromId: string;
             fromColumn: string;
             to: string;
+            toId: string;
             toColumn: string;
             constraintName: string;
         };

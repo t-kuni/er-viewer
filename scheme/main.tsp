@@ -17,6 +17,7 @@ model ErrorResponse {
 
 // Database column model
 model Column {
+  id: string;
   name: string;
   type: string;
   nullable: boolean;
@@ -27,6 +28,7 @@ model Column {
 
 // Foreign key model
 model ForeignKey {
+  id: string;
   column: string;
   referencedTable: string;
   referencedColumn: string;
@@ -44,9 +46,12 @@ model Entity {
 
 // Relationship model
 model Relationship {
+  id: string;
   from: string;
+  fromId: string;
   fromColumn: string;
   to: string;
+  toId: string;
   toColumn: string;
   constraintName: string;
 }

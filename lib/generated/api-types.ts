@@ -121,8 +121,12 @@ export interface components {
             relationships: components["schemas"]["Relationship"][];
         };
         ERDiagramViewModel: {
-            nodes: components["schemas"]["EntityNodeViewModel"][];
-            edges: components["schemas"]["RelationshipEdgeViewModel"][];
+            nodes: {
+                [key: string]: components["schemas"]["EntityNodeViewModel"];
+            };
+            edges: {
+                [key: string]: components["schemas"]["RelationshipEdgeViewModel"];
+            };
         };
         Entity: {
             id: string;

@@ -149,8 +149,8 @@ model RelationshipEdgeViewModel {
 
 // Complete ER diagram view model
 model ERDiagramViewModel {
-  nodes: EntityNodeViewModel[];
-  edges: RelationshipEdgeViewModel[];
+  nodes: Record<EntityNodeViewModel>;
+  edges: Record<RelationshipEdgeViewModel>;
 }
 
 // API Routes

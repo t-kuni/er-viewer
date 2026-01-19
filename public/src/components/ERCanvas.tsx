@@ -8,12 +8,17 @@ import ReactFlow, {
   applyEdgeChanges,
   OnNodesChange,
   OnEdgesChange,
-  MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { DefaultService, type Entity, type Column } from '../api/client'
+import { DefaultService } from '../api/client'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
+import { buildERDiagramViewModel } from '../utils/viewModelConverter'
+import { convertToReactFlowNodes, convertToReactFlowEdges } from '../utils/reactFlowConverter'
+import { HoverProvider } from '../contexts/HoverContext'
+import type { components } from '../../../lib/generated/api-types'
+
+type ERDiagramViewModel = components['schemas']['ERDiagramViewModel']
 
 const nodeTypes = {
   entityNode: EntityNode,
@@ -26,6 +31,7 @@ const edgeTypes = {
 function ERCanvas() {
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
+  const [viewModel, setViewModel] = useState<ERDiagramViewModel>({ nodes: {}, edges: {} })
   const [loading, setLoading] = useState(false)
   
   const onNodesChange: OnNodesChange = useCallback(
@@ -48,37 +54,13 @@ function ERCanvas() {
         throw new Error(response.error)
       }
       
-      // ERDataとLayoutDataをReact Flowのnodesとedgesにマッピング
-      const newNodes: Node[] = response.erData.entities.map((entity: Entity) => {
-        const layout = response.layoutData.entities[entity.id]
-        return {
-          id: entity.id,
-          type: 'entityNode',
-          position: { x: layout.x, y: layout.y },
-          data: {
-            id: entity.id,
-            name: entity.name,
-            columns: entity.columns,
-            ddl: entity.ddl,
-          },
-        }
-      })
+      // ERDataとLayoutDataからERDiagramViewModelを構築
+      const vm = buildERDiagramViewModel(response.erData, response.layoutData)
+      setViewModel(vm)
       
-      const newEdges: Edge[] = response.erData.relationships.map((rel, index: number) => ({
-        id: `${rel.from}_${rel.fromColumn}_to_${rel.to}_${rel.toColumn}_${index}`,
-        type: 'relationshipEdge',
-        source: response.erData.entities.find((e: Entity) => e.name === rel.from)?.id || '',
-        target: response.erData.entities.find((e: Entity) => e.name === rel.to)?.id || '',
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: '#333',
-        },
-        data: {
-          fromColumn: rel.fromColumn,
-          toColumn: rel.toColumn,
-          constraintName: rel.constraintName,
-        },
-      }))
+      // ERDiagramViewModelをReact Flow形式に変換
+      const newNodes = convertToReactFlowNodes(vm.nodes)
+      const newEdges = convertToReactFlowEdges(vm.edges)
       
       setNodes(newNodes)
       setEdges(newEdges)
@@ -108,18 +90,20 @@ function ERCanvas() {
           {loading ? '処理中...' : 'リバースエンジニア'}
         </button>
       </div>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-      >
-        <Controls />
-        <Background />
-      </ReactFlow>
+      <HoverProvider viewModel={viewModel}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+        >
+          <Controls />
+          <Background />
+        </ReactFlow>
+      </HoverProvider>
     </div>
   )
 }

@@ -75,6 +75,7 @@ class DatabaseManager {
 
     const [rows] = await this.connection.execute(`SHOW COLUMNS FROM \`${tableName.replace(/`/g, '``')}\``);
     return (rows as any[]).map((row) => ({
+      id: crypto.randomUUID(),
       name: row.Field,
       type: row.Type,
       nullable: row.Null === 'YES',
@@ -105,6 +106,7 @@ class DatabaseManager {
     );
 
     return (rows as any[]).map((row) => ({
+      id: crypto.randomUUID(),
       column: row.COLUMN_NAME,
       referencedTable: row.REFERENCED_TABLE_NAME,
       referencedColumn: row.REFERENCED_COLUMN_NAME,
@@ -128,24 +130,46 @@ class DatabaseManager {
       relationships: [],
     };
 
+    // テーブル名→エンティティIDのマップを作成
+    const tableNameToIdMap = new Map<string, string>();
+
+    // 第1段階: 全エンティティを生成してマップを構築
     for (const tableName of tables) {
       const columns = await this.getTableColumns(tableName);
       const foreignKeys = await this.getForeignKeys(tableName);
       const ddl = await this.getTableDDL(tableName);
 
+      const entityId = crypto.randomUUID();
+      tableNameToIdMap.set(tableName, entityId);
+
       erData.entities.push({
-        id: crypto.randomUUID(), // UUID生成
+        id: entityId,
         name: tableName,
         columns: columns,
         foreignKeys: foreignKeys,
         ddl: ddl,
       });
+    }
 
-      for (const fk of foreignKeys) {
+    // 第2段階: リレーションシップを生成（エンティティIDを参照可能）
+    for (const entity of erData.entities) {
+      const tableName = entity.name;
+      for (const fk of entity.foreignKeys) {
+        const fromId = tableNameToIdMap.get(tableName);
+        const toId = tableNameToIdMap.get(fk.referencedTable);
+        
+        if (!fromId || !toId) {
+          console.warn(`Entity ID not found for relationship: ${tableName} -> ${fk.referencedTable}`);
+          continue;
+        }
+
         erData.relationships.push({
+          id: crypto.randomUUID(),
           from: tableName,
+          fromId: fromId,
           fromColumn: fk.column,
           to: fk.referencedTable,
+          toId: toId,
           toColumn: fk.referencedColumn,
           constraintName: fk.constraintName,
         });

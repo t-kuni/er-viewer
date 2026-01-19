@@ -69,5 +69,37 @@ describe('ReverseEngineerUsecase', () => {
       expect(typeof entity.x).toBe('number');
       expect(typeof entity.y).toBe('number');
     });
+    
+    // Columnにidが存在することを確認
+    const firstColumn = usersTable!.columns[0];
+    expect(firstColumn.id).toBeDefined();
+    expect(typeof firstColumn.id).toBe('string');
+    
+    // ForeignKeyにidが存在することを確認（もしFKがあれば）
+    if (usersTable!.foreignKeys.length > 0) {
+      const firstFK = usersTable!.foreignKeys[0];
+      expect(firstFK.id).toBeDefined();
+      expect(typeof firstFK.id).toBe('string');
+    }
+    
+    // Relationshipにid, fromId, toIdが存在することを確認
+    if (result.erData.relationships.length > 0) {
+      const firstRelationship = result.erData.relationships[0];
+      expect(firstRelationship.id).toBeDefined();
+      expect(typeof firstRelationship.id).toBe('string');
+      expect(firstRelationship.fromId).toBeDefined();
+      expect(typeof firstRelationship.fromId).toBe('string');
+      expect(firstRelationship.toId).toBeDefined();
+      expect(typeof firstRelationship.toId).toBe('string');
+      
+      // fromId/toIdが実際のエンティティIDと一致することを確認
+      const fromEntity = result.erData.entities.find(e => e.id === firstRelationship.fromId);
+      expect(fromEntity).toBeDefined();
+      expect(fromEntity!.name).toBe(firstRelationship.from);
+      
+      const toEntity = result.erData.entities.find(e => e.id === firstRelationship.toId);
+      expect(toEntity).toBeDefined();
+      expect(toEntity!.name).toBe(firstRelationship.to);
+    }
   });
 });

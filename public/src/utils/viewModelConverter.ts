@@ -42,13 +42,10 @@ export function buildERDiagramViewModel(
   const edges: { [key: string]: RelationshipEdgeViewModel } = {};
   
   for (const relationship of erData.relationships) {
-    // エッジIDは一意になるよう、関係性の情報から生成
-    const edgeId = `${relationship.from}_${relationship.fromColumn}_to_${relationship.to}_${relationship.toColumn}`;
-    
-    edges[edgeId] = {
-      id: edgeId,
-      source: relationship.from,
-      target: relationship.to,
+    edges[relationship.id] = {
+      id: relationship.id,
+      source: relationship.fromId,
+      target: relationship.toId,
       fromColumn: relationship.fromColumn,
       toColumn: relationship.toColumn,
       constraintName: relationship.constraintName,

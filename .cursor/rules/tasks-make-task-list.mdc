@@ -19,3 +19,6 @@ alwaysApply: false
   * 対象外のタスク
     * 指示していない修正
     * 実際にアプリを起動して動作確認
+  
+
+併せて [タスク一覧(TASK.md)作成ガイドライン](.cursor/rules/guideline-tasks.mdc) も参照すること

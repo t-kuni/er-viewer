@@ -81,8 +81,10 @@ React Flowはノード・エッジベースの図エディタに必要な機能�
   * 制約名は表示しない（データは保持するが表示しない）
 
 * **接続点**
-  * ノードのポート（上下左右のいずれか）から接続
-  * ポート位置はカラム位置に基づいて決定
+  * 各エンティティノードに4方向（Top/Right/Bottom/Left）のハンドルを配置
+  * エンティティ間の位置関係に応じて最適なハンドルを自動選択
+  * ノード移動時（ドラッグ完了時）に接続ポイントを動的に再計算
+  * 実装詳細は[research/20260120_2312_dynamic_edge_connection_optimization.md](../research/20260120_2312_dynamic_edge_connection_optimization.md)を参照
 
 ## ERD要件への対応
 

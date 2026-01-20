@@ -44,7 +44,18 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
       onMouseEnter={() => setHoverEntity(data.id)}
       onMouseLeave={clearHover}
     >
-      <Handle type="target" position={Position.Top} />
+      {/* Target handles (4 directions) */}
+      <Handle type="target" id="t-top" position={Position.Top} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="target" id="t-right" position={Position.Right} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="target" id="t-bottom" position={Position.Bottom} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="target" id="t-left" position={Position.Left} style={{ width: 8, height: 8, opacity: 0 }} />
+
+      {/* Source handles (4 directions) */}
+      <Handle type="source" id="s-top" position={Position.Top} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="source" id="s-right" position={Position.Right} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="source" id="s-bottom" position={Position.Bottom} style={{ width: 8, height: 8, opacity: 0 }} />
+      <Handle type="source" id="s-left" position={Position.Left} style={{ width: 8, height: 8, opacity: 0 }} />
+
       <div style={{ 
         background: '#333', 
         color: 'white', 
@@ -83,7 +94,6 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
           )
         })}
       </div>
-      <Handle type="source" position={Position.Bottom} />
     </div>
   )
 }

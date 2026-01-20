@@ -8,13 +8,15 @@ import ReactFlow, {
   applyEdgeChanges,
   OnNodesChange,
   OnEdgesChange,
+  NodeDragHandler,
+  useReactFlow,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { DefaultService } from '../api/client'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
 import { buildERDiagramViewModel } from '../utils/viewModelConverter'
-import { convertToReactFlowNodes, convertToReactFlowEdges } from '../utils/reactFlowConverter'
+import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { HoverProvider } from '../contexts/HoverContext'
 import type { components } from '../../../lib/generated/api-types'
 
@@ -28,21 +30,104 @@ const edgeTypes = {
   relationshipEdge: RelationshipEdge,
 }
 
+// ReactFlow内で使用する内部コンポーネント
+function ERCanvasInner({ 
+  nodes, 
+  edges, 
+  setNodes, 
+  setEdges 
+}: { 
+  nodes: Node[], 
+  edges: Edge[], 
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>, 
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>> 
+}) {
+  const { getNodes } = useReactFlow()
+  
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    [setNodes]
+  )
+  
+  const onEdgesChange: OnEdgesChange = useCallback(
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    [setEdges]
+  )
+  
+  const onNodeDragStop: NodeDragHandler = useCallback(
+    (_event, node) => {
+      // ドラッグされたノードに接続されているエッジを抽出
+      const connectedEdges = edges.filter(
+        (edge) => edge.source === node.id || edge.target === node.id
+      )
+
+      if (connectedEdges.length === 0) return
+
+      // 全ノードの現在位置とサイズを取得
+      const currentNodes = getNodes()
+
+      // 接続エッジのハンドルを再計算
+      const updatedEdges = edges.map((edge) => {
+        if (!connectedEdges.find((e) => e.id === edge.id)) {
+          return edge // 変更不要
+        }
+
+        const sourceNode = currentNodes.find((n) => n.id === edge.source)
+        const targetNode = currentNodes.find((n) => n.id === edge.target)
+
+        if (!sourceNode || !targetNode) return edge
+
+        // ノードの中心座標を計算（width/height プロパティから実際のサイズを取得）
+        const sourceWidth = sourceNode.width ?? 200
+        const sourceHeight = sourceNode.height ?? 100
+        const targetWidth = targetNode.width ?? 200
+        const targetHeight = targetNode.height ?? 100
+        
+        const sourceCenter = { 
+          x: sourceNode.position.x + sourceWidth / 2, 
+          y: sourceNode.position.y + sourceHeight / 2 
+        }
+        const targetCenter = { 
+          x: targetNode.position.x + targetWidth / 2, 
+          y: targetNode.position.y + targetHeight / 2 
+        }
+
+        const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter)
+
+        return {
+          ...edge,
+          sourceHandle,
+          targetHandle,
+        }
+      })
+
+      setEdges(updatedEdges)
+    },
+    [edges, getNodes, setEdges]
+  )
+  
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onNodeDragStop={onNodeDragStop}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      fitView
+    >
+      <Controls />
+      <Background />
+    </ReactFlow>
+  )
+}
+
 function ERCanvas() {
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
   const [viewModel, setViewModel] = useState<ERDiagramViewModel>({ nodes: {}, edges: {} })
   const [loading, setLoading] = useState(false)
-  
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  )
-  
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  )
   
   const handleReverseEngineer = async () => {
     setLoading(true)
@@ -60,7 +145,7 @@ function ERCanvas() {
       
       // ERDiagramViewModelをReact Flow形式に変換
       const newNodes = convertToReactFlowNodes(vm.nodes)
-      const newEdges = convertToReactFlowEdges(vm.edges)
+      const newEdges = convertToReactFlowEdges(vm.edges, vm.nodes)
       
       setNodes(newNodes)
       setEdges(newEdges)
@@ -91,18 +176,7 @@ function ERCanvas() {
         </button>
       </div>
       <HoverProvider viewModel={viewModel}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-        >
-          <Controls />
-          <Background />
-        </ReactFlow>
+        <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
       </HoverProvider>
     </div>
   )

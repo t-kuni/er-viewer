@@ -1,8 +1,8 @@
-# フロントエンドER図レンダリング技術選定のリサーチ
+# React Flowでのリレーション線の動的な接続ポイント最適化のリサーチ
 
 ## リサーチ要件
 
-フロントでER図をレンダリングする必要がある。reactなどが必要か？canvasを使うのがよいか？なにかライブラリを使うのがよいか？
+リレーションの線の出所が上か下の２箇所しかなく、線が見づらい時がある。例えばリレーションでつながっているエンティティAとBがあるとして、Aが上、Bが下にある時、リレーションがAの上から出てBの下につながっていたりして無駄に長くなっていたりする。エンティティの上下２箇所ではなく、自由な箇所から生えていいので無駄に長くしないでほしい。更に、エンティティは移動できるので動的に生えるポイントを最適化してほしい。これを実現する方法
 
 ## プロジェクト概要
 
@@ -11,7 +11,7 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 ### 技術スタック
 
 - **バックエンド**: Node.js + Express + TypeScript + MySQL
-- **フロントエンド**: TypeScript + Vite
+- **フロントエンド**: TypeScript + Vite + React + React Flow
 - **データベース**: MySQL 8
 - **開発環境**: Docker Compose（DB用）+ npm run dev（アプリケーション用）
 - **API定義**: TypeSpec
@@ -25,79 +25,194 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 - 後方互換も考慮しない
 - 不要になったコードは捨てる
 
-## 現在のフロントエンド構成
+## 現在のフロントエンド実装状況
+
+### 使用ライブラリ
+
+- **React Flow**: ER図のレンダリングとインタラクティブ機能（ドラッグ&ドロップ、ズーム、パンなど）に使用
+- React Flow公式サイト: https://reactflow.dev/
 
 ### ディレクトリ構造
 
 ```
-/er-viewer/public/
-├─ src/
-│   ├─ api/
-│   │   ├─ client/          （TypeSpecから自動生成されたAPIクライアント）
-│   │   └─ index.ts
-│   ├─ components/          （現在未使用）
-│   ├─ services/            （現在未使用）
-│   └─ app.ts              （エントリーポイント）
-├─ index.html
-├─ style.css
-├─ package.json
-├─ tsconfig.json
-└─ vite.config.ts
+/er-viewer/public/src/
+├─ components/
+│   ├─ App.tsx              （メインアプリケーション）
+│   ├─ EntityNode.tsx       （エンティティノードコンポーネント）
+│   ├─ RelationshipEdge.tsx （リレーションエッジコンポーネント）
+│   └─ ERCanvas.tsx         （React Flowキャンバス）
+├─ contexts/
+│   └─ HoverContext.tsx     （ホバー状態管理）
+└─ utils/
+    ├─ viewModelConverter.ts （ViewModelへの変換）
+    └─ reactFlowConverter.ts （React Flow形式への変換）
 ```
 
-### package.json（フロントエンド）
+### EntityNode.tsx の現在の実装
 
-```json
-{
-  "name": "er-viewer-frontend",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vite": "^5.0.0"
-  }
+EntityNodeコンポーネントは以下のように実装されている：
+
+```typescript
+import React from 'react'
+import { Handle, Position, NodeProps } from 'reactflow'
+import type { Column } from '../api/client'
+import { useHover } from '../contexts/HoverContext'
+
+interface EntityNodeData {
+  id: string
+  name: string
+  columns: Column[]
+  ddl: string
 }
+
+function EntityNode({ data }: NodeProps<EntityNodeData>) {
+  const { hoverState, setHoverEntity, setHoverColumn, clearHover } = useHover()
+  
+  const isHighlighted = hoverState.highlightedNodes.has(data.id)
+  const isDimmed = hoverState.elementType !== null && !isHighlighted
+  
+  const handleColumnMouseEnter = (e: React.MouseEvent, columnName: string) => {
+    e.stopPropagation()
+    setHoverColumn(data.id, columnName)
+  }
+  
+  const handleColumnMouseLeave = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    clearHover()
+  }
+  
+  return (
+    <div 
+      style={{ 
+        border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
+        borderRadius: '4px', 
+        background: 'white',
+        minWidth: '200px',
+        opacity: isDimmed ? 0.2 : 1,
+        boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
+        zIndex: isHighlighted ? 1000 : 1,
+        transition: 'all 0.2s ease-in-out',
+      }}
+      onMouseEnter={() => setHoverEntity(data.id)}
+      onMouseLeave={clearHover}
+    >
+      <Handle type="target" position={Position.Top} />
+      <div style={{ 
+        background: '#333', 
+        color: 'white', 
+        padding: '8px',
+        fontWeight: 'bold',
+      }}>
+        {data.name}
+      </div>
+      <div style={{ 
+        maxHeight: '300px', 
+        overflowY: 'auto',
+        padding: '4px',
+      }}>
+        {data.columns.map((col, index) => {
+          const isColumnHighlighted = 
+            hoverState.highlightedColumns.get(data.id)?.has(col.name) || false
+          
+          return (
+            <div 
+              key={index} 
+              style={{ 
+                padding: '4px',
+                borderBottom: '1px solid #eee',
+                fontSize: '12px',
+                backgroundColor: isColumnHighlighted ? '#e3f2fd' : 'transparent',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease-in-out',
+              }}
+              onMouseEnter={(e) => handleColumnMouseEnter(e, col.name)}
+              onMouseLeave={handleColumnMouseLeave}
+            >
+              {col.key === 'PRI' && '🔑 '}
+              {col.key === 'MUL' && '🔗 '}
+              {col.name}
+            </div>
+          )
+        })}
+      </div>
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  )
+}
+
+export default EntityNode
 ```
 
-### 現在の実装状況
+**重要な点**:
+- `<Handle type="target" position={Position.Top} />`: エンティティノードの上部に接続ポイントを配置
+- `<Handle type="source" position={Position.Bottom} />`: エンティティノードの下部に接続ポイントを配置
+- 現在は上下の2箇所のみが接続ポイントとして定義されている
 
-- Vite + TypeScriptのみを使用（フレームワークなし）
-- 純粋なDOM操作でUIを実装
-- APIクライアントはTypeSpecから自動生成
-- ER図レンダリング機能はまだ未実装（ビルド情報表示のみ実装済み）
+### RelationshipEdge.tsx の現在の実装
 
-## ER図レンダリングの機能要件
+RelationshipEdgeコンポーネントは以下のように実装されている：
 
-rearchitecture_overview.mdで定義されている機能要件：
+```typescript
+import React from 'react'
+import { EdgeProps, getSmoothStepPath } from 'reactflow'
+import { useHover } from '../contexts/HoverContext'
 
-### ER図表示・操作
+function RelationshipEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  data,
+}: EdgeProps) {
+  const { hoverState, setHoverEdge, clearHover } = useHover()
+  
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  })
+  
+  const isHighlighted = hoverState.highlightedEdges.has(id)
+  const isDimmed = hoverState.elementType !== null && !isHighlighted
+  
+  return (
+    <g
+      onMouseEnter={() => setHoverEdge(id)}
+      onMouseLeave={clearHover}
+      style={{ 
+        cursor: 'pointer',
+        zIndex: isHighlighted ? 999 : 0,
+      }}
+    >
+      <path
+        id={id}
+        d={edgePath}
+        style={{
+          stroke: isHighlighted ? '#007bff' : '#333',
+          strokeWidth: isHighlighted ? 4 : 2,
+          fill: 'none',
+          opacity: isDimmed ? 0.2 : 1,
+          transition: 'all 0.2s ease-in-out',
+        }}
+      />
+    </g>
+  )
+}
 
-- インタラクティブなER図表示
-- エンティティのドラッグ&ドロップ配置
-- ズーム・パン操作
-- リレーション線の表示（直角ポリライン）
+export default RelationshipEdge
+```
 
-### ビジュアル表現
-
-- ホバー時のハイライト表示
-- プライマリキー・外部キーの視覚的区別
-- カスタマイズ可能な色・サイズ
-
-### インタラクティブ操作
-
-- エンティティクリックでDDL表示
-- サイドバーでの詳細情報表示
-
-### 図形描画・注釈機能
-
-- 矩形描画（エンティティのグループ化用）
-- テキスト追加（補足情報記載用）
+**重要な点**:
+- `getSmoothStepPath`: React Flowの組み込み関数でスムーズなステップパスを生成
+- `sourceX, sourceY, targetX, targetY`: 接続元と接続先の座標
+- `sourcePosition, targetPosition`: 接続元と接続先の位置（Position.Top, Position.Bottomなど）
+- エッジのパスは`sourcePosition`と`targetPosition`に基づいて自動的に計算される
 
 ### データ構造
 
@@ -138,148 +253,142 @@ interface EntityLayout {
   width: number;
   height: number;
 }
-
-// 矩形（補助図形）
-interface Rectangle {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-  label: string;
-}
-
-// テキスト（注釈）
-interface Text {
-  x: number;
-  y: number;
-  content: string;
-  fontSize: number;
-  fill: string;
-}
-
-// ER図データ全体
-interface ERData {
-  entities: Entity[];
-  relationships: Relationship[];
-}
-
-// レイアウトデータ全体
-interface LayoutData {
-  entities: EntityLayout[];
-  rectangles: Rectangle[];
-  texts: Text[];
-}
 ```
 
-## データフロー
+## 現在の問題点
 
-1. バックエンドAPIからER図データを取得（`GET /api/reverse-engineer`）
-2. レイアウト情報を取得または初期レイアウトを生成
-3. フロントエンドでER図をレンダリング
-4. ユーザー操作（ドラッグ&ドロップ、図形追加など）でレイアウトを変更
-5. レイアウト情報を保存（`POST /api/layouts`）
+### 問題の詳細
+
+1. **接続ポイントが2箇所に固定されている**
+   - EntityNodeコンポーネントで`Position.Top`と`Position.Bottom`のみが定義されている
+   - 左右（`Position.Left`, `Position.Right`）からの接続ができない
+
+2. **非効率な接続パスの発生**
+   - エンティティAが上、エンティティBが下にある場合でも、Aの上から線が出てBの下につながることがある
+   - 無駄に長い接続パスが生成される
+
+3. **動的な最適化がない**
+   - エンティティは移動可能だが、接続ポイントは固定のまま
+   - エンティティの位置関係に応じて最適な接続ポイントが自動的に選ばれない
+
+### 具体例
+
+```
+状況: エンティティAが上、エンティティBが下にある
+
+現在の動作:
+  ┌────────┐
+  │   A    │ ← Aの上から線が出る
+  └────┬───┘
+       │
+       │ （無駄に長い）
+       │
+       │
+  ┌────┴───┐
+  │   B    │ ← Bの下につながる
+  └────────┘
+
+期待する動作:
+  ┌────────┐
+  │   A    │
+  └────┬───┘
+       │ （最短）
+  ┌────┴───┐
+  │   B    │
+  └────────┘
+```
 
 ## 期待する回答
 
-以下の観点から、フロントエンドでER図をレンダリングするための技術選定について提案してください：
+以下の観点から、React Flowでリレーション線の接続ポイントを動的に最適化する方法について提案してください：
 
-### 1. レンダリング技術の選択
+### 1. 複数の接続ポイント（ハンドル）の配置
 
-- **DOM操作 vs Canvas vs SVG**: それぞれのメリット・デメリット
-  - パフォーマンス（多数のエンティティを扱う場合）
-  - インタラクティブ性（ドラッグ&ドロップ、ホバーなど）
-  - 実装の複雑さ
-  - ズーム・パン操作の実装難易度
-- **Canvas 2D vs WebGL**: Canvasを選択する場合、2DコンテキストとWebGLのどちらが適切か
+- **4方向のハンドル**: Top, Bottom, Left, Rightの4箇所にハンドルを配置する方法
+  - React Flowの`Handle`コンポーネントを複数配置することで実現できるか
+  - 各方向のハンドルに一意のIDを割り当てる必要があるか
+  - カスタムスタイリングで見た目を調整する方法
 
-### 2. UIフレームワークの必要性
+- **複数ハンドルの課題**
+  - 複数のハンドルが存在する場合、React Flowはどのハンドルを使用するか自動的に判断するか
+  - 手動で使用するハンドルを指定する必要があるか
 
-- **React, Vue, Svelteなどのフレームワークは必要か**: 現在はVanilla TypeScriptを使用
-  - フレームワークを使うメリット（状態管理、コンポーネント化など）
-  - フレームワークなしで実装する場合の課題
-  - MVPフェーズでの学習コスト
-- **フレームワークが必要な場合、どれを選ぶべきか**
-  - Viteとの相性
-  - TypeScriptサポート
-  - 学習コスト
-  - バンドルサイズ
+### 2. 動的なハンドル選択の実装
 
-### 3. ER図専用ライブラリの検討
+- **接続元と接続先の位置関係に基づいた最適化**
+  - エンティティAとBの座標（x, y）から最適な接続方向を計算する方法
+  - React Flowでエッジに使用するハンドルを動的に指定する方法
+  - `sourceHandle`と`targetHandle`プロパティの使用方法
 
-- **既存のER図ライブラリ**: 以下のようなライブラリは利用可能か
-  - ダイアグラム描画ライブラリ（例: joint.js, gojs, reactflow, d3.jsなど）
-  - ER図特化ライブラリ
-  - グラフ描画ライブラリ
-- **ライブラリを使うメリット・デメリット**
-  - 機能の充実度（ドラッグ&ドロップ、ズーム、パンなど）
-  - カスタマイズ性
-  - ライセンス（商用利用の可否）
-  - 学習コスト
-  - バンドルサイズ
-  - メンテナンス状況
+- **計算アルゴリズム**
+  - 2つのノードの位置関係（相対位置）から最適な接続方向を決定するロジック
+  - 例: AがBの左上にある場合、Aの右下から、Bの左上へ接続するなど
+  - 最短距離または最も自然な見た目になる接続方向の選択基準
 
-### 4. ドラッグ&ドロップの実装
+### 3. エンティティ移動時の動的更新
 
-- **ネイティブAPI vs ライブラリ**: ドラッグ&ドロップ機能の実装方法
-  - HTML5 Drag and Drop API
-  - Pointer Events API
-  - 専用ライブラリ（例: interact.js, dnd-kitなど）
-- **Canvas上でのドラッグ&ドロップ実装の難易度**
+- **リアルタイムな再計算**
+  - エンティティがドラッグ移動された時に、接続ポイントを再計算する方法
+  - React Flowの`onNodesChange`や`onNodeDragStop`イベントの活用
+  - 状態管理（React State）での最適な接続情報の保持方法
 
-### 5. ズーム・パン機能の実装
+- **パフォーマンス**
+  - 移動のたびに全エッジの接続ポイントを再計算するパフォーマンス影響
+  - 最適化手法（メモ化、debounce、throttleなど）
 
-- **実装方法**: Canvas/SVGでのズーム・パン機能
-  - 変換行列による実装
-  - 専用ライブラリの利用
-- **スムーズなユーザー体験**: マウスホイール、タッチジェスチャーへの対応
+### 4. React Flowの機能・API
 
-### 6. リレーション線の描画
+- **カスタムエッジ**
+  - `getSmoothStepPath`以外のパス生成関数（`getStraightPath`, `getBezierPath`など）
+  - カスタムエッジコンポーネントでの完全制御の可能性
 
-- **直角ポリライン**: エンティティ間を結ぶ線を直角で描画
-  - アルゴリズムの複雑さ
-  - パフォーマンス
-  - ライブラリでの実装可否
+- **ハンドルの動的配置**
+  - ハンドルの位置をプログラマティックに設定する方法
+  - React Flowでサポートされているハンドル配置のオプション
 
-### 7. 実装の容易さとメンテナンス性
+- **エッジのカスタムデータ**
+  - エッジに`sourceHandle`と`targetHandle`を指定する方法
+  - エッジデータの動的更新方法
 
-- **MVPフェーズでの実装スピード**: プロトタイピングに適した技術
-- **コードの保守性**: シンプルで理解しやすいコード
-- **機能追加の容易さ**: 後から機能を追加しやすい設計
+### 5. 実装例やベストプラクティス
 
-### 8. パフォーマンス
+- **コード例**
+  - 4方向ハンドルを持つカスタムノードの実装例
+  - 動的にハンドルを選択するロジックの実装例
+  - エンティティ移動時の再計算ロジックの実装例
 
-- **多数のエンティティ**: 50-100個程度のエンティティとリレーションを扱う場合のパフォーマンス
-- **リアルタイム更新**: ドラッグ中のスムーズな描画更新
+- **React Flowの公式ドキュメントやサンプル**
+  - 類似の実装例があるか（複数ハンドル、動的接続など）
+  - 関連するAPIドキュメントのリンク
 
-### 9. 推奨される技術スタック
+### 6. 実装の複雑さとトレードオフ
 
-以下のようなパターンの提案：
+- **実装難易度**: MVPフェーズに適したシンプルな実装方法
+- **保守性**: 理解しやすく、後から修正しやすいコード
+- **機能の拡張性**: 将来的な機能追加に対応しやすい設計
 
-- **パターンA**: Vanilla TypeScript + Canvas 2D + 専用ライブラリ
-- **パターンB**: React + SVG + 専用ライブラリ
-- **パターンC**: その他の組み合わせ
+### 7. 代替アプローチ
 
-各パターンについて：
-- メリット・デメリット
-- 実装の複雑さ
-- 学習コスト
-- 実装期間の見積もり
-- コード例の可能性
+- **React Flow以外の方法**
+  - React Flowの制約により実現が困難な場合、他のライブラリや手法の検討
+  - カスタムSVG描画による完全制御の可能性
+
+- **段階的な実装**
+  - まず4方向ハンドルのみを実装し、後から動的最適化を追加するアプローチ
+  - 静的な接続ポイント選択（初期配置時のみ最適化）vs 動的な選択（移動時も再計算）
 
 ### 重視する点
 
-- **MVPフェーズに適していること**: 実現可能性の検証が目的
-- **実装のシンプルさ**: 複雑すぎない、理解しやすいコード
-- **機能の実現可能性**: 必要な機能（ドラッグ&ドロップ、ズーム、パンなど）が実装できること
-- **Viteとの相性**: 現在のビルド環境との統合
+- **React Flowとの互換性**: 現在使用しているReact Flowの機能を活用する
+- **実装のシンプルさ**: MVPフェーズに適した、複雑すぎない実装
+- **視覚的な改善**: 線が無駄に長くならず、見やすいER図を実現
+- **動的な最適化**: エンティティ移動時に接続ポイントが自動的に最適化される
 
 ### 重視しない点
 
-- **パフォーマンスの最適化**: MVPフェーズでは過度な最適化は不要
+- **パフォーマンスの極端な最適化**: MVPフェーズでは過度な最適化は不要
+- **完璧な最短経路**: 計算コストが高いアルゴリズムは不要、ある程度の改善で十分
 - **セキュリティ**: プロトタイピング段階では考慮しない
 - **後方互換性**: 考慮不要
-- **プロダクションレディ**: 商用利用レベルの品質は不要
 
-現在のプロジェクト構成（Vite + Vanilla TypeScript、MVPフェーズ、プロトタイピング）を考慮した上で、シンプルで実装しやすく、必要な機能を実現できる技術スタックを提案してください。
+現在のプロジェクト構成（React Flow使用、MVPフェーズ、プロトタイピング）を考慮した上で、シンプルで実装しやすく、視覚的に改善されたER図の接続線を実現できる方法を提案してください。

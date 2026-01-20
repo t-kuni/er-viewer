@@ -10,6 +10,7 @@ import ReactFlow, {
   OnEdgesChange,
   NodeDragHandler,
   useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { DefaultService } from '../api/client'
@@ -176,7 +177,9 @@ function ERCanvas() {
         </button>
       </div>
       <HoverProvider viewModel={viewModel}>
-        <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
+        <ReactFlowProvider>
+          <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
+        </ReactFlowProvider>
       </HoverProvider>
     </div>
   )

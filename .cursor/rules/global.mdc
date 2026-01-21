@@ -28,6 +28,7 @@ git add -A && GIT_PAGER=cat git diff HEAD
 GIT_PAGER=cat git diff HEAD^ HEAD
 
 # コード生成（ビルドの前に実行すること）
+# main.tspから生成した型が lib/generated/api-types.ts と public/src/api/client 配下に作成される
 npm run generate
 
 # テスト実行
@@ -42,6 +43,13 @@ npm run test
   * 仕様書が格納されています
 * `scheme`
   * APIのスキーマやJSON-Schemeが格納されています
+* `scheme/main.tsp`
+  * アプリ全体で利用する型を包括的に管理しています
   * これも仕様書として扱います
+* `lib/generated/api-types.ts`
+  * main.tspから生成されたバックエンド用の型です
+* `public/src/api/client`
+  * main.tspから生成されたフロント用の型です
+  * ERDiagramViewModel でフロントのER図の状態を管理します
 
 [rearchitecture_overview.md](/spec/rearchitecture_overview.md) にもアーキテクチャの説明あり。

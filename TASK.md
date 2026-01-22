@@ -1,261 +1,255 @@
-# フロントエンド状態管理のリアーキテクチャ実装タスク
-
-本タスクリストは、仕様書 `spec/frontend_state_management.md` に基づき、現在の `HoverContext` ベースの実装を単一状態ツリー + Action層 + Store の設計に移行するためのタスクを定義します。
-
-## 前提条件
-
-- 仕様書: [spec/frontend_state_management.md](./spec/frontend_state_management.md)
-- 関連仕様: [spec/frontend_er_rendering.md](./spec/frontend_er_rendering.md)
-- リサーチ背景: [research/20260122_0017_flux_action_layer_state_management.md](./research/20260122_0017_flux_action_layer_state_management.md)
-
-## 基盤実装
-
-### □ 拡張ViewModelの型定義を作成
-
-**ファイル**: `public/src/types/ERDiagramViewModel.ts`（新規作成）
-
-**内容**:
-- TypeSpecで生成された `ERDiagramViewModel` を拡張し、UI状態（hover, highlight, loading）を含む型を定義
-- 以下の型を定義:
-  - `HoverTarget`: ホバー対象を表す型（仕様書参照）
-  - `ERDiagramViewModel`: TypeSpecの型を拡張した型（uiとloadingフィールドを追加）
-- TypeSpecの生成型（`public/src/api/client/models/ERDiagramViewModel.ts`）をインポートし、その型に`ui`と`loading`を追加する形で拡張
-- 参照: `spec/frontend_state_management.md` の「状態設計」セクション
-- 注意: `npm run generate` を実行すると、TypeSpecからフロントエンドの型も自動更新される
-
-### □ Action関数の型定義を作成
-
-**ファイル**: `public/src/types/Action.ts`（新規作成）
-
-**内容**:
-- `ActionFn<Args extends any[] = any[]>` 型を定義
-- 形式: `(viewModel: ERDiagramViewModel, ...args: Args) => ERDiagramViewModel`
-- `ERDiagramViewModel`は`public/src/types/ERDiagramViewModel.ts`で定義する拡張版の型
-- 参照: `spec/frontend_state_management.md` の「Action層の設計」セクション
-
-### □ ホバーActionの実装
-
-**ファイル**: `public/src/actions/hoverActions.ts`（新規作成）
-
-**内容**:
-- `actionHoverEntity(viewModel, entityId)`: エンティティホバー時のAction
-- `actionHoverEdge(viewModel, edgeId)`: エッジホバー時のAction
-- `actionHoverColumn(viewModel, entityId, columnName)`: カラムホバー時のAction
-- `actionClearHover(viewModel)`: ホバー解除時のAction
-- 各Actionは純粋関数として実装
-- 状態に変化がない場合は同一参照を返す
-- 参照: `spec/frontend_state_management.md` の「主要なAction」セクション
-- 既存のロジックは `public/src/contexts/HoverContext.tsx` の `setHoverEntity`, `setHoverEdge`, `setHoverColumn` を参考にする
-
-### □ データ更新Actionの実装
-
-**ファイル**: `public/src/actions/dataActions.ts`（新規作成）
-
-**内容**:
-- `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定するAction
-  - 引数: `nodes` (Record<string, EntityNodeViewModel>), `edges` (Record<string, RelationshipEdgeViewModel>)
-  - 既存のUI状態を保持したままデータ部分のみ更新
-- `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新Action
-  - 引数: `nodePositions` (Array<{ id: string, x: number, y: number }>)
-  - 該当ノードの座標のみ更新
-- `actionSetLoading(viewModel, loading)`: ローディング状態の更新Action
-- 参照: `spec/frontend_state_management.md` の「主要なAction」セクション
-
-### □ Store実装
-
-**ファイル**: `public/src/store/ERStore.ts`（新規作成）
-
-**内容**:
-- `ERStore` インターフェースを実装
-  - `getState(): ERDiagramViewModel`
-  - `subscribe(listener: () => void): () => void`
-  - `dispatch<Args>(action: ActionFn<Args>, ...args: Args): void`
-- 開発環境のみdispatchログを出力
-- 状態変化時（参照比較）のみsubscriberに通知
-- 初期状態を返す `createInitialViewModel()` 関数を実装
-- 参照: `spec/frontend_state_management.md` の「Store実装」セクション
-
-### □ React統合フックの実装
-
-**ファイル**: `public/src/hooks/useERStore.ts`（新規作成）
-
-**内容**:
-- `useERViewModel<T>(selector: (vm: ERDiagramViewModel) => T): T` フックを実装
-  - `useSyncExternalStore` を使用してStoreを購読
-  - selectorで必要な部分だけ購読し、再レンダリングを最小化
-- `useERDispatch(): Store['dispatch']` フックを実装
-  - dispatch関数を取得するフック
-- グローバルなStoreインスタンスを作成してexport
-- 参照: `spec/frontend_state_management.md` の「React統合」セクション
-
-## Commandレイヤー実装
-
-### □ リバースエンジニアCommandの実装
-
-**ファイル**: `public/src/commands/reverseEngineerCommand.ts`（新規作成）
-
-**内容**:
-- `commandReverseEngineer(dispatch)` 関数を実装
-  - API呼び出し前に `actionSetLoading(true)` をdispatch
-  - `DefaultService.apiReverseEngineer()` を呼び出し
-  - 成功時、`buildERDiagramViewModel()` でViewModelを構築
-  - `actionSetData()` をdispatch
-  - finally で `actionSetLoading(false)` をdispatch
-- 参照: `spec/frontend_state_management.md` の「非同期処理（API呼び出し）」セクション
-- 既存コード: `public/src/components/ERCanvas.tsx` の `handleReverseEngineer` 関数を参考
-
-## コンポーネントのリファクタリング
-
-### □ ERCanvasコンポーネントの移行
-
-**ファイル**: `public/src/components/ERCanvas.tsx`
-
-**変更内容**:
-- `HoverProvider` の使用を削除
-- `useState` で管理していた `viewModel`, `loading` を削除
-- `useERViewModel` で必要な状態を購読
-- `useERDispatch` でdispatch関数を取得
-- `handleReverseEngineer` を `commandReverseEngineer` の呼び出しに置き換え
-- React FlowのnodesとedgesはViewModelから導出（selector内で変換）
-- `onNodeDragStop` 内で `actionUpdateNodePositions` をdispatch
-- ドラッグ中はホバー判定を行わない（実装の簡略化）
-- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
-
-### □ EntityNodeコンポーネントの移行
-
-**ファイル**: `public/src/components/EntityNode.tsx`
-
-**変更内容**:
-- `useHover()` の使用を `useERViewModel` と `useERDispatch` に置き換え
-- `setHoverEntity`, `setHoverColumn`, `clearHover` を dispatch経由のAction呼び出しに変更
-  - 例: `dispatch(actionHoverEntity, data.id)`
-- ハイライト判定は `useERViewModel` から取得した状態を使用
-- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
-
-### □ RelationshipEdgeコンポーネントの移行
-
-**ファイル**: `public/src/components/RelationshipEdge.tsx`
-
-**変更内容**:
-- `useHover()` の使用を `useERViewModel` と `useERDispatch` に置き換え
-- `setHoverEdge`, `clearHover` を dispatch経由のAction呼び出しに変更
-  - 例: `dispatch(actionHoverEdge, id)`
-- ハイライト判定は `useERViewModel` から取得した状態を使用
-- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
-
-## 旧実装の削除
-
-### □ HoverContextの削除
-
-**ファイル**: `public/src/contexts/HoverContext.tsx`
-
-**内容**:
-- ファイルを削除
-- 理由: Store + Action層に置き換えられたため不要
-
-## テスト環境のセットアップ
-
-### □ フロントエンド用Vitest設定ファイルの作成
-
-**ファイル**: `public/vitest.config.ts`（新規作成）
-
-**内容**:
-- Vitestの設定ファイルを作成
-- `test.globals: true` を設定（グローバルなテストAPI使用）
-- `test.environment: 'jsdom'` を設定（React コンポーネントのテスト用）
-- テストファイルのパターンを設定: `test.include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx']`
-- エイリアス設定（必要に応じて）
-- 参考: ルートの `vitest.config.ts` と同様の構成
-
-### □ フロントエンドのテストディレクトリ作成
-
-**ディレクトリ**: `public/tests/`（新規作成）
-
-**内容**:
-- 以下のサブディレクトリを作成:
-  - `public/tests/actions/` - Actionのテスト
-
-### □ フロントエンドのテスト用依存関係の追加
-
-**ファイル**: `public/package.json`
-
-**変更内容**:
-- `devDependencies` に以下を追加:
-  - `vitest`: 最新版
-  - `@vitest/ui`: 最新版（任意、UI表示用）
-  - `jsdom`: 最新版（DOM環境エミュレート用）
-  - `@testing-library/react`: 最新版（React コンポーネントテスト用、将来的に必要な場合）
-  - `@testing-library/jest-dom`: 最新版（DOM マッチャー用、将来的に必要な場合）
-- `scripts` にテストコマンドを追加:
-  - `"test": "vitest"`
-  - `"test:ui": "vitest --ui"`
-  - `"test:run": "vitest run"`（CI用）
-
-## テストの実装
-
-### □ hoverActionsのテスト作成
-
-**ファイル**: `public/tests/actions/hoverActions.test.ts`（新規作成）
-
-**内容**:
-- `actionHoverEntity` のテスト
-  - ホバーしたエンティティと隣接要素がハイライトされることを検証
-  - 状態に変化がない場合は同一参照が返されることを検証
-- `actionHoverEdge` のテスト
-  - エッジと両端のノード、関連カラムがハイライトされることを検証
-- `actionHoverColumn` のテスト
-  - カラムと関連するエッジ・ノード・対応カラムがハイライトされることを検証
-- `actionClearHover` のテスト
-  - すべてのハイライトがクリアされることを検証
-- テストフレームワーク: Vitest
-- テストデータはDAMP原則に従い、テストケース毎に即値で定義（ヘルパー関数は不要）
-- 参照: `spec/frontend_state_management.md` の「Action単体テスト」セクション
-
-### □ dataActionsのテスト作成
-
-**ファイル**: `public/tests/actions/dataActions.test.ts`（新規作成）
-
-**内容**:
-- `actionSetData` のテスト
-  - データが正しく設定され、UI状態が保持されることを検証
-- `actionUpdateNodePositions` のテスト
-  - 指定したノードの座標のみ更新されることを検証
-- `actionSetLoading` のテスト
-  - loading状態が正しく更新されることを検証
-- テストフレームワーク: Vitest
-- テストデータはDAMP原則に従い、テストケース毎に即値で定義（ヘルパー関数は不要）
-
-## ビルド・動作確認
-
-### □ フロントエンドのビルド確認
-
-**コマンド**: `cd public && npm run build`
-
-**確認内容**:
-- ビルドエラーがないこと
-- 型エラーがないこと
-
-### □ フロントエンドテストの実行
-
-**コマンド**: `cd public && npm run test:run`
-
-**確認内容**:
-- すべてのテストがパスすること
-- カバレッジが十分であること（主要なActionロジックをカバー）
-- テストが正しく実行できる環境が整っていること
-
-## 事前修正提案
-
-特になし。仕様書に従って段階的に実装可能。
-
-## 指示者宛ての懸念事項（作業対象外）
-
-### React Flowとの統合の実現可能性
-
-- 仕様書では「ドラッグ中はReact Flow内部状態、確定時のみVMへ反映」とあるが、実際に実装してみないと問題点が見えない可能性がある
-- ドラッグ中はホバー判定を行わないことで実装を簡略化する方針
-
-### パフォーマンスの検証
-
-- 仕様書では「変化がない場合は同一参照を返す」ことで再レンダリングを抑制するとあるが、実際にパフォーマンスが改善されるかは計測が必要
-- 大規模なER図（100エンティティ以上）での動作確認が望ましい
+# タスク一覧
+
+仕様書の差分に基づいて実装対象のタスクを洗い出しています。
+
+## 概要
+
+以下の仕様変更に対応する実装を行う：
+
+1. **TypeSpec（scheme/main.tsp）**: UUID仕様の追加、`ForeignKey`と`Relationship`のフィールド名変更（ID参照に統一）、`ERDiagramViewModel`への`ui`と`loading`フィールド追加
+2. **frontend_er_rendering.md**: RelationshipのフィールドがID参照に変更されたことに合わせて仕様を更新
+3. **frontend_state_management.md**: 新規作成された仕様書（Action層・Store実装・テスト戦略）
+
+## バックエンド実装
+
+### lib/database.ts の修正
+
+- [ ] `generateERData` メソッドを修正してカラム名→カラムID変換マップを構築
+  - **実装方針**:
+    - 第1段階（エンティティ生成）で、各エンティティごとに「カラム名→カラムID」のマップを作成
+    - 例: `Map<entityId, Map<columnName, columnId>>`の2段階マップ、または`Map<"entityId:columnName", columnId>`の1段階マップ
+    - このマップを第2段階（リレーションシップ生成）で利用
+  - **参照**: `lib/database.ts` の `generateERData` メソッド (126-180行目)
+
+- [ ] `getForeignKeys` メソッドの戻り値を新しい`ForeignKey`型に対応させる
+  - **変更内容**: 
+    - `column` → `columnId` (カラムIDをUUIDで参照)
+    - `referencedTable` → `referencedTableId` (参照先エンティティIDをUUIDで参照)
+    - `referencedColumn` → `referencedColumnId` (参照先カラムIDをUUIDで参照)
+  - **実装方針**: 
+    - `getForeignKeys`には引数として「カラム名→カラムIDマップ」と「テーブル名→エンティティIDマップ」を渡す
+    - SQLで取得したカラム名を、マップを使ってカラムIDに変換
+    - テーブル名をエンティティIDに変換
+  - **参照**: `lib/database.ts` の `getForeignKeys` メソッド (88-115行目)
+  - **注意**: シグネチャの変更が必要（引数追加）
+
+- [ ] `generateERData` メソッドの`Relationship`生成部分を修正
+  - **変更内容**:
+    - `from`, `to` フィールドを削除（テーブル名は不要、IDのみで識別）
+    - `fromId` → `fromEntityId`
+    - `fromColumn` → `fromColumnId` (カラムIDをUUIDで参照)
+    - `toId` → `toEntityId`
+    - `toColumn` → `toColumnId` (カラムIDをUUIDで参照)
+  - **実装方針**:
+    - `ForeignKey`の`columnId`、`referencedTableId`、`referencedColumnId`をそのまま使用
+    - 上記の修正により、`ForeignKey`は既にID情報を持っているため変換不要
+  - **参照**: `lib/database.ts` の `generateERData` メソッド (154-177行目)
+  - **TypeSpec定義**: `scheme/main.tsp` の `Relationship` モデル (54-62行目)
+
+### lib/usecases/ReverseEngineerUsecase.ts の確認
+
+- [ ] TypeScript型エラーがないことを確認
+  - **確認内容**: `generateERData`の戻り値が新しい型定義と一致しているか
+  - **参照**: `lib/usecases/ReverseEngineerUsecase.ts`
+
+## フロントエンド実装
+
+### 型生成
+
+- [ ] TypeSpec から型を再生成
+  - **コマンド**: `npm run generate`
+  - **生成されるファイル**:
+    - `lib/generated/api-types.ts` (バックエンド用)
+    - `public/src/api/client/models/` (フロントエンド用)
+  - **確認事項**: 
+    - `ForeignKey`の型が`columnId`, `referencedTableId`, `referencedColumnId`を持つこと
+    - `Relationship`の型が`fromEntityId`, `fromColumnId`, `toEntityId`, `toColumnId`を持つこと
+    - `ERDiagramViewModel`の型が`ui`と`loading`フィールドを持つこと
+  - **参照**: `spec/typespec_api_definition.md`
+
+### public/src/utils/viewModelConverter.ts の修正
+
+- [ ] `buildERDiagramViewModel` 関数を修正して新しい型に対応
+  - **変更内容**:
+    - `RelationshipEdgeViewModel`の構築時に、`source/target`ではなく`sourceEntityId/targetEntityId`を使用
+    - `fromColumn/toColumn`ではなく`fromColumnId/toColumnId`を使用
+    - `ERDiagramViewModel`に`ui`と`loading`フィールドを追加
+  - **実装方針**:
+    - `relationship.fromEntityId` → `edge.sourceEntityId`
+    - `relationship.toEntityId` → `edge.targetEntityId`
+    - `relationship.fromColumnId` → `edge.sourceColumnId`
+    - `relationship.toColumnId` → `edge.targetColumnId`
+    - `ui`は初期状態として空の値を設定（`hover: null`, `highlightedNodeIds: []`, `highlightedEdgeIds: []`, `highlightedColumnIds: []`）
+    - `loading`は`false`を設定
+  - **参照**: `public/src/utils/viewModelConverter.ts` (44-53行目)
+  - **TypeSpec定義**: `scheme/main.tsp` の `RelationshipEdgeViewModel` (150-158行目)、`ERDiagramViewModel` (166-171行目)
+
+### public/src/utils/reactFlowConverter.ts の修正
+
+- [ ] `convertToReactFlowEdges` 関数を修正して新しいフィールド名に対応
+  - **変更内容**:
+    - `edge.source` → `edge.sourceEntityId`
+    - `edge.target` → `edge.targetEntityId`
+    - `edge.fromColumn` → `edge.sourceColumnId`
+    - `edge.toColumn` → `edge.targetColumnId`
+  - **参照**: `public/src/utils/reactFlowConverter.ts` (82-117行目)
+  - **注意**: React Flowの`Edge`型の`source`と`target`フィールドには`sourceEntityId`/`targetEntityId`の値を設定する
+
+### public/src/contexts/HoverContext.tsx の修正（カラム名→カラムIDへの移行）
+
+- [ ] `HoverState`の`highlightedColumns`をカラムIDベースに変更
+  - **変更内容**:
+    - `highlightedColumns: Map<string, Set<string>>`（entityId → Set<columnName>）を削除
+    - 代わりに`highlightedColumnIds: Set<string>`（カラムIDの集合）を使用
+  - **実装方針**:
+    - カラムIDをキーとする集合で管理することで、エンティティをまたいだカラムの検索が不要になる
+    - ただし、カラムのハイライト判定時に「エンティティID + カラムID」で検索する必要があるため、実装の複雑さとのトレードオフを検討
+  - **参照**: `public/src/contexts/HoverContext.tsx` (10-17行目)
+  - **仕様**: `spec/frontend_state_management.md` のERDiagramViewModel型定義 (28-58行目)
+
+- [ ] `setHoverEdge` 関数でカラムIDを使用するように修正
+  - **変更内容**:
+    - `edge.fromColumn/toColumn`（カラム名）ではなく`edge.sourceColumnId/targetColumnId`（カラムID）を使用
+  - **参照**: `public/src/contexts/HoverContext.tsx` (79-102行目)
+
+- [ ] `setHoverColumn` 関数でカラムIDを使用するように修正
+  - **変更内容**:
+    - 引数を`(entityId: string, columnName: string)`から`(columnId: string)`に変更
+    - エッジ検索時に`edge.fromColumn/toColumn`（カラム名）ではなく`edge.sourceColumnId/targetColumnId`（カラムID）を使用
+  - **参照**: `public/src/contexts/HoverContext.tsx` (105-141行目)
+  - **注意**: この変更により、EntityNodeコンポーネントからの呼び出し方法も変更が必要
+
+### public/src/components/EntityNode.tsx の修正
+
+- [ ] カラムホバー時にカラムIDを渡すように修正
+  - **変更内容**:
+    - `setHoverColumn(data.id, columnName)` → `setHoverColumn(column.id)`
+    - カラムのハイライト判定を`hoverState.highlightedColumnIds.has(col.id)`で行う
+  - **参照**: `public/src/components/EntityNode.tsx` (22-30行目、73-95行目)
+  - **注意**: `col.name`ではなく`col.id`を使用する
+
+### public/src/components/RelationshipEdge.tsx の修正
+
+- [ ] カラムIDベースのハイライト判定に対応（必要に応じて）
+  - **確認内容**: エッジコンポーネントで特にカラム情報を表示していないため、修正は不要の可能性が高い
+  - **参照**: `public/src/components/RelationshipEdge.tsx`
+
+## テストコード修正
+
+### tests/usecases/ReverseEngineerUsecase.test.ts の修正
+
+- [ ] `Relationship`の検証部分を新しいフィールド名に対応させる
+  - **変更内容**:
+    - `firstRelationship.from/to`のアサーションを削除（フィールドが存在しなくなる）
+    - `firstRelationship.fromId` → `firstRelationship.fromEntityId`
+    - `firstRelationship.toId` → `firstRelationship.toEntityId`
+    - `fromEntityId/toEntityId`が実際のエンティティIDと一致することを確認
+  - **参照**: `tests/usecases/ReverseEngineerUsecase.test.ts` (85-103行目)
+
+- [ ] `ForeignKey`の検証部分を新しいフィールド名に対応させる
+  - **変更内容**:
+    - `firstFK.column` → `firstFK.columnId`
+    - `firstFK.referencedTable` → `firstFK.referencedTableId`
+    - `firstFK.referencedColumn` → `firstFK.referencedColumnId`
+    - これらのIDが実際のエンティティID・カラムIDと一致することを確認
+  - **参照**: `tests/usecases/ReverseEngineerUsecase.test.ts` (78-83行目)
+
+## フロントエンド状態管理実装（新規仕様）
+
+### 状態管理基盤の実装
+
+- [ ] `public/src/store/erDiagramStore.ts` を作成
+  - **実装内容**:
+    - `Store`インターフェースの実装（`getState`, `subscribe`, `dispatch`）
+    - `ERDiagramViewModel`を状態として保持
+    - Action適用時の変化検知（参照比較）と購読者への通知
+  - **参照**: `spec/frontend_state_management.md` の Store実装 (126-155行目)
+
+- [ ] `public/src/store/hooks.ts` を作成
+  - **実装内容**:
+    - `useERViewModel<T>(selector)`: `useSyncExternalStore`を使った購読
+    - `useERDispatch()`: dispatch関数を取得
+  - **参照**: `spec/frontend_state_management.md` の React統合 (145-155行目)
+
+### Action層の実装
+
+- [ ] `public/src/actions/hoverActions.ts` を作成
+  - **実装内容**:
+    - `actionHoverEntity(viewModel, entityId)`: エンティティホバー時の処理
+    - `actionHoverEdge(viewModel, edgeId)`: エッジホバー時の処理
+    - `actionHoverColumn(viewModel, columnId)`: カラムホバー時の処理
+    - `actionClearHover(viewModel)`: ホバー解除時の処理
+  - **実装方針**:
+    - すべて純粋関数として実装（副作用なし）
+    - 状態に変化がない場合は同一参照を返す
+    - ハイライト対象のIDを検索し、`Set`形式で保持
+  - **参照**: `spec/frontend_state_management.md` の Action層の設計 (81-125行目)
+
+- [ ] `public/src/actions/dataActions.ts` を作成
+  - **実装内容**:
+    - `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定
+    - `actionUpdateNodePositions(viewModel, nodePositions)`: ノード位置更新
+    - `actionSetLoading(viewModel, loading)`: ローディング状態の更新
+  - **参照**: `spec/frontend_state_management.md` の Action層の設計 (110-119行目)
+
+### Command層の実装
+
+- [ ] `public/src/commands/reverseEngineerCommand.ts` を作成
+  - **実装内容**:
+    - `commandReverseEngineer(dispatch)`: API呼び出し＋Action dispatch
+    - ローディング状態の管理
+    - エラーハンドリング
+  - **参照**: `spec/frontend_state_management.md` の Command層 (192-219行目)
+
+### HoverContextの廃止とStoreへの移行
+
+- [ ] `public/src/contexts/HoverContext.tsx` を削除
+  - **理由**: Action層とStoreで状態管理を行うため、HoverContextは不要
+  - **タイミング**: すぐに削除してOK（全タスク完了時にビルドできれば途中で壊れていても問題なし）
+
+- [ ] コンポーネントをStore利用に移行
+  - **対象コンポーネント**:
+    - `public/src/components/EntityNode.tsx`
+    - `public/src/components/RelationshipEdge.tsx`
+    - `public/src/components/ERCanvas.tsx`（存在する場合）
+  - **変更内容**:
+    - `useHover()`を削除し、`useERViewModel`と`useERDispatch`を使用
+    - ホバーイベント時に対応するActionをdispatch
+  - **参照**: `spec/frontend_state_management.md` の React統合 (145-155行目)
+
+## テストコード作成（新規）
+
+### Action層のテスト
+
+- [ ] `public/tests/actions/hoverActions.test.ts` を作成
+  - **テスト内容**:
+    - `actionHoverEntity`: ホバーしたエンティティと隣接要素がハイライトされる
+    - `actionHoverEdge`: エッジと両端のノード、両端のカラムがハイライトされる
+    - `actionHoverColumn`: カラムと関連するエッジ・ノード・対応カラムがハイライトされる
+    - `actionClearHover`: すべてのハイライトがクリアされる
+  - **参照**: `spec/frontend_state_management.md` のテスト戦略 (220-246行目)
+
+- [ ] `public/tests/actions/dataActions.test.ts` を作成
+  - **テスト内容**:
+    - `actionSetData`: データが正しく設定される
+    - `actionUpdateNodePositions`: ノード位置が正しく更新される
+    - `actionSetLoading`: ローディング状態が正しく更新される
+
+## ビルドとテスト実行
+
+- [ ] TypeScript型エラーの確認
+  - **コマンド**: `npm run generate` でコード生成後、エディタやビルドで型エラーがないことを確認
+  - **確認対象**: すべての`.ts`/`.tsx`ファイル
+
+- [ ] バックエンドテストの実行
+  - **コマンド**: `npm run test`
+  - **確認内容**: `tests/usecases/ReverseEngineerUsecase.test.ts`が成功すること
+
+- [ ] フロントエンドテストの実行（Actionテスト等が実装された後）
+  - **コマンド**: フロントエンド用のテストコマンドを実行
+  - **確認内容**: すべてのテストが成功すること
+
+## 実装時の注意事項
+
+- **カラムIDの生成**: 現在`crypto.randomUUID()`で生成しているため、リバースエンジニアリングのたびにIDが変わります。MVPフェーズではこれを許容し、将来的に永続化の仕組みを追加します。
+- **TypeSpecの配列とフロントエンドのSetの変換**: `ERDiagramUIState`の`highlightedNodeIds`等はTypeSpecでは配列として定義されていますが、フロントエンドではSetとして使用します。APIレスポンスからViewModelへの変換処理で、配列→Setの変換を行う必要があります。

@@ -79,8 +79,8 @@ export function convertToReactFlowEdges(
 ): Edge[] {
   return Object.values(edges).map((edge) => {
     // ノードの中心座標を計算（初回レンダリング時はデフォルトサイズを使用）
-    const sourceNode = nodes[edge.source];
-    const targetNode = nodes[edge.target];
+    const sourceNode = nodes[edge.sourceEntityId];
+    const targetNode = nodes[edge.targetEntityId];
 
     // デフォルトサイズ（width: 200, height: 100）
     const defaultWidth = 200;
@@ -101,16 +101,16 @@ export function convertToReactFlowEdges(
     return {
       id: edge.id,
       type: 'relationshipEdge',
-      source: edge.source,
-      target: edge.target,
+      source: edge.sourceEntityId,
+      target: edge.targetEntityId,
       sourceHandle,
       targetHandle,
       markerEnd: {
         type: MarkerType.ArrowClosed,
       },
       data: {
-        fromColumn: edge.fromColumn,
-        toColumn: edge.toColumn,
+        sourceColumnId: edge.sourceColumnId,
+        targetColumnId: edge.targetColumnId,
         constraintName: edge.constraintName,
       },
     };

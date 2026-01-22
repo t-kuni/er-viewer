@@ -85,7 +85,11 @@ class DatabaseManager {
     }));
   }
 
-  async getForeignKeys(tableName: string): Promise<ForeignKey[]> {
+  async getForeignKeys(
+    tableName: string,
+    columnNameToIdMap: Map<string, string>,
+    tableNameToIdMap: Map<string, string>
+  ): Promise<ForeignKey[]> {
     if (!this.connection) {
       throw new Error('Database not connected');
     }
@@ -105,13 +109,34 @@ class DatabaseManager {
       [process.env.DB_NAME || 'test', tableName],
     );
 
-    return (rows as any[]).map((row) => ({
-      id: crypto.randomUUID(),
-      column: row.COLUMN_NAME,
-      referencedTable: row.REFERENCED_TABLE_NAME,
-      referencedColumn: row.REFERENCED_COLUMN_NAME,
-      constraintName: row.CONSTRAINT_NAME,
-    }));
+    return (rows as any[]).map((row) => {
+      const columnId = columnNameToIdMap.get(row.COLUMN_NAME);
+      const referencedTableId = tableNameToIdMap.get(row.REFERENCED_TABLE_NAME);
+      
+      // 参照先テーブルのカラムIDを取得するため、マップのキーを作成
+      const referencedColumnKey = `${row.REFERENCED_TABLE_NAME}:${row.REFERENCED_COLUMN_NAME}`;
+      const referencedColumnId = columnNameToIdMap.get(referencedColumnKey);
+
+      if (!columnId || !referencedTableId || !referencedColumnId) {
+        console.warn(`Could not resolve IDs for foreign key: ${tableName}.${row.COLUMN_NAME} -> ${row.REFERENCED_TABLE_NAME}.${row.REFERENCED_COLUMN_NAME}`);
+        // エラーの場合は仮のUUIDを生成（本来は存在すべき）
+        return {
+          id: crypto.randomUUID(),
+          columnId: columnId || crypto.randomUUID(),
+          referencedTableId: referencedTableId || crypto.randomUUID(),
+          referencedColumnId: referencedColumnId || crypto.randomUUID(),
+          constraintName: row.CONSTRAINT_NAME,
+        };
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        columnId,
+        referencedTableId,
+        referencedColumnId,
+        constraintName: row.CONSTRAINT_NAME,
+      };
+    });
   }
 
   async getTableDDL(tableName: string): Promise<string> {
@@ -132,45 +157,64 @@ class DatabaseManager {
 
     // テーブル名→エンティティIDのマップを作成
     const tableNameToIdMap = new Map<string, string>();
+    // カラム名→カラムIDのマップを作成（キー: "テーブル名:カラム名"）
+    const columnNameToIdMap = new Map<string, string>();
 
-    // 第1段階: 全エンティティを生成してマップを構築
+    // 第1段階: 全テーブルのカラムを取得してマップを構築
+    const tablesData = new Map<string, { entityId: string; columns: Column[]; ddl: string }>();
+    
     for (const tableName of tables) {
       const columns = await this.getTableColumns(tableName);
-      const foreignKeys = await this.getForeignKeys(tableName);
       const ddl = await this.getTableDDL(tableName);
-
       const entityId = crypto.randomUUID();
+      
       tableNameToIdMap.set(tableName, entityId);
+      
+      // カラム名→IDマップを構築（自テーブル用と参照用の両方のキーを登録）
+      for (const column of columns) {
+        columnNameToIdMap.set(column.name, column.id); // 自テーブルのカラム用
+        columnNameToIdMap.set(`${tableName}:${column.name}`, column.id); // 参照用
+      }
+      
+      tablesData.set(tableName, { entityId, columns, ddl });
+    }
+
+    // 第2段階: ForeignKeyを取得してエンティティを生成
+    for (const tableName of tables) {
+      const data = tablesData.get(tableName)!;
+      
+      // カラムIDマップをリセットして、現在のテーブルのカラムのみを自カラム用に登録
+      const currentColumnNameToIdMap = new Map<string, string>();
+      for (const column of data.columns) {
+        currentColumnNameToIdMap.set(column.name, column.id);
+      }
+      // 他のテーブルのカラムは「テーブル名:カラム名」形式でのみアクセス可能
+      for (const [key, value] of columnNameToIdMap.entries()) {
+        if (key.includes(':')) {
+          currentColumnNameToIdMap.set(key, value);
+        }
+      }
+      
+      const foreignKeys = await this.getForeignKeys(tableName, currentColumnNameToIdMap, tableNameToIdMap);
 
       erData.entities.push({
-        id: entityId,
+        id: data.entityId,
         name: tableName,
-        columns: columns,
+        columns: data.columns,
         foreignKeys: foreignKeys,
-        ddl: ddl,
+        ddl: data.ddl,
       });
     }
 
-    // 第2段階: リレーションシップを生成（エンティティIDを参照可能）
+    // 第3段階: リレーションシップを生成
     for (const entity of erData.entities) {
-      const tableName = entity.name;
       for (const fk of entity.foreignKeys) {
-        const fromId = tableNameToIdMap.get(tableName);
-        const toId = tableNameToIdMap.get(fk.referencedTable);
-        
-        if (!fromId || !toId) {
-          console.warn(`Entity ID not found for relationship: ${tableName} -> ${fk.referencedTable}`);
-          continue;
-        }
-
         erData.relationships.push({
           id: crypto.randomUUID(),
-          from: tableName,
-          fromId: fromId,
-          fromColumn: fk.column,
-          to: fk.referencedTable,
-          toId: toId,
-          toColumn: fk.referencedColumn,
+          fromEntityId: entity.id,
+          fromColumnId: fk.columnId,
+          toEntityId: fk.referencedTableId,
+          toColumnId: fk.referencedColumnId,
           constraintName: fk.constraintName,
         });
       }

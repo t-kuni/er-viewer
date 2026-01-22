@@ -1,7 +1,8 @@
 import React from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import type { Column } from '../api/client'
-import { useHover } from '../contexts/HoverContext'
+import { useERViewModel, useERDispatch } from '../store/hooks'
+import { actionHoverEntity, actionHoverColumn, actionClearHover } from '../actions/hoverActions'
 
 interface EntityNodeData {
   id: string
@@ -11,22 +12,27 @@ interface EntityNodeData {
 }
 
 function EntityNode({ data }: NodeProps<EntityNodeData>) {
-  const { hoverState, setHoverEntity, setHoverColumn, clearHover } = useHover()
+  const dispatch = useERDispatch()
+  
+  // UIステートから必要な部分だけ購読
+  const highlightedNodeIds = useERViewModel((vm) => vm.ui.highlightedNodeIds)
+  const highlightedColumnIds = useERViewModel((vm) => vm.ui.highlightedColumnIds)
+  const hasHover = useERViewModel((vm) => vm.ui.hover !== null)
   
   // このノードがハイライト対象かどうか
-  const isHighlighted = hoverState.highlightedNodes.has(data.id)
+  const isHighlighted = highlightedNodeIds.includes(data.id)
   // 他の要素がホバー中でこのノードがハイライト対象でない場合
-  const isDimmed = hoverState.elementType !== null && !isHighlighted
+  const isDimmed = hasHover && !isHighlighted
   
   // カラムホバーハンドラー
-  const handleColumnMouseEnter = (e: React.MouseEvent, columnName: string) => {
+  const handleColumnMouseEnter = (e: React.MouseEvent, columnId: string) => {
     e.stopPropagation()
-    setHoverColumn(data.id, columnName)
+    dispatch(actionHoverColumn, columnId)
   }
   
   const handleColumnMouseLeave = (e: React.MouseEvent) => {
     e.stopPropagation()
-    clearHover()
+    dispatch(actionClearHover)
   }
   
   return (
@@ -41,8 +47,8 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         zIndex: isHighlighted ? 1000 : 1,
         transition: 'all 0.2s ease-in-out',
       }}
-      onMouseEnter={() => setHoverEntity(data.id)}
-      onMouseLeave={clearHover}
+      onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
+      onMouseLeave={() => dispatch(actionClearHover)}
     >
       {/* Target handles (4 directions) */}
       <Handle type="target" id="t-top" position={Position.Top} style={{ width: 8, height: 8, opacity: 0 }} />
@@ -70,8 +76,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         padding: '4px',
       }}>
         {data.columns.map((col, index) => {
-          const isColumnHighlighted = 
-            hoverState.highlightedColumns.get(data.id)?.has(col.name) || false
+          const isColumnHighlighted = highlightedColumnIds.includes(col.id)
           
           return (
             <div 
@@ -84,7 +89,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
                 cursor: 'pointer',
                 transition: 'background-color 0.2s ease-in-out',
               }}
-              onMouseEnter={(e) => handleColumnMouseEnter(e, col.name)}
+              onMouseEnter={(e) => handleColumnMouseEnter(e, col.id)}
               onMouseLeave={handleColumnMouseLeave}
             >
               {col.key === 'PRI' && '🔑 '}

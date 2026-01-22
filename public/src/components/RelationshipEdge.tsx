@@ -1,6 +1,7 @@
 import React from 'react'
 import { EdgeProps, getSmoothStepPath } from 'reactflow'
-import { useHover } from '../contexts/HoverContext'
+import { useERViewModel, useERDispatch } from '../store/hooks'
+import { actionHoverEdge, actionClearHover } from '../actions/hoverActions'
 
 function RelationshipEdge({
   id,
@@ -12,7 +13,11 @@ function RelationshipEdge({
   targetPosition,
   data,
 }: EdgeProps) {
-  const { hoverState, setHoverEdge, clearHover } = useHover()
+  const dispatch = useERDispatch()
+  
+  // UIステートから必要な部分だけ購読
+  const highlightedEdgeIds = useERViewModel((vm) => vm.ui.highlightedEdgeIds)
+  const hasHover = useERViewModel((vm) => vm.ui.hover !== null)
   
   const [edgePath] = getSmoothStepPath({
     sourceX,
@@ -24,14 +29,14 @@ function RelationshipEdge({
   })
   
   // このエッジがハイライト対象かどうか
-  const isHighlighted = hoverState.highlightedEdges.has(id)
+  const isHighlighted = highlightedEdgeIds.includes(id)
   // 他の要素がホバー中でこのエッジがハイライト対象でない場合
-  const isDimmed = hoverState.elementType !== null && !isHighlighted
+  const isDimmed = hasHover && !isHighlighted
   
   return (
     <g
-      onMouseEnter={() => setHoverEdge(id)}
-      onMouseLeave={clearHover}
+      onMouseEnter={() => dispatch(actionHoverEdge, id)}
+      onMouseLeave={() => dispatch(actionClearHover)}
       style={{ 
         cursor: 'pointer',
         zIndex: isHighlighted ? 999 : 0,

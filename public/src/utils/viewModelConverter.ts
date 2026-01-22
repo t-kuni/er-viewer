@@ -44,10 +44,10 @@ export function buildERDiagramViewModel(
   for (const relationship of erData.relationships) {
     edges[relationship.id] = {
       id: relationship.id,
-      source: relationship.fromId,
-      target: relationship.toId,
-      fromColumn: relationship.fromColumn,
-      toColumn: relationship.toColumn,
+      sourceEntityId: relationship.fromEntityId,
+      targetEntityId: relationship.toEntityId,
+      sourceColumnId: relationship.fromColumnId,
+      targetColumnId: relationship.toColumnId,
       constraintName: relationship.constraintName,
     };
   }
@@ -55,5 +55,12 @@ export function buildERDiagramViewModel(
   return {
     nodes,
     edges,
+    ui: {
+      hover: null,
+      highlightedNodeIds: [],
+      highlightedEdgeIds: [],
+      highlightedColumnIds: [],
+    },
+    loading: false,
   };
 }

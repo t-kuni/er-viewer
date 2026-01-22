@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import ReactFlow, {
   Node,
   Edge,
@@ -13,15 +13,12 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { DefaultService } from '../api/client'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
-import { buildERDiagramViewModel } from '../utils/viewModelConverter'
 import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
-import { HoverProvider } from '../contexts/HoverContext'
-import type { components } from '../../../lib/generated/api-types'
-
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel']
+import { useERViewModel, useERDispatch } from '../store/hooks'
+import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
+import { actionUpdateNodePositions } from '../actions/dataActions'
 
 const nodeTypes = {
   entityNode: EntityNode,
@@ -36,12 +33,14 @@ function ERCanvasInner({
   nodes, 
   edges, 
   setNodes, 
-  setEdges 
+  setEdges,
+  dispatch
 }: { 
   nodes: Node[], 
   edges: Edge[], 
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>, 
-  setEdges: React.Dispatch<React.SetStateAction<Edge[]>> 
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
+  dispatch: ReturnType<typeof useERDispatch>
 }) {
   const { getNodes } = useReactFlow()
   
@@ -57,6 +56,13 @@ function ERCanvasInner({
   
   const onNodeDragStop: NodeDragHandler = useCallback(
     (_event, node) => {
+      // Storeのノード位置を更新
+      dispatch(actionUpdateNodePositions, [{ 
+        id: node.id, 
+        x: node.position.x, 
+        y: node.position.y 
+      }])
+      
       // ドラッグされたノードに接続されているエッジを抽出
       const connectedEdges = edges.filter(
         (edge) => edge.source === node.id || edge.target === node.id
@@ -104,7 +110,7 @@ function ERCanvasInner({
 
       setEdges(updatedEdges)
     },
-    [edges, getNodes, setEdges]
+    [edges, getNodes, setEdges, dispatch]
   )
   
   return (
@@ -125,37 +131,25 @@ function ERCanvasInner({
 }
 
 function ERCanvas() {
+  const dispatch = useERDispatch()
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
-  const [viewModel, setViewModel] = useState<ERDiagramViewModel>({ nodes: {}, edges: {} })
-  const [loading, setLoading] = useState(false)
+  
+  // Storeから状態を購読
+  const viewModelNodes = useERViewModel((vm) => vm.nodes)
+  const viewModelEdges = useERViewModel((vm) => vm.edges)
+  const loading = useERViewModel((vm) => vm.loading)
+  
+  // ViewModelが更新されたらReact Flow形式に変換
+  useEffect(() => {
+    const newNodes = convertToReactFlowNodes(viewModelNodes)
+    const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
+    setNodes(newNodes)
+    setEdges(newEdges)
+  }, [viewModelNodes, viewModelEdges])
   
   const handleReverseEngineer = async () => {
-    setLoading(true)
-    try {
-      const response = await DefaultService.apiReverseEngineer()
-      
-      // エラーレスポンスのチェック
-      if ('error' in response) {
-        throw new Error(response.error)
-      }
-      
-      // ERDataとLayoutDataからERDiagramViewModelを構築
-      const vm = buildERDiagramViewModel(response.erData, response.layoutData)
-      setViewModel(vm)
-      
-      // ERDiagramViewModelをReact Flow形式に変換
-      const newNodes = convertToReactFlowNodes(vm.nodes)
-      const newEdges = convertToReactFlowEdges(vm.edges, vm.nodes)
-      
-      setNodes(newNodes)
-      setEdges(newEdges)
-    } catch (error) {
-      console.error('リバースエンジニアに失敗しました:', error)
-      alert('リバースエンジニアに失敗しました')
-    } finally {
-      setLoading(false)
-    }
+    await commandReverseEngineer(dispatch)
   }
   
   return (
@@ -176,11 +170,9 @@ function ERCanvas() {
           {loading ? '処理中...' : 'リバースエンジニア'}
         </button>
       </div>
-      <HoverProvider viewModel={viewModel}>
-        <ReactFlowProvider>
-          <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
-        </ReactFlowProvider>
-      </HoverProvider>
+      <ReactFlowProvider>
+        <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} dispatch={dispatch} />
+      </ReactFlowProvider>
     </div>
   )
 }

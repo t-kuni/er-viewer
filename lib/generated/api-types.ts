@@ -121,6 +121,12 @@ export interface components {
             entities: components["schemas"]["Entity"][];
             relationships: components["schemas"]["Relationship"][];
         };
+        ERDiagramUIState: {
+            hover: components["schemas"]["HoverTarget"] | null;
+            highlightedNodeIds: string[];
+            highlightedEdgeIds: string[];
+            highlightedColumnIds: string[];
+        };
         ERDiagramViewModel: {
             nodes: {
                 [key: string]: components["schemas"]["EntityNodeViewModel"];
@@ -128,6 +134,8 @@ export interface components {
             edges: {
                 [key: string]: components["schemas"]["RelationshipEdgeViewModel"];
             };
+            ui: components["schemas"]["ERDiagramUIState"];
+            loading: boolean;
         };
         Entity: {
             id: string;
@@ -154,15 +162,27 @@ export interface components {
             columns: components["schemas"]["Column"][];
             ddl: string;
         };
+        /**
+         * @description ID仕様に関する基本方針
+         *
+         *     - すべての `id` フィールドはUUID (Universally Unique Identifier) を使用
+         *     - UUIDは crypto.randomUUID() で生成
+         *     - 一度生成されたIDは保存され、増分更新時も維持される（永続性を持つ）
+         */
         ErrorResponse: {
             error: string;
         };
         ForeignKey: {
             id: string;
-            column: string;
-            referencedTable: string;
-            referencedColumn: string;
+            columnId: string;
+            referencedTableId: string;
+            referencedColumnId: string;
             constraintName: string;
+        };
+        HoverTarget: {
+            /** @enum {string} */
+            type: "entity" | "edge" | "column";
+            id: string;
         };
         LayoutData: {
             entities: {
@@ -190,20 +210,18 @@ export interface components {
         };
         Relationship: {
             id: string;
-            from: string;
-            fromId: string;
-            fromColumn: string;
-            to: string;
-            toId: string;
-            toColumn: string;
+            fromEntityId: string;
+            fromColumnId: string;
+            toEntityId: string;
+            toColumnId: string;
             constraintName: string;
         };
         RelationshipEdgeViewModel: {
             id: string;
-            source: string;
-            target: string;
-            fromColumn: string;
-            toColumn: string;
+            sourceEntityId: string;
+            sourceColumnId: string;
+            targetEntityId: string;
+            targetColumnId: string;
             constraintName: string;
         };
         ReverseEngineerResponse: {

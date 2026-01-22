@@ -9,6 +9,14 @@ using TypeSpec.Rest;
 })
 namespace ERViewerAPI;
 
+/**
+ * ID仕様に関する基本方針
+ * 
+ * - すべての `id` フィールドはUUID (Universally Unique Identifier) を使用
+ * - UUIDは crypto.randomUUID() で生成
+ * - 一度生成されたIDは保存され、増分更新時も維持される（永続性を持つ）
+ */
+
 // Common error response model
 @error
 model ErrorResponse {
@@ -17,7 +25,7 @@ model ErrorResponse {
 
 // Database column model
 model Column {
-  id: string;
+  id: string; // UUID
   name: string;
   type: string;
   nullable: boolean;
@@ -28,16 +36,16 @@ model Column {
 
 // Foreign key model
 model ForeignKey {
-  id: string;
-  column: string;
-  referencedTable: string;
-  referencedColumn: string;
+  id: string; // UUID
+  columnId: string; // カラムID (UUID)
+  referencedTableId: string; // 参照先エンティティID (UUID)
+  referencedColumnId: string; // 参照先カラムID (UUID)
   constraintName: string;
 }
 
 // Entity (table) model
 model Entity {
-  id: string;
+  id: string; // UUID
   name: string;
   columns: Column[];
   foreignKeys: ForeignKey[];
@@ -46,13 +54,11 @@ model Entity {
 
 // Relationship model
 model Relationship {
-  id: string;
-  from: string;
-  fromId: string;
-  fromColumn: string;
-  to: string;
-  toId: string;
-  toColumn: string;
+  id: string; // UUID
+  fromEntityId: string; // エンティティID (UUID)
+  fromColumnId: string; // カラムID (UUID)
+  toEntityId: string; // エンティティID (UUID)
+  toColumnId: string; // カラムID (UUID)
   constraintName: string;
 }
 
@@ -64,14 +70,14 @@ model ERData {
 
 // Layout models
 model EntityLayoutItem {
-  id: string;
+  id: string; // UUID (エンティティIDと同じ)
   name: string;
   x: float64;
   y: float64;
 }
 
 model Rectangle {
-  id: string;
+  id: string; // UUID
   x: float64;
   y: float64;
   width: float64;
@@ -81,7 +87,7 @@ model Rectangle {
 }
 
 model Text {
-  id: string;
+  id: string; // UUID
   x: float64;
   y: float64;
   content: string;
@@ -134,7 +140,7 @@ model ReverseEngineerResponse {
 
 // Entity node view model (used by React Flow Node)
 model EntityNodeViewModel {
-  id: string;
+  id: string; // UUID (エンティティID)
   name: string;
   x: float64;
   y: float64;
@@ -144,18 +150,34 @@ model EntityNodeViewModel {
 
 // Relationship edge view model (used by React Flow Edge)
 model RelationshipEdgeViewModel {
-  id: string;
-  source: string; // entity id
-  target: string; // entity id
-  fromColumn: string;
-  toColumn: string;
+  id: string; // UUID (リレーションシップID)
+  sourceEntityId: string; // エンティティID (UUID)
+  sourceColumnId: string; // カラムID (UUID)
+  targetEntityId: string; // エンティティID (UUID)
+  targetColumnId: string; // カラムID (UUID)
   constraintName: string;
+}
+
+// Hover target for UI state
+model HoverTarget {
+  type: "entity" | "edge" | "column";
+  id: string; // UUID: entity/edge/column すべてこのIDで識別
+}
+
+// UI state for ER diagram
+model ERDiagramUIState {
+  hover: HoverTarget | null;
+  highlightedNodeIds: string[]; // Entity IDs (UUID)
+  highlightedEdgeIds: string[]; // Edge IDs (UUID)
+  highlightedColumnIds: string[]; // Column IDs (UUID)
 }
 
 // Complete ER diagram view model
 model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;
   edges: Record<RelationshipEdgeViewModel>;
+  ui: ERDiagramUIState;
+  loading: boolean;
 }
 
 // API Routes

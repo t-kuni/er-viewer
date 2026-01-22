@@ -171,13 +171,13 @@ Entity → Node {
 
 ```
 Relationship → Edge {
-  id: `${fromTable}_${fromColumn}_to_${toTable}_${toColumn}`,
+  id: relationship.id,  // UUID
   type: 'relationshipEdge',  // Custom Edge
-  source: fromTable,
-  target: toTable,
+  source: fromEntityId,  // Entity UUID
+  target: toEntityId,  // Entity UUID
   data: {
-    fromColumn,
-    toColumn,
+    fromColumnId,  // Column UUID
+    toColumnId,  // Column UUID
     constraintName
   }
 }
@@ -259,7 +259,7 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 **ハイライト対象**:
 * ホバー中のリレーションエッジ
 * エッジの両端（source/target）のエンティティノード
-* エッジが参照している両端のカラム（fromColumn/toColumn）
+* エッジが参照している両端のカラム（fromColumnId/toColumnIdで識別）
 
 **視覚効果**:
 * ハイライト対象:
@@ -276,10 +276,10 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 **ハイライト対象**:
 * ホバー中のカラム
 * そのカラムが関係する全てのリレーションエッジ
-  - 外部キーの場合: そのカラムがfromColumnのエッジ
-  - 参照される側の場合: そのカラムがtoColumnのエッジ
+  - 外部キーの場合: そのカラムIDがfromColumnIdのエッジ
+  - 参照される側の場合: そのカラムIDがtoColumnIdのエッジ
 * それらのリレーションエッジの反対側に接続されているエンティティノード
-* 反対側のエンティティの対応カラム（fromColumn or toColumn）
+* 反対側のエンティティの対応カラム（fromColumnId or toColumnIdで検索）
 
 **視覚効果**:
 * ハイライト対象:

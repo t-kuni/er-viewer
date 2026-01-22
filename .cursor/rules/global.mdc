@@ -50,6 +50,6 @@ npm run test
   * main.tspから生成されたバックエンド用の型です
 * `public/src/api/client`
   * main.tspから生成されたフロント用の型です
-  * ERDiagramViewModel でフロントのER図の状態を管理します
+  * ERDiagramViewModel でフロントのER図の状態を管理します（フロントで別の型を定義したりしません）
 
 [rearchitecture_overview.md](/spec/rearchitecture_overview.md) にもアーキテクチャの説明あり。

@@ -1,280 +1,261 @@
-# タスク一覧
+# フロントエンド状態管理のリアーキテクチャ実装タスク
 
-## 概要
+本タスクリストは、仕様書 `spec/frontend_state_management.md` に基づき、現在の `HoverContext` ベースの実装を単一状態ツリー + Action層 + Store の設計に移行するためのタスクを定義します。
 
-仕様書 `spec/frontend_er_rendering.md` に基づき、リレーション線の動的な接続ポイント最適化機能を実装する。
-リサーチ結果 `research/20260120_2312_dynamic_edge_connection_optimization.md` に記載されたMVP向けアプローチ（4方向ハンドル + 動的選択）を採用する。
+## 前提条件
 
-## 仕様変更の内容
+- 仕様書: [spec/frontend_state_management.md](./spec/frontend_state_management.md)
+- 関連仕様: [spec/frontend_er_rendering.md](./spec/frontend_er_rendering.md)
+- リサーチ背景: [research/20260122_0017_flux_action_layer_state_management.md](./research/20260122_0017_flux_action_layer_state_management.md)
 
-**変更前**:
-- ノードのポート（上下左右のいずれか）から接続
-- ポート位置はカラム位置に基づいて決定
+## 基盤実装
 
-**変更後**:
-- 各エンティティノードに4方向（Top/Right/Bottom/Left）のハンドルを配置
-- エンティティ間の位置関係に応じて最適なハンドルを自動選択
-- ノード移動時（ドラッグ完了時）に接続ポイントを動的に再計算
+### □ 拡張ViewModelの型定義を作成
 
-参照: `spec/frontend_er_rendering.md` 84-87行目、`research/20260120_2312_dynamic_edge_connection_optimization.md`
+**ファイル**: `public/src/types/ERDiagramViewModel.ts`（新規作成）
 
----
+**内容**:
+- TypeSpecで生成された `ERDiagramViewModel` を拡張し、UI状態（hover, highlight, loading）を含む型を定義
+- 以下の型を定義:
+  - `HoverTarget`: ホバー対象を表す型（仕様書参照）
+  - `ERDiagramViewModel`: TypeSpecの型を拡張した型（uiとloadingフィールドを追加）
+- TypeSpecの生成型（`public/src/api/client/models/ERDiagramViewModel.ts`）をインポートし、その型に`ui`と`loading`を追加する形で拡張
+- 参照: `spec/frontend_state_management.md` の「状態設計」セクション
+- 注意: `npm run generate` を実行すると、TypeSpecからフロントエンドの型も自動更新される
 
-## 実装タスク
+### □ Action関数の型定義を作成
 
-### タスク1: EntityNodeに8個のハンドルを追加
+**ファイル**: `public/src/types/Action.ts`（新規作成）
 
-**対象ファイル**: `public/src/components/EntityNode.tsx`
+**内容**:
+- `ActionFn<Args extends any[] = any[]>` 型を定義
+- 形式: `(viewModel: ERDiagramViewModel, ...args: Args) => ERDiagramViewModel`
+- `ERDiagramViewModel`は`public/src/types/ERDiagramViewModel.ts`で定義する拡張版の型
+- 参照: `spec/frontend_state_management.md` の「Action層の設計」セクション
 
-**変更内容**:
-- 現在は `Handle` が2個（`type="target" position={Position.Top}` と `type="source" position={Position.Bottom}`）のみ
-- 4方向×source/target の計8個のハンドルを配置する
-- 各ハンドルに一意なIDを付与する（`id="s-top"`, `id="s-right"`, `id="s-bottom"`, `id="s-left"`, `id="t-top"`, `id="t-right"`, `id="t-bottom"`, `id="t-left"`）
-- ハンドルのスタイルを調整し、視覚的に目立たないようにする（`opacity: 0` または小さいサイズ）
+### □ ホバーActionの実装
 
-**参考実装**:
-リサーチレポートのセクション「2. 動的なハンドル選択（位置関係から最適化）」の「Node側（8個：4方向× source/target）」を参照。
+**ファイル**: `public/src/actions/hoverActions.ts`（新規作成）
 
-```tsx
-<Handle type="target" id="t-top"    position={Position.Top}    style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="target" id="t-right"  position={Position.Right}  style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="target" id="t-bottom" position={Position.Bottom} style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="target" id="t-left"   position={Position.Left}   style={{ width: 8, height: 8, opacity: 0 }} />
+**内容**:
+- `actionHoverEntity(viewModel, entityId)`: エンティティホバー時のAction
+- `actionHoverEdge(viewModel, edgeId)`: エッジホバー時のAction
+- `actionHoverColumn(viewModel, entityId, columnName)`: カラムホバー時のAction
+- `actionClearHover(viewModel)`: ホバー解除時のAction
+- 各Actionは純粋関数として実装
+- 状態に変化がない場合は同一参照を返す
+- 参照: `spec/frontend_state_management.md` の「主要なAction」セクション
+- 既存のロジックは `public/src/contexts/HoverContext.tsx` の `setHoverEntity`, `setHoverEdge`, `setHoverColumn` を参考にする
 
-<Handle type="source" id="s-top"    position={Position.Top}    style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="source" id="s-right"  position={Position.Right}  style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="source" id="s-bottom" position={Position.Bottom} style={{ width: 8, height: 8, opacity: 0 }} />
-<Handle type="source" id="s-left"   position={Position.Left}   style={{ width: 8, height: 8, opacity: 0 }} />
-```
+### □ データ更新Actionの実装
 
----
+**ファイル**: `public/src/actions/dataActions.ts`（新規作成）
 
-### タスク2: ハンドル選択ロジックを実装
+**内容**:
+- `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定するAction
+  - 引数: `nodes` (Record<string, EntityNodeViewModel>), `edges` (Record<string, RelationshipEdgeViewModel>)
+  - 既存のUI状態を保持したままデータ部分のみ更新
+- `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新Action
+  - 引数: `nodePositions` (Array<{ id: string, x: number, y: number }>)
+  - 該当ノードの座標のみ更新
+- `actionSetLoading(viewModel, loading)`: ローディング状態の更新Action
+- 参照: `spec/frontend_state_management.md` の「主要なAction」セクション
 
-**対象ファイル**: `public/src/utils/reactFlowConverter.ts` （新規関数を追加）
+### □ Store実装
 
-**変更内容**:
-- 2つのノード位置から最適なハンドルペア（sourceHandle/targetHandle）を計算する関数を追加
-- リサーチレポートの「方式A（MVP向け）：相対位置で4方向を選ぶ（軽い）」を採用
-- 中心差分 `dx, dy` の優勢軸で決定するアルゴリズムを実装
+**ファイル**: `public/src/store/ERStore.ts`（新規作成）
 
-**追加する関数インタフェース**:
+**内容**:
+- `ERStore` インターフェースを実装
+  - `getState(): ERDiagramViewModel`
+  - `subscribe(listener: () => void): () => void`
+  - `dispatch<Args>(action: ActionFn<Args>, ...args: Args): void`
+- 開発環境のみdispatchログを出力
+- 状態変化時（参照比較）のみsubscriberに通知
+- 初期状態を返す `createInitialViewModel()` 関数を実装
+- 参照: `spec/frontend_state_management.md` の「Store実装」セクション
 
-```typescript
-type Side = 'top' | 'right' | 'bottom' | 'left';
+### □ React統合フックの実装
 
-/**
- * 2つのノードの中心座標から、最適なハンドルペアを計算する
- * @param sourceCenter sourceノードの中心座標 {x, y}
- * @param targetCenter targetノードの中心座標 {x, y}
- * @returns sourceHandleとtargetHandleのID { sourceHandle: string, targetHandle: string }
- */
-export function computeOptimalHandles(
-  sourceCenter: { x: number; y: number },
-  targetCenter: { x: number; y: number }
-): { sourceHandle: string; targetHandle: string }
-```
+**ファイル**: `public/src/hooks/useERStore.ts`（新規作成）
 
-**実装ロジック**:
-- `dx = targetCenter.x - sourceCenter.x`
-- `dy = targetCenter.y - sourceCenter.y`
-- `Math.abs(dx) > Math.abs(dy)` の場合、左右方向を選択
-  - `dx >= 0` なら `sourceHandle = 's-right'`, `targetHandle = 't-left'`
-  - `dx < 0` なら `sourceHandle = 's-left'`, `targetHandle = 't-right'`
-- それ以外の場合、上下方向を選択
-  - `dy >= 0` なら `sourceHandle = 's-bottom'`, `targetHandle = 't-top'`
-  - `dy < 0` なら `sourceHandle = 's-top'`, `targetHandle = 't-bottom'`
+**内容**:
+- `useERViewModel<T>(selector: (vm: ERDiagramViewModel) => T): T` フックを実装
+  - `useSyncExternalStore` を使用してStoreを購読
+  - selectorで必要な部分だけ購読し、再レンダリングを最小化
+- `useERDispatch(): Store['dispatch']` フックを実装
+  - dispatch関数を取得するフック
+- グローバルなStoreインスタンスを作成してexport
+- 参照: `spec/frontend_state_management.md` の「React統合」セクション
 
-**参考実装**:
-リサーチレポートのセクション「2. 動的なハンドル選択（位置関係から最適化）」の「Edge側（計算結果を反映）」を参照。
+## Commandレイヤー実装
 
----
+### □ リバースエンジニアCommandの実装
 
-### タスク3: convertToReactFlowEdges関数を修正してsourceHandle/targetHandleを設定
+**ファイル**: `public/src/commands/reverseEngineerCommand.ts`（新規作成）
 
-**対象ファイル**: `public/src/utils/reactFlowConverter.ts`
+**内容**:
+- `commandReverseEngineer(dispatch)` 関数を実装
+  - API呼び出し前に `actionSetLoading(true)` をdispatch
+  - `DefaultService.apiReverseEngineer()` を呼び出し
+  - 成功時、`buildERDiagramViewModel()` でViewModelを構築
+  - `actionSetData()` をdispatch
+  - finally で `actionSetLoading(false)` をdispatch
+- 参照: `spec/frontend_state_management.md` の「非同期処理（API呼び出し）」セクション
+- 既存コード: `public/src/components/ERCanvas.tsx` の `handleReverseEngineer` 関数を参考
 
-**変更内容**:
-- `convertToReactFlowEdges` 関数の引数に `nodes` （EntityNodeViewModelのRecord）を追加
-- 各エッジの変換時に、sourceノードとtargetノードの座標を取得
-- タスク2で実装した `computeOptimalHandles` 関数を使用してハンドルを計算
-- 計算したハンドルIDを `sourceHandle` と `targetHandle` プロパティに設定
+## コンポーネントのリファクタリング
 
-**修正後の関数シグネチャ**:
+### □ ERCanvasコンポーネントの移行
 
-```typescript
-export function convertToReactFlowEdges(
-  edges: { [key: string]: RelationshipEdgeViewModel },
-  nodes: { [key: string]: EntityNodeViewModel }
-): Edge[]
-```
-
-**実装のポイント**:
-- ノードの中心座標は `EntityNodeViewModel` の `x`, `y` を基準に計算
-- 初回レンダリング時は `measured` プロパティが未定義のため、デフォルトサイズ（width: 200, height: 100）を使用
-- 中心座標の計算: `centerX = node.x + 100`, `centerY = node.y + 50`（デフォルトサイズの半分）
-- ドラッグ完了時（タスク5）は `measured` プロパティから実際のサイズを取得して再計算
-
----
-
-### タスク4: ERCanvas.tsxでconvertToReactFlowEdgesの呼び出しを修正
-
-**対象ファイル**: `public/src/components/ERCanvas.tsx`
+**ファイル**: `public/src/components/ERCanvas.tsx`
 
 **変更内容**:
-- `convertToReactFlowEdges` の呼び出しに `vm.nodes` を追加で渡す
-- 62-63行目の以下のコードを修正:
+- `HoverProvider` の使用を削除
+- `useState` で管理していた `viewModel`, `loading` を削除
+- `useERViewModel` で必要な状態を購読
+- `useERDispatch` でdispatch関数を取得
+- `handleReverseEngineer` を `commandReverseEngineer` の呼び出しに置き換え
+- React FlowのnodesとedgesはViewModelから導出（selector内で変換）
+- `onNodeDragStop` 内で `actionUpdateNodePositions` をdispatch
+- ドラッグ中はホバー判定を行わない（実装の簡略化）
+- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
 
-```typescript
-// 修正前
-const newEdges = convertToReactFlowEdges(vm.edges)
+### □ EntityNodeコンポーネントの移行
 
-// 修正後
-const newEdges = convertToReactFlowEdges(vm.edges, vm.nodes)
-```
-
----
-
-### タスク5: ノードドラッグ完了時のハンドル再計算処理を実装
-
-**対象ファイル**: `public/src/components/ERCanvas.tsx`
+**ファイル**: `public/src/components/EntityNode.tsx`
 
 **変更内容**:
-- `onNodeDragStop` ハンドラーを追加
-- ドラッグ完了したノードに接続されているエッジを抽出
-- それらのエッジの `sourceHandle` と `targetHandle` を再計算
-- `setEdges` で更新
+- `useHover()` の使用を `useERViewModel` と `useERDispatch` に置き換え
+- `setHoverEntity`, `setHoverColumn`, `clearHover` を dispatch経由のAction呼び出しに変更
+  - 例: `dispatch(actionHoverEntity, data.id)`
+- ハイライト判定は `useERViewModel` から取得した状態を使用
+- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
 
-**実装のポイント**:
-- React Flowの `useReactFlow` フックを使用して `getNodes()` でノード情報を取得
-- ドラッグされたノードのIDから、そのノードに接続されているエッジを `edges.filter()` で抽出（`source === nodeId` または `target === nodeId`）
-- 抽出したエッジそれぞれに対して `computeOptimalHandles` を再計算
-- エッジの更新には `edges.map()` を使用し、対象エッジのみ `sourceHandle/targetHandle` を更新
-- ノードの中心座標は `measured` プロパティから実際のサイズを取得して計算
+### □ RelationshipEdgeコンポーネントの移行
 
-**実装例の骨格**:
-
-```typescript
-import { useReactFlow, OnNodeDragStop } from 'reactflow'
-
-const { getNodes } = useReactFlow()
-
-const onNodeDragStop: OnNodeDragStop = useCallback(
-  (event, node) => {
-    // ドラッグされたノードに接続されているエッジを抽出
-    const connectedEdges = edges.filter(
-      (edge) => edge.source === node.id || edge.target === node.id
-    )
-
-    if (connectedEdges.length === 0) return
-
-    // 全ノードの現在位置とサイズを取得
-    const currentNodes = getNodes()
-
-    // 接続エッジのハンドルを再計算
-    const updatedEdges = edges.map((edge) => {
-      if (!connectedEdges.find((e) => e.id === edge.id)) {
-        return edge // 変更不要
-      }
-
-      const sourceNode = currentNodes.find((n) => n.id === edge.source)
-      const targetNode = currentNodes.find((n) => n.id === edge.target)
-
-      if (!sourceNode || !targetNode) return edge
-
-      // ノードの中心座標を計算（measured プロパティから実際のサイズを取得）
-      const sourceWidth = sourceNode.measured?.width ?? 200
-      const sourceHeight = sourceNode.measured?.height ?? 100
-      const targetWidth = targetNode.measured?.width ?? 200
-      const targetHeight = targetNode.measured?.height ?? 100
-      
-      const sourceCenter = { 
-        x: sourceNode.position.x + sourceWidth / 2, 
-        y: sourceNode.position.y + sourceHeight / 2 
-      }
-      const targetCenter = { 
-        x: targetNode.position.x + targetWidth / 2, 
-        y: targetNode.position.y + targetHeight / 2 
-      }
-
-      const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter)
-
-      return {
-        ...edge,
-        sourceHandle,
-        targetHandle,
-      }
-    })
-
-    setEdges(updatedEdges)
-  },
-  [edges, getNodes]
-)
-
-// ReactFlowコンポーネントに追加
-<ReactFlow
-  // ...
-  onNodeDragStop={onNodeDragStop}
-/>
-```
-
----
-
-### タスク6: TypeSpecのRelationshipEdgeViewModelにsourceHandle/targetHandleを追加（任意）
-
-**対象ファイル**: `scheme/main.tsp`
+**ファイル**: `public/src/components/RelationshipEdge.tsx`
 
 **変更内容**:
-- `RelationshipEdgeViewModel` に `sourceHandle` と `targetHandle` プロパティを追加
-- これらは任意（optional）プロパティとする
-- TypeSpec生成後、型定義が正しく反映されることを確認
+- `useHover()` の使用を `useERViewModel` と `useERDispatch` に置き換え
+- `setHoverEdge`, `clearHover` を dispatch経由のAction呼び出しに変更
+  - 例: `dispatch(actionHoverEdge, id)`
+- ハイライト判定は `useERViewModel` から取得した状態を使用
+- 参照: `spec/frontend_state_management.md` の「React Flowとの統合」セクション
 
-**修正内容**:
+## 旧実装の削除
 
-```typescript
-// Relationship edge view model (used by React Flow Edge)
-model RelationshipEdgeViewModel {
-  id: string;
-  source: string; // entity id
-  target: string; // entity id
-  fromColumn: string;
-  toColumn: string;
-  constraintName: string;
-  sourceHandle?: string; // optional: handle ID for source node
-  targetHandle?: string; // optional: handle ID for target node
-}
-```
+### □ HoverContextの削除
 
-**備考**:
-- この変更は、将来的にバックエンドでハンドル情報を保存する場合に備えたもの
-- MVPフェーズではフロントエンドで動的に計算するため、必須ではない
-- 型定義を明確にしておくことで、React FlowのEdge型との互換性が向上
+**ファイル**: `public/src/contexts/HoverContext.tsx`
 
----
+**内容**:
+- ファイルを削除
+- 理由: Store + Action層に置き換えられたため不要
 
-## テスト・確認タスク
+## テスト環境のセットアップ
 
-### タスク7: コード生成とビルドの確認
+### □ フロントエンド用Vitest設定ファイルの作成
 
-**実行コマンド**:
-```bash
-npm run generate
-cd public && npm run build
-```
+**ファイル**: `public/vitest.config.ts`（新規作成）
+
+**内容**:
+- Vitestの設定ファイルを作成
+- `test.globals: true` を設定（グローバルなテストAPI使用）
+- `test.environment: 'jsdom'` を設定（React コンポーネントのテスト用）
+- テストファイルのパターンを設定: `test.include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx']`
+- エイリアス設定（必要に応じて）
+- 参考: ルートの `vitest.config.ts` と同様の構成
+
+### □ フロントエンドのテストディレクトリ作成
+
+**ディレクトリ**: `public/tests/`（新規作成）
+
+**内容**:
+- 以下のサブディレクトリを作成:
+  - `public/tests/actions/` - Actionのテスト
+
+### □ フロントエンドのテスト用依存関係の追加
+
+**ファイル**: `public/package.json`
+
+**変更内容**:
+- `devDependencies` に以下を追加:
+  - `vitest`: 最新版
+  - `@vitest/ui`: 最新版（任意、UI表示用）
+  - `jsdom`: 最新版（DOM環境エミュレート用）
+  - `@testing-library/react`: 最新版（React コンポーネントテスト用、将来的に必要な場合）
+  - `@testing-library/jest-dom`: 最新版（DOM マッチャー用、将来的に必要な場合）
+- `scripts` にテストコマンドを追加:
+  - `"test": "vitest"`
+  - `"test:ui": "vitest --ui"`
+  - `"test:run": "vitest run"`（CI用）
+
+## テストの実装
+
+### □ hoverActionsのテスト作成
+
+**ファイル**: `public/tests/actions/hoverActions.test.ts`（新規作成）
+
+**内容**:
+- `actionHoverEntity` のテスト
+  - ホバーしたエンティティと隣接要素がハイライトされることを検証
+  - 状態に変化がない場合は同一参照が返されることを検証
+- `actionHoverEdge` のテスト
+  - エッジと両端のノード、関連カラムがハイライトされることを検証
+- `actionHoverColumn` のテスト
+  - カラムと関連するエッジ・ノード・対応カラムがハイライトされることを検証
+- `actionClearHover` のテスト
+  - すべてのハイライトがクリアされることを検証
+- テストフレームワーク: Vitest
+- テストデータはDAMP原則に従い、テストケース毎に即値で定義（ヘルパー関数は不要）
+- 参照: `spec/frontend_state_management.md` の「Action単体テスト」セクション
+
+### □ dataActionsのテスト作成
+
+**ファイル**: `public/tests/actions/dataActions.test.ts`（新規作成）
+
+**内容**:
+- `actionSetData` のテスト
+  - データが正しく設定され、UI状態が保持されることを検証
+- `actionUpdateNodePositions` のテスト
+  - 指定したノードの座標のみ更新されることを検証
+- `actionSetLoading` のテスト
+  - loading状態が正しく更新されることを検証
+- テストフレームワーク: Vitest
+- テストデータはDAMP原則に従い、テストケース毎に即値で定義（ヘルパー関数は不要）
+
+## ビルド・動作確認
+
+### □ フロントエンドのビルド確認
+
+**コマンド**: `cd public && npm run build`
 
 **確認内容**:
-- TypeSpec定義の変更が正しく `lib/generated/api-types.ts` に反映されているか
-- ビルドエラーが発生しないか
+- ビルドエラーがないこと
+- 型エラーがないこと
 
+### □ フロントエンドテストの実行
 
----
+**コマンド**: `cd public && npm run test:run`
 
-## 指示者宛ての懸念事項（作業対象外）
-
-なし
-
----
+**確認内容**:
+- すべてのテストがパスすること
+- カバレッジが十分であること（主要なActionロジックをカバー）
+- テストが正しく実行できる環境が整っていること
 
 ## 事前修正提案
 
-なし（現在の実装は仕様変更に対応可能な状態）
+特になし。仕様書に従って段階的に実装可能。
+
+## 指示者宛ての懸念事項（作業対象外）
+
+### React Flowとの統合の実現可能性
+
+- 仕様書では「ドラッグ中はReact Flow内部状態、確定時のみVMへ反映」とあるが、実際に実装してみないと問題点が見えない可能性がある
+- ドラッグ中はホバー判定を行わないことで実装を簡略化する方針
+
+### パフォーマンスの検証
+
+- 仕様書では「変化がない場合は同一参照を返す」ことで再レンダリングを抑制するとあるが、実際にパフォーマンスが改善されるかは計測が必要
+- 大規模なER図（100エンティティ以上）での動作確認が望ましい

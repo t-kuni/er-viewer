@@ -82,8 +82,10 @@ model Rectangle {
   y: float64;
   width: float64;
   height: float64;
-  fill: string;
-  stroke: string;
+  fill: string;   // 背景色（例: "#E3F2FD"）
+  stroke: string; // 枠線色（例: "#90CAF9"）
+  strokeWidth: float64; // 枠線幅（px）
+  opacity: float64;     // 透明度（0〜1）
 }
 
 model Text {
@@ -176,6 +178,7 @@ model ERDiagramUIState {
 model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;
   edges: Record<RelationshipEdgeViewModel>;
+  rectangles: Record<Rectangle>; // 矩形（グループ化・領域区別用）
   ui: ERDiagramUIState;
   loading: boolean;
 }

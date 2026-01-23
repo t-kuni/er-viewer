@@ -134,6 +134,9 @@ export interface components {
             edges: {
                 [key: string]: components["schemas"]["RelationshipEdgeViewModel"];
             };
+            rectangles: {
+                [key: string]: components["schemas"]["Rectangle"];
+            };
             ui: components["schemas"]["ERDiagramUIState"];
             loading: boolean;
         };
@@ -207,6 +210,10 @@ export interface components {
             height: number;
             fill: string;
             stroke: string;
+            /** Format: double */
+            strokeWidth: number;
+            /** Format: double */
+            opacity: number;
         };
         Relationship: {
             id: string;

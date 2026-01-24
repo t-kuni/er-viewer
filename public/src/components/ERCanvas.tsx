@@ -226,7 +226,11 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
             return {
               ...node,
               position: { x: rectangle.x, y: rectangle.y },
+              width: rectangle.width,
+              height: rectangle.height,
               data: {
+                width: rectangle.width,
+                height: rectangle.height,
                 fill: rectangle.fill,
                 stroke: rectangle.stroke,
                 strokeWidth: rectangle.strokeWidth,

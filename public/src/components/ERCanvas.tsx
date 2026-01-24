@@ -129,19 +129,14 @@ function ERCanvasInner({
   
   const handleSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
-      console.log('onSelectionChange called:', params)
-      console.log('Selected nodes:', params.nodes.map(n => ({ id: n.id, type: n.type })))
-      
       // 矩形ノードのみを抽出
       const selectedRectangles = params.nodes.filter(node => node.type === 'rectangleNode')
       
       // 矩形が1つだけ選択されている場合は親に通知
       if (selectedRectangles.length === 1) {
-        console.log('Notifying parent: rectangle selected', selectedRectangles[0].id)
         onSelectionChange?.(selectedRectangles[0].id)
       } else {
         // 0個または2個以上の場合はnullを通知
-        console.log('Notifying parent: null (count:', selectedRectangles.length, ')')
         onSelectionChange?.(null)
       }
     },
@@ -196,7 +191,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   
   // エンティティとエッジを更新
   useEffect(() => {
-    console.log('useEffect: updating entities and edges')
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
     
@@ -210,7 +204,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   
   // 矩形が追加・削除・更新されたら、矩形ノードを更新（選択状態を保持するため部分更新）
   useEffect(() => {
-    console.log('useEffect: updating rectangles')
     setNodes(currentNodes => {
       const rectangleIds = Object.keys(viewModelRectangles)
       const currentRectangleIds = currentNodes.filter(n => n.type === 'rectangleNode').map(n => n.id)
@@ -220,14 +213,12 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
       const removed = currentRectangleIds.filter(id => !rectangleIds.includes(id))
       
       if (added.length > 0 || removed.length > 0) {
-        console.log('rectangles added or removed, rebuilding')
         const entityNodes = currentNodes.filter(n => n.type === 'entityNode')
         const rectangleNodes = convertToReactFlowRectangles(viewModelRectangles)
         return [...rectangleNodes, ...entityNodes]
       }
       
       // スタイルまたは位置の更新のみの場合は、該当ノードだけを更新
-      console.log('updating rectangle properties only')
       return currentNodes.map(node => {
         if (node.type === 'rectangleNode') {
           const rectangle = viewModelRectangles[node.id]

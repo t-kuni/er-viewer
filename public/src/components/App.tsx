@@ -8,11 +8,6 @@ function App() {
   const [showBuildInfo, setShowBuildInfo] = useState(false)
   const [selectedRectangleId, setSelectedRectangleId] = useState<string | null>(null)
   
-  const handleSelectionChange = (rectangleId: string | null) => {
-    console.log('App: selection changed to', rectangleId)
-    setSelectedRectangleId(rectangleId)
-  }
-  
   // 選択された矩形の数を取得
   const rectangles = useERViewModel((vm) => vm.rectangles)
   const selectedRectangleIds = Object.keys(rectangles).filter(id => 
@@ -52,7 +47,7 @@ function App() {
           flex: 1, 
           position: 'relative' 
         }}>
-          <ERCanvas onSelectionChange={handleSelectionChange} />
+          <ERCanvas onSelectionChange={setSelectedRectangleId} />
         </div>
         {selectedRectangleId && (
           <div 

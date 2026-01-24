@@ -1,272 +1,263 @@
 # タスク一覧
 
-矩形プロパティパネル機能の実装タスク一覧。
-仕様書: [spec/rectangle_property_panel.md](./spec/rectangle_property_panel.md)
+## 概要
 
-## 前提条件
+[spec/frontend_state_management.md](spec/frontend_state_management.md)の仕様変更に対応するため、Storeの状態を`ERDiagramViewModel`から`ViewModel`に移行し、グローバルUI状態とビルド情報キャッシュをStoreで管理する。
 
-- react-colorfulは既にインストール済み（package.jsonで確認済み）
-- rectangleActions.tsは既に実装済み（actionUpdateRectangleStyle、actionRemoveRectangle等）
-- RectangleNodeコンポーネントは既に実装済み
+**仕様変更のポイント**:
+- 状態管理のルート型を`ERDiagramViewModel`から`ViewModel`に変更
+- `ViewModel`は3つのプロパティを持つ:
+  - `erDiagram`: ER図の状態（従来の`ERDiagramViewModel`）
+  - `ui`: グローバルUI状態（`selectedRectangleId`, `showBuildInfoModal`）
+  - `buildInfo`: ビルド情報のキャッシュ（`data`, `loading`, `error`）
+- `scheme/main.tsp`で型が定義され、`lib/generated/api-types.ts`に自動生成済み
 
 ## 実装タスク
 
-### □ ColorPickerWithPresetsコンポーネントの実装
+### Store基盤の更新
 
-**ファイル**: `public/src/components/ColorPickerWithPresets.tsx`（新規作成）
+- [ ] **Store型を`ViewModel`に更新**
+  - **ファイル**: `public/src/store/erDiagramStore.ts`
+  - **変更内容**:
+    - `ActionFn`の型を`ActionFn<Args extends any[] = any[]> = (viewModel: ViewModel, ...args: Args) => ViewModel`に変更
+    - `Store`インターフェースの`getState`の戻り値を`ViewModel`に変更
+    - 初期状態を`ViewModel`型に更新:
+      ```typescript
+      const initialState: ViewModel = {
+        erDiagram: {
+          nodes: {},
+          edges: {},
+          rectangles: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+          },
+          loading: false,
+        },
+        ui: {
+          selectedRectangleId: null,
+          showBuildInfoModal: false,
+        },
+        buildInfo: {
+          data: null,
+          loading: false,
+          error: null,
+        },
+      };
+      ```
+    - `components['schemas']['ViewModel']`型をimport
+  - **参照仕様**: [spec/frontend_state_management.md#状態設計](spec/frontend_state_management.md#状態設計)
 
-**概要**: カラーピッカーとプリセット色ボタンを含む再利用可能なコンポーネントを実装する。
+- [ ] **Hooksの型を`ViewModel`に更新**
+  - **ファイル**: `public/src/store/hooks.ts`
+  - **変更内容**:
+    - `useERViewModel`を`useViewModel`にリネーム
+    - selectorの引数型を`ViewModel`に変更: `selector: (viewModel: ViewModel) => T`
+    - `useERDispatch`を`useDispatch`にリネーム
+    - `components['schemas']['ViewModel']`型をimport
+  - **参照仕様**: [spec/frontend_state_management.md#Store購読とdispatch](spec/frontend_state_management.md#Store購読とdispatch)
 
-**インターフェース**:
-```typescript
-interface ColorPickerWithPresetsProps {
-  value: string; // HEX形式の色
-  onChange: (color: string) => void;
-  label: string;
-}
-```
+### 既存Actionの型更新
 
-**実装内容**:
-- react-colorfulの`HexColorPicker`と`HexColorInput`を使用
-- ラベル表示
-- カラーピッカー（HexColorPicker）
-- HEX値入力フィールド（HexColorInput）
-- プリセット色ボタンを横2列 × 縦4行でグリッド表示
-  - 青: `#E3F2FD`
-  - シアン: `#E0F7FA`
-  - ティール: `#E0F2F1`
-  - 緑: `#E8F5E9`
-  - 黄: `#FFFDE7`
-  - オレンジ: `#FFF3E0`
-  - ピンク: `#FCE4EC`
-  - グレー: `#F5F5F5`
-- プリセットボタンのスタイル:
-  - サイズ: 32px × 32px
-  - ボーダー: 1px solid #ccc
-  - カーソル: pointer
+- [ ] **dataActionsの型を`ViewModel`に更新**
+  - **ファイル**: `public/src/actions/dataActions.ts`
+  - **変更内容**:
+    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
+    - `actionSetData`:
+      - `viewModel.erDiagram`を更新するように変更
+      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, nodes, edges } }`
+    - `actionUpdateNodePositions`:
+      - `viewModel.erDiagram.nodes`にアクセスして更新
+      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, nodes: newNodes } }`
+    - `actionSetLoading`:
+      - `viewModel.erDiagram.loading`を更新
+      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, loading } }`
+  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
 
-**注意事項**:
-- カラーピッカーのローカルステートは持たず、propsで完全に制御する（Controlled Component）
-- プリセット色ボタンクリック時はonChangeを即座に呼び出す
+- [ ] **hoverActionsの型を`ViewModel`に更新**
+  - **ファイル**: `public/src/actions/hoverActions.ts`
+  - **変更内容**:
+    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
+    - `actionHoverEntity`, `actionHoverEdge`, `actionHoverColumn`, `actionClearHover`:
+      - `viewModel.erDiagram.edges`, `viewModel.erDiagram.nodes`にアクセス
+      - `viewModel.erDiagram.ui`を更新
+      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, ui: newUi } }`
+  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
 
----
+- [ ] **rectangleActionsの型を`ViewModel`に更新**
+  - **ファイル**: `public/src/actions/rectangleActions.ts`
+  - **変更内容**:
+    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
+    - `actionAddRectangle`, `actionRemoveRectangle`, `actionUpdateRectanglePosition`, `actionUpdateRectangleSize`, `actionUpdateRectangleBounds`, `actionUpdateRectangleStyle`:
+      - `viewModel.erDiagram.rectangles`にアクセスして更新
+      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, rectangles: newRectangles } }`
+  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
 
-### □ RectanglePropertyPanelコンポーネントの実装
+### グローバルUI関連のActionを追加
 
-**ファイル**: `public/src/components/RectanglePropertyPanel.tsx`（新規作成）
+- [ ] **globalUIActionsを作成**
+  - **ファイル**: `public/src/actions/globalUIActions.ts`（新規作成）
+  - **変更内容**:
+    - 以下のAction関数を実装:
+      - `actionSelectRectangle(viewModel: ViewModel, rectangleId: string): ViewModel`
+        - `viewModel.ui.selectedRectangleId`を更新
+        - 変化がない場合は同一参照を返す
+      - `actionDeselectRectangle(viewModel: ViewModel): ViewModel`
+        - `viewModel.ui.selectedRectangleId`をnullに設定
+        - 変化がない場合は同一参照を返す
+      - `actionShowBuildInfoModal(viewModel: ViewModel): ViewModel`
+        - `viewModel.ui.showBuildInfoModal`をtrueに設定
+        - 変化がない場合は同一参照を返す
+      - `actionHideBuildInfoModal(viewModel: ViewModel): ViewModel`
+        - `viewModel.ui.showBuildInfoModal`をfalseに設定
+        - 変化がない場合は同一参照を返す
+  - **参照仕様**: [spec/frontend_state_management.md#グローバルUI関連のAction](spec/frontend_state_management.md#グローバルUI関連のAction)
 
-**概要**: 矩形選択時に右サイドバーに表示するプロパティパネルを実装する。
+### ビルド情報関連のActionを追加
 
-**インターフェース**:
-```typescript
-interface RectanglePropertyPanelProps {
-  rectangleId: string;
-}
-```
+- [ ] **buildInfoActionsを作成**
+  - **ファイル**: `public/src/actions/buildInfoActions.ts`（新規作成）
+  - **変更内容**:
+    - 以下のAction関数を実装:
+      - `actionSetBuildInfoLoading(viewModel: ViewModel, loading: boolean): ViewModel`
+        - `viewModel.buildInfo.loading`を更新
+        - 変化がない場合は同一参照を返す
+      - `actionSetBuildInfo(viewModel: ViewModel, buildInfo: BuildInfo): ViewModel`
+        - `viewModel.buildInfo.data`を設定
+        - `viewModel.buildInfo.error`をnullに設定
+      - `actionSetBuildInfoError(viewModel: ViewModel, error: string): ViewModel`
+        - `viewModel.buildInfo.error`を設定
+  - **参照仕様**: [spec/frontend_state_management.md#ビルド情報関連のAction](spec/frontend_state_management.md#ビルド情報関連のAction)
 
-**実装内容**:
-- `useERViewModel`で選択された矩形データを取得（`vm.rectangles[rectangleId]`）
-- `useERDispatch`でdispatch関数を取得
-- 矩形が存在しない場合はnullを返す
-- プロパティ編集UIを順番にレンダリング:
-  1. **背景色（fill）**: ColorPickerWithPresetsを使用、onChange時に`actionUpdateRectangleStyle`をdispatch
-  2. **枠線色（stroke）**: ColorPickerWithPresetsを使用、onChange時に`actionUpdateRectangleStyle`をdispatch
-  3. **透明度（opacity）**: `<input type="range">`（min=0, max=1, step=0.01）+ パーセント表示、onChange時に`actionUpdateRectangleStyle`をdispatch
-  4. **枠線幅（strokeWidth）**: `<input type="number">`（min=0, step=1）+ px表示、onChange時に`actionUpdateRectangleStyle`をdispatch
-  5. **削除ボタン**: 赤背景（`#dc3545`）、白文字、onClick時に`actionRemoveRectangle`をdispatch
+### Commandの更新
 
-**スタイル**:
-- 各プロパティグループ間にマージンを設定（0.5rem〜1rem）
-- ラベルは太字で表示
-- 透明度スライダーは幅100%
-- 削除ボタンは幅100%、パディング0.75rem
+- [ ] **reverseEngineerCommandの型を`ViewModel`に対応**
+  - **ファイル**: `public/src/commands/reverseEngineerCommand.ts`
+  - **変更内容**:
+    - 特に変更不要（Actionが`ViewModel`を受け取るように変更されるため、dispatchの引数は変わらない）
+    - `actionSetData`の引数は`nodes`と`edges`のみ（矩形は返されない）
+    - `buildERDiagramViewModel`の戻り値が`ERDiagramViewModel`であることを確認
 
-**注意事項**:
-- すべてのonChangeイベントで即座にActionをdispatchする（リアルタイム更新）
-- 透明度は0〜1の数値で管理し、表示時のみパーセント表示に変換（例: 0.5 → 50%）
-- 枠線幅は数値型で管理し、表示時にpx単位を追加
-
----
-
-### □ App.tsxのレイアウト変更
-
-**ファイル**: `public/src/components/App.tsx`
-
-**概要**: 右サイドバーを追加し、矩形選択時にプロパティパネルを表示する。
-
-**変更内容**:
-- mainタグのスタイルを変更:
-  - `display: 'flex'`
-  - `height: 'calc(100vh - 70px)'`（ヘッダー分を引く）
-- mainタグの中身を以下の構成に変更:
-  1. ERCanvasエリア（左側）:
-     - `flex: 1`（残りのスペースを占有）
-     - `position: 'relative'`
-  2. 右サイドバー（条件付きレンダリング）:
-     - 矩形が1つだけ選択されている場合のみ表示
-     - `width: '300px'`
-     - `background: '#ffffff'`
-     - `borderLeft: '1px solid #ddd'`
-     - `padding: '1rem'`
-     - `overflowY: 'auto'`
-     - 中身: `<RectanglePropertyPanel rectangleId={selectedRectangleId} />`
-     - 複数選択時は「複数選択中（一括編集は未対応）」メッセージを表示
-- 選択状態管理のためのローカルステート追加:
-  - `const [selectedRectangleId, setSelectedRectangleId] = useState<string | null>(null)`
-- ERCanvasコンポーネントにpropsを追加:
-  - `onSelectionChange: (rectangleId: string | null) => void`
-  - `selectedRectangleId`をsetSelectedRectangleIdで更新
-
-**注意事項**:
-- ERCanvasの高さをApp側で管理しているため、ERCanvas側の高さ指定を削除または調整する必要がある場合あり
-- RectanglePropertyPanelコンポーネントをimport
-
----
-
-### □ ERCanvasでの選択状態管理実装
-
-**ファイル**: `public/src/components/ERCanvas.tsx`
-
-**概要**: React Flowの`onSelectionChange`イベントで矩形の選択状態を監視し、親コンポーネント（App）に通知する。
-
-**変更内容**:
-- props追加:
-  ```typescript
-  interface ERCanvasProps {
-    onSelectionChange?: (rectangleId: string | null) => void;
-  }
-  ```
-- `onSelectionChange`ハンドラの実装（ERCanvasInnerまたはERCanvas内）:
-  - React Flowの`onSelectionChange`プロパティを使用
-  - `nodes`配列から`type === 'rectangleNode'`のノードだけを抽出
-  - 選択された矩形が1つの場合: `onSelectionChange?.(selectedNode.id)`を呼び出す
-  - 選択された矩形が0個または2個以上の場合: `onSelectionChange?.(null)`を呼び出す
-  - エンティティノードのみが選択されている場合も: `onSelectionChange?.(null)`を呼び出す
-
-**注意事項**:
-- `useCallback`でハンドラを安定化させる
-- onSelectionChangeがoptionalなので、呼び出し前に存在チェックを行う
-
----
-
-### □ Deleteキー対応の実装
-
-**ファイル**: `public/src/components/ERCanvas.tsx`
-
-**概要**: DeleteキーまたはBackspaceキーで矩形を削除できるようにする。
-
-**変更内容**:
-- `onNodesDelete`ハンドラの追加（ERCanvasInner内）:
-  ```typescript
-  const onNodesDelete = useCallback(
-    (deletedNodes: Node[]) => {
-      deletedNodes.forEach((node) => {
-        if (node.type === 'rectangleNode') {
-          dispatch(actionRemoveRectangle, node.id);
+- [ ] **commandFetchBuildInfoを作成**
+  - **ファイル**: `public/src/commands/buildInfoCommand.ts`（新規作成）
+  - **変更内容**:
+    - 以下のCommand関数を実装:
+      ```typescript
+      export async function commandFetchBuildInfo(dispatch: Store['dispatch']): Promise<void> {
+        dispatch(actionSetBuildInfoLoading, true);
+        try {
+          const buildInfo = await DefaultService.apiGetBuildInfo();
+          if ('error' in buildInfo) {
+            throw new Error(buildInfo.error);
+          }
+          dispatch(actionSetBuildInfo, buildInfo);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'ビルド情報の取得に失敗しました';
+          dispatch(actionSetBuildInfoError, errorMessage);
+        } finally {
+          dispatch(actionSetBuildInfoLoading, false);
         }
-      });
-    },
-    [dispatch]
-  );
-  ```
-- ReactFlowコンポーネントに`onNodesDelete={onNodesDelete}`を追加
+      }
+      ```
+  - **参照仕様**: [spec/frontend_state_management.md#Command層](spec/frontend_state_management.md#Command層)
 
-**注意事項**:
-- エンティティノードの削除は対象外（仕様に含まれていない）
-- 矩形ノードのみを削除対象とする
+### コンポーネントの更新
 
----
+- [ ] **App.tsxをStoreベースに移行**
+  - **ファイル**: `public/src/components/App.tsx`
+  - **変更内容**:
+    - ローカル状態（`showBuildInfo`, `selectedRectangleId`）を削除
+    - `useViewModel`と`useDispatch`をimport（`useERViewModel`, `useERDispatch`から変更）
+    - `selectedRectangleId`の取得: `useViewModel(vm => vm.ui.selectedRectangleId)`
+    - `showBuildInfo`の取得: `useViewModel(vm => vm.ui.showBuildInfoModal)`
+    - ビルド情報ボタンのクリック: `dispatch(actionShowBuildInfoModal)`
+    - モーダルを閉じる: `dispatch(actionHideBuildInfoModal)`
+    - 矩形選択: ERCanvasの`onSelectionChange`から`dispatch(actionSelectRectangle, rectangleId)`または`dispatch(actionDeselectRectangle)`
+  - **参照仕様**: [spec/frontend_state_management.md#グローバルUI関連のAction](spec/frontend_state_management.md#グローバルUI関連のAction)
 
-## テストタスク
+- [ ] **ERCanvas.tsxをStoreベースに移行**
+  - **ファイル**: `public/src/components/ERCanvas.tsx`
+  - **変更内容**:
+    - `useERViewModel`を`useViewModel`に変更
+    - `useERDispatch`を`useDispatch`に変更
+    - Storeからの購読を`viewModel.erDiagram`にアクセスするように変更:
+      - `useViewModel(vm => vm.erDiagram.nodes)`
+      - `useViewModel(vm => vm.erDiagram.edges)`
+      - `useViewModel(vm => vm.erDiagram.rectangles)`
+      - `useViewModel(vm => vm.erDiagram.loading)`
+    - `onSelectionChange`のコールバックをそのまま親に通知（親でActionをdispatch）
+  - **注意**: 既存のロジックは維持し、Storeへのアクセス方法のみ変更
 
-### □ rectangleActionsのテスト実装
+- [ ] **BuildInfoModal.tsxをStoreベースに移行**
+  - **ファイル**: `public/src/components/BuildInfoModal.tsx`
+  - **変更内容**:
+    - ローカル状態（`buildInfo`, `loading`, `error`）を削除
+    - `useViewModel`と`useDispatch`をimport
+    - `buildInfo`の取得: `useViewModel(vm => vm.buildInfo.data)`
+    - `loading`の取得: `useViewModel(vm => vm.buildInfo.loading)`
+    - `error`の取得: `useViewModel(vm => vm.buildInfo.error)`
+    - `useEffect`でマウント時（依存配列を空`[]`にする）に、`buildInfo.data`がnullの場合のみ`commandFetchBuildInfo(dispatch)`を実行
+      - これにより、アプリケーション起動後の初回モーダル表示時のみAPIを呼び出し、2回目以降はキャッシュを使用
+    - `onClose`を呼ぶ際は、親から`actionHideBuildInfoModal`がdispatchされる
+  - **参照仕様**: [spec/frontend_state_management.md#ビルド情報のキャッシュについて](spec/frontend_state_management.md#ビルド情報のキャッシュについて)
 
-**ファイル**: `public/tests/actions/rectangleActions.test.ts`
+### テストコードの更新
 
-**概要**: rectangleActionsは既に実装済みだが、actionUpdateRectangleStyleとactionRemoveRectangleのテストが不足している場合は追加する。
+- [ ] **dataActions.test.tsの型を`ViewModel`に更新**
+  - **ファイル**: `public/tests/actions/dataActions.test.ts`
+  - **変更内容**:
+    - `createMockViewModel`の戻り値を`ViewModel`型に変更
+    - モックデータを`ViewModel`の構造に合わせて変更（`erDiagram`, `ui`, `buildInfo`を含む）
+    - 各テストケースで`result.erDiagram.nodes`などにアクセス
+  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
 
-**確認事項**:
-- 既存のテストファイルを確認し、不足しているテストケースがあれば追加
-- すべてのActionが正しく動作することを確認
+- [ ] **hoverActions.test.tsの型を`ViewModel`に更新**
+  - **ファイル**: `public/tests/actions/hoverActions.test.ts`
+  - **変更内容**:
+    - `createMockViewModel`の戻り値を`ViewModel`型に変更
+    - 各テストケースで`result.erDiagram.ui.hover`などにアクセス
+  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
 
----
+- [ ] **rectangleActions.test.tsの型を`ViewModel`に更新**
+  - **ファイル**: `public/tests/actions/rectangleActions.test.ts`
+  - **変更内容**:
+    - `createMockViewModel`の戻り値を`ViewModel`型に変更
+    - 各テストケースで`result.erDiagram.rectangles`にアクセス
+  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
 
-## ビルド・テスト確認タスク
+- [ ] **globalUIActionsのテストを作成**
+  - **ファイル**: `public/tests/actions/globalUIActions.test.ts`（新規作成）
+  - **変更内容**:
+    - 以下のテストケースを実装:
+      - `actionSelectRectangle`: 矩形が選択される
+      - `actionDeselectRectangle`: 矩形の選択が解除される
+      - `actionShowBuildInfoModal`: ビルド情報モーダルが表示される
+      - `actionHideBuildInfoModal`: ビルド情報モーダルが非表示になる
+      - 変化がない場合に同一参照を返すことを確認
+  - **参照仕様**: [spec/frontend_state_management.md#テスト設計](spec/frontend_state_management.md#テスト設計)
 
-### □ コード生成の実行
+- [ ] **buildInfoActionsのテストを作成**
+  - **ファイル**: `public/tests/actions/buildInfoActions.test.ts`（新規作成）
+  - **変更内容**:
+    - 以下のテストケースを実装:
+      - `actionSetBuildInfoLoading`: ローディング状態が設定される
+      - `actionSetBuildInfo`: ビルド情報が設定される（errorがnullになる）
+      - `actionSetBuildInfoError`: エラーが設定される
+      - 変化がない場合に同一参照を返すことを確認
+  - **参照仕様**: [spec/frontend_state_management.md#テスト設計](spec/frontend_state_management.md#テスト設計)
 
-**コマンド**: `npm run generate`
+### ビルド・テストの確認
 
-**概要**: TypeSpecから型定義を生成し、最新の型がフロントエンドとバックエンドに反映されることを確認する。
+- [ ] **型生成を実行**
+  - **コマンド**: `npm run generate`
+  - **確認内容**: `lib/generated/api-types.ts`と`public/src/api/client/models/`に`ViewModel`, `GlobalUIState`, `BuildInfoState`が生成されていることを確認
 
-**注意事項**:
-- 今回の変更ではTypeSpecの変更はないため、型定義に変化はないはず
-- 念のため実行して確認
+- [ ] **ビルドの確認**
+  - **コマンド**: フロントエンドとバックエンドのビルドを実行
+  - **確認内容**: 型エラーが発生しないことを確認
 
----
-
-### □ ビルドの確認
-
-**コマンド**: `cd public && npm run build`
-
-**概要**: フロントエンドのビルドが成功することを確認する。
-
-**確認ポイント**:
-- TypeScriptのコンパイルエラーがないこと
-- ビルドが正常に完了すること
-
----
-
-### □ テストの実行
-
-**コマンド**: `npm run test`
-
-**概要**: すべてのテストが成功することを確認する。
-
-**確認ポイント**:
-- 新規追加したテストが成功すること
-- 既存のテストに影響がないこと
-
----
-
-## 実装しないこと（仕様書で明示的に除外されている項目）
-
-- サイドバーの開閉アニメーション（MVPでは実装しない）
-- レスポンシブ対応（MVPでは固定幅）
-- デバウンス処理（パフォーマンス問題が発生した場合のみ将来検討）
-- 一括編集機能（複数矩形選択時の編集は未対応）
-- カラーピッカーのアコーディオン開閉（デフォルトで常時表示）
-- カスタムプリセット色の保存機能（将来的な拡張）
-- ColorPickerWithPresetsのテスト（指示者の判断により不要）
-- RectanglePropertyPanelのテスト（指示者の判断により不要）
-
----
-
-## 懸念事項（作業対象外）
-
-**注意**: 以下の懸念事項は実装後に指示者が確認します。
-
-### UI/UX関連
-
-- カラーピッカーのサイズや配置が右サイドバー（300px幅）に収まるか
-  - react-colorfulのデフォルトサイズ（約200px）で問題ないか
-  - 必要に応じてCSSでサイズ調整
-
-- プロパティパネル内のスクロール挙動
-  - カラーピッカー2つ + その他のUIを縦に配置した際、300px幅のサイドバー内で快適にスクロールできるか
-
-### 技術的懸念
-
-- React FlowのonSelectionChangeイベントの動作
-  - ドキュメント上は期待通りの動作をするはずだが、実装時に確認が必要
-  - 複数選択やエンティティと矩形の混在選択時の挙動を確認
-
-- react-colorfulのReact 19互換性
-  - package.jsonでReact 19を使用しているが、react-colorfulがサポートしているか
-  - 実装時にエラーが発生する可能性あり
-
----
-
-## 事前修正提案
-
-特になし。現在の実装状況で矩形プロパティパネル機能を追加できる準備が整っている。
+- [ ] **テストの実行**
+  - **コマンド**: `npm run test`
+  - **確認内容**: すべてのテストが通ることを確認

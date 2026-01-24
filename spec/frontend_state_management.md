@@ -86,7 +86,9 @@
 * **テスト容易性**: ローディング・エラー状態をActionでテスト可能
 * **状態の一元管理**: ビルド情報の状態をコンポーネント外で管理
 
-モーダル初回表示時に`commandFetchBuildInfo`を実行し、`data`が`null`の場合のみAPIを呼び出す。
+**実装方法**:
+- `BuildInfoModal`コンポーネントのマウント時（`useEffect`の依存配列を空にする）に、`buildInfo.data`が`null`の場合のみ`commandFetchBuildInfo`を実行
+- これにより、アプリケーション起動後の初回モーダル表示時のみAPIを呼び出し、2回目以降はキャッシュを使用
 
 ## Action層の設計
 
@@ -124,8 +126,9 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 
 ##### データ更新関連
 
-* `actionSetData(viewModel, nodes, edges, rectangles)`: リバースエンジニア結果を設定
+* `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定
   - 既存のUI状態を保持したままデータ部分のみ更新
+  - 注意: リバースエンジニアリング時に矩形データは返されない（矩形は手動で追加される）
   
 * `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新
   - `nodePositions`: `Array<{ id: string, x: number, y: number }>`
@@ -246,7 +249,8 @@ async function commandReverseEngineer(dispatch) {
     const response = await api.reverseEngineer();
     // ReverseEngineerResponseからERDiagramViewModelを構築
     const erDiagram = buildERDiagramViewModel(response.erData, response.layoutData);
-    dispatch(actionSetData, erDiagram.nodes, erDiagram.edges, erDiagram.rectangles);
+    // 注意: リバースエンジニアリング時に矩形データは返されない
+    dispatch(actionSetData, erDiagram.nodes, erDiagram.edges);
   } catch (error) {
     // エラーハンドリング
   } finally {
@@ -260,7 +264,8 @@ async function commandFetchBuildInfo(dispatch) {
     const buildInfo = await api.getBuildInfo();
     dispatch(actionSetBuildInfo, buildInfo);
   } catch (error) {
-    dispatch(actionSetBuildInfoError, error.message);
+    const errorMessage = error instanceof Error ? error.message : 'ビルド情報の取得に失敗しました';
+    dispatch(actionSetBuildInfoError, errorMessage);
   } finally {
     dispatch(actionSetBuildInfoLoading, false);
   }

@@ -180,7 +180,27 @@ model ERDiagramViewModel {
   edges: Record<RelationshipEdgeViewModel>;
   rectangles: Record<Rectangle>; // 矩形（グループ化・領域区別用）
   ui: ERDiagramUIState;
-  loading: boolean;
+  loading: boolean; // リバースエンジニア処理中フラグ
+}
+
+// Global UI state
+model GlobalUIState {
+  selectedRectangleId: string | null; // 選択中の矩形ID（プロパティパネル表示制御用）
+  showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
+}
+
+// Build info cache state
+model BuildInfoState {
+  data: BuildInfo | null; // キャッシュされたビルド情報
+  loading: boolean; // ビルド情報取得中フラグ
+  error: string | null; // エラーメッセージ
+}
+
+// Root view model for the entire frontend application
+model ViewModel {
+  erDiagram: ERDiagramViewModel; // ER図の状態
+  ui: GlobalUIState; // グローバルUI状態
+  buildInfo: BuildInfoState; // ビルド情報のキャッシュ
 }
 
 // API Routes

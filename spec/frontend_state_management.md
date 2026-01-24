@@ -3,7 +3,12 @@
 ## 概要
 
 本仕様書は、ER Diagram Viewerのフロントエンドにおける状態管理とテスト戦略を定義する。
-単一状態ツリーと純粋関数による状態更新（Action層）を採用し、テスト容易性を最大化する。
+単一状態ツリー（`ViewModel`）と純粋関数による状態更新（Action層）を採用し、テスト容易性を最大化する。
+
+**目的**:
+- Actionで管理できる範囲を最大化する
+- Actionにテストを書くことでテストできる範囲を最大化する
+- グローバルUI状態やキャッシュもActionで管理し、Reactコンポーネントのローカル状態を最小化する
 
 関連仕様：
 - ER図の描画とインタラクションについては[frontend_er_rendering.md](./frontend_er_rendering.md)を参照
@@ -13,9 +18,15 @@
 
 ### 設計原則
 
-* **単一状態ツリー**: ER図に関するすべての状態を`ERDiagramViewModel`で管理
+* **単一状態ツリー**: アプリケーション全体の状態を`ViewModel`で管理
+  - ER図関連の状態は`ViewModel.erDiagram`（`ERDiagramViewModel`型）
+  - グローバルUI状態は`ViewModel.ui`
+  - ビルド情報キャッシュは`ViewModel.buildInfo`
 * **純粋関数Action**: すべての状態更新は `action(viewModel, ...params) => newViewModel` の形式で実装
-* **テスト容易性**: Actionを直接テストすることでロジックをカバー
+* **テスト容易性の最大化**: Actionを直接テストすることでロジックをカバー
+  - ER図のビジネスロジック（ホバー、ハイライト、データ更新）
+  - グローバルUI制御（選択、モーダル表示）
+  - ビルド情報管理（キャッシュ、エラーハンドリング）
 
 ### 技術選定
 
@@ -25,48 +36,30 @@
 
 ## 状態設計
 
-### ERDiagramViewModel型定義
+### ViewModel型定義
 
-ER図に関するすべての状態を保持する型：
+アプリケーション全体の状態を保持するルート型。型定義の詳細は[`scheme/main.tsp`](../scheme/main.tsp)を参照。
 
-```typescript
-type ERDiagramViewModel = {
-  // ERダイアグラムのデータ
-  nodes: Record<string, EntityNodeViewModel>;
-  edges: Record<string, RelationshipEdgeViewModel>;
-  
-  // UI状態
-  ui: {
-    // ホバー中の要素情報
-    hover: HoverTarget;
-    
-    // ハイライト対象（集合で保持）
-    highlightedNodeIds: Set<string>; // Entity IDs (UUID)
-    highlightedEdgeIds: Set<string>; // Edge IDs (UUID)
-    highlightedColumnIds: Set<string>; // Column IDs (UUID)
-  };
-  
-  // ローディング状態
-  loading: boolean;
-};
+**型の構造**:
+- `ViewModel`: アプリケーション全体のルート型
+  - `erDiagram`: ER図の状態（`ERDiagramViewModel`型）
+  - `ui`: グローバルUI状態（`GlobalUIState`型）
+  - `buildInfo`: ビルド情報のキャッシュ（`BuildInfoState`型）
+- `ERDiagramViewModel`: ER図関連の状態
+  - `nodes`: エンティティノード（`Record<EntityNodeViewModel>`）
+  - `edges`: リレーションシップエッジ（`Record<RelationshipEdgeViewModel>`）
+  - `rectangles`: 矩形（`Record<Rectangle>`）
+  - `ui`: ER図のUI状態（`ERDiagramUIState`型）
+  - `loading`: リバースエンジニア処理中フラグ
 
-type HoverTarget =
-  | { type: 'entity'; id: string }
-  | { type: 'edge'; id: string }
-  | { type: 'column'; id: string }
-  | null;
-```
-
-**TypeSpecとの関係**:
-- `ERDiagramViewModel`、`EntityNodeViewModel`、`RelationshipEdgeViewModel`、`HoverTarget`はすべてTypeSpec（`scheme/main.tsp`）で定義されている
-- TypeSpecでは`Set`や`Map`を配列で表現しているため、フロントエンドでは受け取ったデータを`Set`や`Map`に変換して使用する
-- TypeSpecの型定義が単一の真実の情報源（Single Source of Truth）となる
+**TypeSpecとフロントエンドの型変換**:
+- TypeSpecでは`Set`や`Map`を配列で表現している
+- フロントエンドでは配列を`Set`や`Map`に変換して使用する
+  - 例: `highlightedNodeIds`は配列として定義されているが、実装では`Set`に変換してO(1)検索を実現
+- TypeScript型は`npm run generate`で自動生成される
 
 **ID仕様**:
-- すべての`id`フィールドはUUID（Universally Unique Identifier）
-- UUIDは`crypto.randomUUID()`で生成
-- 一度生成されたIDは保存され、増分更新時も維持される（永続性を持つ）
-- 詳細は[typespec_api_definition.md](./typespec_api_definition.md)の「ID仕様の基本方針」を参照
+- ID仕様の詳細は[`scheme/main.tsp`](../scheme/main.tsp)のコメントを参照
 
 ### UIフラグの保持方法
 
@@ -78,6 +71,23 @@ type HoverTarget =
   - エッジ: `highlightedEdgeIds.has(edgeId)`
   - カラム: `highlightedColumnIds.has(columnId)`
 
+### ローカル状態で管理すべきもの
+
+以下はViewModelに含めず、Reactコンポーネントのローカル状態で管理する：
+
+* **React Flow内部状態**: ドラッグ中のノード位置（uncontrolledモードでパフォーマンス確保）
+* **フォーム入力中の一時的な値**: 確定前のテキスト入力など
+
+### ビルド情報のキャッシュについて
+
+`ViewModel.buildInfo`はビルド情報をキャッシュし、次の利点を提供する：
+
+* **キャッシュ**: モーダルを閉じても、次回開いたときに再取得不要（取得済みの場合）
+* **テスト容易性**: ローディング・エラー状態をActionでテスト可能
+* **状態の一元管理**: ビルド情報の状態をコンポーネント外で管理
+
+モーダル初回表示時に`commandFetchBuildInfo`を実行し、`data`が`null`の場合のみAPIを呼び出す。
+
 ## Action層の設計
 
 ### Actionの定義
@@ -86,17 +96,22 @@ type HoverTarget =
 
 ```typescript
 type ActionFn<Args extends any[] = any[]> = (
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   ...args: Args
-) => ERDiagramViewModel;
+) => ViewModel;
 ```
+
+Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。ER図関連のActionは `viewModel.erDiagram` のみを更新し、グローバルUI関連のActionは `viewModel.ui` を更新する。
 
 ### 主要なAction
 
-#### ホバー関連
+#### ER図関連のAction
+
+##### ホバー関連
 
 * `actionHoverEntity(viewModel, entityId)`: エンティティにホバーした時
   - ホバー対象と隣接するノード・エッジ・関連カラムをハイライト対象に設定
+  - `viewModel.erDiagram.ui.hover` と `highlightedXxxIds` を更新
   
 * `actionHoverEdge(viewModel, edgeId)`: エッジにホバーした時
   - エッジと両端のノード、両端のカラム（IDで識別）をハイライト対象に設定
@@ -107,15 +122,42 @@ type ActionFn<Args extends any[] = any[]> = (
 * `actionClearHover(viewModel)`: ホバーを解除した時
   - すべてのハイライトをクリア
 
-#### データ更新関連
+##### データ更新関連
 
-* `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定
+* `actionSetData(viewModel, nodes, edges, rectangles)`: リバースエンジニア結果を設定
   - 既存のUI状態を保持したままデータ部分のみ更新
   
 * `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新
   - `nodePositions`: `Array<{ id: string, x: number, y: number }>`
   
-* `actionSetLoading(viewModel, loading)`: ローディング状態の更新
+* `actionSetLoading(viewModel, loading)`: ローディング状態の更新（リバースエンジニア処理）
+
+##### 矩形関連
+
+* `actionAddRectangle(viewModel, rectangle)`: 矩形を追加
+* `actionUpdateRectanglePosition(viewModel, rectangleId, x, y)`: 矩形の位置を更新
+* `actionUpdateRectangleStyle(viewModel, rectangleId, style)`: 矩形のスタイルを更新
+* `actionRemoveRectangle(viewModel, rectangleId)`: 矩形を削除
+
+#### グローバルUI関連のAction
+
+* `actionSelectRectangle(viewModel, rectangleId)`: 矩形を選択
+  - `viewModel.ui.selectedRectangleId` を更新
+  
+* `actionDeselectRectangle(viewModel)`: 矩形の選択を解除
+  - `viewModel.ui.selectedRectangleId` を null に設定
+  
+* `actionShowBuildInfoModal(viewModel)`: ビルド情報モーダルを表示
+  - `viewModel.ui.showBuildInfoModal` を true に設定
+  
+* `actionHideBuildInfoModal(viewModel)`: ビルド情報モーダルを非表示
+  - `viewModel.ui.showBuildInfoModal` を false に設定
+
+#### ビルド情報関連のAction
+
+* `actionSetBuildInfoLoading(viewModel, loading)`: ビルド情報の読み込み状態を設定
+* `actionSetBuildInfo(viewModel, buildInfo)`: ビルド情報を設定
+* `actionSetBuildInfoError(viewModel, error)`: ビルド情報のエラーを設定
 
 ### Actionの実装ルール
 
@@ -129,7 +171,7 @@ type ActionFn<Args extends any[] = any[]> = (
 
 ```typescript
 interface Store {
-  getState: () => ERDiagramViewModel;
+  getState: () => ViewModel;
   subscribe: (listener: () => void) => () => void;
   dispatch: <Args extends any[]>(action: ActionFn<Args>, ...args: Args) => void;
 }
@@ -146,12 +188,14 @@ interface Store {
 `useSyncExternalStore`を使った購読：
 
 ```typescript
-function useERViewModel<T>(selector: (vm: ERDiagramViewModel) => T): T;
-function useERDispatch(): Store['dispatch'];
+function useViewModel<T>(selector: (vm: ViewModel) => T): T;
+function useDispatch(): Store['dispatch'];
 ```
 
-* `useERViewModel(selector)`: 必要な部分だけ購読（再レンダリング最小化）
-* `useERDispatch()`: dispatch関数を取得
+* `useViewModel(selector)`: 必要な部分だけ購読（再レンダリング最小化）
+  - 例: `useViewModel(vm => vm.erDiagram.nodes)` でER図のノードだけを購読
+  - 例: `useViewModel(vm => vm.ui.selectedRectangleId)` で選択中の矩形IDだけを購読
+* `useDispatch()`: dispatch関数を取得
 
 ## React Flowとの統合
 
@@ -166,7 +210,7 @@ function useERDispatch(): Store['dispatch'];
 ### データフロー
 
 1. **初期表示・更新時**
-   - Store の `ERDiagramViewModel` → React Flow の `nodes/edges` に変換（selector）
+   - Store の `ViewModel.erDiagram` → React Flow の `nodes/edges` に変換（selector）
    - 変換は毎回実行されるが、参照が変わらなければReact Flowは再描画しない
 
 2. **ドラッグ中**
@@ -175,7 +219,7 @@ function useERDispatch(): Store['dispatch'];
 
 3. **ドラッグ確定時（onNodeDragStop）**
    - `getNodes()`で最終位置を取得
-   - `actionUpdateNodePositions` をdispatch
+   - `actionUpdateNodePositions` をdispatch（`ViewModel.erDiagram.nodes`を更新）
    - エッジハンドル再計算を実行
 
 ### ホバー検出
@@ -201,12 +245,24 @@ async function commandReverseEngineer(dispatch) {
   try {
     const response = await api.reverseEngineer();
     // ReverseEngineerResponseからERDiagramViewModelを構築
-    const viewModel = buildERDiagramViewModel(response.erData, response.layoutData);
-    dispatch(actionSetData, viewModel.nodes, viewModel.edges);
+    const erDiagram = buildERDiagramViewModel(response.erData, response.layoutData);
+    dispatch(actionSetData, erDiagram.nodes, erDiagram.edges, erDiagram.rectangles);
   } catch (error) {
     // エラーハンドリング
   } finally {
     dispatch(actionSetLoading, false);
+  }
+}
+
+async function commandFetchBuildInfo(dispatch) {
+  dispatch(actionSetBuildInfoLoading, true);
+  try {
+    const buildInfo = await api.getBuildInfo();
+    dispatch(actionSetBuildInfo, buildInfo);
+  } catch (error) {
+    dispatch(actionSetBuildInfoError, error.message);
+  } finally {
+    dispatch(actionSetBuildInfoLoading, false);
   }
 }
 ```
@@ -229,9 +285,27 @@ describe('actionHoverEntity', () => {
     const viewModel = createTestViewModel();
     const next = actionHoverEntity(viewModel, 'entity1');
     
-    expect(next.ui.hover).toEqual({ type: 'entity', id: 'entity1' });
-    expect(next.ui.highlightedNodeIds.has('entity1')).toBe(true);
+    expect(next.erDiagram.ui.hover).toEqual({ type: 'entity', id: 'entity1' });
+    expect(next.erDiagram.ui.highlightedNodeIds.has('entity1')).toBe(true);
     // ...
+  });
+});
+
+describe('actionSelectRectangle', () => {
+  it('矩形を選択する', () => {
+    const viewModel = createTestViewModel();
+    const next = actionSelectRectangle(viewModel, 'rect1');
+    
+    expect(next.ui.selectedRectangleId).toBe('rect1');
+  });
+});
+
+describe('actionShowBuildInfoModal', () => {
+  it('ビルド情報モーダルを表示する', () => {
+    const viewModel = createTestViewModel();
+    const next = actionShowBuildInfoModal(viewModel);
+    
+    expect(next.ui.showBuildInfoModal).toBe(true);
   });
 });
 ```
@@ -239,6 +313,7 @@ describe('actionHoverEntity', () => {
 * 入力（viewModel + params）と出力（newViewModel）の比較のみ
 * React非依存でテスト可能
 * テストは `public/tests/` に配置（バックエンドの `/tests/` と対称的な構成）
+* **テスト可能な範囲の最大化**: グローバルUIやビルド情報管理もActionで実装することで、すべてのロジックをテスト可能にする
 
 ### テストツール
 
@@ -270,32 +345,31 @@ Redux DevTools相当はないが、以下で補完可能：
 
 既存コードからの移行手順：
 
-1. Store・Action基盤を実装（`ERDiagramViewModel`を状態として保持）
-2. HoverContextのロジックをAction化し、Contextを廃止
-3. ERCanvasの状態管理をStoreに移行
-4. React Flow統合を調整（ドラッグ確定時の反映）
+1. `scheme/main.tsp`に`ViewModel`型と関連する型を追加
+2. Store・Action基盤を実装（`ViewModel`を状態として保持）
+3. HoverContextのロジックをAction化し、Contextを廃止
+4. ERCanvasの状態管理をStoreに移行
+5. React Flow統合を調整（ドラッグ確定時の反映）
+6. App.tsxのローカル状態（`selectedRectangleId`, `showBuildInfoModal`）をStoreに移行
+7. BuildInfoModalのローカル状態（`buildInfo`, `loading`, `error`）をStoreに移行
 
 ### 初期状態の構築
 
-APIレスポンス（`ReverseEngineerResponse`）から受け取ったデータを`ERDiagramViewModel`に変換する際の処理：
+アプリケーション起動時の初期状態は、[`scheme/main.tsp`](../scheme/main.tsp)で定義された各型のデフォルト値を設定する。
 
-```typescript
-function createInitialViewModel(nodes: Record<string, EntityNodeViewModel>, edges: Record<string, RelationshipEdgeViewModel>): ERDiagramViewModel {
-  return {
-    nodes,
-    edges,
-    ui: {
-      hover: null,
-      highlightedNodeIds: [], // TypeSpecでは配列として定義されている
-      highlightedEdgeIds: [],
-      highlightedColumnIds: [],
-    },
-    loading: false,
-  };
-}
-```
+**初期値の方針**:
+- `erDiagram.nodes`, `erDiagram.edges`, `erDiagram.rectangles`: 空のオブジェクト（`{}`）
+- `erDiagram.ui.hover`: `null`
+- `erDiagram.ui.highlightedXxxIds`: 空の配列（`[]`）
+- `erDiagram.loading`: `false`
+- `ui.selectedRectangleId`: `null`
+- `ui.showBuildInfoModal`: `false`
+- `buildInfo.data`: `null`
+- `buildInfo.loading`: `false`
+- `buildInfo.error`: `null`
 
-**注意**: フロントエンドで実際に使用する際は、`highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`を配列から`Set`に変換してパフォーマンスを最適化する（O(1)の検索性能）。
+**実装時の注意**:
+- `highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`は、配列から`Set`に変換してパフォーマンスを最適化する（O(1)の検索性能）
 
 ## 懸念事項・確認事項
 
@@ -314,3 +388,12 @@ function createInitialViewModel(nodes: Record<string, EntityNodeViewModel>, edge
 * DOMサイズの状態反映の必要性
 * 開発時の観測性向上（action履歴ビューア等）
 * Commandのエラーハンドリング戦略
+
+## 型生成の確認
+
+`npm run generate`を実行すると、[`scheme/main.tsp`](../scheme/main.tsp)で定義されたすべての型がTypeScript型として自動生成される。
+
+- **バックエンド用**: `lib/generated/api-types.ts`
+- **フロントエンド用**: `public/src/api/client/models/`
+
+主要な型：`ViewModel`, `ERDiagramViewModel`, `GlobalUIState`, `BuildInfoState`, `EntityNodeViewModel`, `RelationshipEdgeViewModel`, `HoverTarget`, `BuildInfo`など。

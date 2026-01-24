@@ -105,6 +105,11 @@ export interface components {
             platform: string;
             arch: string;
         };
+        BuildInfoState: {
+            data: components["schemas"]["BuildInfo"] | null;
+            loading: boolean;
+            error: string | null;
+        };
         Column: {
             id: string;
             name: string;
@@ -182,6 +187,10 @@ export interface components {
             referencedColumnId: string;
             constraintName: string;
         };
+        GlobalUIState: {
+            selectedRectangleId: string | null;
+            showBuildInfoModal: boolean;
+        };
         HoverTarget: {
             /** @enum {string} */
             type: "entity" | "edge" | "column";
@@ -248,6 +257,11 @@ export interface components {
             /** Format: double */
             fontSize: number;
             fill: string;
+        };
+        ViewModel: {
+            erDiagram: components["schemas"]["ERDiagramViewModel"];
+            ui: components["schemas"]["GlobalUIState"];
+            buildInfo: components["schemas"]["BuildInfoState"];
         };
     };
     responses: never;

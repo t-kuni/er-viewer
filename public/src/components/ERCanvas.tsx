@@ -14,14 +14,20 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import EntityNode from './EntityNode'
+import RectangleNode from './RectangleNode'
 import RelationshipEdge from './RelationshipEdge'
-import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
+import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowRectangles, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { useERViewModel, useERDispatch } from '../store/hooks'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
+import { actionAddRectangle, actionUpdateRectanglePosition } from '../actions/rectangleActions'
+import type { components } from '../../../lib/generated/api-types'
+
+type Rectangle = components['schemas']['Rectangle']
 
 const nodeTypes = {
   entityNode: EntityNode,
+  rectangleNode: RectangleNode,
 }
 
 const edgeTypes = {
@@ -56,59 +62,64 @@ function ERCanvasInner({
   
   const onNodeDragStop: NodeDragHandler = useCallback(
     (_event, node) => {
-      // Storeのノード位置を更新
-      dispatch(actionUpdateNodePositions, [{ 
-        id: node.id, 
-        x: node.position.x, 
-        y: node.position.y 
-      }])
-      
-      // ドラッグされたノードに接続されているエッジを抽出
-      const connectedEdges = edges.filter(
-        (edge) => edge.source === node.id || edge.target === node.id
-      )
-
-      if (connectedEdges.length === 0) return
-
-      // 全ノードの現在位置とサイズを取得
-      const currentNodes = getNodes()
-
-      // 接続エッジのハンドルを再計算
-      const updatedEdges = edges.map((edge) => {
-        if (!connectedEdges.find((e) => e.id === edge.id)) {
-          return edge // 変更不要
-        }
-
-        const sourceNode = currentNodes.find((n) => n.id === edge.source)
-        const targetNode = currentNodes.find((n) => n.id === edge.target)
-
-        if (!sourceNode || !targetNode) return edge
-
-        // ノードの中心座標を計算（width/height プロパティから実際のサイズを取得）
-        const sourceWidth = sourceNode.width ?? 200
-        const sourceHeight = sourceNode.height ?? 100
-        const targetWidth = targetNode.width ?? 200
-        const targetHeight = targetNode.height ?? 100
+      if (node.type === 'rectangleNode') {
+        // 矩形の位置を更新
+        dispatch(actionUpdateRectanglePosition, node.id, node.position.x, node.position.y)
+      } else if (node.type === 'entityNode') {
+        // Storeのノード位置を更新
+        dispatch(actionUpdateNodePositions, [{ 
+          id: node.id, 
+          x: node.position.x, 
+          y: node.position.y 
+        }])
         
-        const sourceCenter = { 
-          x: sourceNode.position.x + sourceWidth / 2, 
-          y: sourceNode.position.y + sourceHeight / 2 
-        }
-        const targetCenter = { 
-          x: targetNode.position.x + targetWidth / 2, 
-          y: targetNode.position.y + targetHeight / 2 
-        }
+        // ドラッグされたノードに接続されているエッジを抽出
+        const connectedEdges = edges.filter(
+          (edge) => edge.source === node.id || edge.target === node.id
+        )
 
-        const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter)
+        if (connectedEdges.length === 0) return
 
-        return {
-          ...edge,
-          sourceHandle,
-          targetHandle,
-        }
-      })
+        // 全ノードの現在位置とサイズを取得
+        const currentNodes = getNodes()
 
-      setEdges(updatedEdges)
+        // 接続エッジのハンドルを再計算
+        const updatedEdges = edges.map((edge) => {
+          if (!connectedEdges.find((e) => e.id === edge.id)) {
+            return edge // 変更不要
+          }
+
+          const sourceNode = currentNodes.find((n) => n.id === edge.source)
+          const targetNode = currentNodes.find((n) => n.id === edge.target)
+
+          if (!sourceNode || !targetNode) return edge
+
+          // ノードの中心座標を計算（width/height プロパティから実際のサイズを取得）
+          const sourceWidth = sourceNode.width ?? 200
+          const sourceHeight = sourceNode.height ?? 100
+          const targetWidth = targetNode.width ?? 200
+          const targetHeight = targetNode.height ?? 100
+          
+          const sourceCenter = { 
+            x: sourceNode.position.x + sourceWidth / 2, 
+            y: sourceNode.position.y + sourceHeight / 2 
+          }
+          const targetCenter = { 
+            x: targetNode.position.x + targetWidth / 2, 
+            y: targetNode.position.y + targetHeight / 2 
+          }
+
+          const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter)
+
+          return {
+            ...edge,
+            sourceHandle,
+            targetHandle,
+          }
+        })
+
+        setEdges(updatedEdges)
+      }
     },
     [edges, getNodes, setEdges, dispatch]
   )
@@ -122,6 +133,7 @@ function ERCanvasInner({
       onNodeDragStop={onNodeDragStop}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
+      elevateNodesOnSelect={false}
       fitView
     >
       <Controls />
@@ -138,23 +150,41 @@ function ERCanvas() {
   // Storeから状態を購読
   const viewModelNodes = useERViewModel((vm) => vm.nodes)
   const viewModelEdges = useERViewModel((vm) => vm.edges)
+  const viewModelRectangles = useERViewModel((vm) => vm.rectangles)
   const loading = useERViewModel((vm) => vm.loading)
   
   // ViewModelが更新されたらReact Flow形式に変換
   useEffect(() => {
-    const newNodes = convertToReactFlowNodes(viewModelNodes)
+    const entityNodes = convertToReactFlowNodes(viewModelNodes)
+    const rectangleNodes = convertToReactFlowRectangles(viewModelRectangles)
+    const newNodes = [...rectangleNodes, ...entityNodes] // 矩形を先に追加（背景に表示）
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
     setNodes(newNodes)
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges])
+  }, [viewModelNodes, viewModelEdges, viewModelRectangles])
   
   const handleReverseEngineer = async () => {
     await commandReverseEngineer(dispatch)
   }
   
+  const handleAddRectangle = () => {
+    const newRectangle: Rectangle = {
+      id: crypto.randomUUID(),
+      x: 0, // viewport中央に配置する実装は後回し、まずは固定座標
+      y: 0,
+      width: 200,
+      height: 150,
+      fill: '#E3F2FD',
+      stroke: '#90CAF9',
+      strokeWidth: 2,
+      opacity: 0.5,
+    }
+    dispatch(actionAddRectangle, newRectangle)
+  }
+  
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10 }}>
+      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '0.5rem' }}>
         <button 
           onClick={handleReverseEngineer}
           disabled={loading}
@@ -168,6 +198,19 @@ function ERCanvas() {
           }}
         >
           {loading ? '処理中...' : 'リバースエンジニア'}
+        </button>
+        <button 
+          onClick={handleAddRectangle}
+          style={{
+            padding: '0.5rem 1rem',
+            background: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          矩形追加
         </button>
       </div>
       <ReactFlowProvider>

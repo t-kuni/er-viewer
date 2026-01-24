@@ -20,7 +20,7 @@
 
 ## タスク一覧
 
-### [ ] 1. 型生成の確認とストア初期状態の更新
+### [x] 1. 型生成の確認とストア初期状態の更新
 
 **目的**: TypeSpecの変更が正しく反映されていることを確認し、Storeの初期状態を更新する
 
@@ -49,7 +49,7 @@ const initialState: ERDiagramViewModel = {
 
 ---
 
-### [ ] 2. 矩形操作用Actionの実装
+### [x] 2. 矩形操作用Actionの実装
 
 **目的**: 矩形の追加・削除・位置更新・サイズ更新・スタイル更新を行う純粋関数を実装
 
@@ -97,7 +97,7 @@ type Rectangle = components['schemas']['Rectangle'];
 
 ---
 
-### [ ] 3. RectangleNodeコンポーネントの実装
+### [x] 3. RectangleNodeコンポーネントの実装
 
 **目的**: React Flowのカスタムノードとして矩形を表示し、リサイズ可能にする
 
@@ -149,7 +149,7 @@ interface RectangleNodeData {
 
 ---
 
-### [ ] 4. reactFlowConverterの拡張
+### [x] 4. reactFlowConverterの拡張
 
 **目的**: `ERDiagramViewModel.rectangles`をReact Flowノードに変換する関数を追加
 
@@ -194,7 +194,7 @@ type Rectangle = components['schemas']['Rectangle'];
 
 ---
 
-### [ ] 5. ERCanvasの修正
+### [x] 5. ERCanvasの修正
 
 **目的**: 矩形ノードの登録、変換、ドラッグ/リサイズハンドリング、ツールバーボタンの追加
 
@@ -300,7 +300,7 @@ const onNodeDragStop: NodeDragHandler = useCallback(
 
 ---
 
-### [ ] 6. react-colorfulのインストール
+### [x] 6. react-colorfulのインストール
 
 **目的**: カラーピッカーライブラリをインストール
 
@@ -351,7 +351,7 @@ const PRESET_COLORS = [
 
 ---
 
-### [ ] 8. rectangleActionsのテストコード作成
+### [x] 8. rectangleActionsのテストコード作成
 
 **目的**: 矩形操作Actionの動作を検証する単体テストを作成
 
@@ -384,7 +384,7 @@ const PRESET_COLORS = [
 
 ---
 
-### [ ] 9. ビルドの確認
+### [x] 9. ビルドの確認
 
 **目的**: 実装したコードが正しくビルドできることを確認
 
@@ -406,7 +406,7 @@ npm run build
 
 ---
 
-### [ ] 10. テストの実行
+### [x] 10. テストの実行
 
 **目的**: 実装したテストコードを実行し、すべて成功することを確認
 

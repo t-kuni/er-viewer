@@ -4,6 +4,7 @@ import type { components } from '../../../lib/generated/api-types';
 
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
+type Rectangle = components['schemas']['Rectangle'];
 
 type Side = 'top' | 'right' | 'bottom' | 'left';
 
@@ -115,4 +116,31 @@ export function convertToReactFlowEdges(
       },
     };
   });
+}
+
+/**
+ * ERDiagramViewModelのrectanglesをReact Flow形式に変換する
+ * @param rectangles RectangleのRecord
+ * @returns React Flowのノード配列
+ */
+export function convertToReactFlowRectangles(
+  rectangles: { [key: string]: Rectangle }
+): Node[] {
+  return Object.values(rectangles).map((rect) => ({
+    id: rect.id,
+    type: 'rectangleNode',
+    position: { x: rect.x, y: rect.y },
+    width: rect.width,
+    height: rect.height,
+    style: { zIndex: 0 },
+    data: {
+      id: rect.id,
+      width: rect.width,
+      height: rect.height,
+      fill: rect.fill,
+      stroke: rect.stroke,
+      strokeWidth: rect.strokeWidth,
+      opacity: rect.opacity,
+    },
+  }));
 }

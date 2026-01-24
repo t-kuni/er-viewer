@@ -25,6 +25,7 @@ export interface Store {
 const initialState: ERDiagramViewModel = {
   nodes: {},
   edges: {},
+  rectangles: {},
   ui: {
     hover: null,
     highlightedNodeIds: [],

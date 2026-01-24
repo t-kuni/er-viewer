@@ -31,8 +31,9 @@ export function actionHoverEntity(
     }
   }
 
-  // 新しいUI状態を作成
+  // 新しいUI状態を作成（既存のlayerOrderを保持）
   const newUi = {
+    ...viewModel.erDiagram.ui,
     hover: { type: 'entity' as const, id: entityId },
     highlightedNodeIds: Array.from(highlightedNodeIds),
     highlightedEdgeIds: Array.from(highlightedEdgeIds),
@@ -71,6 +72,7 @@ export function actionHoverEdge(
   const highlightedColumnIds = [edge.sourceColumnId, edge.targetColumnId];
 
   const newUi = {
+    ...viewModel.erDiagram.ui,
     hover: { type: 'edge' as const, id: edgeId },
     highlightedNodeIds,
     highlightedEdgeIds,
@@ -129,6 +131,7 @@ export function actionHoverColumn(
   }
 
   const newUi = {
+    ...viewModel.erDiagram.ui,
     hover: { type: 'column' as const, id: columnId },
     highlightedNodeIds: Array.from(highlightedNodeIds),
     highlightedEdgeIds: Array.from(highlightedEdgeIds),
@@ -163,6 +166,7 @@ export function actionClearHover(
   }
 
   const newUi = {
+    ...viewModel.erDiagram.ui,
     hover: null,
     highlightedNodeIds: [],
     highlightedEdgeIds: [],

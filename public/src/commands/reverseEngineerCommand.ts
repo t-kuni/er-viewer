@@ -21,13 +21,13 @@ export async function commandReverseEngineer(
     }
     
     // ReverseEngineerResponseからERDiagramViewModelを構築
-    const viewModel = buildERDiagramViewModel(
+    const erDiagram = buildERDiagramViewModel(
       response.erData,
       response.layoutData
     );
     
     // データをStoreに設定
-    dispatch(actionSetData, viewModel.nodes, viewModel.edges);
+    dispatch(actionSetData, erDiagram);
   } catch (error) {
     console.error('Failed to reverse engineer:', error);
     // エラーはコンソールに出力するのみ（MVPフェーズ）

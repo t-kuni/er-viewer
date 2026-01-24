@@ -9,6 +9,7 @@ import type { components } from '../../../lib/generated/api-types';
 type ViewModel = components['schemas']['ViewModel'];
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
+type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
 
 describe('dataActions', () => {
   // テスト用のViewModelを作成
@@ -31,12 +32,14 @@ describe('dataActions', () => {
         highlightedNodeIds: [],
         highlightedEdgeIds: [],
         highlightedColumnIds: [],
+        layerOrder: { backgroundItems: [], foregroundItems: [] },
       },
       loading: false,
     },
     ui: {
-      selectedRectangleId: null,
+      selectedItem: null,
       showBuildInfoModal: false,
+      showLayerPanel: false,
     },
     buildInfo: {
       data: null,
@@ -46,38 +49,48 @@ describe('dataActions', () => {
   });
 
   describe('actionSetData', () => {
-    it('データが正しく設定される', () => {
+    it('ERDiagramViewModelが正しく設定される', () => {
       const viewModel = createMockViewModel();
       
-      const newNodes: { [key: string]: EntityNodeViewModel } = {
-        'entity-2': {
-          id: 'entity-2',
-          name: 'posts',
-          x: 300,
-          y: 400,
-          columns: [],
-          ddl: 'CREATE TABLE posts...',
+      const newERDiagram: ERDiagramViewModel = {
+        nodes: {
+          'entity-2': {
+            id: 'entity-2',
+            name: 'posts',
+            x: 300,
+            y: 400,
+            columns: [],
+            ddl: 'CREATE TABLE posts...',
+          },
         },
+        edges: {
+          'edge-1': {
+            id: 'edge-1',
+            sourceEntityId: 'entity-2',
+            sourceColumnId: 'col-1',
+            targetEntityId: 'entity-1',
+            targetColumnId: 'col-2',
+            constraintName: 'fk_posts_user_id',
+          },
+        },
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: { backgroundItems: [], foregroundItems: [] },
+        },
+        loading: false,
       };
       
-      const newEdges: { [key: string]: RelationshipEdgeViewModel } = {
-        'edge-1': {
-          id: 'edge-1',
-          sourceEntityId: 'entity-2',
-          sourceColumnId: 'col-1',
-          targetEntityId: 'entity-1',
-          targetColumnId: 'col-2',
-          constraintName: 'fk_posts_user_id',
-        },
-      };
-      
-      const result = actionSetData(viewModel, newNodes, newEdges);
+      const result = actionSetData(viewModel, newERDiagram);
 
-      expect(result.erDiagram.nodes).toEqual(newNodes);
-      expect(result.erDiagram.edges).toEqual(newEdges);
-      // UI状態は保持される
-      expect(result.erDiagram.ui).toEqual(viewModel.erDiagram.ui);
-      expect(result.erDiagram.loading).toBe(viewModel.erDiagram.loading);
+      expect(result.erDiagram.nodes).toEqual(newERDiagram.nodes);
+      expect(result.erDiagram.edges).toEqual(newERDiagram.edges);
+      expect(result.erDiagram.rectangles).toEqual(newERDiagram.rectangles);
+      expect(result.erDiagram.ui).toEqual(newERDiagram.ui);
+      expect(result.erDiagram.loading).toBe(newERDiagram.loading);
     });
   });
 
@@ -123,12 +136,14 @@ describe('dataActions', () => {
             highlightedNodeIds: [],
             highlightedEdgeIds: [],
             highlightedColumnIds: [],
+            layerOrder: { backgroundItems: [], foregroundItems: [] },
           },
           loading: false,
         },
         ui: {
-          selectedRectangleId: null,
+          selectedItem: null,
           showBuildInfoModal: false,
+          showLayerPanel: false,
         },
         buildInfo: {
           data: null,

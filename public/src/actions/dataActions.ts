@@ -3,25 +3,23 @@ import type { components } from '../../../lib/generated/api-types';
 type ViewModel = components['schemas']['ViewModel'];
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
+type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
 
 /**
  * リバースエンジニア結果を設定するAction
  * @param viewModel 現在の状態
- * @param nodes エンティティノードのRecord
- * @param edges リレーションシップエッジのRecord
+ * @param erDiagram ERDiagramViewModel全体
  * @returns 新しい状態
  */
 export function actionSetData(
   viewModel: ViewModel,
-  nodes: { [key: string]: EntityNodeViewModel },
-  edges: { [key: string]: RelationshipEdgeViewModel }
+  erDiagram: ERDiagramViewModel
 ): ViewModel {
   return {
     ...viewModel,
     erDiagram: {
       ...viewModel.erDiagram,
-      nodes,
-      edges,
+      ...erDiagram,
     },
   };
 }

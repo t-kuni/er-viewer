@@ -53,6 +53,10 @@ describe('hoverActions', () => {
         highlightedNodeIds: [],
         highlightedEdgeIds: [],
         highlightedColumnIds: [],
+        layerOrder: {
+          backgroundItems: [],
+          foregroundItems: [],
+        },
       },
       loading: false,
     },
@@ -86,6 +90,17 @@ describe('hoverActions', () => {
       expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-4');
       expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-1');
     });
+
+    it('layerOrderが保持される', () => {
+      const viewModel = createMockViewModel();
+      const result = actionHoverEntity(viewModel, 'entity-1');
+
+      // layerOrderが保持されていることを確認
+      expect(result.erDiagram.ui.layerOrder).toEqual({
+        backgroundItems: [],
+        foregroundItems: [],
+      });
+    });
   });
 
   describe('actionHoverEdge', () => {
@@ -113,6 +128,17 @@ describe('hoverActions', () => {
       const result = actionHoverEdge(viewModel, 'non-existent');
 
       expect(result).toBe(viewModel);
+    });
+
+    it('layerOrderが保持される', () => {
+      const viewModel = createMockViewModel();
+      const result = actionHoverEdge(viewModel, 'edge-1');
+
+      // layerOrderが保持されていることを確認
+      expect(result.erDiagram.ui.layerOrder).toEqual({
+        backgroundItems: [],
+        foregroundItems: [],
+      });
     });
   });
 
@@ -142,6 +168,17 @@ describe('hoverActions', () => {
 
       expect(result).toBe(viewModel);
     });
+
+    it('layerOrderが保持される', () => {
+      const viewModel = createMockViewModel();
+      const result = actionHoverColumn(viewModel, 'col-4');
+
+      // layerOrderが保持されていることを確認
+      expect(result.erDiagram.ui.layerOrder).toEqual({
+        backgroundItems: [],
+        foregroundItems: [],
+      });
+    });
   });
 
   describe('actionClearHover', () => {
@@ -164,6 +201,21 @@ describe('hoverActions', () => {
       const result = actionClearHover(viewModel);
 
       expect(result).toBe(viewModel);
+    });
+
+    it('layerOrderが保持される', () => {
+      const viewModel = createMockViewModel();
+      // まずホバー状態を作る
+      const hoveredViewModel = actionHoverEntity(viewModel, 'entity-1');
+
+      // クリアする
+      const result = actionClearHover(hoveredViewModel);
+
+      // layerOrderが保持されていることを確認
+      expect(result.erDiagram.ui.layerOrder).toEqual({
+        backgroundItems: [],
+        foregroundItems: [],
+      });
     });
   });
 });

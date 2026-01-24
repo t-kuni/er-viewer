@@ -55,11 +55,13 @@ export function buildERDiagramViewModel(
   return {
     nodes,
     edges,
+    rectangles: {},
     ui: {
       hover: null,
       highlightedNodeIds: [],
       highlightedEdgeIds: [],
       highlightedColumnIds: [],
+      layerOrder: { backgroundItems: [], foregroundItems: [] },
     },
     loading: false,
   };

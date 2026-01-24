@@ -340,6 +340,7 @@ function ERCanvasInner({
             boxSizing: 'border-box',
             outline: isSelected ? '2px solid #1976d2' : 'none',
             outlineOffset: '2px',
+            pointerEvents: 'auto',
           }}
           onMouseDown={(e) => handleRectangleMouseDown(e, item.id)}
           onClick={(e) => {

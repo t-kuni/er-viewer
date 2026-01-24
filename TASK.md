@@ -1,263 +1,480 @@
-# タスク一覧
+# レイヤー管理機能実装タスク一覧
+
+仕様書: [spec/layer_management.md](./spec/layer_management.md)
 
 ## 概要
 
-[spec/frontend_state_management.md](spec/frontend_state_management.md)の仕様変更に対応するため、Storeの状態を`ERDiagramViewModel`から`ViewModel`に移行し、グローバルUI状態とビルド情報キャッシュをStoreで管理する。
+新仕様により、矩形をER図の前面・背面に配置し、左サイドバーのレイヤーパネルでドラッグ&ドロップにより順序を編集できるようにする。
 
-**仕様変更のポイント**:
-- 状態管理のルート型を`ERDiagramViewModel`から`ViewModel`に変更
-- `ViewModel`は3つのプロパティを持つ:
-  - `erDiagram`: ER図の状態（従来の`ERDiagramViewModel`）
-  - `ui`: グローバルUI状態（`selectedRectangleId`, `showBuildInfoModal`）
-  - `buildInfo`: ビルド情報のキャッシュ（`data`, `loading`, `error`）
-- `scheme/main.tsp`で型が定義され、`lib/generated/api-types.ts`に自動生成済み
+**主な変更点:**
+- `GlobalUIState.selectedRectangleId` → `GlobalUIState.selectedItem`（種類と選択の統一）
+- `ERDiagramUIState.layerOrder` を追加（レイヤー順序管理）
+- `GlobalUIState.showLayerPanel` を追加（レイヤーパネル表示制御）
+- レイヤーパネルを左サイドバーに配置（矩形プロパティパネルは右サイドバーで共存可能）
+- 矩形をViewportPortalで描画し、z-indexで前面・背面を制御
 
-## 実装タスク
+**スコープ:**
+- テキスト機能は対象外（未実装のため）
+- エンティティ・リレーションは選択対象外（レイヤーパネル上では「ER Diagram」として一括扱い）
 
-### Store基盤の更新
+修正対象: 更新約10ファイル、新規作成4ファイル
+実装は2フェーズに分けて行う。
 
-- [x] **Store型を`ViewModel`に更新**
-  - **ファイル**: `public/src/store/erDiagramStore.ts`
-  - **変更内容**:
-    - `ActionFn`の型を`ActionFn<Args extends any[] = any[]> = (viewModel: ViewModel, ...args: Args) => ViewModel`に変更
-    - `Store`インターフェースの`getState`の戻り値を`ViewModel`に変更
-    - 初期状態を`ViewModel`型に更新:
-      ```typescript
-      const initialState: ViewModel = {
-        erDiagram: {
-          nodes: {},
-          edges: {},
-          rectangles: {},
-          ui: {
-            hover: null,
-            highlightedNodeIds: [],
-            highlightedEdgeIds: [],
-            highlightedColumnIds: [],
-          },
-          loading: false,
-        },
+---
+
+## フェーズ1: Action層実装と選択状態統一
+
+このフェーズでは、型の再生成、レイヤー管理用のAction実装、選択状態の統一（`selectedRectangleId` → `selectedItem`）を行う。
+ビルド・テスト可能な状態を維持する。
+
+### タスク
+
+#### 型の再生成
+
+- [ ] 型の再生成
+  - `npm run generate` を実行して `scheme/main.tsp` から型を再生成する
+  - 生成される型: `LayerItemKind`, `LayerItemRef`, `LayerPosition`, `LayerOrder`
+  - `GlobalUIState` に `selectedItem`, `showLayerPanel` が追加される
+  - `ERDiagramUIState` に `layerOrder` が追加される
+  - **注意**: `selectedRectangleId` は型定義から削除されているため、既存コードとの互換性が一時的に失われる
+
+#### Store初期状態の更新
+
+- [ ] Store初期状態の更新
+  - ファイル: `public/src/store/erDiagramStore.ts`
+  - `initialState` を更新:
+    ```typescript
+    const initialState: ViewModel = {
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
         ui: {
-          selectedRectangleId: null,
-          showBuildInfoModal: false,
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: { backgroundItems: [], foregroundItems: [] }, // 追加
         },
-        buildInfo: {
-          data: null,
-          loading: false,
-          error: null,
-        },
-      };
-      ```
-    - `components['schemas']['ViewModel']`型をimport
-  - **参照仕様**: [spec/frontend_state_management.md#状態設計](spec/frontend_state_management.md#状態設計)
+        loading: false,
+      },
+      ui: {
+        selectedItem: null, // selectedRectangleId から置き換え
+        showBuildInfoModal: false,
+        showLayerPanel: false, // 追加
+      },
+      buildInfo: {
+        data: null,
+        loading: false,
+        error: null,
+      },
+    };
+    ```
 
-- [x] **Hooksの型を`ViewModel`に更新**
-  - **ファイル**: `public/src/store/hooks.ts`
-  - **変更内容**:
-    - `useERViewModel`を`useViewModel`にリネーム
-    - selectorの引数型を`ViewModel`に変更: `selector: (viewModel: ViewModel) => T`
-    - `useERDispatch`を`useDispatch`にリネーム
-    - `components['schemas']['ViewModel']`型をimport
-  - **参照仕様**: [spec/frontend_state_management.md#Store購読とdispatch](spec/frontend_state_management.md#Store購読とdispatch)
+#### レイヤー管理Action実装
 
-### 既存Actionの型更新
+- [ ] `layerActions.ts` の実装
+  - ファイル: `public/src/actions/layerActions.ts` (新規作成)
+  - 以下のActionを実装（すべて純粋関数、状態に変化がない場合は同一参照を返す）:
+    
+    **`actionReorderLayerItems`**:
+    - シグネチャ: `(vm: ViewModel, position: 'foreground' | 'background', activeIndex: number, overIndex: number) => ViewModel`
+    - 機能: 同一セクション内でアイテムを並べ替え
+    - 実装: 配列から要素を削除し、新しい位置に挿入（イミュータブル）
+    
+    **`actionMoveLayerItem`**:
+    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef, toPosition: 'foreground' | 'background', toIndex: number) => ViewModel`
+    - 機能: アイテムを別のセクションへ移動
+    - 実装: 元のセクションから削除し、移動先のセクションに挿入
+    
+    **`actionAddLayerItem`**:
+    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef, position: 'foreground' | 'background') => ViewModel`
+    - 機能: 新規アイテムをレイヤーに追加
+    - 実装: 指定されたセクションの配列末尾に追加（配列の後ろが前面）
+    
+    **`actionRemoveLayerItem`**:
+    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef) => ViewModel`
+    - 機能: アイテムを削除時にレイヤーからも除去
+    - 実装: 背面・前面の両方を探索して削除
+    
+    **`actionSelectItem`**:
+    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef | null) => ViewModel`
+    - 機能: アイテムを選択（nullで選択解除）
+    - 実装: `vm.ui.selectedItem` を更新
+    
+    **`actionToggleLayerPanel`**:
+    - シグネチャ: `(vm: ViewModel) => ViewModel`
+    - 機能: レイヤーパネルの表示/非表示を切り替え
+    - 実装: `vm.ui.showLayerPanel` をトグル
 
-- [x] **dataActionsの型を`ViewModel`に更新**
-  - **ファイル**: `public/src/actions/dataActions.ts`
-  - **変更内容**:
-    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
-    - `actionSetData`:
-      - `viewModel.erDiagram`を更新するように変更
-      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, nodes, edges } }`
-    - `actionUpdateNodePositions`:
-      - `viewModel.erDiagram.nodes`にアクセスして更新
-      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, nodes: newNodes } }`
-    - `actionSetLoading`:
-      - `viewModel.erDiagram.loading`を更新
-      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, loading } }`
-  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
+- [ ] `layerActions.test.ts` の実装
+  - ファイル: `public/tests/actions/layerActions.test.ts` (新規作成)
+  - 各Actionの単体テストを実装:
+    - `actionReorderLayerItems`: 同一セクション内での並べ替えが正しく動作すること
+    - `actionMoveLayerItem`: セクション間の移動が正しく動作すること
+    - `actionAddLayerItem`: アイテムが配列末尾に追加されること
+    - `actionRemoveLayerItem`: 両セクションからアイテムが削除されること
+    - `actionSelectItem`: 選択状態が正しく更新されること
+    - `actionToggleLayerPanel`: パネルの表示状態が切り替わること
+    - すべてのActionで、変化がない場合に同一参照を返すこと
 
-- [x] **hoverActionsの型を`ViewModel`に更新**
-  - **ファイル**: `public/src/actions/hoverActions.ts`
-  - **変更内容**:
-    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
-    - `actionHoverEntity`, `actionHoverEdge`, `actionHoverColumn`, `actionClearHover`:
-      - `viewModel.erDiagram.edges`, `viewModel.erDiagram.nodes`にアクセス
-      - `viewModel.erDiagram.ui`を更新
-      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, ui: newUi } }`
-  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
+#### 既存Actionの更新
 
-- [x] **rectangleActionsの型を`ViewModel`に更新**
-  - **ファイル**: `public/src/actions/rectangleActions.ts`
-  - **変更内容**:
-    - 各Action関数の第1引数を`viewModel: ViewModel`に変更
-    - `actionAddRectangle`, `actionRemoveRectangle`, `actionUpdateRectanglePosition`, `actionUpdateRectangleSize`, `actionUpdateRectangleBounds`, `actionUpdateRectangleStyle`:
-      - `viewModel.erDiagram.rectangles`にアクセスして更新
-      - 戻り値: `{ ...viewModel, erDiagram: { ...viewModel.erDiagram, rectangles: newRectangles } }`
-  - **参照仕様**: [spec/frontend_state_management.md#主要なAction](spec/frontend_state_management.md#主要なAction)
-
-### グローバルUI関連のActionを追加
-
-- [x] **globalUIActionsを作成**
-  - **ファイル**: `public/src/actions/globalUIActions.ts`（新規作成）
-  - **変更内容**:
-    - 以下のAction関数を実装:
-      - `actionSelectRectangle(viewModel: ViewModel, rectangleId: string): ViewModel`
-        - `viewModel.ui.selectedRectangleId`を更新
-        - 変化がない場合は同一参照を返す
-      - `actionDeselectRectangle(viewModel: ViewModel): ViewModel`
-        - `viewModel.ui.selectedRectangleId`をnullに設定
-        - 変化がない場合は同一参照を返す
-      - `actionShowBuildInfoModal(viewModel: ViewModel): ViewModel`
-        - `viewModel.ui.showBuildInfoModal`をtrueに設定
-        - 変化がない場合は同一参照を返す
-      - `actionHideBuildInfoModal(viewModel: ViewModel): ViewModel`
-        - `viewModel.ui.showBuildInfoModal`をfalseに設定
-        - 変化がない場合は同一参照を返す
-  - **参照仕様**: [spec/frontend_state_management.md#グローバルUI関連のAction](spec/frontend_state_management.md#グローバルUI関連のAction)
-
-### ビルド情報関連のActionを追加
-
-- [x] **buildInfoActionsを作成**
-  - **ファイル**: `public/src/actions/buildInfoActions.ts`（新規作成）
-  - **変更内容**:
-    - 以下のAction関数を実装:
-      - `actionSetBuildInfoLoading(viewModel: ViewModel, loading: boolean): ViewModel`
-        - `viewModel.buildInfo.loading`を更新
-        - 変化がない場合は同一参照を返す
-      - `actionSetBuildInfo(viewModel: ViewModel, buildInfo: BuildInfo): ViewModel`
-        - `viewModel.buildInfo.data`を設定
-        - `viewModel.buildInfo.error`をnullに設定
-      - `actionSetBuildInfoError(viewModel: ViewModel, error: string): ViewModel`
-        - `viewModel.buildInfo.error`を設定
-  - **参照仕様**: [spec/frontend_state_management.md#ビルド情報関連のAction](spec/frontend_state_management.md#ビルド情報関連のAction)
-
-### Commandの更新
-
-- [x] **reverseEngineerCommandの型を`ViewModel`に対応**
-  - **ファイル**: `public/src/commands/reverseEngineerCommand.ts`
-  - **変更内容**:
-    - 特に変更不要（Actionが`ViewModel`を受け取るように変更されるため、dispatchの引数は変わらない）
-    - `actionSetData`の引数は`nodes`と`edges`のみ（矩形は返されない）
-    - `buildERDiagramViewModel`の戻り値が`ERDiagramViewModel`であることを確認
-
-- [x] **commandFetchBuildInfoを作成**
-  - **ファイル**: `public/src/commands/buildInfoCommand.ts`（新規作成）
-  - **変更内容**:
-    - 以下のCommand関数を実装:
+- [ ] `rectangleActions.ts` の更新
+  - ファイル: `public/src/actions/rectangleActions.ts`
+  - **`actionAddRectangle`** を更新:
+    - 矩形追加後、`actionAddLayerItem` を呼び出して背面レイヤーに追加
+    - 実装例:
       ```typescript
-      export async function commandFetchBuildInfo(dispatch: Store['dispatch']): Promise<void> {
-        dispatch(actionSetBuildInfoLoading, true);
-        try {
-          const buildInfo = await DefaultService.apiGetBuildInfo();
-          if ('error' in buildInfo) {
-            throw new Error(buildInfo.error);
-          }
-          dispatch(actionSetBuildInfo, buildInfo);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'ビルド情報の取得に失敗しました';
-          dispatch(actionSetBuildInfoError, errorMessage);
-        } finally {
-          dispatch(actionSetBuildInfoLoading, false);
-        }
+      export function actionAddRectangle(
+        vm: ViewModel,
+        rectangle: Rectangle
+      ): ViewModel {
+        // 既存の矩形追加ロジック
+        let nextVm = { ...vm, erDiagram: { ...vm.erDiagram, rectangles: { ...vm.erDiagram.rectangles, [rectangle.id]: rectangle } } };
+        
+        // レイヤーに追加
+        nextVm = actionAddLayerItem(nextVm, { kind: 'rectangle', id: rectangle.id }, 'background');
+        
+        return nextVm;
       }
       ```
-  - **参照仕様**: [spec/frontend_state_management.md#Command層](spec/frontend_state_management.md#Command層)
+  - **`actionRemoveRectangle`** を更新:
+    - 矩形削除時、`actionRemoveLayerItem` を呼び出してレイヤーからも削除
+    - 削除する矩形が選択中の場合は `actionSelectItem(vm, null)` で選択解除
+    - 実装例:
+      ```typescript
+      export function actionRemoveRectangle(
+        vm: ViewModel,
+        rectangleId: string
+      ): ViewModel {
+        if (!vm.erDiagram.rectangles[rectangleId]) {
+          return vm;
+        }
+        
+        // 矩形を削除
+        const { [rectangleId]: _, ...restRectangles } = vm.erDiagram.rectangles;
+        let nextVm = { ...vm, erDiagram: { ...vm.erDiagram, rectangles: restRectangles } };
+        
+        // レイヤーから削除
+        nextVm = actionRemoveLayerItem(nextVm, { kind: 'rectangle', id: rectangleId });
+        
+        // 選択中の場合は選択解除
+        if (nextVm.ui.selectedItem?.kind === 'rectangle' && nextVm.ui.selectedItem.id === rectangleId) {
+          nextVm = actionSelectItem(nextVm, null);
+        }
+        
+        return nextVm;
+      }
+      ```
+  - `layerActions` からのインポートを追加
 
-### コンポーネントの更新
+- [ ] `rectangleActions.test.ts` の更新
+  - ファイル: `public/tests/actions/rectangleActions.test.ts`
+  - `actionAddRectangle` のテストを更新:
+    - レイヤーに追加されることを確認（`vm.erDiagram.ui.layerOrder.backgroundItems` に含まれること）
+  - `actionRemoveRectangle` のテストを更新:
+    - レイヤーから削除されることを確認
+    - 選択中の矩形を削除すると選択が解除されることを確認
 
-- [x] **App.tsxをStoreベースに移行**
-  - **ファイル**: `public/src/components/App.tsx`
-  - **変更内容**:
-    - ローカル状態（`showBuildInfo`, `selectedRectangleId`）を削除
-    - `useViewModel`と`useDispatch`をimport（`useERViewModel`, `useERDispatch`から変更）
-    - `selectedRectangleId`の取得: `useViewModel(vm => vm.ui.selectedRectangleId)`
-    - `showBuildInfo`の取得: `useViewModel(vm => vm.ui.showBuildInfoModal)`
-    - ビルド情報ボタンのクリック: `dispatch(actionShowBuildInfoModal)`
-    - モーダルを閉じる: `dispatch(actionHideBuildInfoModal)`
-    - 矩形選択: ERCanvasの`onSelectionChange`から`dispatch(actionSelectRectangle, rectangleId)`または`dispatch(actionDeselectRectangle)`
-  - **参照仕様**: [spec/frontend_state_management.md#グローバルUI関連のAction](spec/frontend_state_management.md#グローバルUI関連のAction)
+- [ ] `globalUIActions.ts` の更新
+  - ファイル: `public/src/actions/globalUIActions.ts`
+  - 以下の関数を削除（`layerActions.ts` の `actionSelectItem` で代替）:
+    - `actionSelectRectangle`
+    - `actionDeselectRectangle`
+  - ビルド情報モーダル関連の関数（`actionShowBuildInfoModal`, `actionHideBuildInfoModal`）は維持
 
-- [x] **ERCanvas.tsxをStoreベースに移行**
-  - **ファイル**: `public/src/components/ERCanvas.tsx`
-  - **変更内容**:
-    - `useERViewModel`を`useViewModel`に変更
-    - `useERDispatch`を`useDispatch`に変更
-    - Storeからの購読を`viewModel.erDiagram`にアクセスするように変更:
-      - `useViewModel(vm => vm.erDiagram.nodes)`
-      - `useViewModel(vm => vm.erDiagram.edges)`
-      - `useViewModel(vm => vm.erDiagram.rectangles)`
-      - `useViewModel(vm => vm.erDiagram.loading)`
-    - `onSelectionChange`のコールバックをそのまま親に通知（親でActionをdispatch）
-  - **注意**: 既存のロジックは維持し、Storeへのアクセス方法のみ変更
+- [ ] `globalUIActions.test.ts` の更新
+  - ファイル: `public/tests/actions/globalUIActions.test.ts`
+  - `actionSelectRectangle`, `actionDeselectRectangle` のテストを削除
+  - ビルド情報モーダル関連のテストは維持
 
-- [x] **BuildInfoModal.tsxをStoreベースに移行**
-  - **ファイル**: `public/src/components/BuildInfoModal.tsx`
-  - **変更内容**:
-    - ローカル状態（`buildInfo`, `loading`, `error`）を削除
-    - `useViewModel`と`useDispatch`をimport
-    - `buildInfo`の取得: `useViewModel(vm => vm.buildInfo.data)`
-    - `loading`の取得: `useViewModel(vm => vm.buildInfo.loading)`
-    - `error`の取得: `useViewModel(vm => vm.buildInfo.error)`
-    - `useEffect`でマウント時（依存配列を空`[]`にする）に、`buildInfo.data`がnullの場合のみ`commandFetchBuildInfo(dispatch)`を実行
-      - これにより、アプリケーション起動後の初回モーダル表示時のみAPIを呼び出し、2回目以降はキャッシュを使用
-    - `onClose`を呼ぶ際は、親から`actionHideBuildInfoModal`がdispatchされる
-  - **参照仕様**: [spec/frontend_state_management.md#ビルド情報のキャッシュについて](spec/frontend_state_management.md#ビルド情報のキャッシュについて)
+#### UI層の選択状態統一
 
-### テストコードの更新
+- [ ] `App.tsx` の更新
+  - ファイル: `public/src/components/App.tsx`
+  - インポートを更新:
+    - `actionSelectRectangle`, `actionDeselectRectangle` を削除
+    - `actionSelectItem` を追加（`layerActions` から）
+  - `selectedRectangleId` の購読を `selectedItem` に変更:
+    ```typescript
+    const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+    ```
+  - `handleSelectionChange` を更新:
+    ```typescript
+    const handleSelectionChange = (rectangleId: string | null) => {
+      if (rectangleId === null) {
+        dispatch(actionSelectItem, null)
+      } else {
+        dispatch(actionSelectItem, { kind: 'rectangle', id: rectangleId })
+      }
+    }
+    ```
+  - プロパティパネルの表示条件を更新:
+    ```typescript
+    {selectedItem?.kind === 'rectangle' && (
+      <div style={{ width: '300px', ... }}>
+        <RectanglePropertyPanel rectangleId={selectedItem.id} />
+      </div>
+    )}
+    ```
 
-- [x] **dataActions.test.tsの型を`ViewModel`に更新**
-  - **ファイル**: `public/tests/actions/dataActions.test.ts`
-  - **変更内容**:
-    - `createMockViewModel`の戻り値を`ViewModel`型に変更
-    - モックデータを`ViewModel`の構造に合わせて変更（`erDiagram`, `ui`, `buildInfo`を含む）
-    - 各テストケースで`result.erDiagram.nodes`などにアクセス
-  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
+- [ ] `ERCanvas.tsx` の更新
+  - ファイル: `public/src/components/ERCanvas.tsx`
+  - `selectedItem` を購読:
+    ```typescript
+    const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+    ```
+  - `handleSelectionChange` を更新して `actionSelectItem` を使用
+  - React Flowノードの選択状態と `selectedItem` を同期（将来のViewportPortal移行に備えた準備）
 
-- [x] **hoverActions.test.tsの型を`ViewModel`に更新**
-  - **ファイル**: `public/tests/actions/hoverActions.test.ts`
-  - **変更内容**:
-    - `createMockViewModel`の戻り値を`ViewModel`型に変更
-    - 各テストケースで`result.erDiagram.ui.hover`などにアクセス
-  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
+#### ビルド・テスト確認
 
-- [x] **rectangleActions.test.tsの型を`ViewModel`に更新**
-  - **ファイル**: `public/tests/actions/rectangleActions.test.ts`
-  - **変更内容**:
-    - `createMockViewModel`の戻り値を`ViewModel`型に変更
-    - 各テストケースで`result.erDiagram.rectangles`にアクセス
-  - **テストカバレッジ**: 既存のテストケースを維持し、型だけ更新
+- [ ] ビルド確認
+  - フロントエンドのビルドが通ること（`cd public && npm run build`）
+  - バックエンドのビルドが通ること（`npm run build`）
 
-- [x] **globalUIActionsのテストを作成**
-  - **ファイル**: `public/tests/actions/globalUIActions.test.ts`（新規作成）
-  - **変更内容**:
-    - 以下のテストケースを実装:
-      - `actionSelectRectangle`: 矩形が選択される
-      - `actionDeselectRectangle`: 矩形の選択が解除される
-      - `actionShowBuildInfoModal`: ビルド情報モーダルが表示される
-      - `actionHideBuildInfoModal`: ビルド情報モーダルが非表示になる
-      - 変化がない場合に同一参照を返すことを確認
-  - **参照仕様**: [spec/frontend_state_management.md#テスト設計](spec/frontend_state_management.md#テスト設計)
+- [ ] テスト実行
+  - すべてのテストが通ること（`npm run test`）
 
-- [x] **buildInfoActionsのテストを作成**
-  - **ファイル**: `public/tests/actions/buildInfoActions.test.ts`（新規作成）
-  - **変更内容**:
-    - 以下のテストケースを実装:
-      - `actionSetBuildInfoLoading`: ローディング状態が設定される
-      - `actionSetBuildInfo`: ビルド情報が設定される（errorがnullになる）
-      - `actionSetBuildInfoError`: エラーが設定される
-      - 変化がない場合に同一参照を返すことを確認
-  - **参照仕様**: [spec/frontend_state_management.md#テスト設計](spec/frontend_state_management.md#テスト設計)
+---
 
-### ビルド・テストの確認
+## フェーズ2: レイヤーパネルUI + ViewportPortal + z-index制御
 
-- [x] **型生成を実行**
-  - **コマンド**: `npm run generate`
-  - **確認内容**: `lib/generated/api-types.ts`と`public/src/api/client/models/`に`ViewModel`, `GlobalUIState`, `BuildInfoState`が生成されていることを確認
+このフェーズでは、左サイドバーにレイヤーパネルを実装し、ViewportPortalで矩形を前面・背面にレンダリングする。
+dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素のドラッグ・リサイズも実装する。
 
-- [x] **ビルドの確認**
-  - **コマンド**: フロントエンドとバックエンドのビルドを実行
-  - **確認内容**: 型エラーが発生しないことを確認
+### タスク
 
-- [x] **テストの実行**
-  - **コマンド**: `npm run test`
-  - **確認内容**: すべてのテストが通ることを確認
+#### dnd-kitのインストール
+
+- [ ] dnd-kitのインストール
+  - `cd public && npm install @dnd-kit/core @dnd-kit/sortable`
+
+#### z-index計算ユーティリティ
+
+- [ ] `zIndexCalculator.ts` の実装
+  - ファイル: `public/src/utils/zIndexCalculator.ts` (新規作成)
+  - レイヤー順序から各アイテムのz-indexを計算する関数を実装:
+    ```typescript
+    import type { components } from '../../../lib/generated/api-types';
+    
+    type LayerOrder = components['schemas']['LayerOrder'];
+    type LayerItemRef = components['schemas']['LayerItemRef'];
+    
+    /**
+     * レイヤー順序から特定アイテムのz-indexを計算
+     */
+    export function calculateZIndex(layerOrder: LayerOrder, itemRef: LayerItemRef): number {
+      // 背面レイヤーを探索
+      const bgIndex = layerOrder.backgroundItems.findIndex(
+        item => item.kind === itemRef.kind && item.id === itemRef.id
+      );
+      if (bgIndex !== -1) {
+        return -10000 + bgIndex;
+      }
+      
+      // 前面レイヤーを探索
+      const fgIndex = layerOrder.foregroundItems.findIndex(
+        item => item.kind === itemRef.kind && item.id === itemRef.id
+      );
+      if (fgIndex !== -1) {
+        return 10000 + fgIndex;
+      }
+      
+      // 見つからない場合はデフォルト（0）
+      return 0;
+    }
+    
+    /**
+     * すべての背面・前面アイテムのz-indexをMapで返す
+     */
+    export function calculateAllZIndices(layerOrder: LayerOrder): Map<string, number> {
+      const zIndices = new Map<string, number>();
+      
+      layerOrder.backgroundItems.forEach((item, index) => {
+        zIndices.set(`${item.kind}-${item.id}`, -10000 + index);
+      });
+      
+      layerOrder.foregroundItems.forEach((item, index) => {
+        zIndices.set(`${item.kind}-${item.id}`, 10000 + index);
+      });
+      
+      return zIndices;
+    }
+    ```
+
+#### レイヤーパネルUI実装
+
+- [ ] `LayerPanel.tsx` の実装
+  - ファイル: `public/src/components/LayerPanel.tsx` (新規作成)
+  - dnd-kitを使用してドラッグ&ドロップ機能を実装
+  - レイヤーパネルのUI構成:
+    - 3つのセクション: 前面、ER図（固定）、背面
+    - 各セクション間に区切り線
+  - 各アイテムの表示:
+    - 矩形: アイコン + "Rectangle" + 短縮ID（最初の6文字）
+    - ER図: 「ER Diagram」固定ラベル（ドラッグ不可、選択不可）
+  - 選択中のアイテムは背景色でハイライト
+  - ドラッグ中のアイテムは透明度を下げる
+  - アイテムクリックで `actionSelectItem` をdispatch
+  - Store から `layerOrder` と `selectedItem` を購読
+  - ドラッグ&ドロップ処理:
+    - `onDragEnd` で以下を判定:
+      - 同一セクション内の並べ替え → `actionReorderLayerItems` をdispatch
+      - セクション間の移動 → `actionMoveLayerItem` をdispatch
+      - ER図セクションはドロップ禁止エリア
+  - 実装の参考:
+    - `@dnd-kit/core` の `DndContext`, `DragOverlay` を使用
+    - `@dnd-kit/sortable` の `SortableContext`, `useSortable` を使用
+    - 前面・背面セクションに個別の `SortableContext` を適用
+
+- [ ] `App.tsx` へのレイヤーパネル追加
+  - ファイル: `public/src/components/App.tsx`
+  - `LayerPanel` をインポート
+  - `actionToggleLayerPanel` をインポート
+  - `showLayerPanel` を購読:
+    ```typescript
+    const showLayerPanel = useViewModel((vm) => vm.ui.showLayerPanel)
+    ```
+  - ヘッダーに「レイヤー」ボタンを追加:
+    ```typescript
+    <button 
+      onClick={() => dispatch(actionToggleLayerPanel)}
+      style={{ ... }}
+    >
+      レイヤー
+    </button>
+    ```
+  - 左サイドバーとしてレイヤーパネルを表示:
+    ```typescript
+    <main style={{ display: 'flex', height: 'calc(100vh - 70px)' }}>
+      {showLayerPanel && (
+        <div style={{ width: '250px', background: '#f5f5f5', borderRight: '1px solid #ddd', overflowY: 'auto' }}>
+          <LayerPanel />
+        </div>
+      )}
+      <div style={{ flex: 1, position: 'relative' }}>
+        <ERCanvas onSelectionChange={handleSelectionChange} />
+      </div>
+      {selectedItem?.kind === 'rectangle' && (
+        <div style={{ width: '300px', ... }}>
+          <RectanglePropertyPanel rectangleId={selectedItem.id} />
+        </div>
+      )}
+    </main>
+    ```
+
+#### ViewportPortalとz-index制御
+
+- [ ] `ERCanvas.tsx` の大幅更新
+  - ファイル: `public/src/components/ERCanvas.tsx`
+  - **React Flow設定の更新**:
+    - `elevateEdgesOnSelect={false}` を追加
+    - エンティティノードに `zIndex: 0` を設定（`convertToReactFlowNodes` で）
+    - リレーションエッジに `zIndex: -100` を設定（`convertToReactFlowEdges` で）
+  
+  - **ViewportPortalで矩形をレンダリング**:
+    - `ViewportPortal` をインポート（`reactflow` から）
+    - `useViewport()` でviewport座標を取得
+    - `layerOrder` と `rectangles` を購読
+    - `calculateAllZIndices` を使ってz-indexを計算
+    - 背面Portal と 前面Portal を実装:
+      ```typescript
+      <ReactFlow ...>
+        {/* 背面Portal */}
+        <ViewportPortal>
+          {layerOrder.backgroundItems.map((item) => {
+            if (item.kind === 'rectangle') {
+              const rectangle = rectangles[item.id];
+              if (!rectangle) return null;
+              const zIndex = calculateZIndex(layerOrder, item);
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    transform: `translate(${rectangle.x}px, ${rectangle.y}px)`,
+                    width: `${rectangle.width}px`,
+                    height: `${rectangle.height}px`,
+                    border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
+                    backgroundColor: rectangle.fill,
+                    opacity: rectangle.opacity,
+                    zIndex,
+                    cursor: 'move',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch(actionSelectItem, item);
+                  }}
+                  onMouseDown={(e) => handleRectangleMouseDown(e, item.id)}
+                >
+                  {selectedItem?.kind === 'rectangle' && selectedItem.id === item.id && (
+                    <ResizeHandles rectangleId={item.id} />
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })}
+        </ViewportPortal>
+        
+        {/* 前面Portal（同様の実装） */}
+        <ViewportPortal>
+          {layerOrder.foregroundItems.map((item) => { /* 同様の実装 */ })}
+        </ViewportPortal>
+        
+        <Controls />
+        <Background />
+      </ReactFlow>
+      ```
+  
+  - **Portal要素のドラッグ実装**:
+    - `handleRectangleMouseDown` を実装:
+      - マウスダウン時に `window.addEventListener('mousemove', handleMouseMove)` でドラッグを開始
+      - viewport座標とスクリーン座標の変換を考慮（`useViewport()` の `x`, `y`, `zoom` を使用）
+      - ドラッグ中は一時的な座標をローカル状態で管理
+      - マウスアップ時に `actionUpdateRectanglePosition` をdispatch
+      - `stopPropagation()` で React Flow のパン操作と干渉しないようにする
+  
+  - **リサイズハンドルの実装**:
+    - `ResizeHandles` コンポーネントを実装（`ERCanvas.tsx` 内またはインライン）
+    - 四隅と四辺にリサイズハンドルを配置
+    - リサイズ中は `actionUpdateRectangleBounds` をdispatch
+    - viewport座標を考慮した実装
+  
+  - **矩形ノードの削除**:
+    - `convertToReactFlowRectangles` の呼び出しを削除
+    - `useEffect` で矩形を React Flow ノードとして追加していた処理を削除
+    - すべて ViewportPortal で描画
+
+- [ ] `reactFlowConverter.ts` の更新（必要に応じて）
+  - ファイル: `public/src/utils/reactFlowConverter.ts`
+  - `convertToReactFlowRectangles` 関数を削除または非推奨化
+  - エンティティノードに `zIndex: 0` を追加
+  - エッジに `zIndex: -100` を追加
+
+- [ ] `RectangleNode.tsx` の削除または非推奨化
+  - ファイル: `public/src/components/RectangleNode.tsx`
+  - ViewportPortalで矩形を描画するため、このコンポーネントは不要になる
+  - 削除するか、コメントで非推奨を明記
+
+#### ビルド・テスト確認
+
+- [ ] ビルド確認
+  - フロントエンドのビルドが通ること（`cd public && npm run build`）
+  - バックエンドのビルドが通ること（`npm run build`）
+
+- [ ] テスト実行
+  - すべてのテストが通ること（`npm run test`）
+
+---
+
+## 備考
+
+- 各フェーズの最後に必ずビルド確認・テスト実行を行う
+- Portal要素のドラッグ・リサイズ、viewport座標同期は実装時に試行錯誤が必要
+- テキスト機能は対象外（将来的に実装された場合、同様の方法でレイヤー管理に統合）
+- エンティティ・リレーションはレイヤーパネル上では選択対象外（「ER Diagram」として一括扱い）

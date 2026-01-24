@@ -131,6 +131,7 @@ export interface components {
             highlightedNodeIds: string[];
             highlightedEdgeIds: string[];
             highlightedColumnIds: string[];
+            layerOrder: components["schemas"]["LayerOrder"];
         };
         ERDiagramViewModel: {
             nodes: {
@@ -188,14 +189,27 @@ export interface components {
             constraintName: string;
         };
         GlobalUIState: {
-            selectedRectangleId: string | null;
+            selectedItem: components["schemas"]["LayerItemRef"] | null;
             showBuildInfoModal: boolean;
+            showLayerPanel: boolean;
         };
         HoverTarget: {
             /** @enum {string} */
             type: "entity" | "edge" | "column";
             id: string;
         };
+        /** @enum {string} */
+        LayerItemKind: "entity" | "relation" | "rectangle" | "text";
+        LayerItemRef: {
+            kind: components["schemas"]["LayerItemKind"];
+            id: string;
+        };
+        LayerOrder: {
+            backgroundItems: components["schemas"]["LayerItemRef"][];
+            foregroundItems: components["schemas"]["LayerItemRef"][];
+        };
+        /** @enum {string} */
+        LayerPosition: "background" | "foreground";
         LayoutData: {
             entities: {
                 [key: string]: components["schemas"]["EntityLayoutItem"];

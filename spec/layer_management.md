@@ -54,7 +54,7 @@
 
 ### 配置
 
-右サイドバーとして実装。矩形プロパティパネル（`RectanglePropertyPanel`）と同じ配置。
+左サイドバーとして実装。矩形プロパティパネル（`RectanglePropertyPanel`）は右サイドバーに配置されるため、両者は共存可能。
 
 ### 表示内容
 
@@ -67,8 +67,9 @@
 各アイテムの表示形式：
 
 * **矩形**: アイコン + "Rectangle" + 短縮ID（例: "Rectangle a1b2c3"）
-* **テキスト**: アイコン + テキスト内容の一部（最大20文字、例: "Hello World"）
 * **ER図**: 「ER Diagram」という固定ラベル
+
+**注意**: テキスト機能は本仕様の対象外。将来的にテキスト機能が実装された場合、同様の方法でレイヤー管理に統合する。
 
 ### 視覚的表現
 
@@ -105,25 +106,26 @@
 
 ### 選択可能な要素
 
-以下の要素が選択可能：
+レイヤーパネル機能においては、以下の要素が選択可能：
 
 * 矩形（Rectangle）
-* テキスト（Text）
-* エンティティ（Entity）
 
-リレーション（エッジ）は選択対象外。
+エンティティ（Entity）およびリレーション（Relation）は、レイヤーパネル上では選択対象外。
+レイヤーパネル上では全て「ER Diagram」という1つの固定要素として扱う。
+
+**注意**: テキスト機能は本仕様の対象外。
 
 ### 選択状態の管理
 
 * `GlobalUIState.selectedItem`で一元管理
-* レイヤーパネルでアイテムをクリック → `actionSelectItem`をdispatch
-* キャンバスでノードをクリック → React Flowの`onNodeClick`から`actionSelectItem`をdispatch
-* Portal要素（矩形・テキスト）をクリック → クリックハンドラで`actionSelectItem`をdispatch
+* レイヤーパネルで矩形アイテムをクリック → `actionSelectItem`をdispatch
+* キャンバスで矩形をクリック → クリックハンドラで`actionSelectItem`をdispatch（Portal要素）
+* ER図要素（エンティティ・リレーション）のクリックは選択状態に影響しない
 
 ### React Flowとの同期
 
-* `selectedItem`に基づいてReact FlowのノードにXML`selected`プロパティを設定
-* React Flowの`onSelectionChange`では、選択解除のみ反映（選択は各要素のクリックハンドラで処理）
+* 矩形はViewportPortal内で描画されるため、React Flowの選択システムとは独立している
+* React Flowの`onSelectionChange`は使用しない（矩形選択は独自実装）
 
 ## z-index計算
 
@@ -160,8 +162,8 @@
   - `toPosition`: 移動先（`'foreground' | 'background'`）
   - `toIndex`: 移動先の配列内インデックス
 * `actionAddLayerItem(vm, itemRef, position)`: 新規アイテムをレイヤーに追加
-  - 矩形・テキスト作成時に自動的に呼ばれる
-  - `position`のデフォルトは`'background'`（矩形）、`'foreground'`（テキスト）
+  - 矩形作成時に自動的に呼ばれる
+  - `position`のデフォルトは`'background'`
 * `actionRemoveLayerItem(vm, itemRef)`: アイテムを削除時にレイヤーからも除去
 * `actionSelectItem(vm, itemRef)`: アイテムを選択
 * `actionDeselectItem(vm)`: 選択を解除
@@ -171,19 +173,20 @@
 
 ## ViewportPortalでのレンダリング
 
-### 背面矩形・テキストのレンダリング
+### 背面矩形のレンダリング
 
 `backgroundItems`の各要素に対して：
 
 * 矩形: `<div>`要素で描画、スタイルは`Rectangle`データから取得
-* テキスト: `<div>`要素で描画、スタイルは`Text`データから取得
 * 座標: `transform: translate(${x}px, ${y}px)` で配置
 * z-index: 計算されたz-index値を適用
 * クリックイベント: `onClick`で`actionSelectItem`をdispatch
 
-### 前面矩形・テキストのレンダリング
+### 前面矩形のレンダリング
 
 `foregroundItems`の各要素に対して背面と同様の方法でレンダリング。
+
+**注意**: テキスト機能は本仕様の対象外。
 
 ### Portal要素の操作
 
@@ -232,9 +235,10 @@
 
 ### 既存機能との整合性
 
-* 矩形プロパティパネルは`selectedItem.kind === 'rectangle'`の場合に表示
+* 矩形プロパティパネル（右サイドバー）は`selectedItem?.kind === 'rectangle'`の場合に表示
+* レイヤーパネル（左サイドバー）は`showLayerPanel === true`の場合に表示
 * 矩形削除時（`actionRemoveRectangle`）に`actionRemoveLayerItem`も呼び出す
-* テキスト追加時（将来実装）に`actionAddLayerItem`を呼び出す
+* 矩形追加時（`actionAddRectangle`）に`actionAddLayerItem`も呼び出す
 
 ## 段階的実装アプローチ
 
@@ -249,18 +253,14 @@
 9. 既存の矩形・テキスト操作との統合
 10. 選択状態の同期を実装
 
-## 懸念事項・確認事項
+## スコープ外の機能
 
-### 技術的懸念
+以下の機能は本仕様の対象外：
 
-* ViewportPortalでのレンダリングパフォーマンス（要素数が多い場合）
-* Portal要素のドラッグ・リサイズの実装コスト
-* viewport同期の正確性（ズーム・パン時の座標ずれ）
-
-### 今後の検討事項
-
-* エンティティをレイヤーパネルに表示するか（現在は非表示の方針）
-* リレーションのz-index編集の必要性
+* テキスト機能のレイヤー管理（テキスト機能自体が未実装のため）
+* エンティティ・リレーションの個別選択（レイヤーパネル上では「ER Diagram」として一括扱い）
 * レイヤーのグループ化・ロック機能
 * レイヤーの表示/非表示切り替え機能
 * キーボードショートカットによるレイヤー操作
+
+これらの機能は、将来的に必要になった場合に追加する。

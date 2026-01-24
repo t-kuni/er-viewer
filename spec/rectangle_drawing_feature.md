@@ -9,6 +9,7 @@
 エンティティをグループ化したり、領域を視覚的に区別するために矩形を配置・編集できるようにする。
 
 関連仕様：
+- 矩形のプロパティ編集UIについては[rectangle_property_panel.md](./rectangle_property_panel.md)を参照
 - フロントエンドの状態管理については[frontend_state_management.md](./frontend_state_management.md)を参照
 - ER図のレンダリングについては[frontend_er_rendering.md](./frontend_er_rendering.md)を参照
 - 型定義については`scheme/main.tsp`を参照
@@ -92,33 +93,9 @@ model ERDiagramViewModel {
 * 最小サイズ: 幅40px × 高さ40px
 * リサイズ完了時（`onResizeEnd`）に矩形の座標とサイズ（x, y, width, height）をStoreに反映
 
-### 矩形の削除
+### 矩形の削除・プロパティ編集
 
-* 矩形を選択して削除ボタンまたはDeleteキーで削除可能
-* 削除時は`actionRemoveRectangle`をdispatchして状態から除外
-
-### 矩形のプロパティ編集
-
-矩形選択時に、右サイドのプロパティパネルで以下を編集可能：
-
-* **背景色（fill）**: カラーピッカー + プリセット8色
-* **枠線色（stroke）**: カラーピッカー + プリセット8色
-* **透明度（opacity）**: スライダー（0〜1、ステップ0.01）
-* **枠線幅（strokeWidth）**: 数値入力（0以上、ステップ1）
-
-### カラーピッカー
-
-* ライブラリ: **react-colorful**を採用
-* コンポーネント: `HexColorPicker` + `HexColorInput`
-* プリセット8色（淡い色）を提供:
-  - 青（`#E3F2FD`）
-  - シアン（`#E0F7FA`）
-  - ティール（`#E0F2F1`）
-  - 緑（`#E8F5E9`）
-  - 黄（`#FFFDE7`）
-  - オレンジ（`#FFF3E0`）
-  - ピンク（`#FCE4EC`）
-  - グレー（`#F5F5F5`）
+矩形の削除とプロパティ編集機能の詳細については[rectangle_property_panel.md](./rectangle_property_panel.md)を参照。
 
 ## z-index制御
 
@@ -204,8 +181,6 @@ const nodeTypes = {
 * TypeSpecの型定義を更新した後、`npm run generate`でフロントエンドとバックエンドの型を再生成する
 * 矩形のドラッグ・リサイズ時は、イベントハンドラを`useCallback`で安定させて再レンダリングループを防ぐ
 * `NodeResizer`の`ResizeParams`は`{x, y, width, height}`を含むため、左上からのリサイズでも位置更新を一括で処理可能
-* カラーピッカーコンポーネントは再利用可能な形で実装し、将来的にテキスト色の編集などにも使用可能にする
-* react-colorfulの導入: `npm install react-colorful`
 
 ## 段階的実装アプローチ
 
@@ -214,7 +189,7 @@ const nodeTypes = {
 3. ツールバー「矩形追加」ボタンと`actionAddRectangle`を実装
 4. ドラッグ移動: `onNodeDragStop`で`actionUpdateRectanglePosition`をdispatch
 5. リサイズ: `NodeResizer`を導入し、`onResizeEnd`で`actionUpdateRectangleBounds`をdispatch
-6. プロパティパネルとカラーピッカーを実装（fill/stroke/opacity/strokeWidth編集）
+6. プロパティパネル実装（詳細は[rectangle_property_panel.md](./rectangle_property_panel.md)を参照）
 7. z-index固定設定（`elevateNodesOnSelect={false}`または`zIndexMode="manual"`）
 8. LayoutData保存・読み込みをテスト
 
@@ -224,7 +199,6 @@ const nodeTypes = {
 
 * React Flowの`NodeResizer`がv12で正しく動作するか（ドキュメントでは対応しているが実装時に確認が必要）
 * 矩形選択時にエンティティより前面に出る挙動を完全に抑制できるか（`elevateNodesOnSelect`の効果を確認）
-* カラーピッカーのUIがER図編集の操作感に馴染むか（UX観点での確認が必要）
 
 ### 今後の検討事項
 

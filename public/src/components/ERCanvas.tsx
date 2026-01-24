@@ -8,6 +8,7 @@ import ReactFlow, {
   applyEdgeChanges,
   OnNodesChange,
   OnEdgesChange,
+  OnSelectionChangeParams,
   NodeDragHandler,
   useReactFlow,
   ReactFlowProvider,
@@ -20,7 +21,7 @@ import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowRec
 import { useERViewModel, useERDispatch } from '../store/hooks'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
-import { actionAddRectangle, actionUpdateRectanglePosition } from '../actions/rectangleActions'
+import { actionAddRectangle, actionUpdateRectanglePosition, actionRemoveRectangle } from '../actions/rectangleActions'
 import type { components } from '../../../lib/generated/api-types'
 
 type Rectangle = components['schemas']['Rectangle']
@@ -40,13 +41,15 @@ function ERCanvasInner({
   edges, 
   setNodes, 
   setEdges,
-  dispatch
+  dispatch,
+  onSelectionChange
 }: { 
   nodes: Node[], 
   edges: Edge[], 
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>, 
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
-  dispatch: ReturnType<typeof useERDispatch>
+  dispatch: ReturnType<typeof useERDispatch>,
+  onSelectionChange?: (rectangleId: string | null) => void
 }) {
   const { getNodes } = useReactFlow()
   
@@ -124,6 +127,38 @@ function ERCanvasInner({
     [edges, getNodes, setEdges, dispatch]
   )
   
+  const handleSelectionChange = useCallback(
+    (params: OnSelectionChangeParams) => {
+      console.log('onSelectionChange called:', params)
+      console.log('Selected nodes:', params.nodes.map(n => ({ id: n.id, type: n.type })))
+      
+      // 矩形ノードのみを抽出
+      const selectedRectangles = params.nodes.filter(node => node.type === 'rectangleNode')
+      
+      // 矩形が1つだけ選択されている場合は親に通知
+      if (selectedRectangles.length === 1) {
+        console.log('Notifying parent: rectangle selected', selectedRectangles[0].id)
+        onSelectionChange?.(selectedRectangles[0].id)
+      } else {
+        // 0個または2個以上の場合はnullを通知
+        console.log('Notifying parent: null (count:', selectedRectangles.length, ')')
+        onSelectionChange?.(null)
+      }
+    },
+    [onSelectionChange]
+  )
+  
+  const onNodesDelete = useCallback(
+    (deletedNodes: Node[]) => {
+      deletedNodes.forEach((node) => {
+        if (node.type === 'rectangleNode') {
+          dispatch(actionRemoveRectangle, node.id)
+        }
+      })
+    },
+    [dispatch]
+  )
+  
   return (
     <ReactFlow
       nodes={nodes}
@@ -131,6 +166,8 @@ function ERCanvasInner({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
+      onSelectionChange={handleSelectionChange}
+      onNodesDelete={onNodesDelete}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       elevateNodesOnSelect={false}
@@ -142,7 +179,11 @@ function ERCanvasInner({
   )
 }
 
-function ERCanvas() {
+interface ERCanvasProps {
+  onSelectionChange?: (rectangleId: string | null) => void
+}
+
+function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   const dispatch = useERDispatch()
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
@@ -153,15 +194,60 @@ function ERCanvas() {
   const viewModelRectangles = useERViewModel((vm) => vm.rectangles)
   const loading = useERViewModel((vm) => vm.loading)
   
-  // ViewModelが更新されたらReact Flow形式に変換
+  // エンティティとエッジを更新
   useEffect(() => {
+    console.log('useEffect: updating entities and edges')
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
-    const rectangleNodes = convertToReactFlowRectangles(viewModelRectangles)
-    const newNodes = [...rectangleNodes, ...entityNodes] // 矩形を先に追加（背景に表示）
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
-    setNodes(newNodes)
+    
+    // 既存の矩形ノードを保持しながらエンティティノードを更新
+    setNodes(currentNodes => {
+      const rectangleNodes = currentNodes.filter(n => n.type === 'rectangleNode')
+      return [...rectangleNodes, ...entityNodes]
+    })
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges, viewModelRectangles])
+  }, [viewModelNodes, viewModelEdges])
+  
+  // 矩形が追加・削除・更新されたら、矩形ノードを更新（選択状態を保持するため部分更新）
+  useEffect(() => {
+    console.log('useEffect: updating rectangles')
+    setNodes(currentNodes => {
+      const rectangleIds = Object.keys(viewModelRectangles)
+      const currentRectangleIds = currentNodes.filter(n => n.type === 'rectangleNode').map(n => n.id)
+      
+      // 矩形の追加・削除があった場合は全体を再構築
+      const added = rectangleIds.filter(id => !currentRectangleIds.includes(id))
+      const removed = currentRectangleIds.filter(id => !rectangleIds.includes(id))
+      
+      if (added.length > 0 || removed.length > 0) {
+        console.log('rectangles added or removed, rebuilding')
+        const entityNodes = currentNodes.filter(n => n.type === 'entityNode')
+        const rectangleNodes = convertToReactFlowRectangles(viewModelRectangles)
+        return [...rectangleNodes, ...entityNodes]
+      }
+      
+      // スタイルまたは位置の更新のみの場合は、該当ノードだけを更新
+      console.log('updating rectangle properties only')
+      return currentNodes.map(node => {
+        if (node.type === 'rectangleNode') {
+          const rectangle = viewModelRectangles[node.id]
+          if (rectangle) {
+            return {
+              ...node,
+              position: { x: rectangle.x, y: rectangle.y },
+              data: {
+                fill: rectangle.fill,
+                stroke: rectangle.stroke,
+                strokeWidth: rectangle.strokeWidth,
+                opacity: rectangle.opacity,
+              }
+            }
+          }
+        }
+        return node
+      })
+    })
+  }, [viewModelRectangles])
   
   const handleReverseEngineer = async () => {
     await commandReverseEngineer(dispatch)
@@ -214,7 +300,14 @@ function ERCanvas() {
         </button>
       </div>
       <ReactFlowProvider>
-        <ERCanvasInner nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} dispatch={dispatch} />
+        <ERCanvasInner 
+          nodes={nodes} 
+          edges={edges} 
+          setNodes={setNodes} 
+          setEdges={setEdges} 
+          dispatch={dispatch}
+          onSelectionChange={onSelectionChange}
+        />
       </ReactFlowProvider>
     </div>
   )

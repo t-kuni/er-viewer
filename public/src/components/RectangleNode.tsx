@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { NodeProps, NodeResizer } from 'reactflow';
-import { useERDispatch } from '../store/hooks';
+import { useDispatch } from '../store/hooks';
 import { actionUpdateRectangleBounds } from '../actions/rectangleActions';
 
 interface RectangleNodeData {
@@ -17,7 +17,7 @@ interface RectangleNodeData {
  * 矩形ノードコンポーネント
  */
 const RectangleNode: React.FC<NodeProps<RectangleNodeData>> = ({ id, data, selected }) => {
-  const dispatch = useERDispatch();
+  const dispatch = useDispatch();
 
   const handleResizeEnd = useCallback(
     (_event: any, params: { x: number; y: number; width: number; height: number }) => {

@@ -18,7 +18,7 @@ import EntityNode from './EntityNode'
 import RectangleNode from './RectangleNode'
 import RelationshipEdge from './RelationshipEdge'
 import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowRectangles, computeOptimalHandles } from '../utils/reactFlowConverter'
-import { useERViewModel, useERDispatch } from '../store/hooks'
+import { useViewModel, useDispatch } from '../store/hooks'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionRemoveRectangle } from '../actions/rectangleActions'
@@ -48,7 +48,7 @@ function ERCanvasInner({
   edges: Edge[], 
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>, 
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
-  dispatch: ReturnType<typeof useERDispatch>,
+  dispatch: ReturnType<typeof useDispatch>,
   onSelectionChange?: (rectangleId: string | null) => void
 }) {
   const { getNodes } = useReactFlow()
@@ -179,15 +179,15 @@ interface ERCanvasProps {
 }
 
 function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
-  const dispatch = useERDispatch()
+  const dispatch = useDispatch()
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
   
   // Storeから状態を購読
-  const viewModelNodes = useERViewModel((vm) => vm.nodes)
-  const viewModelEdges = useERViewModel((vm) => vm.edges)
-  const viewModelRectangles = useERViewModel((vm) => vm.rectangles)
-  const loading = useERViewModel((vm) => vm.loading)
+  const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
+  const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
+  const viewModelRectangles = useViewModel((vm) => vm.erDiagram.rectangles)
+  const loading = useViewModel((vm) => vm.erDiagram.loading)
   
   // エンティティとエッジを更新
   useEffect(() => {

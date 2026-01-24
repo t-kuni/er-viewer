@@ -1,5 +1,5 @@
 import React from 'react';
-import { useERViewModel, useERDispatch } from '../store/hooks';
+import { useViewModel, useDispatch } from '../store/hooks';
 import { actionUpdateRectangleStyle, actionRemoveRectangle } from '../actions/rectangleActions';
 import { ColorPickerWithPresets } from './ColorPickerWithPresets';
 
@@ -10,9 +10,9 @@ interface RectanglePropertyPanelProps {
 export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
   rectangleId,
 }) => {
-  const dispatch = useERDispatch();
+  const dispatch = useDispatch();
   
-  const rectangle = useERViewModel((vm) => vm.rectangles[rectangleId]);
+  const rectangle = useViewModel((vm) => vm.erDiagram.rectangles[rectangleId]);
 
   if (!rectangle) {
     return null;

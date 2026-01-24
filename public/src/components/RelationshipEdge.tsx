@@ -1,6 +1,6 @@
 import React from 'react'
 import { EdgeProps, getSmoothStepPath } from 'reactflow'
-import { useERViewModel, useERDispatch } from '../store/hooks'
+import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEdge, actionClearHover } from '../actions/hoverActions'
 
 function RelationshipEdge({
@@ -13,11 +13,11 @@ function RelationshipEdge({
   targetPosition,
   data,
 }: EdgeProps) {
-  const dispatch = useERDispatch()
+  const dispatch = useDispatch()
   
   // UIステートから必要な部分だけ購読
-  const highlightedEdgeIds = useERViewModel((vm) => vm.ui.highlightedEdgeIds)
-  const hasHover = useERViewModel((vm) => vm.ui.hover !== null)
+  const highlightedEdgeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedEdgeIds)
+  const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   
   const [edgePath] = getSmoothStepPath({
     sourceX,

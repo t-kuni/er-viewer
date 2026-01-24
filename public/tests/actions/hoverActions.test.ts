@@ -7,52 +7,64 @@ import {
 } from '../../src/actions/hoverActions';
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 
 describe('hoverActions', () => {
   // テスト用のViewModelを作成
-  const createMockViewModel = (): ERDiagramViewModel => ({
-    nodes: {
-      'entity-1': {
-        id: 'entity-1',
-        name: 'users',
-        x: 0,
-        y: 0,
-        columns: [
-          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
-          { id: 'col-2', name: 'name', type: 'varchar', nullable: false, key: '', default: null, extra: '' },
-        ],
-        ddl: 'CREATE TABLE users...',
+  const createMockViewModel = (): ViewModel => ({
+    erDiagram: {
+      nodes: {
+        'entity-1': {
+          id: 'entity-1',
+          name: 'users',
+          x: 0,
+          y: 0,
+          columns: [
+            { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
+            { id: 'col-2', name: 'name', type: 'varchar', nullable: false, key: '', default: null, extra: '' },
+          ],
+          ddl: 'CREATE TABLE users...',
+        },
+        'entity-2': {
+          id: 'entity-2',
+          name: 'posts',
+          x: 300,
+          y: 0,
+          columns: [
+            { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
+            { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          ],
+          ddl: 'CREATE TABLE posts...',
+        },
       },
-      'entity-2': {
-        id: 'entity-2',
-        name: 'posts',
-        x: 300,
-        y: 0,
-        columns: [
-          { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
-          { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
-        ],
-        ddl: 'CREATE TABLE posts...',
+      edges: {
+        'edge-1': {
+          id: 'edge-1',
+          sourceEntityId: 'entity-2',
+          sourceColumnId: 'col-4',
+          targetEntityId: 'entity-1',
+          targetColumnId: 'col-1',
+          constraintName: 'fk_posts_user_id',
+        },
       },
-    },
-    edges: {
-      'edge-1': {
-        id: 'edge-1',
-        sourceEntityId: 'entity-2',
-        sourceColumnId: 'col-4',
-        targetEntityId: 'entity-1',
-        targetColumnId: 'col-1',
-        constraintName: 'fk_posts_user_id',
+      rectangles: {},
+      ui: {
+        hover: null,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
+        highlightedColumnIds: [],
       },
+      loading: false,
     },
     ui: {
-      hover: null,
-      highlightedNodeIds: [],
-      highlightedEdgeIds: [],
-      highlightedColumnIds: [],
+      selectedRectangleId: null,
+      showBuildInfoModal: false,
     },
-    loading: false,
+    buildInfo: {
+      data: null,
+      loading: false,
+      error: null,
+    },
   });
 
   describe('actionHoverEntity', () => {
@@ -61,18 +73,18 @@ describe('hoverActions', () => {
       const result = actionHoverEntity(viewModel, 'entity-1');
 
       // ホバー状態が設定される
-      expect(result.ui.hover).toEqual({ type: 'entity', id: 'entity-1' });
+      expect(result.erDiagram.ui.hover).toEqual({ type: 'entity', id: 'entity-1' });
 
       // entity-1とentity-2（隣接）がハイライトされる
-      expect(result.ui.highlightedNodeIds).toContain('entity-1');
-      expect(result.ui.highlightedNodeIds).toContain('entity-2');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-2');
 
       // edge-1がハイライトされる
-      expect(result.ui.highlightedEdgeIds).toContain('edge-1');
+      expect(result.erDiagram.ui.highlightedEdgeIds).toContain('edge-1');
 
       // エッジに関連するカラムがハイライトされる
-      expect(result.ui.highlightedColumnIds).toContain('col-4');
-      expect(result.ui.highlightedColumnIds).toContain('col-1');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-4');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-1');
     });
   });
 
@@ -82,18 +94,18 @@ describe('hoverActions', () => {
       const result = actionHoverEdge(viewModel, 'edge-1');
 
       // ホバー状態が設定される
-      expect(result.ui.hover).toEqual({ type: 'edge', id: 'edge-1' });
+      expect(result.erDiagram.ui.hover).toEqual({ type: 'edge', id: 'edge-1' });
 
       // 両端のノードがハイライトされる
-      expect(result.ui.highlightedNodeIds).toContain('entity-1');
-      expect(result.ui.highlightedNodeIds).toContain('entity-2');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-2');
 
       // エッジがハイライトされる
-      expect(result.ui.highlightedEdgeIds).toContain('edge-1');
+      expect(result.erDiagram.ui.highlightedEdgeIds).toContain('edge-1');
 
       // 両端のカラムがハイライトされる
-      expect(result.ui.highlightedColumnIds).toContain('col-4');
-      expect(result.ui.highlightedColumnIds).toContain('col-1');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-4');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-1');
     });
 
     it('存在しないエッジIDの場合、元の状態を返す', () => {
@@ -110,18 +122,18 @@ describe('hoverActions', () => {
       const result = actionHoverColumn(viewModel, 'col-4');
 
       // ホバー状態が設定される
-      expect(result.ui.hover).toEqual({ type: 'column', id: 'col-4' });
+      expect(result.erDiagram.ui.hover).toEqual({ type: 'column', id: 'col-4' });
 
       // カラムの所有者と接続先のノードがハイライトされる
-      expect(result.ui.highlightedNodeIds).toContain('entity-2');
-      expect(result.ui.highlightedNodeIds).toContain('entity-1');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-2');
+      expect(result.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
 
       // 関連するエッジがハイライトされる
-      expect(result.ui.highlightedEdgeIds).toContain('edge-1');
+      expect(result.erDiagram.ui.highlightedEdgeIds).toContain('edge-1');
 
       // カラム自身と対応するカラムがハイライトされる
-      expect(result.ui.highlightedColumnIds).toContain('col-4');
-      expect(result.ui.highlightedColumnIds).toContain('col-1');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-4');
+      expect(result.erDiagram.ui.highlightedColumnIds).toContain('col-1');
     });
 
     it('存在しないカラムIDの場合、元の状態を返す', () => {
@@ -141,10 +153,10 @@ describe('hoverActions', () => {
       // クリアする
       const result = actionClearHover(hoveredViewModel);
 
-      expect(result.ui.hover).toBeNull();
-      expect(result.ui.highlightedNodeIds).toEqual([]);
-      expect(result.ui.highlightedEdgeIds).toEqual([]);
-      expect(result.ui.highlightedColumnIds).toEqual([]);
+      expect(result.erDiagram.ui.hover).toBeNull();
+      expect(result.erDiagram.ui.highlightedNodeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedEdgeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedColumnIds).toEqual([]);
     });
 
     it('すでにクリアされている場合は同一参照を返す', () => {

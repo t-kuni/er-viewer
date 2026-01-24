@@ -1,20 +1,20 @@
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 
 /**
  * Action関数の型定義
  */
 export type ActionFn<Args extends any[] = any[]> = (
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   ...args: Args
-) => ERDiagramViewModel;
+) => ViewModel;
 
 /**
  * Store インターフェース
  */
 export interface Store {
-  getState: () => ERDiagramViewModel;
+  getState: () => ViewModel;
   subscribe: (listener: () => void) => () => void;
   dispatch: <Args extends any[]>(action: ActionFn<Args>, ...args: Args) => void;
 }
@@ -22,24 +22,35 @@ export interface Store {
 /**
  * 初期状態
  */
-const initialState: ERDiagramViewModel = {
-  nodes: {},
-  edges: {},
-  rectangles: {},
-  ui: {
-    hover: null,
-    highlightedNodeIds: [],
-    highlightedEdgeIds: [],
-    highlightedColumnIds: [],
+const initialState: ViewModel = {
+  erDiagram: {
+    nodes: {},
+    edges: {},
+    rectangles: {},
+    ui: {
+      hover: null,
+      highlightedNodeIds: [],
+      highlightedEdgeIds: [],
+      highlightedColumnIds: [],
+    },
+    loading: false,
   },
-  loading: false,
+  ui: {
+    selectedRectangleId: null,
+    showBuildInfoModal: false,
+  },
+  buildInfo: {
+    data: null,
+    loading: false,
+    error: null,
+  },
 };
 
 /**
- * ERDiagramViewModelのStoreを作成する
+ * ViewModelのStoreを作成する
  */
 export function createERDiagramStore(): Store {
-  let state: ERDiagramViewModel = initialState;
+  let state: ViewModel = initialState;
   let listeners: Array<() => void> = [];
 
   return {

@@ -6,31 +6,43 @@ import {
 } from '../../src/actions/dataActions';
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
 
 describe('dataActions', () => {
   // テスト用のViewModelを作成
-  const createMockViewModel = (): ERDiagramViewModel => ({
-    nodes: {
-      'entity-1': {
-        id: 'entity-1',
-        name: 'users',
-        x: 100,
-        y: 200,
-        columns: [],
-        ddl: 'CREATE TABLE users...',
+  const createMockViewModel = (): ViewModel => ({
+    erDiagram: {
+      nodes: {
+        'entity-1': {
+          id: 'entity-1',
+          name: 'users',
+          x: 100,
+          y: 200,
+          columns: [],
+          ddl: 'CREATE TABLE users...',
+        },
       },
+      edges: {},
+      rectangles: {},
+      ui: {
+        hover: null,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
+        highlightedColumnIds: [],
+      },
+      loading: false,
     },
-    edges: {},
     ui: {
-      hover: null,
-      highlightedNodeIds: [],
-      highlightedEdgeIds: [],
-      highlightedColumnIds: [],
+      selectedRectangleId: null,
+      showBuildInfoModal: false,
     },
-    loading: false,
+    buildInfo: {
+      data: null,
+      loading: false,
+      error: null,
+    },
   });
 
   describe('actionSetData', () => {
@@ -61,11 +73,11 @@ describe('dataActions', () => {
       
       const result = actionSetData(viewModel, newNodes, newEdges);
 
-      expect(result.nodes).toEqual(newNodes);
-      expect(result.edges).toEqual(newEdges);
+      expect(result.erDiagram.nodes).toEqual(newNodes);
+      expect(result.erDiagram.edges).toEqual(newEdges);
       // UI状態は保持される
-      expect(result.ui).toEqual(viewModel.ui);
-      expect(result.loading).toBe(viewModel.loading);
+      expect(result.erDiagram.ui).toEqual(viewModel.erDiagram.ui);
+      expect(result.erDiagram.loading).toBe(viewModel.erDiagram.loading);
     });
   });
 
@@ -77,40 +89,52 @@ describe('dataActions', () => {
         { id: 'entity-1', x: 500, y: 600 },
       ]);
 
-      expect(result.nodes['entity-1'].x).toBe(500);
-      expect(result.nodes['entity-1'].y).toBe(600);
+      expect(result.erDiagram.nodes['entity-1'].x).toBe(500);
+      expect(result.erDiagram.nodes['entity-1'].y).toBe(600);
       // 他のプロパティは保持される
-      expect(result.nodes['entity-1'].name).toBe('users');
+      expect(result.erDiagram.nodes['entity-1'].name).toBe('users');
     });
 
     it('複数のノード位置を同時に更新できる', () => {
-      const viewModel: ERDiagramViewModel = {
-        nodes: {
-          'entity-1': {
-            id: 'entity-1',
-            name: 'users',
-            x: 100,
-            y: 200,
-            columns: [],
-            ddl: '',
+      const viewModel: ViewModel = {
+        erDiagram: {
+          nodes: {
+            'entity-1': {
+              id: 'entity-1',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [],
+              ddl: '',
+            },
+            'entity-2': {
+              id: 'entity-2',
+              name: 'posts',
+              x: 300,
+              y: 400,
+              columns: [],
+              ddl: '',
+            },
           },
-          'entity-2': {
-            id: 'entity-2',
-            name: 'posts',
-            x: 300,
-            y: 400,
-            columns: [],
-            ddl: '',
+          edges: {},
+          rectangles: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
           },
+          loading: false,
         },
-        edges: {},
         ui: {
-          hover: null,
-          highlightedNodeIds: [],
-          highlightedEdgeIds: [],
-          highlightedColumnIds: [],
+          selectedRectangleId: null,
+          showBuildInfoModal: false,
         },
-        loading: false,
+        buildInfo: {
+          data: null,
+          loading: false,
+          error: null,
+        },
       };
       
       const result = actionUpdateNodePositions(viewModel, [
@@ -118,10 +142,10 @@ describe('dataActions', () => {
         { id: 'entity-2', x: 700, y: 800 },
       ]);
 
-      expect(result.nodes['entity-1'].x).toBe(500);
-      expect(result.nodes['entity-1'].y).toBe(600);
-      expect(result.nodes['entity-2'].x).toBe(700);
-      expect(result.nodes['entity-2'].y).toBe(800);
+      expect(result.erDiagram.nodes['entity-1'].x).toBe(500);
+      expect(result.erDiagram.nodes['entity-1'].y).toBe(600);
+      expect(result.erDiagram.nodes['entity-2'].x).toBe(700);
+      expect(result.erDiagram.nodes['entity-2'].y).toBe(800);
     });
 
     it('変化がない場合は同一参照を返す', () => {
@@ -151,11 +175,11 @@ describe('dataActions', () => {
       
       const result = actionSetLoading(viewModel, true);
 
-      expect(result.loading).toBe(true);
+      expect(result.erDiagram.loading).toBe(true);
       // 他の状態は保持される
-      expect(result.nodes).toEqual(viewModel.nodes);
-      expect(result.edges).toEqual(viewModel.edges);
-      expect(result.ui).toEqual(viewModel.ui);
+      expect(result.erDiagram.nodes).toEqual(viewModel.erDiagram.nodes);
+      expect(result.erDiagram.edges).toEqual(viewModel.erDiagram.edges);
+      expect(result.erDiagram.ui).toEqual(viewModel.erDiagram.ui);
     });
 
     it('変化がない場合は同一参照を返す', () => {

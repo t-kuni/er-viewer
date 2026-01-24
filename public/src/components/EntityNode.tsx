@@ -1,7 +1,7 @@
 import React from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import type { Column } from '../api/client'
-import { useERViewModel, useERDispatch } from '../store/hooks'
+import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEntity, actionHoverColumn, actionClearHover } from '../actions/hoverActions'
 
 interface EntityNodeData {
@@ -12,12 +12,12 @@ interface EntityNodeData {
 }
 
 function EntityNode({ data }: NodeProps<EntityNodeData>) {
-  const dispatch = useERDispatch()
+  const dispatch = useDispatch()
   
   // UIステートから必要な部分だけ購読
-  const highlightedNodeIds = useERViewModel((vm) => vm.ui.highlightedNodeIds)
-  const highlightedColumnIds = useERViewModel((vm) => vm.ui.highlightedColumnIds)
-  const hasHover = useERViewModel((vm) => vm.ui.hover !== null)
+  const highlightedNodeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedNodeIds)
+  const highlightedColumnIds = useViewModel((vm) => vm.erDiagram.ui.highlightedColumnIds)
+  const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   
   // このノードがハイライト対象かどうか
   const isHighlighted = highlightedNodeIds.includes(data.id)

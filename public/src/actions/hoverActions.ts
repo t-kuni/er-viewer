@@ -1,15 +1,7 @@
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 type HoverTarget = components['schemas']['HoverTarget'];
-
-/**
- * Action関数の型定義
- */
-export type ActionFn<Args extends any[] = any[]> = (
-  viewModel: ERDiagramViewModel,
-  ...args: Args
-) => ERDiagramViewModel;
 
 /**
  * エンティティにホバーした時のAction
@@ -18,16 +10,16 @@ export type ActionFn<Args extends any[] = any[]> = (
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionHoverEntity(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   entityId: string
-): ERDiagramViewModel {
+): ViewModel {
   // ハイライト対象の収集
   const highlightedNodeIds = new Set<string>([entityId]);
   const highlightedEdgeIds = new Set<string>();
   const highlightedColumnIds = new Set<string>();
 
   // エンティティに接続されているエッジを検索
-  for (const [edgeId, edge] of Object.entries(viewModel.edges)) {
+  for (const [edgeId, edge] of Object.entries(viewModel.erDiagram.edges)) {
     if (edge.sourceEntityId === entityId || edge.targetEntityId === entityId) {
       highlightedEdgeIds.add(edgeId);
       // 接続先のノードもハイライト
@@ -49,7 +41,10 @@ export function actionHoverEntity(
 
   return {
     ...viewModel,
-    ui: newUi,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
   };
 }
 
@@ -60,10 +55,10 @@ export function actionHoverEntity(
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionHoverEdge(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   edgeId: string
-): ERDiagramViewModel {
-  const edge = viewModel.edges[edgeId];
+): ViewModel {
+  const edge = viewModel.erDiagram.edges[edgeId];
   
   if (!edge) {
     console.warn(`Edge not found: ${edgeId}`);
@@ -84,7 +79,10 @@ export function actionHoverEdge(
 
   return {
     ...viewModel,
-    ui: newUi,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
   };
 }
 
@@ -95,16 +93,16 @@ export function actionHoverEdge(
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionHoverColumn(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   columnId: string
-): ERDiagramViewModel {
+): ViewModel {
   const highlightedNodeIds = new Set<string>();
   const highlightedEdgeIds = new Set<string>();
   const highlightedColumnIds = new Set<string>([columnId]);
 
   // カラムを持つエンティティを検索
   let ownerEntityId: string | null = null;
-  for (const [nodeId, node] of Object.entries(viewModel.nodes)) {
+  for (const [nodeId, node] of Object.entries(viewModel.erDiagram.nodes)) {
     if (node.columns.some(col => col.id === columnId)) {
       ownerEntityId = nodeId;
       highlightedNodeIds.add(nodeId);
@@ -118,7 +116,7 @@ export function actionHoverColumn(
   }
 
   // カラムに関連するエッジを検索
-  for (const [edgeId, edge] of Object.entries(viewModel.edges)) {
+  for (const [edgeId, edge] of Object.entries(viewModel.erDiagram.edges)) {
     if (edge.sourceColumnId === columnId || edge.targetColumnId === columnId) {
       highlightedEdgeIds.add(edgeId);
       // エッジの両端のノードもハイライト
@@ -139,7 +137,10 @@ export function actionHoverColumn(
 
   return {
     ...viewModel,
-    ui: newUi,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
   };
 }
 
@@ -149,14 +150,14 @@ export function actionHoverColumn(
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionClearHover(
-  viewModel: ERDiagramViewModel
-): ERDiagramViewModel {
+  viewModel: ViewModel
+): ViewModel {
   // すでにクリアされている場合は同一参照を返す
   if (
-    viewModel.ui.hover === null &&
-    viewModel.ui.highlightedNodeIds.length === 0 &&
-    viewModel.ui.highlightedEdgeIds.length === 0 &&
-    viewModel.ui.highlightedColumnIds.length === 0
+    viewModel.erDiagram.ui.hover === null &&
+    viewModel.erDiagram.ui.highlightedNodeIds.length === 0 &&
+    viewModel.erDiagram.ui.highlightedEdgeIds.length === 0 &&
+    viewModel.erDiagram.ui.highlightedColumnIds.length === 0
   ) {
     return viewModel;
   }
@@ -170,6 +171,9 @@ export function actionClearHover(
 
   return {
     ...viewModel,
-    ui: newUi,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
   };
 }

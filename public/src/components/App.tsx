@@ -1,18 +1,25 @@
-import React, { useState } from 'react'
+import React from 'react'
 import ERCanvas from './ERCanvas'
 import BuildInfoModal from './BuildInfoModal'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
-import { useERViewModel } from '../store/hooks'
+import { useViewModel, useDispatch } from '../store/hooks'
+import { actionShowBuildInfoModal, actionHideBuildInfoModal, actionSelectRectangle, actionDeselectRectangle } from '../actions/globalUIActions'
 
 function App() {
-  const [showBuildInfo, setShowBuildInfo] = useState(false)
-  const [selectedRectangleId, setSelectedRectangleId] = useState<string | null>(null)
+  const dispatch = useDispatch()
   
-  // 選択された矩形の数を取得
-  const rectangles = useERViewModel((vm) => vm.rectangles)
-  const selectedRectangleIds = Object.keys(rectangles).filter(id => 
-    selectedRectangleId === id
-  )
+  // Storeから状態を取得
+  const selectedRectangleId = useViewModel((vm) => vm.ui.selectedRectangleId)
+  const showBuildInfo = useViewModel((vm) => vm.ui.showBuildInfoModal)
+  
+  // 選択変更ハンドラ
+  const handleSelectionChange = (rectangleId: string | null) => {
+    if (rectangleId === null) {
+      dispatch(actionDeselectRectangle)
+    } else {
+      dispatch(actionSelectRectangle, rectangleId)
+    }
+  }
   
   return (
     <div className="app">
@@ -26,7 +33,7 @@ function App() {
       }}>
         <h1 style={{ margin: 0 }}>ER Diagram Viewer</h1>
         <button 
-          onClick={() => setShowBuildInfo(true)}
+          onClick={() => dispatch(actionShowBuildInfoModal)}
           style={{
             padding: '0.5rem 1rem',
             background: '#555',
@@ -47,7 +54,7 @@ function App() {
           flex: 1, 
           position: 'relative' 
         }}>
-          <ERCanvas onSelectionChange={setSelectedRectangleId} />
+          <ERCanvas onSelectionChange={handleSelectionChange} />
         </div>
         {selectedRectangleId && (
           <div 
@@ -67,7 +74,7 @@ function App() {
         )}
       </main>
       {showBuildInfo && (
-        <BuildInfoModal onClose={() => setShowBuildInfo(false)} />
+        <BuildInfoModal onClose={() => dispatch(actionHideBuildInfoModal)} />
       )}
     </div>
   )

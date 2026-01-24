@@ -1,32 +1,24 @@
-import React, { useState, useEffect } from 'react'
-import { DefaultService } from '../api/client'
-import type { BuildInfo } from '../api/client'
+import React, { useEffect } from 'react'
+import { useViewModel, useDispatch } from '../store/hooks'
+import { commandFetchBuildInfo } from '../commands/buildInfoCommand'
 
 interface BuildInfoModalProps {
   onClose: () => void
 }
 
 function BuildInfoModal({ onClose }: BuildInfoModalProps) {
-  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const dispatch = useDispatch()
+  
+  // Storeから状態を取得
+  const buildInfo = useViewModel((vm) => vm.buildInfo.data)
+  const loading = useViewModel((vm) => vm.buildInfo.loading)
+  const error = useViewModel((vm) => vm.buildInfo.error)
 
+  // マウント時にビルド情報がない場合のみ取得
   useEffect(() => {
-    const fetchBuildInfo = async () => {
-      try {
-        const info = await DefaultService.apiGetBuildInfo()
-        if ('error' in info) {
-          throw new Error(info.error)
-        }
-        setBuildInfo(info)
-      } catch (err) {
-        setError('ビルド情報の取得に失敗しました')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+    if (buildInfo === null) {
+      commandFetchBuildInfo(dispatch)
     }
-    fetchBuildInfo()
   }, [])
 
   return (

@@ -1,6 +1,6 @@
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
 
@@ -12,14 +12,17 @@ type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewMode
  * @returns 新しい状態
  */
 export function actionSetData(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   nodes: { [key: string]: EntityNodeViewModel },
   edges: { [key: string]: RelationshipEdgeViewModel }
-): ERDiagramViewModel {
+): ViewModel {
   return {
     ...viewModel,
-    nodes,
-    edges,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      nodes,
+      edges,
+    },
   };
 }
 
@@ -30,11 +33,11 @@ export function actionSetData(
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionUpdateNodePositions(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   nodePositions: Array<{ id: string; x: number; y: number }>
-): ERDiagramViewModel {
+): ViewModel {
   let hasChanges = false;
-  const newNodes = { ...viewModel.nodes };
+  const newNodes = { ...viewModel.erDiagram.nodes };
 
   for (const position of nodePositions) {
     const node = newNodes[position.id];
@@ -55,7 +58,10 @@ export function actionUpdateNodePositions(
 
   return {
     ...viewModel,
-    nodes: newNodes,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      nodes: newNodes,
+    },
   };
 }
 
@@ -66,16 +72,19 @@ export function actionUpdateNodePositions(
  * @returns 新しい状態（変化がない場合は同一参照）
  */
 export function actionSetLoading(
-  viewModel: ERDiagramViewModel,
+  viewModel: ViewModel,
   loading: boolean
-): ERDiagramViewModel {
+): ViewModel {
   // 変化がない場合は同一参照を返す
-  if (viewModel.loading === loading) {
+  if (viewModel.erDiagram.loading === loading) {
     return viewModel;
   }
 
   return {
     ...viewModel,
-    loading,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      loading,
+    },
   };
 }

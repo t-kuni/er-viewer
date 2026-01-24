@@ -1,25 +1,28 @@
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 type Rectangle = components['schemas']['Rectangle'];
 
 /**
  * 矩形を追加する
  */
 export function actionAddRectangle(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangle: Rectangle
-): ERDiagramViewModel {
+): ViewModel {
   // 既に同じIDが存在する場合は同一参照を返す
-  if (vm.rectangles[rectangle.id]) {
+  if (vm.erDiagram.rectangles[rectangle.id]) {
     return vm;
   }
 
   return {
     ...vm,
-    rectangles: {
-      ...vm.rectangles,
-      [rectangle.id]: rectangle,
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: {
+        ...vm.erDiagram.rectangles,
+        [rectangle.id]: rectangle,
+      },
     },
   };
 }
@@ -28,19 +31,22 @@ export function actionAddRectangle(
  * 矩形を削除する
  */
 export function actionRemoveRectangle(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangleId: string
-): ERDiagramViewModel {
+): ViewModel {
   // 矩形が存在しない場合は同一参照を返す
-  if (!vm.rectangles[rectangleId]) {
+  if (!vm.erDiagram.rectangles[rectangleId]) {
     return vm;
   }
 
-  const { [rectangleId]: _, ...restRectangles } = vm.rectangles;
+  const { [rectangleId]: _, ...restRectangles } = vm.erDiagram.rectangles;
 
   return {
     ...vm,
-    rectangles: restRectangles,
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: restRectangles,
+    },
   };
 }
 
@@ -48,12 +54,12 @@ export function actionRemoveRectangle(
  * 矩形の位置を更新する
  */
 export function actionUpdateRectanglePosition(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangleId: string,
   x: number,
   y: number
-): ERDiagramViewModel {
-  const rectangle = vm.rectangles[rectangleId];
+): ViewModel {
+  const rectangle = vm.erDiagram.rectangles[rectangleId];
 
   // 矩形が存在しない場合は同一参照を返す
   if (!rectangle) {
@@ -67,12 +73,15 @@ export function actionUpdateRectanglePosition(
 
   return {
     ...vm,
-    rectangles: {
-      ...vm.rectangles,
-      [rectangleId]: {
-        ...rectangle,
-        x,
-        y,
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: {
+        ...vm.erDiagram.rectangles,
+        [rectangleId]: {
+          ...rectangle,
+          x,
+          y,
+        },
       },
     },
   };
@@ -82,12 +91,12 @@ export function actionUpdateRectanglePosition(
  * 矩形のサイズを更新する
  */
 export function actionUpdateRectangleSize(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangleId: string,
   width: number,
   height: number
-): ERDiagramViewModel {
-  const rectangle = vm.rectangles[rectangleId];
+): ViewModel {
+  const rectangle = vm.erDiagram.rectangles[rectangleId];
 
   // 矩形が存在しない場合は同一参照を返す
   if (!rectangle) {
@@ -101,12 +110,15 @@ export function actionUpdateRectangleSize(
 
   return {
     ...vm,
-    rectangles: {
-      ...vm.rectangles,
-      [rectangleId]: {
-        ...rectangle,
-        width,
-        height,
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: {
+        ...vm.erDiagram.rectangles,
+        [rectangleId]: {
+          ...rectangle,
+          width,
+          height,
+        },
       },
     },
   };
@@ -116,11 +128,11 @@ export function actionUpdateRectangleSize(
  * 矩形の座標とサイズを一括更新する
  */
 export function actionUpdateRectangleBounds(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangleId: string,
   bounds: { x: number; y: number; width: number; height: number }
-): ERDiagramViewModel {
-  const rectangle = vm.rectangles[rectangleId];
+): ViewModel {
+  const rectangle = vm.erDiagram.rectangles[rectangleId];
 
   // 矩形が存在しない場合は同一参照を返す
   if (!rectangle) {
@@ -139,14 +151,17 @@ export function actionUpdateRectangleBounds(
 
   return {
     ...vm,
-    rectangles: {
-      ...vm.rectangles,
-      [rectangleId]: {
-        ...rectangle,
-        x: bounds.x,
-        y: bounds.y,
-        width: bounds.width,
-        height: bounds.height,
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: {
+        ...vm.erDiagram.rectangles,
+        [rectangleId]: {
+          ...rectangle,
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        },
       },
     },
   };
@@ -156,7 +171,7 @@ export function actionUpdateRectangleBounds(
  * 矩形のスタイルを部分更新する
  */
 export function actionUpdateRectangleStyle(
-  vm: ERDiagramViewModel,
+  vm: ViewModel,
   rectangleId: string,
   stylePatch: {
     fill?: string;
@@ -164,8 +179,8 @@ export function actionUpdateRectangleStyle(
     strokeWidth?: number;
     opacity?: number;
   }
-): ERDiagramViewModel {
-  const rectangle = vm.rectangles[rectangleId];
+): ViewModel {
+  const rectangle = vm.erDiagram.rectangles[rectangleId];
 
   // 矩形が存在しない場合は同一参照を返す
   if (!rectangle) {
@@ -185,14 +200,17 @@ export function actionUpdateRectangleStyle(
 
   return {
     ...vm,
-    rectangles: {
-      ...vm.rectangles,
-      [rectangleId]: {
-        ...rectangle,
-        ...(stylePatch.fill !== undefined && { fill: stylePatch.fill }),
-        ...(stylePatch.stroke !== undefined && { stroke: stylePatch.stroke }),
-        ...(stylePatch.strokeWidth !== undefined && { strokeWidth: stylePatch.strokeWidth }),
-        ...(stylePatch.opacity !== undefined && { opacity: stylePatch.opacity }),
+    erDiagram: {
+      ...vm.erDiagram,
+      rectangles: {
+        ...vm.erDiagram.rectangles,
+        [rectangleId]: {
+          ...rectangle,
+          ...(stylePatch.fill !== undefined && { fill: stylePatch.fill }),
+          ...(stylePatch.stroke !== undefined && { stroke: stylePatch.stroke }),
+          ...(stylePatch.strokeWidth !== undefined && { strokeWidth: stylePatch.strokeWidth }),
+          ...(stylePatch.opacity !== undefined && { opacity: stylePatch.opacity }),
+        },
       },
     },
   };

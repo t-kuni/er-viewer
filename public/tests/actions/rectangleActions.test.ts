@@ -9,34 +9,45 @@ import {
 } from '../../src/actions/rectangleActions';
 import type { components } from '../../../lib/generated/api-types';
 
-type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
+type ViewModel = components['schemas']['ViewModel'];
 type Rectangle = components['schemas']['Rectangle'];
 
 describe('rectangleActions', () => {
   // テスト用のViewModelを作成
-  const createMockViewModel = (): ERDiagramViewModel => ({
-    nodes: {},
-    edges: {},
-    rectangles: {
-      'rect-1': {
-        id: 'rect-1',
-        x: 100,
-        y: 200,
-        width: 300,
-        height: 250,
-        fill: '#E3F2FD',
-        stroke: '#90CAF9',
-        strokeWidth: 2,
-        opacity: 0.5,
+  const createMockViewModel = (): ViewModel => ({
+    erDiagram: {
+      nodes: {},
+      edges: {},
+      rectangles: {
+        'rect-1': {
+          id: 'rect-1',
+          x: 100,
+          y: 200,
+          width: 300,
+          height: 250,
+          fill: '#E3F2FD',
+          stroke: '#90CAF9',
+          strokeWidth: 2,
+          opacity: 0.5,
+        },
       },
+      ui: {
+        hover: null,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
+        highlightedColumnIds: [],
+      },
+      loading: false,
     },
     ui: {
-      hover: null,
-      highlightedNodeIds: [],
-      highlightedEdgeIds: [],
-      highlightedColumnIds: [],
+      selectedRectangleId: null,
+      showBuildInfoModal: false,
     },
-    loading: false,
+    buildInfo: {
+      data: null,
+      loading: false,
+      error: null,
+    },
   });
 
   describe('actionAddRectangle', () => {
@@ -57,9 +68,9 @@ describe('rectangleActions', () => {
       
       const result = actionAddRectangle(viewModel, newRectangle);
 
-      expect(result.rectangles['rect-2']).toEqual(newRectangle);
+      expect(result.erDiagram.rectangles['rect-2']).toEqual(newRectangle);
       // 既存の矩形は保持される
-      expect(result.rectangles['rect-1']).toEqual(viewModel.rectangles['rect-1']);
+      expect(result.erDiagram.rectangles['rect-1']).toEqual(viewModel.erDiagram.rectangles['rect-1']);
     });
 
     it('既に同じIDが存在する場合は同一参照を返す', () => {
@@ -89,7 +100,7 @@ describe('rectangleActions', () => {
       
       const result = actionRemoveRectangle(viewModel, 'rect-1');
 
-      expect(result.rectangles['rect-1']).toBeUndefined();
+      expect(result.erDiagram.rectangles['rect-1']).toBeUndefined();
     });
 
     it('存在しないIDを削除しようとした場合、同一参照を返す', () => {
@@ -107,11 +118,11 @@ describe('rectangleActions', () => {
       
       const result = actionUpdateRectanglePosition(viewModel, 'rect-1', 500, 600);
 
-      expect(result.rectangles['rect-1'].x).toBe(500);
-      expect(result.rectangles['rect-1'].y).toBe(600);
+      expect(result.erDiagram.rectangles['rect-1'].x).toBe(500);
+      expect(result.erDiagram.rectangles['rect-1'].y).toBe(600);
       // 他のプロパティは保持される
-      expect(result.rectangles['rect-1'].width).toBe(300);
-      expect(result.rectangles['rect-1'].height).toBe(250);
+      expect(result.erDiagram.rectangles['rect-1'].width).toBe(300);
+      expect(result.erDiagram.rectangles['rect-1'].height).toBe(250);
     });
 
     it('変化がない場合は同一参照を返す', () => {
@@ -137,11 +148,11 @@ describe('rectangleActions', () => {
       
       const result = actionUpdateRectangleSize(viewModel, 'rect-1', 400, 350);
 
-      expect(result.rectangles['rect-1'].width).toBe(400);
-      expect(result.rectangles['rect-1'].height).toBe(350);
+      expect(result.erDiagram.rectangles['rect-1'].width).toBe(400);
+      expect(result.erDiagram.rectangles['rect-1'].height).toBe(350);
       // 他のプロパティは保持される
-      expect(result.rectangles['rect-1'].x).toBe(100);
-      expect(result.rectangles['rect-1'].y).toBe(200);
+      expect(result.erDiagram.rectangles['rect-1'].x).toBe(100);
+      expect(result.erDiagram.rectangles['rect-1'].y).toBe(200);
     });
 
     it('変化がない場合は同一参照を返す', () => {
@@ -172,10 +183,10 @@ describe('rectangleActions', () => {
         height: 350,
       });
 
-      expect(result.rectangles['rect-1'].x).toBe(500);
-      expect(result.rectangles['rect-1'].y).toBe(600);
-      expect(result.rectangles['rect-1'].width).toBe(400);
-      expect(result.rectangles['rect-1'].height).toBe(350);
+      expect(result.erDiagram.rectangles['rect-1'].x).toBe(500);
+      expect(result.erDiagram.rectangles['rect-1'].y).toBe(600);
+      expect(result.erDiagram.rectangles['rect-1'].width).toBe(400);
+      expect(result.erDiagram.rectangles['rect-1'].height).toBe(350);
     });
 
     it('変化がない場合は同一参照を返す', () => {
@@ -214,11 +225,11 @@ describe('rectangleActions', () => {
         opacity: 0.8,
       });
 
-      expect(result.rectangles['rect-1'].fill).toBe('#FFF3E0');
-      expect(result.rectangles['rect-1'].opacity).toBe(0.8);
+      expect(result.erDiagram.rectangles['rect-1'].fill).toBe('#FFF3E0');
+      expect(result.erDiagram.rectangles['rect-1'].opacity).toBe(0.8);
       // 未指定のプロパティは保持される
-      expect(result.rectangles['rect-1'].stroke).toBe('#90CAF9');
-      expect(result.rectangles['rect-1'].strokeWidth).toBe(2);
+      expect(result.erDiagram.rectangles['rect-1'].stroke).toBe('#90CAF9');
+      expect(result.erDiagram.rectangles['rect-1'].strokeWidth).toBe(2);
     });
 
     it('全てのスタイルプロパティを更新できる', () => {
@@ -231,10 +242,10 @@ describe('rectangleActions', () => {
         opacity: 1.0,
       });
 
-      expect(result.rectangles['rect-1'].fill).toBe('#FCE4EC');
-      expect(result.rectangles['rect-1'].stroke).toBe('#F06292');
-      expect(result.rectangles['rect-1'].strokeWidth).toBe(5);
-      expect(result.rectangles['rect-1'].opacity).toBe(1.0);
+      expect(result.erDiagram.rectangles['rect-1'].fill).toBe('#FCE4EC');
+      expect(result.erDiagram.rectangles['rect-1'].stroke).toBe('#F06292');
+      expect(result.erDiagram.rectangles['rect-1'].strokeWidth).toBe(5);
+      expect(result.erDiagram.rectangles['rect-1'].opacity).toBe(1.0);
     });
 
     it('変化がない場合は同一参照を返す', () => {

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { NodeProps, NodeResizer } from 'reactflow';
+import { NodeProps, NodeResizer } from '@xyflow/react';
 import { useDispatch } from '../store/hooks';
 import { actionUpdateRectangleBounds } from '../actions/rectangleActions';
 
@@ -15,6 +15,7 @@ interface RectangleNodeData {
 
 /**
  * 矩形ノードコンポーネント
+ * @deprecated ViewportPortalで矩形を描画するため、このコンポーネントは使用されなくなりました
  */
 const RectangleNode: React.FC<NodeProps<RectangleNodeData>> = ({ id, data, selected }) => {
   const dispatch = useDispatch();

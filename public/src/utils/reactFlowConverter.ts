@@ -1,5 +1,5 @@
-import type { Node, Edge } from 'reactflow';
-import { MarkerType } from 'reactflow';
+import type { Node, Edge } from '@xyflow/react';
+import { MarkerType } from '@xyflow/react';
 import type { components } from '../../../lib/generated/api-types';
 
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
@@ -59,6 +59,7 @@ export function convertToReactFlowNodes(
     id: node.id,
     type: 'entityNode',
     position: { x: node.x, y: node.y },
+    zIndex: 0, // エンティティはz-index 0固定
     data: {
       id: node.id,
       name: node.name,
@@ -106,6 +107,7 @@ export function convertToReactFlowEdges(
       target: edge.targetEntityId,
       sourceHandle,
       targetHandle,
+      zIndex: -100, // エッジは背後に配置
       markerEnd: {
         type: MarkerType.ArrowClosed,
       },
@@ -119,9 +121,7 @@ export function convertToReactFlowEdges(
 }
 
 /**
- * ERDiagramViewModelのrectanglesをReact Flow形式に変換する
- * @param rectangles RectangleのRecord
- * @returns React Flowのノード配列
+ * @deprecated ViewportPortalで矩形を描画するため、この関数は使用されなくなりました
  */
 export function convertToReactFlowRectangles(
   rectangles: { [key: string]: Rectangle }

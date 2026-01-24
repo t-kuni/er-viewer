@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   Controls,
@@ -9,30 +10,147 @@ import ReactFlow, {
   OnNodesChange,
   OnEdgesChange,
   OnSelectionChangeParams,
-  NodeDragHandler,
   useReactFlow,
   ReactFlowProvider,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+  ViewportPortal,
+  useViewport,
+  NodeTypes,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
-import RectangleNode from './RectangleNode'
 import RelationshipEdge from './RelationshipEdge'
-import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowRectangles, computeOptimalHandles } from '../utils/reactFlowConverter'
+import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
+import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
-import { actionAddRectangle, actionUpdateRectanglePosition, actionRemoveRectangle } from '../actions/rectangleActions'
-import type { components } from '../../../lib/generated/api-types'
-
-type Rectangle = components['schemas']['Rectangle']
+import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
+import { actionSelectItem } from '../actions/layerActions'
+import type { Rectangle, LayerItemRef } from '../api/client'
 
 const nodeTypes = {
   entityNode: EntityNode,
-  rectangleNode: RectangleNode,
-}
+} as NodeTypes
 
 const edgeTypes = {
   relationshipEdge: RelationshipEdge,
+}
+
+// リサイズハンドルコンポーネント
+function ResizeHandles({ 
+  rectangleId, 
+  width, 
+  height, 
+  onResize 
+}: { 
+  rectangleId: string
+  width: number
+  height: number
+  onResize: (rectangleId: string, newBounds: { x: number; y: number; width: number; height: number }) => void
+}) {
+  const dispatch = useDispatch()
+  const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
+  const rectangle = rectangles[rectangleId]
+
+  const handleMouseDown = (e: React.MouseEvent, position: string) => {
+    e.stopPropagation()
+    
+    const startX = e.clientX
+    const startY = e.clientY
+    const startWidth = width
+    const startHeight = height
+    const startRectX = rectangle.x
+    const startRectY = rectangle.y
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX
+      const dy = moveEvent.clientY - startY
+
+      let newBounds = {
+        x: startRectX,
+        y: startRectY,
+        width: startWidth,
+        height: startHeight,
+      }
+
+      // 各リサイズハンドルの処理
+      if (position.includes('right')) {
+        newBounds.width = Math.max(50, startWidth + dx)
+      }
+      if (position.includes('left')) {
+        const newWidth = Math.max(50, startWidth - dx)
+        newBounds.x = startRectX + (startWidth - newWidth)
+        newBounds.width = newWidth
+      }
+      if (position.includes('bottom')) {
+        newBounds.height = Math.max(50, startHeight + dy)
+      }
+      if (position.includes('top')) {
+        const newHeight = Math.max(50, startHeight - dy)
+        newBounds.y = startRectY + (startHeight - newHeight)
+        newBounds.height = newHeight
+      }
+
+      onResize(rectangleId, newBounds)
+    }
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
+  const handleStyle: React.CSSProperties = {
+    position: 'absolute',
+    background: '#1976d2',
+    border: '1px solid white',
+    zIndex: 10,
+  }
+
+  const cornerSize = 8
+  const edgeSize = 6
+
+  return (
+    <>
+      {/* 四隅のハンドル */}
+      <div
+        style={{ ...handleStyle, width: cornerSize, height: cornerSize, top: -cornerSize / 2, left: -cornerSize / 2, cursor: 'nwse-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'top-left')}
+      />
+      <div
+        style={{ ...handleStyle, width: cornerSize, height: cornerSize, top: -cornerSize / 2, right: -cornerSize / 2, cursor: 'nesw-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'top-right')}
+      />
+      <div
+        style={{ ...handleStyle, width: cornerSize, height: cornerSize, bottom: -cornerSize / 2, left: -cornerSize / 2, cursor: 'nesw-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'bottom-left')}
+      />
+      <div
+        style={{ ...handleStyle, width: cornerSize, height: cornerSize, bottom: -cornerSize / 2, right: -cornerSize / 2, cursor: 'nwse-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'bottom-right')}
+      />
+      {/* 四辺のハンドル */}
+      <div
+        style={{ ...handleStyle, width: edgeSize, height: '50%', top: '25%', left: -edgeSize / 2, cursor: 'ew-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'left')}
+      />
+      <div
+        style={{ ...handleStyle, width: edgeSize, height: '50%', top: '25%', right: -edgeSize / 2, cursor: 'ew-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'right')}
+      />
+      <div
+        style={{ ...handleStyle, width: '50%', height: edgeSize, left: '25%', top: -edgeSize / 2, cursor: 'ns-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'top')}
+      />
+      <div
+        style={{ ...handleStyle, width: '50%', height: edgeSize, left: '25%', bottom: -edgeSize / 2, cursor: 'ns-resize' }}
+        onMouseDown={(e) => handleMouseDown(e, 'bottom')}
+      />
+    </>
+  )
 }
 
 // ReactFlow内で使用する内部コンポーネント
@@ -52,6 +170,15 @@ function ERCanvasInner({
   onSelectionChange?: (rectangleId: string | null) => void
 }) {
   const { getNodes } = useReactFlow()
+  const viewport = useViewport()
+  
+  // Store購読
+  const layerOrder = useViewModel((vm) => vm.erDiagram.ui.layerOrder)
+  const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
+  const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+  
+  // ドラッグ状態管理
+  const [draggingRect, setDraggingRect] = useState<{ id: string; startX: number; startY: number; rectStartX: number; rectStartY: number } | null>(null)
   
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -63,12 +190,9 @@ function ERCanvasInner({
     [setEdges]
   )
   
-  const onNodeDragStop: NodeDragHandler = useCallback(
-    (_event, node) => {
-      if (node.type === 'rectangleNode') {
-        // 矩形の位置を更新
-        dispatch(actionUpdateRectanglePosition, node.id, node.position.x, node.position.y)
-      } else if (node.type === 'entityNode') {
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
+      if (node.type === 'entityNode') {
         // Storeのノード位置を更新
         dispatch(actionUpdateNodePositions, [{ 
           id: node.id, 
@@ -129,30 +253,112 @@ function ERCanvasInner({
   
   const handleSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
-      // 矩形ノードのみを抽出
-      const selectedRectangles = params.nodes.filter(node => node.type === 'rectangleNode')
-      
-      // 矩形が1つだけ選択されている場合は親に通知
-      if (selectedRectangles.length === 1) {
-        onSelectionChange?.(selectedRectangles[0].id)
-      } else {
-        // 0個または2個以上の場合はnullを通知
-        onSelectionChange?.(null)
+      // エンティティノードが選択された場合は選択解除
+      if (params.nodes.length > 0) {
+        dispatch(actionSelectItem, null)
       }
-    },
-    [onSelectionChange]
-  )
-  
-  const onNodesDelete = useCallback(
-    (deletedNodes: Node[]) => {
-      deletedNodes.forEach((node) => {
-        if (node.type === 'rectangleNode') {
-          dispatch(actionRemoveRectangle, node.id)
-        }
-      })
     },
     [dispatch]
   )
+  
+  // 矩形のドラッグ処理
+  const handleRectangleMouseDown = useCallback((e: React.MouseEvent, rectangleId: string) => {
+    e.stopPropagation()
+    
+    const rectangle = rectangles[rectangleId]
+    if (!rectangle) return
+    
+    // 選択状態を更新
+    dispatch(actionSelectItem, { kind: 'rectangle', id: rectangleId } as LayerItemRef)
+    
+    setDraggingRect({
+      id: rectangleId,
+      startX: e.clientX,
+      startY: e.clientY,
+      rectStartX: rectangle.x,
+      rectStartY: rectangle.y,
+    })
+  }, [rectangles, dispatch])
+  
+  // マウスムーブ時のドラッグ処理
+  useEffect(() => {
+    if (!draggingRect) return
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = (e.clientX - draggingRect.startX) / viewport.zoom
+      const dy = (e.clientY - draggingRect.startY) / viewport.zoom
+      
+      const newX = draggingRect.rectStartX + dx
+      const newY = draggingRect.rectStartY + dy
+      
+      dispatch(actionUpdateRectanglePosition, draggingRect.id, newX, newY)
+    }
+    
+    const handleMouseUp = () => {
+      setDraggingRect(null)
+    }
+    
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [draggingRect, viewport.zoom, dispatch])
+  
+  // リサイズハンドラー
+  const handleResize = useCallback((rectangleId: string, newBounds: { x: number; y: number; width: number; height: number }) => {
+    dispatch(actionUpdateRectangleBounds, rectangleId, newBounds)
+  }, [dispatch])
+  
+  // 矩形の描画（ViewportPortal使用）
+  const renderRectangles = (items: readonly any[]) => {
+    return items.map((item) => {
+      if (item.kind !== 'rectangle') return null
+      
+      const rectangle = rectangles[item.id]
+      if (!rectangle) return null
+      
+      const zIndex = calculateZIndex(layerOrder as any, item as LayerItemRef)
+      const isSelected = selectedItem?.kind === 'rectangle' && selectedItem.id === item.id
+      
+      return (
+        <div
+          key={item.id}
+          style={{
+            position: 'absolute',
+            left: rectangle.x,
+            top: rectangle.y,
+            width: rectangle.width,
+            height: rectangle.height,
+            border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
+            backgroundColor: rectangle.fill,
+            opacity: rectangle.opacity,
+            zIndex,
+            cursor: 'move',
+            boxSizing: 'border-box',
+            outline: isSelected ? '2px solid #1976d2' : 'none',
+            outlineOffset: '2px',
+          }}
+          onMouseDown={(e) => handleRectangleMouseDown(e, item.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            dispatch(actionSelectItem, item)
+          }}
+        >
+          {isSelected && (
+            <ResizeHandles 
+              rectangleId={item.id} 
+              width={rectangle.width} 
+              height={rectangle.height}
+              onResize={handleResize}
+            />
+          )}
+        </div>
+      )
+    })
+  }
   
   return (
     <ReactFlow
@@ -162,12 +368,22 @@ function ERCanvasInner({
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
       onSelectionChange={handleSelectionChange}
-      onNodesDelete={onNodesDelete}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       elevateNodesOnSelect={false}
+      elevateEdgesOnSelect={false}
       fitView
     >
+      {/* 背面矩形 */}
+      <ViewportPortal>
+        {renderRectangles(layerOrder.backgroundItems)}
+      </ViewportPortal>
+      
+      {/* 前面矩形 */}
+      <ViewportPortal>
+        {renderRectangles(layerOrder.foregroundItems)}
+      </ViewportPortal>
+      
       <Controls />
       <Background />
     </ReactFlow>
@@ -186,7 +402,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   // Storeから状態を購読
   const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
   const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
-  const viewModelRectangles = useViewModel((vm) => vm.erDiagram.rectangles)
   const loading = useViewModel((vm) => vm.erDiagram.loading)
   
   // エンティティとエッジを更新
@@ -194,55 +409,9 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
     
-    // 既存の矩形ノードを保持しながらエンティティノードを更新
-    setNodes(currentNodes => {
-      const rectangleNodes = currentNodes.filter(n => n.type === 'rectangleNode')
-      return [...rectangleNodes, ...entityNodes]
-    })
+    setNodes(entityNodes)
     setEdges(newEdges)
   }, [viewModelNodes, viewModelEdges])
-  
-  // 矩形が追加・削除・更新されたら、矩形ノードを更新（選択状態を保持するため部分更新）
-  useEffect(() => {
-    setNodes(currentNodes => {
-      const rectangleIds = Object.keys(viewModelRectangles)
-      const currentRectangleIds = currentNodes.filter(n => n.type === 'rectangleNode').map(n => n.id)
-      
-      // 矩形の追加・削除があった場合は全体を再構築
-      const added = rectangleIds.filter(id => !currentRectangleIds.includes(id))
-      const removed = currentRectangleIds.filter(id => !rectangleIds.includes(id))
-      
-      if (added.length > 0 || removed.length > 0) {
-        const entityNodes = currentNodes.filter(n => n.type === 'entityNode')
-        const rectangleNodes = convertToReactFlowRectangles(viewModelRectangles)
-        return [...rectangleNodes, ...entityNodes]
-      }
-      
-      // スタイルまたは位置の更新のみの場合は、該当ノードだけを更新
-      return currentNodes.map(node => {
-        if (node.type === 'rectangleNode') {
-          const rectangle = viewModelRectangles[node.id]
-          if (rectangle) {
-            return {
-              ...node,
-              position: { x: rectangle.x, y: rectangle.y },
-              width: rectangle.width,
-              height: rectangle.height,
-              data: {
-                width: rectangle.width,
-                height: rectangle.height,
-                fill: rectangle.fill,
-                stroke: rectangle.stroke,
-                strokeWidth: rectangle.strokeWidth,
-                opacity: rectangle.opacity,
-              }
-            }
-          }
-        }
-        return node
-      })
-    })
-  }, [viewModelRectangles])
   
   const handleReverseEngineer = async () => {
     await commandReverseEngineer(dispatch)

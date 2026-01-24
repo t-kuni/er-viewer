@@ -1,5 +1,5 @@
 import React from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
+import { Handle, Position, NodeProps } from '@xyflow/react'
 import type { Column } from '../api/client'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEntity, actionHoverColumn, actionClearHover } from '../actions/hoverActions'

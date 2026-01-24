@@ -1,4 +1,5 @@
 import type { components } from '../../../lib/generated/api-types';
+import { actionAddLayerItem, actionRemoveLayerItem, actionSelectItem } from './layerActions';
 
 type ViewModel = components['schemas']['ViewModel'];
 type Rectangle = components['schemas']['Rectangle'];
@@ -15,7 +16,8 @@ export function actionAddRectangle(
     return vm;
   }
 
-  return {
+  // 矩形を追加
+  let nextVm = {
     ...vm,
     erDiagram: {
       ...vm.erDiagram,
@@ -25,6 +27,11 @@ export function actionAddRectangle(
       },
     },
   };
+
+  // レイヤーに追加
+  nextVm = actionAddLayerItem(nextVm, { kind: 'rectangle', id: rectangle.id }, 'background');
+
+  return nextVm;
 }
 
 /**
@@ -41,13 +48,24 @@ export function actionRemoveRectangle(
 
   const { [rectangleId]: _, ...restRectangles } = vm.erDiagram.rectangles;
 
-  return {
+  // 矩形を削除
+  let nextVm = {
     ...vm,
     erDiagram: {
       ...vm.erDiagram,
       rectangles: restRectangles,
     },
   };
+
+  // レイヤーから削除
+  nextVm = actionRemoveLayerItem(nextVm, { kind: 'rectangle', id: rectangleId });
+
+  // 選択中の場合は選択解除
+  if (nextVm.ui.selectedItem?.kind === 'rectangle' && nextVm.ui.selectedItem.id === rectangleId) {
+    nextVm = actionSelectItem(nextVm, null);
+  }
+
+  return nextVm;
 }
 
 /**

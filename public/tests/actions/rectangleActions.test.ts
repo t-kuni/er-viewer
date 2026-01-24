@@ -36,12 +36,17 @@ describe('rectangleActions', () => {
         highlightedNodeIds: [],
         highlightedEdgeIds: [],
         highlightedColumnIds: [],
+        layerOrder: {
+          backgroundItems: [{ kind: 'rectangle', id: 'rect-1' }],
+          foregroundItems: [],
+        },
       },
       loading: false,
     },
     ui: {
-      selectedRectangleId: null,
+      selectedItem: null,
       showBuildInfoModal: false,
+      showLayerPanel: false,
     },
     buildInfo: {
       data: null,
@@ -73,6 +78,26 @@ describe('rectangleActions', () => {
       expect(result.erDiagram.rectangles['rect-1']).toEqual(viewModel.erDiagram.rectangles['rect-1']);
     });
 
+    it('矩形が背面レイヤーに追加される', () => {
+      const viewModel = createMockViewModel();
+      
+      const newRectangle: Rectangle = {
+        id: 'rect-2',
+        x: 400,
+        y: 500,
+        width: 200,
+        height: 150,
+        fill: '#FFF3E0',
+        stroke: '#FFB74D',
+        strokeWidth: 3,
+        opacity: 0.7,
+      };
+      
+      const result = actionAddRectangle(viewModel, newRectangle);
+
+      expect(result.erDiagram.ui.layerOrder.backgroundItems).toContainEqual({ kind: 'rectangle', id: 'rect-2' });
+    });
+
     it('既に同じIDが存在する場合は同一参照を返す', () => {
       const viewModel = createMockViewModel();
       
@@ -101,6 +126,24 @@ describe('rectangleActions', () => {
       const result = actionRemoveRectangle(viewModel, 'rect-1');
 
       expect(result.erDiagram.rectangles['rect-1']).toBeUndefined();
+    });
+
+    it('矩形がレイヤーから削除される', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionRemoveRectangle(viewModel, 'rect-1');
+
+      expect(result.erDiagram.ui.layerOrder.backgroundItems).not.toContainEqual({ kind: 'rectangle', id: 'rect-1' });
+      expect(result.erDiagram.ui.layerOrder.foregroundItems).not.toContainEqual({ kind: 'rectangle', id: 'rect-1' });
+    });
+
+    it('選択中の矩形を削除すると選択が解除される', () => {
+      const viewModel = createMockViewModel();
+      viewModel.ui.selectedItem = { kind: 'rectangle', id: 'rect-1' };
+      
+      const result = actionRemoveRectangle(viewModel, 'rect-1');
+
+      expect(result.ui.selectedItem).toBeNull();
     });
 
     it('存在しないIDを削除しようとした場合、同一参照を返す', () => {

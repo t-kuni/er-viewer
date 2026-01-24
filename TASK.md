@@ -31,7 +31,7 @@
 
 #### 型の再生成
 
-- [ ] 型の再生成
+- [x] 型の再生成
   - `npm run generate` を実行して `scheme/main.tsp` から型を再生成する
   - 生成される型: `LayerItemKind`, `LayerItemRef`, `LayerPosition`, `LayerOrder`
   - `GlobalUIState` に `selectedItem`, `showLayerPanel` が追加される
@@ -40,7 +40,7 @@
 
 #### Store初期状態の更新
 
-- [ ] Store初期状態の更新
+- [x] Store初期状態の更新
   - ファイル: `public/src/store/erDiagramStore.ts`
   - `initialState` を更新:
     ```typescript
@@ -73,7 +73,7 @@
 
 #### レイヤー管理Action実装
 
-- [ ] `layerActions.ts` の実装
+- [x] `layerActions.ts` の実装
   - ファイル: `public/src/actions/layerActions.ts` (新規作成)
   - 以下のActionを実装（すべて純粋関数、状態に変化がない場合は同一参照を返す）:
     
@@ -107,7 +107,7 @@
     - 機能: レイヤーパネルの表示/非表示を切り替え
     - 実装: `vm.ui.showLayerPanel` をトグル
 
-- [ ] `layerActions.test.ts` の実装
+- [x] `layerActions.test.ts` の実装
   - ファイル: `public/tests/actions/layerActions.test.ts` (新規作成)
   - 各Actionの単体テストを実装:
     - `actionReorderLayerItems`: 同一セクション内での並べ替えが正しく動作すること
@@ -120,7 +120,7 @@
 
 #### 既存Actionの更新
 
-- [ ] `rectangleActions.ts` の更新
+- [x] `rectangleActions.ts` の更新
   - ファイル: `public/src/actions/rectangleActions.ts`
   - **`actionAddRectangle`** を更新:
     - 矩形追加後、`actionAddLayerItem` を呼び出して背面レイヤーに追加
@@ -169,7 +169,7 @@
       ```
   - `layerActions` からのインポートを追加
 
-- [ ] `rectangleActions.test.ts` の更新
+- [x] `rectangleActions.test.ts` の更新
   - ファイル: `public/tests/actions/rectangleActions.test.ts`
   - `actionAddRectangle` のテストを更新:
     - レイヤーに追加されることを確認（`vm.erDiagram.ui.layerOrder.backgroundItems` に含まれること）
@@ -177,21 +177,21 @@
     - レイヤーから削除されることを確認
     - 選択中の矩形を削除すると選択が解除されることを確認
 
-- [ ] `globalUIActions.ts` の更新
+- [x] `globalUIActions.ts` の更新
   - ファイル: `public/src/actions/globalUIActions.ts`
   - 以下の関数を削除（`layerActions.ts` の `actionSelectItem` で代替）:
     - `actionSelectRectangle`
     - `actionDeselectRectangle`
   - ビルド情報モーダル関連の関数（`actionShowBuildInfoModal`, `actionHideBuildInfoModal`）は維持
 
-- [ ] `globalUIActions.test.ts` の更新
+- [x] `globalUIActions.test.ts` の更新
   - ファイル: `public/tests/actions/globalUIActions.test.ts`
   - `actionSelectRectangle`, `actionDeselectRectangle` のテストを削除
   - ビルド情報モーダル関連のテストは維持
 
 #### UI層の選択状態統一
 
-- [ ] `App.tsx` の更新
+- [x] `App.tsx` の更新
   - ファイル: `public/src/components/App.tsx`
   - インポートを更新:
     - `actionSelectRectangle`, `actionDeselectRectangle` を削除
@@ -219,7 +219,7 @@
     )}
     ```
 
-- [ ] `ERCanvas.tsx` の更新
+- [x] `ERCanvas.tsx` の更新
   - ファイル: `public/src/components/ERCanvas.tsx`
   - `selectedItem` を購読:
     ```typescript
@@ -230,12 +230,14 @@
 
 #### ビルド・テスト確認
 
-- [ ] ビルド確認
+- [x] ビルド確認
   - フロントエンドのビルドが通ること（`cd public && npm run build`）
   - バックエンドのビルドが通ること（`npm run build`）
 
-- [ ] テスト実行
+- [x] テスト実行
   - すべてのテストが通ること（`npm run test`）
+
+**フェーズ1完了**: 型の再生成、レイヤー管理Action実装、選択状態統一、テスト実装がすべて完了しました。
 
 ---
 
@@ -248,12 +250,12 @@ dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素
 
 #### dnd-kitのインストール
 
-- [ ] dnd-kitのインストール
+- [x] dnd-kitのインストール
   - `cd public && npm install @dnd-kit/core @dnd-kit/sortable`
 
 #### z-index計算ユーティリティ
 
-- [ ] `zIndexCalculator.ts` の実装
+- [x] `zIndexCalculator.ts` の実装
   - ファイル: `public/src/utils/zIndexCalculator.ts` (新規作成)
   - レイヤー順序から各アイテムのz-indexを計算する関数を実装:
     ```typescript
@@ -306,7 +308,7 @@ dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素
 
 #### レイヤーパネルUI実装
 
-- [ ] `LayerPanel.tsx` の実装
+- [x] `LayerPanel.tsx` の実装
   - ファイル: `public/src/components/LayerPanel.tsx` (新規作成)
   - dnd-kitを使用してドラッグ&ドロップ機能を実装
   - レイヤーパネルのUI構成:
@@ -329,7 +331,7 @@ dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素
     - `@dnd-kit/sortable` の `SortableContext`, `useSortable` を使用
     - 前面・背面セクションに個別の `SortableContext` を適用
 
-- [ ] `App.tsx` へのレイヤーパネル追加
+- [x] `App.tsx` へのレイヤーパネル追加
   - ファイル: `public/src/components/App.tsx`
   - `LayerPanel` をインポート
   - `actionToggleLayerPanel` をインポート
@@ -367,108 +369,118 @@ dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素
 
 #### ViewportPortalとz-index制御
 
-- [ ] `ERCanvas.tsx` の大幅更新
+- [x] React Flowパッケージの移行
+  - **必要な作業**: React Flow v11ではパッケージ名が変更されている
+  - `reactflow` パッケージをアンインストール: `cd public && npm uninstall reactflow` ✅
+  - `@xyflow/react` パッケージをインストール: `cd public && npm install @xyflow/react` ✅
+  - **理由**: v11では `ViewportPortal` を含むすべてのコンポーネントは `@xyflow/react` からインポートする必要がある
+  - **追加対応**: `ReactFlow` もnamed exportに変更（`import ReactFlow` → `import { ReactFlow }`）
+
+- [x] 全ファイルのimport文を更新
+  - 以下の5ファイルのimport文を `reactflow` → `@xyflow/react` に変更: ✅
+    1. `public/src/components/ERCanvas.tsx` (ViewportPortal のimportも追加)
+    2. `public/src/components/RectangleNode.tsx`
+    3. `public/src/utils/reactFlowConverter.ts`
+    4. `public/src/components/RelationshipEdge.tsx`
+    5. `public/src/components/EntityNode.tsx`
+  - CSSのimport: `'reactflow/dist/style.css'` → `'@xyflow/react/dist/style.css'` ✅
+
+- [x] `ERCanvas.tsx` の大幅更新
   - ファイル: `public/src/components/ERCanvas.tsx`
   - **React Flow設定の更新**:
-    - `elevateEdgesOnSelect={false}` を追加
-    - エンティティノードに `zIndex: 0` を設定（`convertToReactFlowNodes` で）
-    - リレーションエッジに `zIndex: -100` を設定（`convertToReactFlowEdges` で）
-  
-  - **ViewportPortalで矩形をレンダリング**:
-    - `ViewportPortal` をインポート（`reactflow` から）
-    - `useViewport()` でviewport座標を取得
-    - `layerOrder` と `rectangles` を購読
-    - `calculateAllZIndices` を使ってz-indexを計算
-    - 背面Portal と 前面Portal を実装:
-      ```typescript
-      <ReactFlow ...>
-        {/* 背面Portal */}
-        <ViewportPortal>
-          {layerOrder.backgroundItems.map((item) => {
-            if (item.kind === 'rectangle') {
-              const rectangle = rectangles[item.id];
-              if (!rectangle) return null;
-              const zIndex = calculateZIndex(layerOrder, item);
-              return (
-                <div
-                  key={item.id}
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    transform: `translate(${rectangle.x}px, ${rectangle.y}px)`,
-                    width: `${rectangle.width}px`,
-                    height: `${rectangle.height}px`,
-                    border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
-                    backgroundColor: rectangle.fill,
-                    opacity: rectangle.opacity,
-                    zIndex,
-                    cursor: 'move',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dispatch(actionSelectItem, item);
-                  }}
-                  onMouseDown={(e) => handleRectangleMouseDown(e, item.id)}
-                >
-                  {selectedItem?.kind === 'rectangle' && selectedItem.id === item.id && (
-                    <ResizeHandles rectangleId={item.id} />
-                  )}
-                </div>
-              );
-            }
-            return null;
-          })}
-        </ViewportPortal>
-        
-        {/* 前面Portal（同様の実装） */}
-        <ViewportPortal>
-          {layerOrder.foregroundItems.map((item) => { /* 同様の実装 */ })}
-        </ViewportPortal>
-        
-        <Controls />
-        <Background />
-      </ReactFlow>
-      ```
-  
-  - **Portal要素のドラッグ実装**:
-    - `handleRectangleMouseDown` を実装:
-      - マウスダウン時に `window.addEventListener('mousemove', handleMouseMove)` でドラッグを開始
-      - viewport座標とスクリーン座標の変換を考慮（`useViewport()` の `x`, `y`, `zoom` を使用）
-      - ドラッグ中は一時的な座標をローカル状態で管理
-      - マウスアップ時に `actionUpdateRectanglePosition` をdispatch
-      - `stopPropagation()` で React Flow のパン操作と干渉しないようにする
-  
-  - **リサイズハンドルの実装**:
-    - `ResizeHandles` コンポーネントを実装（`ERCanvas.tsx` 内またはインライン）
-    - 四隅と四辺にリサイズハンドルを配置
-    - リサイズ中は `actionUpdateRectangleBounds` をdispatch
-    - viewport座標を考慮した実装
-  
-  - **矩形ノードの削除**:
-    - `convertToReactFlowRectangles` の呼び出しを削除
-    - `useEffect` で矩形を React Flow ノードとして追加していた処理を削除
-    - すべて ViewportPortal で描画
+    - `elevateEdgesOnSelect={false}` を追加 ✅
+    - エンティティノードに `zIndex: 0` を設定（`convertToReactFlowNodes` で） ✅
+    - リレーションエッジに `zIndex: -100` を設定（`convertToReactFlowEdges` で） ✅
 
-- [ ] `reactFlowConverter.ts` の更新（必要に応じて）
+  - **ViewportPortalで矩形をレンダリング**: ✅
+    - `ViewportPortal` をインポート（`@xyflow/react` から） ✅
+    - `useViewport()` でviewport座標を取得 ✅
+    - `layerOrder` と `rectangles` を購読 ✅
+    - `calculateZIndex` を使ってz-indexを計算 ✅
+    - 背面Portal と 前面Portal を実装 ✅
+  
+  - **Portal要素のドラッグ実装**: ✅
+    - `handleRectangleMouseDown` を実装 ✅
+    - viewport座標とスクリーン座標の変換を考慮（`useViewport()` の `zoom` を使用） ✅
+    - ドラッグ中はローカル状態で管理 ✅
+    - マウスアップ時に `actionUpdateRectanglePosition` をdispatch ✅
+    - `stopPropagation()` で React Flow のパン操作と干渉しないようにする ✅
+  
+  - **リサイズハンドルの実装**: ✅
+    - `ResizeHandles` コンポーネントを実装 ✅
+    - 四隅と四辺にリサイズハンドルを配置 ✅
+    - リサイズ中は `actionUpdateRectangleBounds` をdispatch ✅
+  
+  - **矩形ノードの削除**: ✅
+    - `convertToReactFlowRectangles` の呼び出しを削除 ✅
+    - `useEffect` で矩形を React Flow ノードとして追加していた処理を削除 ✅
+    - すべて ViewportPortal で描画 ✅
+
+- [x] `reactFlowConverter.ts` の更新（必要に応じて）
   - ファイル: `public/src/utils/reactFlowConverter.ts`
-  - `convertToReactFlowRectangles` 関数を削除または非推奨化
-  - エンティティノードに `zIndex: 0` を追加
-  - エッジに `zIndex: -100` を追加
+  - `convertToReactFlowRectangles` 関数に非推奨コメントを追加 ✅
+  - エンティティノードに `zIndex: 0` を追加 ✅
+  - エッジに `zIndex: -100` を追加 ✅
 
-- [ ] `RectangleNode.tsx` の削除または非推奨化
+- [x] `RectangleNode.tsx` の削除または非推奨化
   - ファイル: `public/src/components/RectangleNode.tsx`
-  - ViewportPortalで矩形を描画するため、このコンポーネントは不要になる
-  - 削除するか、コメントで非推奨を明記
+  - ViewportPortalで矩形を描画するため、このコンポーネントは不要になる ✅
+  - 非推奨コメントを追加（既に追加済み） ✅
 
 #### ビルド・テスト確認
 
-- [ ] ビルド確認
-  - フロントエンドのビルドが通ること（`cd public && npm run build`）
-  - バックエンドのビルドが通ること（`npm run build`）
+- [x] ビルド確認
+  - フロントエンドのビルドが通ること（`cd public && npm run build`） ✅
+  - バックエンドのビルドが通ること（`npm run build`） ✅
 
-- [ ] テスト実行
-  - すべてのテストが通ること（`npm run test`）
+- [x] テスト実行
+  - すべてのテストが通ること（`npm run test`） ✅ (62 tests passed)
+
+**フェーズ2完了**: ViewportPortalによる矩形描画、z-index制御、Portal要素のドラッグ・リサイズ機能がすべて実装完了しました。
+
+---
+
+## フェーズ2の現状（2026-01-25 更新）
+
+### ✅ すべての作業が完了しました！
+
+#### 完了した作業
+- dnd-kitのインストール ✅
+- `zIndexCalculator.ts`の実装 ✅
+- `LayerPanel.tsx`の実装（dnd-kitを使用したドラッグ&ドロップ機能付き） ✅
+- `App.tsx`へのレイヤーパネル追加（左サイドバー） ✅
+- **型定義の問題を解決**: `npm run generate`を実行し、`layerOrder`、`selectedItem`、レイヤー関連型がすべて正しく生成されることを確認 ✅
+- **React Flowパッケージの移行**: `reactflow` → `@xyflow/react` ✅
+- **全ファイルのimport文更新**: 5ファイルすべて更新完了 ✅
+- **ViewportPortalの動作確認**: importに成功し、ビルドも通ることを確認 ✅
+- **ERCanvas.tsxの大幅更新**: ViewportPortalによる矩形描画、z-index制御の実装 ✅
+- **Portal要素のドラッグ・リサイズ機能**: マウスイベントを使った完全なドラッグ・リサイズ実装 ✅
+- **reactFlowConverter.tsの更新**: エンティティノードとエッジにzIndex追加 ✅
+- **RectangleNode.tsxの非推奨化**: 既に非推奨コメント付き ✅
+- **ビルド・テスト確認**: フロントエンド・バックエンドのビルド、62テストすべて通過 ✅
+
+#### 実装の詳細
+1. **ViewportPortalによる矩形描画**:
+   - 背面・前面の2つのViewportPortalで矩形を描画
+   - `calculateZIndex`関数でレイヤー順序からz-indexを計算
+   - 選択中の矩形にはアウトライン表示
+
+2. **ドラッグ機能**:
+   - `handleRectangleMouseDown`でドラッグ開始
+   - viewport.zoomを考慮した座標変換
+   - `actionUpdateRectanglePosition`でStoreを更新
+
+3. **リサイズ機能**:
+   - `ResizeHandles`コンポーネントで四隅・四辺にハンドルを配置
+   - 各ハンドルでドラッグすると矩形のサイズと位置を更新
+   - `actionUpdateRectangleBounds`でStoreを更新
+
+4. **React Flow設定**:
+   - `elevateNodesOnSelect={false}` と `elevateEdgesOnSelect={false}` を設定
+   - エンティティノード: `zIndex: 0`
+   - リレーションエッジ: `zIndex: -100`
+   - 背面矩形: `zIndex: -10000 + index`
+   - 前面矩形: `zIndex: 10000 + index`
 
 ---
 

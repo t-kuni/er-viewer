@@ -32,12 +32,14 @@ const initialState: ViewModel = {
       highlightedNodeIds: [],
       highlightedEdgeIds: [],
       highlightedColumnIds: [],
+      layerOrder: { backgroundItems: [], foregroundItems: [] },
     },
     loading: false,
   },
   ui: {
-    selectedRectangleId: null,
+    selectedItem: null,
     showBuildInfoModal: false,
+    showLayerPanel: false,
   },
   buildInfo: {
     data: null,

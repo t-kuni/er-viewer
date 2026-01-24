@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  actionSelectRectangle,
-  actionDeselectRectangle,
   actionShowBuildInfoModal,
   actionHideBuildInfoModal,
 } from '../../src/actions/globalUIActions';
@@ -21,66 +19,23 @@ describe('globalUIActions', () => {
         highlightedNodeIds: [],
         highlightedEdgeIds: [],
         highlightedColumnIds: [],
+        layerOrder: {
+          backgroundItems: [],
+          foregroundItems: [],
+        },
       },
       loading: false,
     },
     ui: {
-      selectedRectangleId: null,
+      selectedItem: null,
       showBuildInfoModal: false,
+      showLayerPanel: false,
     },
     buildInfo: {
       data: null,
       loading: false,
       error: null,
     },
-  });
-
-  describe('actionSelectRectangle', () => {
-    it('矩形が選択される', () => {
-      const viewModel = createMockViewModel();
-      
-      const result = actionSelectRectangle(viewModel, 'rect-1');
-
-      expect(result.ui.selectedRectangleId).toBe('rect-1');
-    });
-
-    it('変化がない場合は同一参照を返す', () => {
-      const viewModel: ViewModel = {
-        ...createMockViewModel(),
-        ui: {
-          selectedRectangleId: 'rect-1',
-          showBuildInfoModal: false,
-        },
-      };
-      
-      const result = actionSelectRectangle(viewModel, 'rect-1');
-
-      expect(result).toBe(viewModel);
-    });
-  });
-
-  describe('actionDeselectRectangle', () => {
-    it('矩形の選択が解除される', () => {
-      const viewModel: ViewModel = {
-        ...createMockViewModel(),
-        ui: {
-          selectedRectangleId: 'rect-1',
-          showBuildInfoModal: false,
-        },
-      };
-      
-      const result = actionDeselectRectangle(viewModel);
-
-      expect(result.ui.selectedRectangleId).toBeNull();
-    });
-
-    it('変化がない場合は同一参照を返す', () => {
-      const viewModel = createMockViewModel();
-      
-      const result = actionDeselectRectangle(viewModel);
-
-      expect(result).toBe(viewModel);
-    });
   });
 
   describe('actionShowBuildInfoModal', () => {
@@ -96,8 +51,9 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedRectangleId: null,
+          selectedItem: null,
           showBuildInfoModal: true,
+          showLayerPanel: false,
         },
       };
       
@@ -112,8 +68,9 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedRectangleId: null,
+          selectedItem: null,
           showBuildInfoModal: true,
+          showLayerPanel: false,
         },
       };
       

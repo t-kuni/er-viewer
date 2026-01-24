@@ -1,5 +1,5 @@
 import React from 'react'
-import { EdgeProps, getSmoothStepPath } from 'reactflow'
+import { EdgeProps, getSmoothStepPath } from '@xyflow/react'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEdge, actionClearHover } from '../actions/hoverActions'
 

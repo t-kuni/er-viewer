@@ -1,12 +1,12 @@
-# 矩形編集機能のUI設計検討
+# z-index編集機能のUI・実装方法検討
 
 ## リサーチ要件
 
-以下の観点から、矩形編集機能のUIについて調査・提案する：
+以下の観点から、z-index編集機能について調査・提案する：
 
-* 矩形編集機能のUIはどうするのが良いか？
-    * 場合によっては右クリックのコンテキストメニューなどを活用したほうがよいか？
-* 何かしらライブラリを導入した方がいいか？必要ないか？
+* エンティティ、リレーション、矩形、テキスト（将来実装予定）のz-indexをユーザが編集できるUI、実装方法を検討する
+* 要素がリストで表示されて、ドラッグで入れ替えるとz-indexが変わるような仕組みが良いのかなとか考えてるけどベストな方法があれば教えてほしい
+* ライブラリを使ったほうがよければそれも教えてほしい。不要なら無しでもいい
 
 ## プロジェクト概要
 
@@ -32,13 +32,37 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 
 ## 関連する既存仕様・実装
 
-### 矩形描画機能の要件（spec/rectangle_drawing_feature.md）
+### データモデル（scheme/main.tsp）
 
-矩形描画機能の仕様は以下の通り定義されている：
+TypeSpecで以下の型が定義されている：
 
-#### データモデル
+#### エンティティ（Entity）
 
-TypeSpec（`scheme/main.tsp`）で以下の型が定義されている：
+```typescript
+model EntityNodeViewModel {
+  id: string; // UUID
+  name: string;
+  x: float64;
+  y: float64;
+  columns: Column[];
+  ddl: string;
+}
+```
+
+#### リレーションシップ（Relationship）
+
+```typescript
+model RelationshipEdgeViewModel {
+  id: string; // UUID
+  sourceEntityId: string;
+  sourceColumnId: string;
+  targetEntityId: string;
+  targetColumnId: string;
+  constraintName: string;
+}
+```
+
+#### 矩形（Rectangle）
 
 ```typescript
 model Rectangle {
@@ -52,7 +76,24 @@ model Rectangle {
   strokeWidth: float64; // 枠線幅（px）
   opacity: float64;     // 透明度（0〜1）
 }
+```
 
+#### テキスト（Text）（未実装）
+
+```typescript
+model Text {
+  id: string; // UUID
+  x: float64;
+  y: float64;
+  content: string;
+  fontSize: float64;
+  fill: string;
+}
+```
+
+#### ERDiagramViewModel
+
+```typescript
 model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;
   edges: Record<RelationshipEdgeViewModel>;
@@ -62,116 +103,93 @@ model ERDiagramViewModel {
 }
 ```
 
-#### 機能要件
+現状、`ERDiagramViewModel`には各要素のz-indexに関する情報は含まれていない。
 
-仕様書に定義されている機能要件：
+### 現在のz-index制御（spec/rectangle_drawing_feature.md）
 
-**矩形の作成**
-- ツールバーの「矩形追加」ボタンをクリックすると、viewport中央に固定サイズの矩形を追加
-- デフォルト値: サイズ200×150px、背景色`#E3F2FD`、枠線色`#90CAF9`、枠線幅2px、透明度0.5
+#### レイヤー順序（MVP段階）
 
-**矩形の移動（実装済み）**
-- 矩形をドラッグして位置を変更可能
-- ドラッグ完了時（`onNodeDragStop`）に矩形の座標をStoreに反映
-- エンティティと同じ操作感で移動できる
+矩形描画機能の仕様書では、以下のレイヤー順序が定義されている：
 
-**矩形のリサイズ（実装済み）**
-- 選択中の矩形に対してリサイズハンドルを表示
-- React Flowの`NodeResizer`コンポーネントを使用
-- 最小サイズ: 幅40px × 高さ40px
-- リサイズ完了時（`onResizeEnd`）に矩形の座標とサイズをStoreに反映
+- 矩形ノード: `zIndex = 0`
+- エンティティノード: `zIndex = 100`
+- エッジ: デフォルト（0未満）
 
-**矩形の削除**
-- 矩形を選択して削除ボタンまたはDeleteキーで削除可能
-- 削除時は`actionRemoveRectangle`をdispatchして状態から除外
+#### React Flow設定
 
-**矩形のプロパティ編集（UIが未確定）**
-- 仕様書では「右サイドのプロパティパネル」と記載されているが、これは確定ではない
-- 編集可能なプロパティ:
-  - **背景色（fill）**: カラーピッカー + プリセット8色
-  - **枠線色（stroke）**: カラーピッカー + プリセット8色
-  - **透明度（opacity）**: スライダー（0〜1、ステップ0.01）
-  - **枠線幅（strokeWidth）**: 数値入力（0以上、ステップ1）
+- `elevateNodesOnSelect={false}`: 選択時に要素が前面に出ないようにする（ERCanvas.tsxで設定済み）
+- または`zIndexMode="manual"`: 自動z-index制御を無効化し、明示的にzIndexを管理
 
-#### カラーピッカー仕様
+#### 複数矩形の重なり順
 
-- ライブラリ: **react-colorful**を使用することが決定済み
-- コンポーネント: `HexColorPicker` + `HexColorInput`
-- プリセット8色（淡い色）:
-  - 青（`#E3F2FD`）
-  - シアン（`#E0F7FA`）
-  - ティール（`#E0F2F1`）
-  - 緑（`#E8F5E9`）
-  - 黄（`#FFFDE7`）
-  - オレンジ（`#FFF3E0`）
-  - ピンク（`#FCE4EC`）
-  - グレー（`#F5F5F5`）
+仕様書より抜粋：
 
-### フロントエンド技術スタック
+> MVP段階では作成順固定とし、重なり順の変更機能は後回し。
+> 将来的に必要になった場合は、`Rectangle`に`zIndex`フィールドを追加し、Actionで重なり順を変更可能にする。
 
-#### React Flow
+### React Flow統合
 
-- **役割**: ER図のレンダリングとインタラクティブ機能（ドラッグ&ドロップ、ズーム、パンなど）
-- **公式サイト**: https://reactflow.dev/
-- **バージョン**: v12系を使用（推測）
-- **特徴**:
-  - ノードベースのエディタを構築するためのライブラリ
-  - カスタムノード（Custom Node）を定義可能
-  - ドラッグ&ドロップ、リサイズなどの機能を標準で提供
-  - React Flowの`NodeResizer`コンポーネントでノードのリサイズが可能
+#### ERCanvasコンポーネント（public/src/components/ERCanvas.tsx）
 
-#### 現在のノード実装状況
+現在の実装では以下のように動作している：
 
-フロントエンドでは以下のノードタイプが使用されている：
+- エンティティ、矩形、リレーションシップをReact Flowノード・エッジとして描画
+- `nodeTypes`に`entityNode`と`rectangleNode`が登録済み
+- `edgeTypes`に`relationshipEdge`が登録済み
+- `elevateNodesOnSelect={false}`を設定（選択時に要素が前面に出ない）
 
-1. **エンティティノード（entityNode）**: データベーステーブルを表示
-2. **矩形ノード（rectangleNode）**: エンティティのグループ化用（実装済み）
-3. **テキストノード（textNode）**: 注釈用（未実装）
+#### ノード・エッジの変換（public/src/utils/reactFlowConverter.ts）
+
+- `ERDiagramViewModel`の各要素（nodes, edges, rectangles）をReact Flowの形式に変換
+- 変換時に各要素のz-indexを指定する仕組みが考えられる
 
 ### フロントエンド状態管理（spec/frontend_state_management.md）
 
-アプリケーション全体の状態管理は以下の方針で実装されている：
+#### 設計原則
 
-- **単一状態ツリー**: ER図に関するすべての状態を`ERDiagramViewModel`で管理
+- **単一状態ツリー**: アプリケーション全体の状態を`ViewModel`で管理
 - **純粋関数Action**: すべての状態更新は `action(viewModel, ...params) => newViewModel` の形式で実装
 - **状態管理**: 自前Store + React `useSyncExternalStore`（ライブラリ非依存）
-- **React Flowとの統合**: ドラッグ中はReact Flow内部状態を使用、確定時のみストアに反映
 
-### 矩形操作のAction（実装済み）
+#### Action層の設計
 
-`public/src/actions/rectangleActions.ts`に以下のActionが実装されている：
+すべてのActionは以下の形式の純粋関数：
 
+```typescript
+type ActionFn<Args extends any[] = any[]> = (
+  viewModel: ViewModel,
+  ...args: Args
+) => ViewModel;
+```
+
+例：
 - `actionAddRectangle(vm, rectangle)`: 新規矩形を追加
-- `actionRemoveRectangle(vm, rectangleId)`: 矩形を削除
-- `actionUpdateRectanglePosition(vm, rectangleId, x, y)`: 矩形の位置を更新
-- `actionUpdateRectangleSize(vm, rectangleId, width, height)`: 矩形のサイズを更新
-- `actionUpdateRectangleBounds(vm, rectangleId, {x, y, width, height})`: 矩形の座標とサイズを一括更新
-- `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイル（fill/stroke/strokeWidth/opacity）を部分更新
+- `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイルを部分更新
 
-すべてのActionは純粋関数として実装されており、状態に変化がない場合は同一参照を返す設計となっている。
+z-index編集機能を実装する場合、同様のAction層で状態を更新することになる。
 
-### RectangleNodeコンポーネント（実装済み）
+### 永続化
 
-`public/src/components/RectangleNode.tsx`が実装されている：
+#### LayoutDataへの保存
 
-- `NodeResizer`を使用してリサイズハンドルを表示
-- 最小サイズ: 40×40px
-- `onResizeEnd`でリサイズ完了時に`actionUpdateRectangleBounds`をdispatch
-- スタイルは`data`プロパティから取得（fill、stroke、strokeWidth、opacity）
-- z-index制御: デフォルトでzIndex=0（エンティティより背景）
+現在、以下の情報が永続化されている：
 
-### ERCanvasコンポーネント（実装済み）
+```typescript
+model LayoutData {
+  entities: Record<EntityLayoutItem>;  // エンティティの座標
+  rectangles: Record<Rectangle>;       // 矩形の情報
+  texts: Record<Text>;                 // テキストの情報
+}
+```
 
-`public/src/components/ERCanvas.tsx`には以下が実装されている：
+保存API: `POST /api/layout`
+読み込みAPI: `GET /api/layout`
 
-- ツールバーに「矩形追加」ボタンあり
-- `nodeTypes`に`rectangleNode`が登録済み
-- `onNodeDragStop`で矩形とエンティティの位置更新を処理
-- `elevateNodesOnSelect={false}`を設定（選択時に矩形が前面に出ないように）
+z-indexを永続化する場合、`LayoutData`または`ERDiagramViewModel`に情報を追加する必要がある。
 
 ### 既存のUI構造
 
-`public/src/components/App.tsx`:
+#### App.tsx
 
 ```typescript
 function App() {
@@ -195,125 +213,150 @@ function App() {
 - メインコンテンツ（ERCanvas）が残りの高さを占める
 - モーダルはポータルとして表示
 
-### z-index制御とレイヤー管理
+z-index編集UIを追加する場合、以下のような配置が考えられる（限定しない）：
+- サイドバー
+- ツールバー
+- モーダル
+- フローティングパネル
+- その他
 
-仕様書より、以下のレイヤー順序が定義されている：
+#### ツールバー（ERCanvas.tsx）
 
-- 矩形ノード: `zIndex = 0`
-- エンティティノード: `zIndex = 100`
-- エッジ: デフォルト（0未満）
+現在のツールバーには以下のボタンがある：
+- 「リバースエンジニア」ボタン
+- 「矩形追加」ボタン
 
-MVP段階では作成順固定とし、重なり順の変更機能は後回し。
+z-index編集を起動するボタンをツールバーに追加することも考えられる。
 
-## 現在の実装状況のまとめ
+### 矩形プロパティパネル（実装済み）
 
-**実装済み**:
-- 矩形の追加（ツールバーボタン）
-- 矩形の移動（ドラッグ）
-- 矩形のリサイズ（NodeResizerによる）
-- 矩形操作用のAction（すべて）
-- RectangleNodeコンポーネント
-- ERCanvasへの統合
-- react-colorfulのインストール
+#### RectanglePropertyPanel.tsx（public/src/components/RectanglePropertyPanel.tsx）
 
-**未実装**:
-- 矩形のプロパティ編集UI（背景色、枠線色、透明度、枠線幅の編集）
-- 矩形の削除機能（ボタンまたはDeleteキー）
+矩形のプロパティ編集UIとして、右サイドバー型のプロパティパネルが実装されている：
+
+- 背景色の編集（カラーピッカー + プリセット8色）
+- 枠線色の編集（カラーピッカー + プリセット8色）
+- 透明度の編集（スライダー）
+- 枠線幅の編集（数値入力）
+- 削除ボタン
+
+カラーピッカーライブラリ: **react-colorful**（`HexColorPicker`と`HexColorInput`）を使用
+
+このパネルと同様の配置・スタイルでz-index編集UIを実装することも考えられる。
 
 ## 検討すべき事項
 
-### 1. プロパティ編集UIの配置方法
+### 1. z-indexの管理方法
 
-以下のような選択肢が考えられるが、どれが最適か？
+現状、各要素（エンティティ、リレーション、矩形、テキスト）にz-indexフィールドはない。
 
-**選択肢の例（限定しない）**:
-- 右サイドバーのプロパティパネル
-- 左サイドバーのプロパティパネル
+以下のような選択肢が考えられる（限定しない）：
+
+- 各要素にz-indexフィールドを追加する
+- 別途、要素のレイヤー順序を管理するデータ構造を用意する
+- React Flowのノード配列の順序でz-indexを決定する（配列の後ろほど前面）
+- その他
+
+### 2. z-index編集UIの配置方法
+
+以下のような選択肢が考えられる（限定しない）：
+
+- 右サイドバー（矩形プロパティパネルと同じ配置）
+- 左サイドバー
 - フローティングパネル
 - モーダルダイアログ
-- コンテキストメニュー（右クリック）
 - ツールバー内のポップオーバー
-- インラインエディタ（矩形の近くに表示）
+- コンテキストメニュー（右クリック）
 - その他
 
 各選択肢のメリット・デメリット、実装の難易度、React Flowとの親和性について調査してほしい。
 
-### 2. コンテキストメニューの活用
+### 3. z-index編集UIの操作方法
 
-- 右クリックのコンテキストメニューを使用する場合の利点・欠点は？
-- React Flowでコンテキストメニューを実装する方法は？
-- コンテキストメニュー専用のライブラリを使用すべきか？
+以下のような選択肢が考えられる（限定しない）：
 
-### 3. ライブラリの必要性
-
-プロパティ編集UIの実装にあたって、以下のようなライブラリが必要か？
-
-**想定されるライブラリの例（限定しない）**:
-- UIコンポーネントライブラリ（Material-UI、Ant Design、Chakra UIなど）
-- コンテキストメニューライブラリ
-- フォームライブラリ
-- スライダー専用ライブラリ
+- 要素のリストを表示し、ドラッグ&ドロップで順序を入れ替える
+- 各要素に「前面へ移動」「背面へ移動」ボタンを配置
+- z-index値を直接数値入力で編集
 - その他
 
-それとも、素のReactとreact-colorfulだけで十分実装可能か？
+各選択肢のメリット・デメリット、ユーザビリティについて調査してほしい。
 
-### 4. 選択状態の管理
+### 4. ライブラリの必要性
 
-- 矩形が選択されているかどうかをどう判定するか？
-- React Flowの`useReactFlow`フックから`getSelectedElements()`を使用すべきか？
-- 選択変更の検知方法（`onSelectionChange`イベントなど）
-- 複数選択時の挙動
-- エンティティノードが選択されている場合の挙動
+リスト表示とドラッグ&ドロップ機能を実装する場合、以下のようなライブラリが考えられる（限定しない）：
 
-### 5. UIのレイアウト設計
+- **react-beautiful-dnd**: リストのドラッグ&ドロップ
+- **dnd-kit**: モダンなドラッグ&ドロップライブラリ
+- **react-sortable-hoc**: リストのソート
+- その他
 
-プロパティ編集UIを実装する場合：
+各ライブラリの特徴、メリット・デメリット、React Flowとの互換性について調査してほしい。
 
-- カラーピッカーの開閉状態の管理（常時表示？クリックで開く？）
-- プリセット色のクリック処理とレイアウト（グリッド？横並び？）
-- 入力値のバリデーション
-- 各入力フィールドのラベル表示
-- 全体のスタイリング方法
+また、ライブラリを使わずにブラウザ標準のDrag and Drop APIで実装する選択肢についても調査してほしい。
 
-### 6. 削除機能のUI
+### 5. 要素の種類別の扱い
 
-- 削除ボタンをどこに配置すべきか？
-- Deleteキーのイベントハンドリング方法
-- プロパティパネル内に配置？ツールバー？コンテキストメニュー？
+エンティティ、リレーション、矩形、テキストは異なる型であり、以下のような考慮が必要：
 
-### 7. 再利用可能なコンポーネント設計
+- すべての要素を統一的にリスト表示する方法
+- 要素の種類ごとにアイコンや色を変える必要性
+- リレーション（エッジ）のz-indexをどう扱うか（React Flowではノードとエッジは別扱い）
+- テキストは未実装だが、将来の拡張性を考慮するべきか
 
-- カラーピッカーコンポーネントを矩形以外（将来的にテキストノードの色など）でも使えるようにするには？
-- プロパティ編集パネルの汎用的な設計方針は？
+### 6. 選択状態との連携
 
-### 8. リアルタイム更新 vs 確定時更新
+現在、矩形の選択状態は以下で管理されている：
 
-- 色や透明度を変更した際、即座にキャンバスに反映すべきか？
-- 確定ボタンを押した時に反映すべきか？
-- デバウンス処理の必要性
+- React Flowの選択機能（`onSelectionChange`）
+- `GlobalUIState.selectedRectangleId`（矩形プロパティパネル表示制御用）
+
+z-index編集UI上で要素を選択した場合、キャンバス上の選択状態と連動させるべきか？
+
+### 7. リアルタイム更新 vs 確定時更新
+
+z-indexをドラッグで入れ替えた際、以下のどちらが適切か：
+
+- ドラッグ中もリアルタイムにキャンバスに反映する
+- ドラッグ完了時（または「適用」ボタン押下時）に反映する
+
+### 8. 永続化の仕様
+
+z-index情報をどのように永続化するか：
+
+- 各要素にz-indexフィールドを追加し、`LayoutData`に保存
+- 別途、レイヤー順序を管理するデータ構造を追加
+- サーバー側での保存形式
 
 ### 9. 他のダイアグラムツールのUI参考
 
-以下のようなツールではどのようなUIが採用されているか？（参考情報として）:
+以下のようなツールではz-index編集がどのように実装されているか（参考情報として）：
+
 - Figma
 - Miro
 - draw.io / diagrams.net
 - Lucidchart
 - その他のダイアグラム作成ツール
 
+### 10. React Flowとの統合
+
+- React Flowでz-indexを動的に変更する方法
+- ノードとエッジのz-indexを独立して管理する方法
+- `zIndex`プロパティの更新がパフォーマンスに与える影響
+
 ## 既存の技術的制約
 
 - **React Flow**: カスタムノードとして実装済み、React Flowの標準機能を活用すべき
 - **状態管理**: 自前StoreとAction層を使用、純粋関数で実装する必要がある
-- **カラーピッカー**: react-colorful使用が確定（`HexColorPicker`と`HexColorInput`）
-- **レイアウト**: 現在はヘッダー+メインコンテンツの構成、サイドバーは未実装
+- **TypeSpec**: 型定義は`scheme/main.tsp`で一元管理し、`npm run generate`で生成
+- **レイアウト**: 現在はヘッダー+メインコンテンツの構成、右サイドバー（矩形プロパティパネル）が実装済み
 
 ## 重視する点
 
 - **実装の容易さ**: MVPフェーズであり、シンプルで実装しやすい方法を優先
 - **操作性**: ユーザーが直感的に操作できるUI
 - **React Flowとの親和性**: React Flowの標準機能を活用し、無理のない統合
-- **再利用性**: カラーピッカーやプロパティ編集UIは他の機能でも使えるように設計
+- **拡張性**: テキストノードなど将来追加される要素にも対応できる設計
 
 ## 重視しない点
 
@@ -326,10 +369,12 @@ MVP段階では作成順固定とし、重なり順の変更機能は後回し�
 
 上記の検討すべき事項について、具体的なUI設計案、推奨ライブラリ（必要な場合）、実装方法、およびサンプルコードを提案してください。特に以下の点について詳しく説明してください：
 
-1. **最適なUI配置方法**（サイドバー、コンテキストメニュー、その他）とその理由
-2. **ライブラリの必要性**とその選定根拠
-3. **実装の具体的な手順**とコード例
-4. **選択状態の管理方法**
-5. **React Flowとの統合方法**
+1. **z-indexの管理方法**（データモデルの設計）
+2. **最適なUI配置方法**とその理由
+3. **最適な操作方法**（リストのドラッグ&ドロップなど）とその理由
+4. **ライブラリの必要性**とその選定根拠
+5. **実装の具体的な手順**とコード例
+6. **React Flowとの統合方法**
+7. **永続化の仕様**
 
 可能であれば、複数の選択肢を比較し、それぞれのメリット・デメリットを示してください。

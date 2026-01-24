@@ -166,12 +166,36 @@ model HoverTarget {
   id: string; // UUID: entity/edge/column すべてこのIDで識別
 }
 
+// Layer management
+enum LayerItemKind {
+  entity,    // エンティティ（ER図レイヤー固定、編集不可）
+  relation,  // リレーション（ER図レイヤー固定、編集不可）
+  rectangle, // 矩形（前面・背面に配置可能）
+  text,      // テキスト（前面・背面に配置可能）
+}
+
+model LayerItemRef {
+  kind: LayerItemKind;
+  id: string; // UUID
+}
+
+enum LayerPosition {
+  background, // 背面（ER図より下）
+  foreground, // 前面（ER図より上）
+}
+
+model LayerOrder {
+  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
+  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
+}
+
 // UI state for ER diagram
 model ERDiagramUIState {
   hover: HoverTarget | null;
   highlightedNodeIds: string[]; // Entity IDs (UUID)
   highlightedEdgeIds: string[]; // Edge IDs (UUID)
   highlightedColumnIds: string[]; // Column IDs (UUID)
+  layerOrder: LayerOrder; // レイヤー順序
 }
 
 // Complete ER diagram view model
@@ -185,8 +209,9 @@ model ERDiagramViewModel {
 
 // Global UI state
 model GlobalUIState {
-  selectedRectangleId: string | null; // 選択中の矩形ID（プロパティパネル表示制御用）
+  selectedItem: LayerItemRef | null; // 選択中のアイテム（矩形、テキスト、エンティティ）
   showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
+  showLayerPanel: boolean; // レイヤーパネル表示フラグ
 }
 
 // Build info cache state

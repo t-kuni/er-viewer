@@ -102,6 +102,29 @@ model BuildInfo {
   arch: string;
 }
 
+// Internal implementation models (used by lib/database.ts)
+// These models are not used in API endpoints but are needed for internal data processing
+
+// ER Data model (used by DatabaseManager.generateERData())
+model ERData {
+  entities: Entity[];
+  relationships: Relationship[];
+}
+
+// Layout models (used by DatabaseManager.generateDefaultLayoutData())
+model EntityLayoutItem {
+  id: string; // UUID (エンティティIDと同じ)
+  name: string;
+  x: float64;
+  y: float64;
+}
+
+model LayoutData {
+  entities: Record<EntityLayoutItem>;
+  rectangles: Record<Rectangle>;
+  texts: Record<Text>;
+}
+
 // ViewModel for ER diagram rendering
 // These models represent the data structure used by the frontend to render the ER diagram
 

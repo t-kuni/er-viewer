@@ -1,492 +1,208 @@
-# レイヤー管理機能実装タスク一覧
+# ViewModelベースAPI実装タスク
 
-仕様書: [spec/layer_management.md](./spec/layer_management.md)
+仕様書の更新に基づき、APIをViewModelベースに刷新するタスクを洗い出しました。
 
-## 概要
+## フェーズ1: バックエンドAPI実装
 
-新仕様により、矩形をER図の前面・背面に配置し、左サイドバーのレイヤーパネルでドラッグ&ドロップにより順序を編集できるようにする。
+### scheme/main.tspの型定義復活
 
-**主な変更点:**
-- `GlobalUIState.selectedRectangleId` → `GlobalUIState.selectedItem`（種類と選択の統一）
-- `ERDiagramUIState.layerOrder` を追加（レイヤー順序管理）
-- `GlobalUIState.showLayerPanel` を追加（レイヤーパネル表示制御）
-- レイヤーパネルを左サイドバーに配置（矩形プロパティパネルは右サイドバーで共存可能）
-- 矩形をViewportPortalで描画し、z-indexで前面・背面を制御
+- [x] `scheme/main.tsp`に内部実装用の型を再追加
+  - `ERData` - `lib/database.ts`の`generateERData()`の戻り値として使用
+  - `LayoutData` - `lib/database.ts`の`generateDefaultLayoutData()`の戻り値として使用
+  - `EntityLayoutItem` - `LayoutData`の要素として使用
+  - **注意**: これらの型はAPIエンドポイントでは使用しないが、内部実装で使用するため定義が必要
+  - 型定義の位置: API定義（`namespace API`）の前に配置
 
-**スコープ:**
-- テキスト機能は対象外（未実装のため）
-- エンティティ・リレーションは選択対象外（レイヤーパネル上では「ER Diagram」として一括扱い）
+### TypeSpec定義の型生成
 
-修正対象: 更新約10ファイル、新規作成4ファイル
-実装は2フェーズに分けて行う。
+- [ ] `npm run generate`を実行してTypeSpecから型定義を生成
+  - `scheme/main.tsp`の変更を反映
+  - `lib/generated/api-types.ts`と`public/src/api/client/`が更新される
 
----
+### GetInitialViewModelUsecaseの実装
 
-## フェーズ1: Action層実装と選択状態統一
+- [ ] `lib/usecases/GetInitialViewModelUsecase.ts`を新規作成
+  - インタフェース: `createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) => () => ViewModel`
+  - 依存性注入するもの:
+    - `getBuildInfo: () => BuildInfo` (GetBuildInfoUsecaseの実行関数)
+  - 処理内容:
+    - 空のERDiagramViewModelを生成
+    - 初期のGlobalUIStateを生成
+    - `getBuildInfo()`を呼び出してBuildInfoを取得
+    - BuildInfoStateを構築 (`data: buildInfo, loading: false, error: null`)
+    - これらを組み合わせてViewModelを返却
+  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)の「GetInitialViewModelUsecase」セクション
 
-このフェーズでは、型の再生成、レイヤー管理用のAction実装、選択状態の統一（`selectedRectangleId` → `selectedItem`）を行う。
-ビルド・テスト可能な状態を維持する。
+### ReverseEngineerUsecaseの修正
 
-### タスク
+- [ ] `lib/usecases/ReverseEngineerUsecase.ts`を修正
+  - インタフェース変更: `(viewModel: ViewModel) => Promise<ViewModel>`
+    - 引数: 現在のViewModelを受け取る
+    - 戻り値: 更新後のViewModelを返す
+  - 依存性注入は変更なし
+  - 処理内容の変更:
+    - データベースからER図を生成（既存の処理を流用）
+    - `erData`から`EntityNodeViewModel`のRecord（nodes）を生成
+    - `relationships`から`RelationshipEdgeViewModel`のRecord（edges）を生成
+    - レイアウト生成ロジックをnodes生成時に統合（別途LayoutDataを生成しない）
+    - リクエストで受け取ったViewModelの`erDiagram`を更新
+    - `ui`状態と`buildInfo`状態はリクエストから引き継ぐ
+    - 更新後のViewModelを返却
+  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)の「ReverseEngineerUsecase」セクション
 
-#### 型の再生成
+### DatabaseManagerの修正
 
-- [x] 型の再生成
-  - `npm run generate` を実行して `scheme/main.tsp` から型を再生成する
-  - 生成される型: `LayerItemKind`, `LayerItemRef`, `LayerPosition`, `LayerOrder`
-  - `GlobalUIState` に `selectedItem`, `showLayerPanel` が追加される
-  - `ERDiagramUIState` に `layerOrder` が追加される
-  - **注意**: `selectedRectangleId` は型定義から削除されているため、既存コードとの互換性が一時的に失われる
+- [ ] `lib/database.ts`を修正
+  - `generateERData()`メソッドは削除せず残す（ReverseEngineerUsecase内で利用）
+  - `generateDefaultLayoutData()`メソッドは削除せず残す（またはロジックをUsecaseに移動）
+  - `ERData`, `LayoutData`, `EntityLayoutItem`型は復活させた型定義を使用
+  - `getTableDDL()`メソッドは残す（将来的に使用する可能性があるため）
 
-#### Store初期状態の更新
+### server.tsのAPI実装
 
-- [x] Store初期状態の更新
-  - ファイル: `public/src/store/erDiagramStore.ts`
-  - `initialState` を更新:
-    ```typescript
-    const initialState: ViewModel = {
-      erDiagram: {
-        nodes: {},
-        edges: {},
-        rectangles: {},
-        ui: {
-          hover: null,
-          highlightedNodeIds: [],
-          highlightedEdgeIds: [],
-          highlightedColumnIds: [],
-          layerOrder: { backgroundItems: [], foregroundItems: [] }, // 追加
-        },
-        loading: false,
-      },
-      ui: {
-        selectedItem: null, // selectedRectangleId から置き換え
-        showBuildInfoModal: false,
-        showLayerPanel: false, // 追加
-      },
-      buildInfo: {
-        data: null,
-        loading: false,
-        error: null,
-      },
-    };
-    ```
+- [ ] `server.ts`を修正
+  - 新規エンドポイント追加:
+    - `GET /api/init` - GetInitialViewModelUsecaseを呼び出し、ViewModelを返却
+  - 既存エンドポイント修正:
+    - `POST /api/reverse-engineer` - リクエストボディから`ViewModel`を取得し、ReverseEngineerUsecaseに渡し、更新後のViewModelを返却
+  - 削除するエンドポイント:
+    - `GET /api/er-data`
+    - `POST /api/layout`
+    - `GET /api/layout`
+    - `GET /api/table/:tableName/ddl`
+    - `GET /api/build-info`
+  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)のAPIセクション
 
-#### レイヤー管理Action実装
+### バックエンドテストの実装
 
-- [x] `layerActions.ts` の実装
-  - ファイル: `public/src/actions/layerActions.ts` (新規作成)
-  - 以下のActionを実装（すべて純粋関数、状態に変化がない場合は同一参照を返す）:
-    
-    **`actionReorderLayerItems`**:
-    - シグネチャ: `(vm: ViewModel, position: 'foreground' | 'background', activeIndex: number, overIndex: number) => ViewModel`
-    - 機能: 同一セクション内でアイテムを並べ替え
-    - 実装: 配列から要素を削除し、新しい位置に挿入（イミュータブル）
-    
-    **`actionMoveLayerItem`**:
-    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef, toPosition: 'foreground' | 'background', toIndex: number) => ViewModel`
-    - 機能: アイテムを別のセクションへ移動
-    - 実装: 元のセクションから削除し、移動先のセクションに挿入
-    
-    **`actionAddLayerItem`**:
-    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef, position: 'foreground' | 'background') => ViewModel`
-    - 機能: 新規アイテムをレイヤーに追加
-    - 実装: 指定されたセクションの配列末尾に追加（配列の後ろが前面）
-    
-    **`actionRemoveLayerItem`**:
-    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef) => ViewModel`
-    - 機能: アイテムを削除時にレイヤーからも除去
-    - 実装: 背面・前面の両方を探索して削除
-    
-    **`actionSelectItem`**:
-    - シグネチャ: `(vm: ViewModel, itemRef: LayerItemRef | null) => ViewModel`
-    - 機能: アイテムを選択（nullで選択解除）
-    - 実装: `vm.ui.selectedItem` を更新
-    
-    **`actionToggleLayerPanel`**:
-    - シグネチャ: `(vm: ViewModel) => ViewModel`
-    - 機能: レイヤーパネルの表示/非表示を切り替え
-    - 実装: `vm.ui.showLayerPanel` をトグル
+- [ ] `tests/usecases/GetInitialViewModelUsecase.test.ts`を新規作成
+  - GetInitialViewModelUsecaseの動作を検証
+  - ビルド情報が正しく含まれることを確認
+  - 初期状態が正しいことを確認
 
-- [x] `layerActions.test.ts` の実装
-  - ファイル: `public/tests/actions/layerActions.test.ts` (新規作成)
-  - 各Actionの単体テストを実装:
-    - `actionReorderLayerItems`: 同一セクション内での並べ替えが正しく動作すること
-    - `actionMoveLayerItem`: セクション間の移動が正しく動作すること
-    - `actionAddLayerItem`: アイテムが配列末尾に追加されること
-    - `actionRemoveLayerItem`: 両セクションからアイテムが削除されること
-    - `actionSelectItem`: 選択状態が正しく更新されること
-    - `actionToggleLayerPanel`: パネルの表示状態が切り替わること
-    - すべてのActionで、変化がない場合に同一参照を返すこと
+- [ ] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
+  - ViewModelを引数として受け取る新しいインタフェースに対応
+  - ViewModelの`erDiagram`が更新されることを確認
+  - `ui`と`buildInfo`が引き継がれることを確認
 
-#### 既存Actionの更新
+### ビルド・テストの確認
 
-- [x] `rectangleActions.ts` の更新
-  - ファイル: `public/src/actions/rectangleActions.ts`
-  - **`actionAddRectangle`** を更新:
-    - 矩形追加後、`actionAddLayerItem` を呼び出して背面レイヤーに追加
-    - 実装例:
-      ```typescript
-      export function actionAddRectangle(
-        vm: ViewModel,
-        rectangle: Rectangle
-      ): ViewModel {
-        // 既存の矩形追加ロジック
-        let nextVm = { ...vm, erDiagram: { ...vm.erDiagram, rectangles: { ...vm.erDiagram.rectangles, [rectangle.id]: rectangle } } };
-        
-        // レイヤーに追加
-        nextVm = actionAddLayerItem(nextVm, { kind: 'rectangle', id: rectangle.id }, 'background');
-        
-        return nextVm;
-      }
-      ```
-  - **`actionRemoveRectangle`** を更新:
-    - 矩形削除時、`actionRemoveLayerItem` を呼び出してレイヤーからも削除
-    - 削除する矩形が選択中の場合は `actionSelectItem(vm, null)` で選択解除
-    - 実装例:
-      ```typescript
-      export function actionRemoveRectangle(
-        vm: ViewModel,
-        rectangleId: string
-      ): ViewModel {
-        if (!vm.erDiagram.rectangles[rectangleId]) {
-          return vm;
-        }
-        
-        // 矩形を削除
-        const { [rectangleId]: _, ...restRectangles } = vm.erDiagram.rectangles;
-        let nextVm = { ...vm, erDiagram: { ...vm.erDiagram, rectangles: restRectangles } };
-        
-        // レイヤーから削除
-        nextVm = actionRemoveLayerItem(nextVm, { kind: 'rectangle', id: rectangleId });
-        
-        // 選択中の場合は選択解除
-        if (nextVm.ui.selectedItem?.kind === 'rectangle' && nextVm.ui.selectedItem.id === rectangleId) {
-          nextVm = actionSelectItem(nextVm, null);
-        }
-        
-        return nextVm;
-      }
-      ```
-  - `layerActions` からのインポートを追加
+- [ ] バックエンドのビルドを確認
+  - `npm run generate`でTypeSpecから型定義を生成
+  - TypeScriptのコンパイルエラーがないことを確認
 
-- [x] `rectangleActions.test.ts` の更新
-  - ファイル: `public/tests/actions/rectangleActions.test.ts`
-  - `actionAddRectangle` のテストを更新:
-    - レイヤーに追加されることを確認（`vm.erDiagram.ui.layerOrder.backgroundItems` に含まれること）
-  - `actionRemoveRectangle` のテストを更新:
-    - レイヤーから削除されることを確認
-    - 選択中の矩形を削除すると選択が解除されることを確認
+- [ ] バックエンドのテストを実行
+  - `npm run test`でテストが全てパスすることを確認
 
-- [x] `globalUIActions.ts` の更新
-  - ファイル: `public/src/actions/globalUIActions.ts`
-  - 以下の関数を削除（`layerActions.ts` の `actionSelectItem` で代替）:
-    - `actionSelectRectangle`
-    - `actionDeselectRectangle`
-  - ビルド情報モーダル関連の関数（`actionShowBuildInfoModal`, `actionHideBuildInfoModal`）は維持
+## フェーズ2: フロントエンド実装
 
-- [x] `globalUIActions.test.ts` の更新
-  - ファイル: `public/tests/actions/globalUIActions.test.ts`
-  - `actionSelectRectangle`, `actionDeselectRectangle` のテストを削除
-  - ビルド情報モーダル関連のテストは維持
+### actionSetViewModelの実装
 
-#### UI層の選択状態統一
+- [ ] `public/src/actions/dataActions.ts`に`actionSetViewModel`を追加
+  - インタフェース: `(viewModel: ViewModel, newViewModel: ViewModel) => ViewModel`
+  - 処理内容: ViewModelを丸ごと差し替える（`return newViewModel`）
+  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「ViewModel全体を更新するAction」セクション
 
-- [x] `App.tsx` の更新
-  - ファイル: `public/src/components/App.tsx`
-  - インポートを更新:
-    - `actionSelectRectangle`, `actionDeselectRectangle` を削除
-    - `actionSelectItem` を追加（`layerActions` から）
-  - `selectedRectangleId` の購読を `selectedItem` に変更:
-    ```typescript
-    const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
-    ```
-  - `handleSelectionChange` を更新:
-    ```typescript
-    const handleSelectionChange = (rectangleId: string | null) => {
-      if (rectangleId === null) {
-        dispatch(actionSelectItem, null)
-      } else {
-        dispatch(actionSelectItem, { kind: 'rectangle', id: rectangleId })
-      }
-    }
-    ```
-  - プロパティパネルの表示条件を更新:
-    ```typescript
-    {selectedItem?.kind === 'rectangle' && (
-      <div style={{ width: '300px', ... }}>
-        <RectanglePropertyPanel rectangleId={selectedItem.id} />
-      </div>
-    )}
-    ```
+### commandInitializeの実装
 
-- [x] `ERCanvas.tsx` の更新
-  - ファイル: `public/src/components/ERCanvas.tsx`
-  - `selectedItem` を購読:
-    ```typescript
-    const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
-    ```
-  - `handleSelectionChange` を更新して `actionSelectItem` を使用
-  - React Flowノードの選択状態と `selectedItem` を同期（将来のViewportPortal移行に備えた準備）
+- [ ] `public/src/commands/initializeCommand.ts`を新規作成
+  - インタフェース: `async (dispatch: Store['dispatch']) => Promise<void>`
+  - 処理内容:
+    - `GET /api/init`を呼び出し
+    - 取得したViewModelを`actionSetViewModel`でStoreに設定
+    - エラー時はコンソールに出力
+  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「Command層」セクション
 
-#### ビルド・テスト確認
+### commandReverseEngineerの修正
 
-- [x] ビルド確認
-  - フロントエンドのビルドが通ること（`cd public && npm run build`）
-  - バックエンドのビルドが通ること（`npm run build`）
+- [ ] `public/src/commands/reverseEngineerCommand.ts`を修正
+  - 処理内容の変更:
+    - 現在のViewModelを`erDiagramStore.getState()`で取得
+    - `POST /api/reverse-engineer`に現在のViewModelを送信
+    - レスポンスのViewModelを`actionSetViewModel`でStoreに設定
+    - `buildERDiagramViewModel()`関数の呼び出しは削除（サーバーがViewModelを返すため不要）
+  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「Command層」セクション
 
-- [x] テスト実行
-  - すべてのテストが通ること（`npm run test`）
+### App.tsxの初期化処理追加
 
-**フェーズ1完了**: 型の再生成、レイヤー管理Action実装、選択状態統一、テスト実装がすべて完了しました。
+- [ ] `public/src/components/App.tsx`を修正
+  - `useEffect`を追加し、コンポーネントマウント時に`commandInitialize`を実行
+  - 依存配列は空配列（初回マウント時のみ実行）
+  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「初期化フロー」セクション
 
----
+### BuildInfoModalの修正
 
-## フェーズ2: レイヤーパネルUI + ViewportPortal + z-index制御
+- [ ] `public/src/components/BuildInfoModal.tsx`を修正
+  - ローカル状態（`buildInfo`, `loading`, `error`）を削除
+  - `useViewModel`でStoreから`viewModel.buildInfo`を取得
+  - `commandFetchBuildInfo`の呼び出しを削除
+  - キャッシュされたビルド情報を表示するだけに簡素化
+  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「ビルド情報について」セクション
 
-このフェーズでは、左サイドバーにレイヤーパネルを実装し、ViewportPortalで矩形を前面・背面にレンダリングする。
-dnd-kitを導入してドラッグ&ドロップ機能を実装し、Portal要素のドラッグ・リサイズも実装する。
+### buildInfoActionsの削除
 
-### タスク
+- [ ] `public/src/actions/buildInfoActions.ts`を削除
+  - `actionSetBuildInfoLoading`, `actionSetBuildInfo`, `actionSetBuildInfoError`は不要
+  - `actionSetViewModel`で代替
 
-#### dnd-kitのインストール
+### buildInfoCommandの削除
 
-- [x] dnd-kitのインストール
-  - `cd public && npm install @dnd-kit/core @dnd-kit/sortable`
+- [ ] `public/src/commands/buildInfoCommand.ts`を削除
+  - `commandFetchBuildInfo`は不要（初期化時に取得済み）
 
-#### z-index計算ユーティリティ
+### viewModelConverterの削除
 
-- [x] `zIndexCalculator.ts` の実装
-  - ファイル: `public/src/utils/zIndexCalculator.ts` (新規作成)
-  - レイヤー順序から各アイテムのz-indexを計算する関数を実装:
-    ```typescript
-    import type { components } from '../../../lib/generated/api-types';
-    
-    type LayerOrder = components['schemas']['LayerOrder'];
-    type LayerItemRef = components['schemas']['LayerItemRef'];
-    
-    /**
-     * レイヤー順序から特定アイテムのz-indexを計算
-     */
-    export function calculateZIndex(layerOrder: LayerOrder, itemRef: LayerItemRef): number {
-      // 背面レイヤーを探索
-      const bgIndex = layerOrder.backgroundItems.findIndex(
-        item => item.kind === itemRef.kind && item.id === itemRef.id
-      );
-      if (bgIndex !== -1) {
-        return -10000 + bgIndex;
-      }
-      
-      // 前面レイヤーを探索
-      const fgIndex = layerOrder.foregroundItems.findIndex(
-        item => item.kind === itemRef.kind && item.id === itemRef.id
-      );
-      if (fgIndex !== -1) {
-        return 10000 + fgIndex;
-      }
-      
-      // 見つからない場合はデフォルト（0）
-      return 0;
-    }
-    
-    /**
-     * すべての背面・前面アイテムのz-indexをMapで返す
-     */
-    export function calculateAllZIndices(layerOrder: LayerOrder): Map<string, number> {
-      const zIndices = new Map<string, number>();
-      
-      layerOrder.backgroundItems.forEach((item, index) => {
-        zIndices.set(`${item.kind}-${item.id}`, -10000 + index);
-      });
-      
-      layerOrder.foregroundItems.forEach((item, index) => {
-        zIndices.set(`${item.kind}-${item.id}`, 10000 + index);
-      });
-      
-      return zIndices;
-    }
-    ```
+- [ ] `public/src/utils/viewModelConverter.ts`を削除
+  - `buildERDiagramViewModel()`関数は不要（サーバーがViewModelを返すため）
 
-#### レイヤーパネルUI実装
+### フロントエンドテストの修正
 
-- [x] `LayerPanel.tsx` の実装
-  - ファイル: `public/src/components/LayerPanel.tsx` (新規作成)
-  - dnd-kitを使用してドラッグ&ドロップ機能を実装
-  - レイヤーパネルのUI構成:
-    - 3つのセクション: 前面、ER図（固定）、背面
-    - 各セクション間に区切り線
-  - 各アイテムの表示:
-    - 矩形: アイコン + "Rectangle" + 短縮ID（最初の6文字）
-    - ER図: 「ER Diagram」固定ラベル（ドラッグ不可、選択不可）
-  - 選択中のアイテムは背景色でハイライト
-  - ドラッグ中のアイテムは透明度を下げる
-  - アイテムクリックで `actionSelectItem` をdispatch
-  - Store から `layerOrder` と `selectedItem` を購読
-  - ドラッグ&ドロップ処理:
-    - `onDragEnd` で以下を判定:
-      - 同一セクション内の並べ替え → `actionReorderLayerItems` をdispatch
-      - セクション間の移動 → `actionMoveLayerItem` をdispatch
-      - ER図セクションはドロップ禁止エリア
-  - 実装の参考:
-    - `@dnd-kit/core` の `DndContext`, `DragOverlay` を使用
-    - `@dnd-kit/sortable` の `SortableContext`, `useSortable` を使用
-    - 前面・背面セクションに個別の `SortableContext` を適用
+- [ ] `public/tests/actions/buildInfoActions.test.ts`を削除
+  - 対応するActionが削除されたため
 
-- [x] `App.tsx` へのレイヤーパネル追加
-  - ファイル: `public/src/components/App.tsx`
-  - `LayerPanel` をインポート
-  - `actionToggleLayerPanel` をインポート
-  - `showLayerPanel` を購読:
-    ```typescript
-    const showLayerPanel = useViewModel((vm) => vm.ui.showLayerPanel)
-    ```
-  - ヘッダーに「レイヤー」ボタンを追加:
-    ```typescript
-    <button 
-      onClick={() => dispatch(actionToggleLayerPanel)}
-      style={{ ... }}
-    >
-      レイヤー
-    </button>
-    ```
-  - 左サイドバーとしてレイヤーパネルを表示:
-    ```typescript
-    <main style={{ display: 'flex', height: 'calc(100vh - 70px)' }}>
-      {showLayerPanel && (
-        <div style={{ width: '250px', background: '#f5f5f5', borderRight: '1px solid #ddd', overflowY: 'auto' }}>
-          <LayerPanel />
-        </div>
-      )}
-      <div style={{ flex: 1, position: 'relative' }}>
-        <ERCanvas onSelectionChange={handleSelectionChange} />
-      </div>
-      {selectedItem?.kind === 'rectangle' && (
-        <div style={{ width: '300px', ... }}>
-          <RectanglePropertyPanel rectangleId={selectedItem.id} />
-        </div>
-      )}
-    </main>
-    ```
+- [ ] `public/tests/actions/dataActions.test.ts`を修正
+  - `actionSetViewModel`のテストを追加
+  - 既存のテストは保持
 
-#### ViewportPortalとz-index制御
+### ビルドの確認
 
-- [x] React Flowパッケージの移行
-  - **必要な作業**: React Flow v11ではパッケージ名が変更されている
-  - `reactflow` パッケージをアンインストール: `cd public && npm uninstall reactflow` ✅
-  - `@xyflow/react` パッケージをインストール: `cd public && npm install @xyflow/react` ✅
-  - **理由**: v11では `ViewportPortal` を含むすべてのコンポーネントは `@xyflow/react` からインポートする必要がある
-  - **追加対応**: `ReactFlow` もnamed exportに変更（`import ReactFlow` → `import { ReactFlow }`）
+- [ ] フロントエンドのビルドを確認
+  - TypeScriptのコンパイルエラーがないことを確認
 
-- [x] 全ファイルのimport文を更新
-  - 以下の5ファイルのimport文を `reactflow` → `@xyflow/react` に変更: ✅
-    1. `public/src/components/ERCanvas.tsx` (ViewportPortal のimportも追加)
-    2. `public/src/components/RectangleNode.tsx`
-    3. `public/src/utils/reactFlowConverter.ts`
-    4. `public/src/components/RelationshipEdge.tsx`
-    5. `public/src/components/EntityNode.tsx`
-  - CSSのimport: `'reactflow/dist/style.css'` → `'@xyflow/react/dist/style.css'` ✅
+## 懸念事項
 
-- [x] `ERCanvas.tsx` の大幅更新
-  - ファイル: `public/src/components/ERCanvas.tsx`
-  - **React Flow設定の更新**:
-    - `elevateEdgesOnSelect={false}` を追加 ✅
-    - エンティティノードに `zIndex: 0` を設定（`convertToReactFlowNodes` で） ✅
-    - リレーションエッジに `zIndex: -100` を設定（`convertToReactFlowEdges` で） ✅
+### ERData/LayoutData型について（解決済み）
 
-  - **ViewportPortalで矩形をレンダリング**: ✅
-    - `ViewportPortal` をインポート（`@xyflow/react` から） ✅
-    - `useViewport()` でviewport座標を取得 ✅
-    - `layerOrder` と `rectangles` を購読 ✅
-    - `calculateZIndex` を使ってz-indexを計算 ✅
-    - 背面Portal と 前面Portal を実装 ✅
-  
-  - **Portal要素のドラッグ実装**: ✅
-    - `handleRectangleMouseDown` を実装 ✅
-    - viewport座標とスクリーン座標の変換を考慮（`useViewport()` の `zoom` を使用） ✅
-    - ドラッグ中はローカル状態で管理 ✅
-    - マウスアップ時に `actionUpdateRectanglePosition` をdispatch ✅
-    - `stopPropagation()` で React Flow のパン操作と干渉しないようにする ✅
-  
-  - **リサイズハンドルの実装**: ✅
-    - `ResizeHandles` コンポーネントを実装 ✅
-    - 四隅と四辺にリサイズハンドルを配置 ✅
-    - リサイズ中は `actionUpdateRectangleBounds` をdispatch ✅
-  
-  - **矩形ノードの削除**: ✅
-    - `convertToReactFlowRectangles` の呼び出しを削除 ✅
-    - `useEffect` で矩形を React Flow ノードとして追加していた処理を削除 ✅
-    - すべて ViewportPortal で描画 ✅
+`scheme/main.tsp`から`ERData`, `LayoutData`, `EntityLayoutItem`などが削除されましたが、`lib/database.ts`の既存メソッドが依然としてこれらの型を使用しています。
 
-- [x] `reactFlowConverter.ts` の更新（必要に応じて）
-  - ファイル: `public/src/utils/reactFlowConverter.ts`
-  - `convertToReactFlowRectangles` 関数に非推奨コメントを追加 ✅
-  - エンティティノードに `zIndex: 0` を追加 ✅
-  - エッジに `zIndex: -100` を追加 ✅
+**対処方針**（確認済み）:
+- これらの型を`scheme/main.tsp`に復活させる（APIエンドポイントでは使用しないが、内部実装で使用）
+- `lib/database.ts`は既存のメソッドをそのまま使用
 
-- [x] `RectangleNode.tsx` の削除または非推奨化
-  - ファイル: `public/src/components/RectangleNode.tsx`
-  - ViewportPortalで矩形を描画するため、このコンポーネントは不要になる ✅
-  - 非推奨コメントを追加（既に追加済み） ✅
+### APIクライアントコードの自動生成
 
-#### ビルド・テスト確認
+TypeSpecから生成されるAPIクライアント（`public/src/api/client/services/DefaultService.ts`）が新しいAPI仕様に対応しているかを確認する必要があります。
 
-- [x] ビルド確認
-  - フロントエンドのビルドが通ること（`cd public && npm run build`） ✅
-  - バックエンドのビルドが通ること（`npm run build`） ✅
+**確認ポイント**:
+- `init()`メソッドが生成されているか
+- `reverseEngineer(viewModel: ViewModel)`メソッドがViewModelを引数として受け取るか
+- 削除されたAPIのメソッドが残っていないか
 
-- [x] テスト実行
-  - すべてのテストが通ること（`npm run test`） ✅ (62 tests passed)
+### 初期化のタイミング（確認済み）
 
-**フェーズ2完了**: ViewportPortalによる矩形描画、z-index制御、Portal要素のドラッグ・リサイズ機能がすべて実装完了しました。
+`App.tsx`のマウント時に`commandInitialize`を実行します。
 
----
+**対処方針**（確認済み）:
+- MVPフェーズではエラーはコンソール出力のみとし、ローディング表示は後回し
+- ビルド情報の取得に失敗した場合もコンソールにエラーを出力するのみ
 
-## フェーズ2の現状（2026-01-25 更新）
+## 事前修正提案
 
-### ✅ すべての作業が完了しました！
+特になし。仕様書に従って実装を進めることで問題なく実現可能です。
 
-#### 完了した作業
-- dnd-kitのインストール ✅
-- `zIndexCalculator.ts`の実装 ✅
-- `LayerPanel.tsx`の実装（dnd-kitを使用したドラッグ&ドロップ機能付き） ✅
-- `App.tsx`へのレイヤーパネル追加（左サイドバー） ✅
-- **型定義の問題を解決**: `npm run generate`を実行し、`layerOrder`、`selectedItem`、レイヤー関連型がすべて正しく生成されることを確認 ✅
-- **React Flowパッケージの移行**: `reactflow` → `@xyflow/react` ✅
-- **全ファイルのimport文更新**: 5ファイルすべて更新完了 ✅
-- **ViewportPortalの動作確認**: importに成功し、ビルドも通ることを確認 ✅
-- **ERCanvas.tsxの大幅更新**: ViewportPortalによる矩形描画、z-index制御の実装 ✅
-- **Portal要素のドラッグ・リサイズ機能**: マウスイベントを使った完全なドラッグ・リサイズ実装 ✅
-- **reactFlowConverter.tsの更新**: エンティティノードとエッジにzIndex追加 ✅
-- **RectangleNode.tsxの非推奨化**: 既に非推奨コメント付き ✅
-- **ビルド・テスト確認**: フロントエンド・バックエンドのビルド、62テストすべて通過 ✅
+## 参考仕様書
 
-#### 実装の詳細
-1. **ViewportPortalによる矩形描画**:
-   - 背面・前面の2つのViewportPortalで矩形を描画
-   - `calculateZIndex`関数でレイヤー順序からz-indexを計算
-   - 選択中の矩形にはアウトライン表示
-
-2. **ドラッグ機能**:
-   - `handleRectangleMouseDown`でドラッグ開始
-   - viewport.zoomを考慮した座標変換
-   - `actionUpdateRectanglePosition`でStoreを更新
-
-3. **リサイズ機能**:
-   - `ResizeHandles`コンポーネントで四隅・四辺にハンドルを配置
-   - 各ハンドルでドラッグすると矩形のサイズと位置を更新
-   - `actionUpdateRectangleBounds`でStoreを更新
-
-4. **React Flow設定**:
-   - `elevateNodesOnSelect={false}` と `elevateEdgesOnSelect={false}` を設定
-   - エンティティノード: `zIndex: 0`
-   - リレーションエッジ: `zIndex: -100`
-   - 背面矩形: `zIndex: -10000 + index`
-   - 前面矩形: `zIndex: 10000 + index`
-
----
-
-## 備考
-
-- 各フェーズの最後に必ずビルド確認・テスト実行を行う
-- Portal要素のドラッグ・リサイズ、viewport座標同期は実装時に試行錯誤が必要
-- テキスト機能は対象外（将来的に実装された場合、同様の方法でレイヤー管理に統合）
-- エンティティ・リレーションはレイヤーパネル上では選択対象外（「ER Diagram」として一括扱い）
+- [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)
+- [フロントエンド状態管理仕様](./spec/frontend_state_management.md)
+- [バックエンドUsecaseアーキテクチャ仕様](./spec/backend_usecase_architecture.md)
+- [scheme/main.tsp](./scheme/main.tsp)

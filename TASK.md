@@ -1,217 +1,172 @@
-# ViewModelベースAPI実装タスク
+# インポート・エクスポート機能実装タスク
 
-仕様書の更新に基づき、APIをViewModelベースに刷新するタスクを洗い出しました。
+仕様書の更新（インポート・エクスポート機能の追加）に基づき、タスクを洗い出しました。
 
-## フェーズ1: バックエンドAPI実装
+参照仕様書：[インポート・エクスポート機能仕様](/spec/import_export_feature.md)
 
-### scheme/main.tspの型定義復活
+## フェーズ1: バックエンド実装（format/version対応）
 
-- [x] `scheme/main.tsp`に内部実装用の型を再追加
-  - `ERData` - `lib/database.ts`の`generateERData()`の戻り値として使用
-  - `LayoutData` - `lib/database.ts`の`generateDefaultLayoutData()`の戻り値として使用
-  - `EntityLayoutItem` - `LayoutData`の要素として使用
-  - **注意**: これらの型はAPIエンドポイントでは使用しないが、内部実装で使用するため定義が必要
-  - 型定義の位置: API定義（`namespace API`）の前に配置
+### GetInitialViewModelUsecaseの修正
 
-### TypeSpec定義の型生成
-
-- [x] `npm run generate`を実行してTypeSpecから型定義を生成
-  - `scheme/main.tsp`の変更を反映
-  - `lib/generated/api-types.ts`と`public/src/api/client/`が更新される
-  - **対処済み**: API名を`init`から`initialize`に変更
-
-### GetInitialViewModelUsecaseの実装
-
-- [x] `lib/usecases/GetInitialViewModelUsecase.ts`を新規作成
-  - インタフェース: `createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) => () => ViewModel`
-  - 依存性注入するもの:
-    - `getBuildInfo: () => BuildInfo` (GetBuildInfoUsecaseの実行関数)
-  - 処理内容:
-    - 空のERDiagramViewModelを生成
-    - 初期のGlobalUIStateを生成
-    - `getBuildInfo()`を呼び出してBuildInfoを取得
-    - BuildInfoStateを構築 (`data: buildInfo, loading: false, error: null`)
-    - これらを組み合わせてViewModelを返却
-  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)の「GetInitialViewModelUsecase」セクション
+- [ ] `lib/usecases/GetInitialViewModelUsecase.ts`を修正
+  - ViewModelに`format`フィールドを追加（固定値: `"er-viewer"`）
+  - ViewModelに`version`フィールドを追加（固定値: `1`）
+  - 返却するViewModelに以下を追加:
+    ```typescript
+    const viewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
+      erDiagram,
+      ui,
+      buildInfo: buildInfoState,
+    };
+    ```
+  - 参考: [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md)の「GetInitialViewModelUsecase」セクション
 
 ### ReverseEngineerUsecaseの修正
 
-- [x] `lib/usecases/ReverseEngineerUsecase.ts`を修正
-  - インタフェース変更: `(viewModel: ViewModel) => Promise<ViewModel>`
-    - 引数: 現在のViewModelを受け取る
-    - 戻り値: 更新後のViewModelを返す
-  - 依存性注入は変更なし
-  - 処理内容の変更:
-    - データベースからER図を生成（既存の処理を流用）
-    - `erData`から`EntityNodeViewModel`のRecord（nodes）を生成
-    - `relationships`から`RelationshipEdgeViewModel`のRecord（edges）を生成
-    - レイアウト生成ロジックをnodes生成時に統合（別途LayoutDataを生成しない）
-    - リクエストで受け取ったViewModelの`erDiagram`を更新
-    - `ui`状態と`buildInfo`状態はリクエストから引き継ぐ
-    - 更新後のViewModelを返却
-  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)の「ReverseEngineerUsecase」セクション
+- [ ] `lib/usecases/ReverseEngineerUsecase.ts`を修正
+  - ViewModelを返却する際に`format`と`version`を引き継ぐ
+  - 返却するViewModelを以下のように変更:
+    ```typescript
+    return {
+      format: viewModel.format,     // 追加
+      version: viewModel.version,   // 追加
+      erDiagram: {
+        ...viewModel.erDiagram,
+        nodes,
+        edges,
+        loading: false,
+      },
+      ui: viewModel.ui,
+      buildInfo: viewModel.buildInfo,
+    };
+    ```
+  - 参考: [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md)の「ReverseEngineerUsecase」セクション
 
-### DatabaseManagerの修正
+### GetInitialViewModelUsecaseのテスト修正
 
-- [x] `lib/database.ts`を修正（変更不要、既存のメソッドをそのまま使用）
-  - `generateERData()`メソッドは削除せず残す（ReverseEngineerUsecase内で利用）
-  - `generateDefaultLayoutData()`メソッドは削除せず残す（またはロジックをUsecaseに移動）
-  - `ERData`, `LayoutData`, `EntityLayoutItem`型は復活させた型定義を使用
-  - `getTableDDL()`メソッドは残す（将来的に使用する可能性があるため）
+- [ ] `tests/usecases/GetInitialViewModelUsecase.test.ts`を修正
+  - テストケースを更新して`format`と`version`フィールドの検証を追加
+  - 期待値に以下を追加:
+    ```typescript
+    expect(viewModel.format).toBe("er-viewer");
+    expect(viewModel.version).toBe(1);
+    ```
 
-### server.tsのAPI実装
+### ReverseEngineerUsecaseのテスト修正
 
-- [x] `server.ts`を修正
-  - 新規エンドポイント追加:
-    - `GET /api/init` - GetInitialViewModelUsecaseを呼び出し、ViewModelを返却
-  - 既存エンドポイント修正:
-    - `POST /api/reverse-engineer` - リクエストボディから`ViewModel`を取得し、ReverseEngineerUsecaseに渡し、更新後のViewModelを返却
-  - 削除するエンドポイント:
-    - `GET /api/er-data`
-    - `POST /api/layout`
-    - `GET /api/layout`
-    - `GET /api/table/:tableName/ddl`
-    - `GET /api/build-info`
-  - 参考: [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)のAPIセクション
+- [ ] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
+  - テストケースを更新して`format`と`version`が引き継がれることを検証
+  - リクエストViewModelに`format`と`version`を追加
+  - レスポンスViewModelで`format`と`version`が維持されていることを確認
 
-### バックエンドテストの実装
+### ビルド確認
 
-- [x] `tests/usecases/GetInitialViewModelUsecase.test.ts`を新規作成
-  - GetInitialViewModelUsecaseの動作を検証
-  - ビルド情報が正しく含まれることを確認
-  - 初期状態が正しいことを確認
+- [ ] ビルドの実行（バックエンド）
+  - コマンド: `npm run generate && npx tsc --project tsconfig.server.json`
+  - エラーがある場合は修正
 
-- [x] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
-  - ViewModelを引数として受け取る新しいインタフェースに対応
-  - ViewModelの`erDiagram`が更新されることを確認
-  - `ui`と`buildInfo`が引き継がれることを確認
+### テスト実行
 
-### ビルド・テストの確認
+- [ ] テスト実行（バックエンド）
+  - コマンド: `npm run test`
+  - テスト失敗がある場合は修正
 
-- [x] バックエンドのビルドを確認
-  - `npm run generate`でTypeSpecから型定義を生成
-  - TypeScriptのコンパイルエラーがないことを確認
+## フェーズ2: フロントエンド実装（エクスポート・インポート機能）
 
-- [x] バックエンドのテストを実行
-  - `npm run test`でテストが全てパスすることを確認
+### react-dropzoneのインストール
 
-## フェーズ2: フロントエンド実装
+- [ ] `public/package.json`に`react-dropzone`を追加
+  - コマンド: `cd public && npm install react-dropzone`
+  - 型定義も同時にインストールされるか確認（必要なら`@types/react-dropzone`も追加）
 
-### actionSetViewModelの実装
+### エクスポート用ユーティリティの作成
 
-- [x] `public/src/actions/dataActions.ts`に`actionSetViewModel`を追加
-  - インタフェース: `(viewModel: ViewModel, newViewModel: ViewModel) => ViewModel`
-  - 処理内容: ViewModelを丸ごと差し替える（`return newViewModel`）
-  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「ViewModel全体を更新するAction」セクション
-  - **注**: 既に実装済みでした
-
-### commandInitializeの実装
-
-- [x] `public/src/commands/initializeCommand.ts`を新規作成
-  - インタフェース: `async (dispatch: Store['dispatch']) => Promise<void>`
+- [ ] `public/src/utils/exportViewModel.ts`を新規作成
+  - 関数: `exportViewModel(viewModel: ViewModel): void`
   - 処理内容:
-    - `GET /api/init`を呼び出し
-    - 取得したViewModelを`actionSetViewModel`でStoreに設定
-    - エラー時はコンソールに出力
-  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「Command層」セクション
+    1. ViewModelをコピーして一時UI状態とキャッシュを初期化（[仕様書](/spec/import_export_feature.md)の「エクスポート時の処理」参照）
+    2. JSON文字列にシリアライズ（インデント: 2スペース）
+    3. ファイル名を生成（フォーマット: `er-viewer-{YYYY-MM-DD}.json`）
+    4. `Blob`と`URL.createObjectURL`を使ってダウンロード
+    5. ダウンロード後にオブジェクトURLをrevokeしてメモリ解放
+  - エラーハンドリング: try-catchで囲み、失敗時はコンソールエラー出力
 
-### commandReverseEngineerの修正
+### インポート用ユーティリティの作成
 
-- [x] `public/src/commands/reverseEngineerCommand.ts`を修正
-  - 処理内容の変更:
-    - 現在のViewModelを`erDiagramStore.getState()`で取得
-    - `POST /api/reverse-engineer`に現在のViewModelを送信
-    - レスポンスのViewModelを`actionSetViewModel`でStoreに設定
-    - `buildERDiagramViewModel()`関数の呼び出しは削除（サーバーがViewModelを返すため不要）
-  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「Command層」セクション
-  - **注**: ERCanvas.tsxでの呼び出しも修正（getStateを渡すように変更）
+- [ ] `public/src/utils/importViewModel.ts`を新規作成
+  - 関数: `importViewModel(file: File): Promise<ViewModel>`
+  - 処理内容:
+    1. FileReaderでファイルを読み込み
+    2. JSONとしてパース
+    3. バリデーションを実行（[仕様書](/spec/import_export_feature.md)の「バリデーション」参照）
+    4. 一時UI状態とキャッシュを補完（[仕様書](/spec/import_export_feature.md)の「インポート時の処理」参照）
+    5. 補完したViewModelを返却
+  - バリデーションエラー時: エラーメッセージを含む例外をthrow
+  - ファイル読み込みエラー時: 「Failed to read file」をthrow
 
-### App.tsxの初期化処理追加
+### ViewModelの初期値取得関数の作成
 
-- [x] `public/src/components/App.tsx`を修正
-  - `useEffect`を追加し、コンポーネントマウント時に`commandInitialize`を実行
-  - 依存配列は空配列（初回マウント時のみ実行）
-  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「初期化フロー」セクション
+- [ ] `public/src/utils/getInitialViewModelValues.ts`を新規作成
+  - 関数: `getInitialErDiagramUIState(): ERDiagramUIState`
+    - 空のERDiagramUIStateを返却
+  - 関数: `getInitialGlobalUIState(buildInfo: BuildInfo): GlobalUIState`
+    - 空のGlobalUIStateを返却
+  - 関数: `getInitialBuildInfoState(buildInfo: BuildInfo): BuildInfoState`
+    - BuildInfoを受け取り、BuildInfoStateを返却
+  - 初期値の詳細は[ViewModelベースAPI仕様](/spec/viewmodel_based_api.md)の「GET /api/init」を参照
 
-### BuildInfoModalの修正
+### エクスポートボタンの追加
 
-- [x] `public/src/components/BuildInfoModal.tsx`を修正
-  - ローカル状態（`buildInfo`, `loading`, `error`）を削除
-  - `useViewModel`でStoreから`viewModel.buildInfo`を取得
-  - `commandFetchBuildInfo`の呼び出しを削除
-  - キャッシュされたビルド情報を表示するだけに簡素化
-  - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「ビルド情報について」セクション
+- [ ] `public/src/components/App.tsx`を修正
+  - ヘッダーに「エクスポート」ボタンを追加
+  - ボタン配置順序（左から右）:
+    1. レイヤーボタン（既存）
+    2. エクスポートボタン（新規）
+    3. インポートボタン（後で追加）
+    4. ビルド情報ボタン（既存）
+  - ボタンクリック時:
+    - `useViewModel`でViewModelを取得
+    - `exportViewModel(viewModel)`を呼び出し
 
-### buildInfoActionsの削除
+### インポートボタンとD&D領域の追加
 
-- [x] `public/src/actions/buildInfoActions.ts`を削除
-  - `actionSetBuildInfoLoading`, `actionSetBuildInfo`, `actionSetBuildInfoError`は不要
-  - `actionSetViewModel`で代替
+- [ ] `public/src/components/App.tsx`を修正
+  - `react-dropzone`の`useDropzone`フックを使用
+  - ヘッダー全体をドロップ可能領域にする（`getRootProps()`を適用）
+  - ヘッダーに「インポート」ボタンを追加（エクスポートボタンの右隣）
+  - ボタンクリック時: `open()`を呼び出してファイル選択ダイアログを開く
+  - ドラッグオーバー時: 背景色を変更して視覚的フィードバックを提供
+  - ファイルドロップ時またはファイル選択時:
+    1. `onDrop`コールバックで`importViewModel(file)`を呼び出し
+    2. `actionSetViewModel`をdispatchして取得したViewModelをStoreに設定
+    3. エラー時: `alert()`でエラーメッセージを表示（トースト通知が実装されていないため）
+  - 受け入れるファイル形式: `.json`のみ（`accept: { 'application/json': ['.json'] }`）
 
-### buildInfoCommandの削除
+### ビルド確認
 
-- [x] `public/src/commands/buildInfoCommand.ts`を削除
-  - `commandFetchBuildInfo`は不要（初期化時に取得済み）
+- [ ] ビルドの実行（フロントエンド）
+  - コマンド: `cd public && npm run build`
+  - エラーがある場合は修正
 
-### viewModelConverterの削除
+## 指示者宛ての懸念事項（作業対象外）
 
-- [x] `public/src/utils/viewModelConverter.ts`を削除
-  - `buildERDiagramViewModel()`関数は不要（サーバーがViewModelを返すため）
+### テストコードについて
 
-### 不要ファイルの削除
+- インポート・エクスポート機能のユーティリティ関数に対するテストコードは作成していません
+  - エクスポート機能は副作用（ファイルダウンロード）が主であり、テストが困難
+  - インポート機能はファイル読み込みが含まれ、モックが複雑になる
+  - MVP段階では手動テストで十分と判断
+- 必要であればテストコード作成を別途指示してください
 
-- [x] `public/src/app.ts`を削除
-  - 旧実装で使用されていないファイル
+### エラーハンドリングについて
 
-### フロントエンドテストの修正
+- MVP段階では簡易的なエラーハンドリング（`alert()`）を採用
+- トースト通知ライブラリ（`react-toastify`など）の導入が望ましいですが、仕様書に「実装が簡単でなければアラート」と記載があるため、`alert()`で実装
+- より良いUXを求める場合は、トースト通知ライブラリの導入を検討してください
 
-- [x] `public/tests/actions/buildInfoActions.test.ts`を削除
-  - 対応するActionが削除されたため
+### BuildInfo取得方法について
 
-- [x] `public/tests/actions/dataActions.test.ts`を修正
-  - `actionSetViewModel`のテストを追加
-  - 既存のテストは保持
-
-### ビルドの確認
-
-- [x] フロントエンドのビルドを確認
-  - Viteビルドが成功することを確認
-  - テストが全てパス（64テスト）することを確認
-
-## 懸念事項
-
-### ERData/LayoutData型について（解決済み）
-
-`scheme/main.tsp`から`ERData`, `LayoutData`, `EntityLayoutItem`などが削除されましたが、`lib/database.ts`の既存メソッドが依然としてこれらの型を使用しています。
-
-**対処方針**（確認済み）:
-- これらの型を`scheme/main.tsp`に復活させる（APIエンドポイントでは使用しないが、内部実装で使用）
-- `lib/database.ts`は既存のメソッドをそのまま使用
-
-### APIクライアントコードの自動生成
-
-TypeSpecから生成されるAPIクライアント（`public/src/api/client/services/DefaultService.ts`）が新しいAPI仕様に対応しているかを確認する必要があります。
-
-**確認ポイント**:
-- `init()`メソッドが生成されているか
-- `reverseEngineer(viewModel: ViewModel)`メソッドがViewModelを引数として受け取るか
-- 削除されたAPIのメソッドが残っていないか
-
-### 初期化のタイミング（確認済み）
-
-`App.tsx`のマウント時に`commandInitialize`を実行します。
-
-**対処方針**（確認済み）:
-- MVPフェーズではエラーはコンソール出力のみとし、ローディング表示は後回し
-- ビルド情報の取得に失敗した場合もコンソールにエラーを出力するのみ
-
-## 事前修正提案
-
-特になし。仕様書に従って実装を進めることで問題なく実現可能です。
-
-## 参考仕様書
-
-- [ViewModelベースAPI仕様](./spec/viewmodel_based_api.md)
-- [フロントエンド状態管理仕様](./spec/frontend_state_management.md)
-- [バックエンドUsecaseアーキテクチャ仕様](./spec/backend_usecase_architecture.md)
-- [scheme/main.tsp](./scheme/main.tsp)
+- インポート時に`buildInfo`を現在の状態から保持する必要がありますが、ユーティリティ関数内では現在のStoreにアクセスできません
+- 解決策として、`importViewModel`関数を`importViewModel(file: File, currentBuildInfo: BuildInfoState): Promise<ViewModel>`に変更し、呼び出し側で現在の`buildInfo`を渡すように実装します

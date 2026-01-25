@@ -4,11 +4,11 @@
 
 参照仕様書：[インポート・エクスポート機能仕様](/spec/import_export_feature.md)
 
-## フェーズ1: バックエンド実装（format/version対応）
+## フェーズ1: バックエンド実装（format/version対応）✅ 完了
 
 ### GetInitialViewModelUsecaseの修正
 
-- [ ] `lib/usecases/GetInitialViewModelUsecase.ts`を修正
+- [x] `lib/usecases/GetInitialViewModelUsecase.ts`を修正
   - ViewModelに`format`フィールドを追加（固定値: `"er-viewer"`）
   - ViewModelに`version`フィールドを追加（固定値: `1`）
   - 返却するViewModelに以下を追加:
@@ -25,7 +25,7 @@
 
 ### ReverseEngineerUsecaseの修正
 
-- [ ] `lib/usecases/ReverseEngineerUsecase.ts`を修正
+- [x] `lib/usecases/ReverseEngineerUsecase.ts`を修正
   - ViewModelを返却する際に`format`と`version`を引き継ぐ
   - 返却するViewModelを以下のように変更:
     ```typescript
@@ -46,7 +46,7 @@
 
 ### GetInitialViewModelUsecaseのテスト修正
 
-- [ ] `tests/usecases/GetInitialViewModelUsecase.test.ts`を修正
+- [x] `tests/usecases/GetInitialViewModelUsecase.test.ts`を修正
   - テストケースを更新して`format`と`version`フィールドの検証を追加
   - 期待値に以下を追加:
     ```typescript
@@ -56,34 +56,34 @@
 
 ### ReverseEngineerUsecaseのテスト修正
 
-- [ ] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
+- [x] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
   - テストケースを更新して`format`と`version`が引き継がれることを検証
   - リクエストViewModelに`format`と`version`を追加
   - レスポンスViewModelで`format`と`version`が維持されていることを確認
 
 ### ビルド確認
 
-- [ ] ビルドの実行（バックエンド）
+- [x] ビルドの実行（バックエンド）
   - コマンド: `npm run generate && npx tsc --project tsconfig.server.json`
-  - エラーがある場合は修正
+  - エラーなし、ビルド成功
 
 ### テスト実行
 
-- [ ] テスト実行（バックエンド）
+- [x] テスト実行（バックエンド）
   - コマンド: `npm run test`
-  - テスト失敗がある場合は修正
+  - すべてのテスト（64 tests）が通過しました
 
-## フェーズ2: フロントエンド実装（エクスポート・インポート機能）
+## フェーズ2: フロントエンド実装（エクスポート・インポート機能）✅ 完了
 
 ### react-dropzoneのインストール
 
-- [ ] `public/package.json`に`react-dropzone`を追加
+- [x] `public/package.json`に`react-dropzone`を追加
   - コマンド: `cd public && npm install react-dropzone`
-  - 型定義も同時にインストールされるか確認（必要なら`@types/react-dropzone`も追加）
+  - 型定義も同時にインストールされました
 
 ### エクスポート用ユーティリティの作成
 
-- [ ] `public/src/utils/exportViewModel.ts`を新規作成
+- [x] `public/src/utils/exportViewModel.ts`を新規作成
   - 関数: `exportViewModel(viewModel: ViewModel): void`
   - 処理内容:
     1. ViewModelをコピーして一時UI状態とキャッシュを初期化（[仕様書](/spec/import_export_feature.md)の「エクスポート時の処理」参照）
@@ -95,8 +95,8 @@
 
 ### インポート用ユーティリティの作成
 
-- [ ] `public/src/utils/importViewModel.ts`を新規作成
-  - 関数: `importViewModel(file: File): Promise<ViewModel>`
+- [x] `public/src/utils/importViewModel.ts`を新規作成
+  - 関数: `importViewModel(file: File, currentBuildInfo: BuildInfoState): Promise<ViewModel>`
   - 処理内容:
     1. FileReaderでファイルを読み込み
     2. JSONとしてパース
@@ -105,13 +105,14 @@
     5. 補完したViewModelを返却
   - バリデーションエラー時: エラーメッセージを含む例外をthrow
   - ファイル読み込みエラー時: 「Failed to read file」をthrow
+  - 注: BuildInfoStateを引数で受け取るように実装しました（TASK.mdの懸念事項に記載の方針）
 
 ### ViewModelの初期値取得関数の作成
 
-- [ ] `public/src/utils/getInitialViewModelValues.ts`を新規作成
+- [x] `public/src/utils/getInitialViewModelValues.ts`を新規作成
   - 関数: `getInitialErDiagramUIState(): ERDiagramUIState`
     - 空のERDiagramUIStateを返却
-  - 関数: `getInitialGlobalUIState(buildInfo: BuildInfo): GlobalUIState`
+  - 関数: `getInitialGlobalUIState(): GlobalUIState`
     - 空のGlobalUIStateを返却
   - 関数: `getInitialBuildInfoState(buildInfo: BuildInfo): BuildInfoState`
     - BuildInfoを受け取り、BuildInfoStateを返却
@@ -119,12 +120,12 @@
 
 ### エクスポートボタンの追加
 
-- [ ] `public/src/components/App.tsx`を修正
+- [x] `public/src/components/App.tsx`を修正
   - ヘッダーに「エクスポート」ボタンを追加
   - ボタン配置順序（左から右）:
     1. レイヤーボタン（既存）
     2. エクスポートボタン（新規）
-    3. インポートボタン（後で追加）
+    3. インポートボタン（新規）
     4. ビルド情報ボタン（既存）
   - ボタンクリック時:
     - `useViewModel`でViewModelを取得
@@ -132,23 +133,23 @@
 
 ### インポートボタンとD&D領域の追加
 
-- [ ] `public/src/components/App.tsx`を修正
+- [x] `public/src/components/App.tsx`を修正
   - `react-dropzone`の`useDropzone`フックを使用
   - ヘッダー全体をドロップ可能領域にする（`getRootProps()`を適用）
   - ヘッダーに「インポート」ボタンを追加（エクスポートボタンの右隣）
   - ボタンクリック時: `open()`を呼び出してファイル選択ダイアログを開く
   - ドラッグオーバー時: 背景色を変更して視覚的フィードバックを提供
   - ファイルドロップ時またはファイル選択時:
-    1. `onDrop`コールバックで`importViewModel(file)`を呼び出し
+    1. `onDrop`コールバックで`importViewModel(file, buildInfo)`を呼び出し
     2. `actionSetViewModel`をdispatchして取得したViewModelをStoreに設定
     3. エラー時: `alert()`でエラーメッセージを表示（トースト通知が実装されていないため）
   - 受け入れるファイル形式: `.json`のみ（`accept: { 'application/json': ['.json'] }`）
 
 ### ビルド確認
 
-- [ ] ビルドの実行（フロントエンド）
+- [x] ビルドの実行（フロントエンド）
   - コマンド: `cd public && npm run build`
-  - エラーがある場合は修正
+  - ビルド成功（警告のみ、エラーなし）
 
 ## 指示者宛ての懸念事項（作業対象外）
 

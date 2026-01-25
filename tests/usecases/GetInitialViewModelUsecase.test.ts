@@ -30,6 +30,10 @@ describe('GetInitialViewModelUsecase', () => {
     // Usecaseを実行
     const viewModel = usecase();
 
+    // formatとversionの検証
+    expect(viewModel.format).toBe("er-viewer");
+    expect(viewModel.version).toBe(1);
+
     // erDiagramの検証
     expect(viewModel.erDiagram.nodes).toEqual({});
     expect(viewModel.erDiagram.edges).toEqual({});
@@ -77,6 +81,8 @@ describe('GetInitialViewModelUsecase', () => {
 
     const viewModel = usecase();
 
+    expect(viewModel.format).toBe("er-viewer");
+    expect(viewModel.version).toBe(1);
     expect(viewModel.buildInfo.data).toEqual(mockBuildInfo);
     expect(viewModel.buildInfo.data?.version).toBe('2.0.0');
     expect(viewModel.buildInfo.data?.git.tag).toBe('v2.0.0');

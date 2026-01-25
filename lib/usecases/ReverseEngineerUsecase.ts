@@ -54,6 +54,8 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
       
       // ViewModelを更新して返却
       return {
+        format: viewModel.format,
+        version: viewModel.version,
         erDiagram: {
           ...viewModel.erDiagram,
           nodes,

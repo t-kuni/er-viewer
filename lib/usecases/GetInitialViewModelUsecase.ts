@@ -60,6 +60,8 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
 
     // ViewModelを組み立てて返却
     const viewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
       erDiagram,
       ui,
       buildInfo: buildInfoState,

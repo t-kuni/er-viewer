@@ -36,6 +36,8 @@ describe('ReverseEngineerUsecase', () => {
     
     // 入力用のViewModelを作成
     const inputViewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
       erDiagram: {
         nodes: {},
         edges: {},
@@ -80,6 +82,10 @@ describe('ReverseEngineerUsecase', () => {
     };
     
     const result = await usecase(inputViewModel);
+    
+    // formatとversionが維持されることを検証
+    expect(result.format).toBe("er-viewer");
+    expect(result.version).toBe(1);
     
     // ViewModelの構造を検証
     expect(result.erDiagram).toBeDefined();

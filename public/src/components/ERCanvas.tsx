@@ -261,6 +261,12 @@ function ERCanvasInner({
     [dispatch]
   )
   
+  // 空白部分クリック時の処理
+  const handlePaneClick = useCallback(() => {
+    // 空白部分がクリックされたら選択を解除
+    dispatch(actionSelectItem, null)
+  }, [dispatch])
+  
   // 矩形のドラッグ処理
   const handleRectangleMouseDown = useCallback((e: React.MouseEvent, rectangleId: string) => {
     e.stopPropagation()
@@ -369,6 +375,7 @@ function ERCanvasInner({
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
       onSelectionChange={handleSelectionChange}
+      onPaneClick={handlePaneClick}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       elevateNodesOnSelect={false}

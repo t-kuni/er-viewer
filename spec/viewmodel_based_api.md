@@ -77,17 +77,10 @@ POST /api/reverse-engineer
 - データベース接続情報を解決（詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
 - データベースに接続してスキーマ情報を取得
 - エンティティとリレーションシップを抽出
-- デフォルトのレイアウト（グリッド配置）でER図を構築
+- デフォルトのレイアウトでER図を構築（詳細は[リバースエンジニアリング機能仕様](./reverse_engineering.md)の「デフォルトレイアウト仕様」を参照）
 - リクエストで受け取ったViewModelのerDiagramを更新して返却
 - `settings.lastDatabaseConnection`を更新（パスワードを除く）
 - ui状態とbuildInfo状態はリクエストから引き継ぐ
-
-**レイアウトアルゴリズム**
-- グリッドレイアウト方式
-- 横方向の間隔: 300px
-- 縦方向の間隔: 200px
-- 1行あたりのエンティティ数: 4
-- 開始座標: (50, 50)
 
 ## 削除されるAPI
 
@@ -209,8 +202,8 @@ POST /api/reverse-engineer
 ### 確認事項
 
 **増分リバースエンジニア**
-- 既存のレイアウトを維持したまま新しいテーブルを追加する機能は？
-- 提案：後日の再設計時に検討（現在のリクエストViewModelを活用すれば実装可能）
+- 既存のレイアウトを維持したまま新しいテーブルを追加する機能
+- 詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照
 
 ## 関連仕様書
 
@@ -218,3 +211,4 @@ POST /api/reverse-engineer
 - [TypeSpec API定義仕様](/spec/typespec_api_definition.md) - API定義方法とビルドプロセス
 - [リアーキテクチャ仕様](/spec/rearchitecture_overview.md) - システム全体構成
 - [リバースエンジニアリング機能仕様](/spec/reverse_engineering.md) - リバースエンジニアの詳細（一部内容は本仕様で置き換え）
+- [増分リバース・エンジニアリング機能仕様](/spec/incremental_reverse_engineering.md) - 増分更新の詳細

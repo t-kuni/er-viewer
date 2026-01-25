@@ -71,15 +71,11 @@
 
 ## 増分リバースエンジニアリング
 
-既存のレイアウトを維持したまま新しいテーブルを追加する機能は後日設計する。
-
-リクエストでViewModelを受け取る設計のため、以下のような実装が可能：
-- 既存のエンティティ配置を維持
-- 新規エンティティのみ追加配置
-- 削除されたテーブルに対応するエンティティを削除
+既存のレイアウトを維持したまま差分を反映する機能。詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照。
 
 ## 関連仕様書
 
+- [増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md) - 増分更新の詳細
 - [データベース接続設定仕様](./database_connection_settings.md) - データベース接続情報の入力・管理
 - [ViewModelベースAPI仕様](./viewmodel_based_api.md) - API仕様の詳細
 - [フロントエンド状態管理仕様](./frontend_state_management.md) - フロントエンドの状態管理

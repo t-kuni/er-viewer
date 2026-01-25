@@ -1,348 +1,300 @@
-# テキスト描画機能実装タスク
+# テキスト描画機能 ViewportPortal方式への移行タスク
 
-仕様書の更新に伴い、テキスト描画機能を実装するためのタスクを洗い出す。
+仕様書の更新（直前のコミット）に伴い、テキスト描画機能の実装方式を変更する。
 仕様書の詳細は [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) を参照。
 
 ## 変更概要
 
 直前のコミットで以下の仕様変更が行われた：
 
-1. **新規仕様書**: `spec/text_drawing_feature.md` を追加
-2. **TypeSpec型定義更新**: `scheme/main.tsp` で `Text` → `TextBox` に変更し、大幅に拡張（enum追加、DropShadow追加）
-3. **既存仕様書更新**: テキスト関連のAction、レイヤー管理、インポート/エクスポート、プロパティパネル対応を各仕様書に追記
+1. **TypeSpecモデル変更**: `TextBox`から`stroke`と`strokeWidth`を削除（枠線を持たないシンプルなテキストに変更）
+2. **描画方式変更**: React FlowカスタムノードからViewportPortal方式へ変更（矩形と同じ実装パターン）
+3. **デフォルト値追加**: shadowのoffsetX/offsetY/blur/spread等のデフォルト値を明示
+4. **プロパティパネル簡素化**: 枠線色・枠線幅のUIを削除
+
+## 現在の実装状況
+
+既に以下のファイルが実装済み：
+
+- ✅ `public/src/actions/textActions.ts` - テキスト操作用Action（ただし`stroke`/`strokeWidth`参照を削除する必要あり）
+- ✅ `public/tests/actions/textActions.test.ts` - テストコード（ただし`stroke`/`strokeWidth`参照を削除する必要あり）
+- ✅ `public/src/components/TextNode.tsx` - React Flowカスタムノード実装（**ViewportPortal方式に移行のため削除予定**）
+- ✅ `public/src/components/TextPropertyPanel.tsx` - プロパティパネル（ただし枠線関連UIを削除する必要あり）
+- ✅ `public/src/utils/reactFlowConverter.ts` - `convertToReactFlowTexts`関数（**ViewportPortal方式に移行のため削除予定**）
+- ✅ `public/src/components/ERCanvas.tsx` - テキスト追加ボタン、React Flow統合（ViewportPortal方式に書き換える必要あり）
 
 ## フェーズ分け方針
 
-テキスト描画機能は以下の2フェーズに分けて実装する：
+以下の2フェーズに分けて実装する：
 
-* **フェーズ1**: 型生成・Actionの実装・テストコード作成・テスト実行
-* **フェーズ2**: UIコンポーネント実装・ビルド確認
+* **フェーズ1**: 型定義の修正・型生成・Actionとテストコードの修正・テスト実行
+* **フェーズ2**: UIコンポーネントのViewportPortal方式への移行・ビルド確認
 
 各フェーズの最後にビルド・テスト実行を行い、動作確認を行う。
 
 ---
 
-## フェーズ1: 型生成・Actionの実装・テスト
+## フェーズ1: 型定義の修正・型生成・Action修正・テスト
 
-### [x] 型生成の実行
+### [ ] TypeSpecのTextBoxモデル修正
 
-- **ファイル**: `lib/generated/api-types.ts`, `public/src/api/client/models/` 配下
+- **編集ファイル**: `scheme/main.tsp`
+- **変更内容**: 
+  - 122行目の`stroke: string;`を削除
+  - 123行目の`strokeWidth: float64;`を削除
+  - 121行目のコメントを`opacity: float64;     // テキスト全体の不透明度（0..1）`に変更（既に変更済みの可能性あり）
+
+### [ ] 型生成の実行
+
 - **コマンド**: `npm run generate`
 - **確認事項**: 
-  - `TextBox`, `TextAlign`, `TextAutoSizeMode`, `TextOverflowMode`, `DropShadow` 型が生成されること
-  - `ERDiagramViewModel` に `texts: Record<TextBox>` が追加されること
-  - 旧 `Text` 型が削除されているか、または `TextBox` に置き換わっていること
+  - `lib/generated/api-types.ts`で`TextBox`に`stroke`と`strokeWidth`が存在しないこと
+  - `public/src/api/client/models/TextBox.ts`で`stroke`と`strokeWidth`が存在しないこと
+  - 他の型定義は正しく生成されていること
 
-### [x] textActions.tsの実装
+### [ ] textActions.tsの修正
 
-- **新規作成ファイル**: `public/src/actions/textActions.ts`
-- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) のAction設計セクション
-- **実装するAction**:
-  - `actionAddText(vm, textBox)`: 新規テキストを追加
-    - `vm.erDiagram.texts` に `textBox` を追加
-    - `actionAddLayerItem(vm, { kind: 'text', id: textBox.id }, 'foreground')` を呼び出してレイヤーに追加
-  - `actionRemoveText(vm, textId)`: テキストを削除
-    - `vm.erDiagram.texts` から削除
-    - `actionRemoveLayerItem(vm, { kind: 'text', id: textId })` を呼び出してレイヤーから削除
-    - 選択中のテキストなら `actionSelectItem(vm, null)` で選択解除
-  - `actionUpdateTextPosition(vm, textId, x, y)`: テキストの位置を更新
-  - `actionUpdateTextSize(vm, textId, width, height)`: テキストのサイズを更新
-  - `actionUpdateTextBounds(vm, textId, {x, y, width, height})`: テキストの座標とサイズを一括更新
-  - `actionUpdateTextContent(vm, textId, content)`: テキストの内容を更新
-  - `actionUpdateTextStyle(vm, textId, stylePatch)`: テキストのスタイルを部分更新
-    - `stylePatch`: `{ fontSize?, lineHeight?, textAlign?, textColor?, stroke?, strokeWidth?, opacity?, wrap?, overflow? }`
-  - `actionSetTextAutoSizeMode(vm, textId, mode)`: autoSizeModeを変更
-  - `actionFitTextBoundsToContent(vm, textId, width, height)`: 測定結果を受け取ってwidth/heightを更新
-  - `actionUpdateTextShadow(vm, textId, shadowPatch)`: ドロップシャドウのプロパティを部分更新
-    - `shadowPatch`: `{ enabled?, offsetX?, offsetY?, blur?, spread?, color?, opacity? }`
-  - `actionUpdateTextPadding(vm, textId, paddingX, paddingY)`: パディングを更新
-- **実装パターン**: `rectangleActions.ts` を参考に、純粋関数で実装
-- **注意事項**: 
-  - すべてのActionは変更がない場合に同一参照を返すこと
-  - `actionAddLayerItem`, `actionRemoveLayerItem`, `actionSelectItem` は `layerActions.ts` からimport
-
-### [x] textActions.test.tsの作成
-
-- **新規作成ファイル**: `public/tests/actions/textActions.test.ts`
-- **参照テスト**: `public/tests/actions/rectangleActions.test.ts` をベースに作成
-- **テストケース**:
-  - `actionAddText`: テキストが追加される、レイヤーに追加される、重複IDは同一参照を返す
-  - `actionRemoveText`: テキストが削除される、レイヤーから削除される、選択中なら選択解除される、存在しないIDは同一参照を返す
-  - `actionUpdateTextPosition`: 位置が更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextSize`: サイズが更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextBounds`: 座標とサイズが一括更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextContent`: 内容が更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextStyle`: スタイルが部分更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionSetTextAutoSizeMode`: autoSizeModeが更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionFitTextBoundsToContent`: width/heightが更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextShadow`: shadowが部分更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-  - `actionUpdateTextPadding`: paddingが更新される、変化なしなら同一参照を返す、存在しないIDは同一参照を返す
-- **mockViewModel**: `texts` フィールドに1つ以上のテキストを含むViewModelを作成
-
-### [x] GetInitialViewModelUsecaseの更新
-
-- **編集ファイル**: `lib/usecases/GetInitialViewModelUsecase.ts`
+- **編集ファイル**: `public/src/actions/textActions.ts`
 - **変更内容**: 
-  - 初期ViewModelの `erDiagram` に `texts: {}` を追加
-  - 43行目付近の `erDiagram` 定義で `texts: {}` を追加
+  - `actionUpdateTextStyle`関数（227〜286行目）の修正：
+    - `stylePatch`の型定義から`stroke?: string;`と`strokeWidth?: number;`を削除（235〜236行目付近）
+    - `hasChanges`の判定から`stroke`と`strokeWidth`の比較を削除（255〜256行目）
+    - スプレッド演算子での更新処理から`stroke`と`strokeWidth`を削除（277〜278行目）
 
-### [x] GetInitialViewModelUsecase.test.tsの更新
+### [ ] textActions.test.tsの修正
 
-- **編集ファイル**: `tests/usecases/GetInitialViewModelUsecase.test.ts`
+- **編集ファイル**: `public/tests/actions/textActions.test.ts`
 - **変更内容**: 
-  - テストケースのアサーションで `texts: {}` が含まれることを確認
-  - `expect(result.erDiagram.texts).toEqual({})` を追加
+  - `createMockViewModel`のテキスト定義から`stroke`と`strokeWidth`を削除（39〜40行目）
+  - `actionAddText`テストケースのnewText定義から`stroke`と`strokeWidth`を削除（97〜98行目、137〜138行目、174〜175行目）
+  - `actionUpdateTextStyle`テストケースの全てのスタイルプロパティ更新テストから`stroke`と`strokeWidth`を削除（392〜404行目）
 
-### [x] importViewModel.tsの更新
-
-- **編集ファイル**: `public/src/utils/importViewModel.ts`
-- **変更内容**: 
-  - 83行目の `rectangles: importedViewModel.erDiagram?.rectangles || {}` の後に
-  - `texts: importedViewModel.erDiagram?.texts || {}` を追加
-
-### [x] exportViewModel.tsの更新
-
-- **編集ファイル**: `public/src/utils/exportViewModel.ts`
-- **変更内容**: 
-  - 27行目の `rectangles: viewModel.erDiagram.rectangles` の後に
-  - `texts: viewModel.erDiagram.texts` を追加
-
-### [x] ビルドの確認（フェーズ1）
+### [ ] ビルドの確認（フェーズ1）
 
 - **コマンド**: 
   1. `npm run generate` （型生成）
   2. `cd public && npm run build` （フロントエンドビルド）
-  3. `npm run build` （バックエンドビルド、ルートディレクトリで実行）
+  3. `cd .. && npm run build` （バックエンドビルド、ルートディレクトリで実行）
 - **確認事項**: 
   - ビルドエラーが発生しないこと
   - 型定義が正しく生成されていること
 
-### [x] テストの実行（フェーズ1）
+### [ ] テストの実行（フェーズ1）
 
 - **コマンド**: `npm run test`
 - **確認事項**: 
   - 既存テストが全てパスすること
-  - 新規テスト（textActions.test.ts）が全てパスすること
+  - textActions.test.tsのテストが全てパスすること
 
 ---
 
-## フェーズ2: UIコンポーネント実装・ビルド確認
+## フェーズ2: ViewportPortal方式への移行・ビルド確認
 
-### [x] reactFlowConverter.tsにテキスト変換関数を追加
+### [ ] ERCanvas.tsxにテキスト描画関数を追加
 
-- **編集ファイル**: `public/src/utils/reactFlowConverter.ts`
-- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) のReact Flow統合セクション
-- **追加する関数**: `convertToReactFlowTexts(texts: Record<TextBox>): Node[]`
-  - `texts` を Object.values で配列に変換
-  - 各 `TextBox` を React Flow の `Node` に変換
-    - `id`: text.id
-    - `type`: 'textNode'
-    - `position`: { x: text.x, y: text.y }
-    - `width`: text.width
-    - `height`: text.height
-    - `data`: TextBoxの全プロパティをコピー
-- **importの追加**: `TextBox` 型を `public/src/api/client` からimport
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) のViewportPortal統合セクション
+- **参照実装**: 330〜377行目の`renderRectangles`関数を参考に実装
+- **追加する関数**: `renderTexts(items: readonly any[])`
+  - `items`配列から`kind === 'text'`のアイテムを抽出
+  - 各テキストに対して`<div>`要素を描画
+  - スタイル:
+    - `position: 'absolute'`
+    - `left: text.x`, `top: text.y`
+    - `width: text.width`, `height: text.height`
+    - `color: text.textColor`
+    - `opacity: text.opacity`
+    - `padding: ${text.paddingY}px ${text.paddingX}px`
+    - `text-align: text.textAlign`
+    - `white-space: 'pre-wrap'`
+    - `overflow-wrap: text.wrap ? 'anywhere' : 'normal'`
+    - `word-break: text.wrap ? 'break-word' : 'normal'`
+    - `font-family`: システムフォント固定（仕様書参照）
+    - `font-size: ${text.fontSize}px`
+    - `line-height: ${text.lineHeight}px`
+    - `overflow: text.overflow === 'scroll' ? 'auto' : 'hidden'`
+    - `cursor: 'move'`
+    - `box-sizing: 'border-box'`
+    - `outline: isSelected ? '2px solid #1976d2' : 'none'`
+    - `outline-offset: '2px'`
+    - `pointer-events: 'auto'`
+    - `box-shadow`: shadowが有効な場合に生成（TextNode.tsxの152行目を参照）
+    - `z-index`: `calculateZIndex(layerOrder, item)`で計算
+  - `onMouseDown`: `handleTextMouseDown`を呼び出し（新規実装）
+  - `onClick`: `actionSelectItem`をdispatchして選択状態を更新
+  - 選択中の場合は`ResizeHandles`コンポーネントを表示（テキスト用に新規実装）
 
-### [x] TextNode.tsxの実装
+### [ ] ERCanvas.tsxにテキストドラッグ処理を追加
 
-- **新規作成ファイル**: `public/src/components/TextNode.tsx`
-- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) のTextNodeコンポーネントセクション
-- **参照実装**: `RectangleNode.tsx` をベースに作成
-- **実装内容**:
-  - `NodeProps<TextBoxData>` を受け取るReact.FC
-  - `TextBoxData`: TextBoxの全プロパティ + コールバック
-  - `NodeResizer` を内包し、選択時にリサイズハンドルを表示
-  - 最小サイズ: 幅40px × 高さ20px
-  - F2キーで編集モードに入る（`useEffect` + `keydown` イベントリスナー）
-  - 編集モードでは `<textarea>` をオーバーレイ
-    - ローカル状態で `isEditing` と `draftContent` を管理
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **変更内容**:
+  - `handleTextMouseDown`関数を追加（`handleRectangleMouseDown`と同様の実装パターン）
+    - クリックされたテキストを選択（`actionSelectItem`）
+    - ドラッグ状態を保持（`setDraggingText`）
+  - `draggingText`状態の追加（187行目付近）
+  - `useEffect`でテキストドラッグ処理を追加（299〜323行目の矩形ドラッグ処理と同様）
+    - マウスムーブ時に`actionUpdateTextPosition`をdispatch
+    - viewport.zoomを考慮した座標変換
+    - マウスアップ時にドラッグ状態をクリア
+
+### [ ] ERCanvas.tsxにテキストリサイズハンドルを追加
+
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **変更内容**:
+  - `renderTexts`関数内で、選択中のテキストに対して`ResizeHandles`コンポーネントを表示
+  - `ResizeHandles`に渡すprops: `rectangleId={text.id}`, `width={text.width}`, `height={text.height}`, `x={text.x}`, `y={text.y}`, `onResize={handleTextResize}`
+  - `handleTextResize`関数を新規追加:
+    - `actionUpdateTextBounds`をdispatch
+    - `actionSetTextAutoSizeMode(vm, textId, 'manual')`をdispatchして手動モードに変更
+  - **注意**: ResizeHandlesは矩形用だが、propsに`x`と`y`を追加すればテキストでも使用可能
+
+### [ ] ResizeHandlesコンポーネントの最小限の修正
+
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **変更内容**:
+  - 44〜158行目の`ResizeHandles`コンポーネントを修正
+  - propsに`x`と`y`を追加: `{ rectangleId, width, height, x, y, onResize }`
+  - 56〜57行目の`rectangles`購読と`rectangle`変数を削除
+  - 67行目の`startRectX`と`startRectY`を、props経由で受け取った`x`と`y`に変更
+  - 呼び出し側を修正:
+    - `renderRectangles`の366〜373行目: `ResizeHandles`に`x={rectangle.x}`と`y={rectangle.y}`を追加
+    - `renderTexts`でも同様に`x={text.x}`と`y={text.y}`を追加（新規実装時）
+  - **注意**: 完全な汎用化は見送り。将来的にリファクタリングで共通化を検討
+
+### [ ] ERCanvas.tsxのテキスト編集UI追加
+
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) の編集UIセクション
+- **変更内容**:
+  - `editingTextId`と`draftContent`のローカル状態を追加
+  - F2キーのグローバルイベントリスナーを追加（選択中のテキストに対して）
+  - `ViewportPortal`内に`<textarea>`オーバーレイを表示（編集中のみ）
+  - `<textarea>`のスタイル:
+    - `position: 'absolute'`
+    - `left`, `top`, `width`, `height`: 編集中のテキストの座標・サイズ
+    - `padding`, `font-size`, `line-height`, `color`, `text-align`: 編集中のテキストのスタイルを反映
+    - `outline: '2px solid #3b82f6'`
+    - `background-color: 'rgba(255, 255, 255, 0.95)'`
+    - `resize: 'none'`
+    - `overflow: 'auto'`
+    - `box-sizing: 'border-box'`
+    - `z-index`: 最前面（例: 10000）
+  - 編集中の操作:
     - Enter: 改行（`\n`を挿入）
-    - Esc: 編集キャンセル
+    - Esc: 編集キャンセル（`setEditingTextId(null)`）
     - Ctrl/Cmd+Enter: 編集確定
     - blur: 編集確定
-  - `onResizeEnd` で `actionUpdateTextBounds` と `actionSetTextAutoSizeMode(vm, id, 'manual')` をdispatch
-  - `autoSizeMode` に応じて編集確定時にDOM測定を実行
-  - スタイル:
-    - `border`: `${strokeWidth}px solid ${stroke}`
-    - `color`: `${textColor}`
-    - `opacity`: `${opacity}`
-    - `padding`: `${paddingY}px ${paddingX}px`
-    - `text-align`: `${textAlign}`
-    - `white-space`: `pre-wrap`
-    - `overflow-wrap`: `anywhere` (wrap=true時)
-    - `word-break`: `break-word` (wrap=true時)
-    - `box-shadow`: DropShadow設定に基づいて生成（enabled=true時）
-    - `font-family`: システムフォント固定
-    - `font-size`: `${fontSize}px`
-    - `line-height`: `${lineHeight}px`
-- **importするAction**: `actionUpdateTextBounds`, `actionSetTextAutoSizeMode`, `actionUpdateTextContent` from `../actions/textActions`
-- **useCallback**: すべてのイベントハンドラを `useCallback` でメモ化
+  - 編集確定時に`actionUpdateTextContent`をdispatch
+  - `autoSizeMode`に応じてDOM測定を実行し、`actionUpdateTextBounds`で結果を反映
 
-### [x] TextPropertyPanel.tsxの実装
+### [ ] ERCanvas.tsxのhandleAddText修正
 
-- **新規作成ファイル**: `public/src/components/TextPropertyPanel.tsx`
-- **参照仕様**: [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) のプロパティパネル設計セクション
-- **参照実装**: `RectanglePropertyPanel.tsx` をベースに作成
-- **Props**: `{ textId: string }`
-- **実装内容**:
-  - `useViewModel` で `vm.erDiagram.texts[textId]` を購読
-  - テキストが存在しない場合は `null` を返す
-  - 各プロパティの編集UI:
-    - **内容**: `<textarea>` (rows=5, value=content, onChange で `actionUpdateTextContent` をdispatch)
-    - **フォントサイズ**: `<input type="number">` (onChange で `actionUpdateTextStyle` をdispatch)
-    - **行の高さ**: `<input type="number">` (onChange で `actionUpdateTextStyle` をdispatch)
-    - **配置**: 3つのトグルボタン (left/center/right、onChange で `actionUpdateTextStyle` をdispatch)
-    - **文字色**: `HexColorPicker` + `HexColorInput` (onChange で `actionUpdateTextStyle` をdispatch、プリセットなし)
-    - **枠線色**: `HexColorPicker` + `HexColorInput` (onChange で `actionUpdateTextStyle` をdispatch、プリセットなし)
-    - **枠線幅**: `<input type="number">` (onChange で `actionUpdateTextStyle` をdispatch)
-    - **透明度**: `<input type="range" min=0 max=1 step=0.01>` + 表示ラベル (onChange で `actionUpdateTextStyle` をdispatch)
-    - **ドロップシャドウ**:
-      - **有効/無効**: `<input type="checkbox">` (onChange で `actionUpdateTextShadow` をdispatch)
-      - **offsetX / offsetY**: `<input type="number">` (onChange で `actionUpdateTextShadow` をdispatch)
-      - **blur / spread**: `<input type="number">` (onChange で `actionUpdateTextShadow` をdispatch)
-      - **color**: `HexColorPicker` + `HexColorInput` (onChange で `actionUpdateTextShadow` をdispatch)
-      - **opacity**: `<input type="range" min=0 max=1 step=0.01>` + 表示ラベル (onChange で `actionUpdateTextShadow` をdispatch)
-    - **paddingX / paddingY**: `<input type="number">` (onChange で `actionUpdateTextPadding` をdispatch)
-    - **autoSizeMode**: `<select>` または ラジオボタン (manual/fitContent/fitWidth、onChange で `actionSetTextAutoSizeMode` をdispatch)
-    - **折り返し**: `<input type="checkbox">` (onChange で `actionUpdateTextStyle` をdispatch)
-    - **overflow**: `<select>` または ラジオボタン (clip/scroll、onChange で `actionUpdateTextStyle` をdispatch)
-    - **「内容に合わせる」ボタン**: クリックでDOM測定を実行し、`actionFitTextBoundsToContent` をdispatch
-    - **削除ボタン**: クリックで `actionRemoveText` をdispatch
-- **importするAction**: `actionUpdateTextContent`, `actionUpdateTextStyle`, `actionSetTextAutoSizeMode`, `actionFitTextBoundsToContent`, `actionUpdateTextShadow`, `actionUpdateTextPadding`, `actionRemoveText` from `../actions/textActions`
-- **カラーピッカー**: `react-colorful` の `HexColorPicker` と `HexColorInput` を使用
-- **イベント伝播停止**: `RectanglePropertyPanel.tsx` と同様に `onMouseDown`, `onPointerDown`, `onClick`, `onTouchStart`, `onChange` で `stopPropagation` を呼び出す
-- **スタイル**: `RectanglePropertyPanel.tsx` と同様のスタイリングパターンを踏襲
+- **編集ファイル**: `public/src/components/ERCanvas.tsx`
+- **変更内容**: 
+  - 454〜485行目の`handleAddText`関数を修正
+  - `stroke`と`strokeWidth`を削除
+  - shadowのデフォルト値を更新:
+    - `offsetX: 2` (現在は0)
+    - `offsetY: 2` (現在は0)
+    - `blur: 4` (現在は0)
+    - `spread: 0` (既に0)
+    - `opacity: 0.3` (現在は0.5)
 
-### [x] ERCanvas.tsxにテキスト追加ボタンを実装
+### [ ] ERCanvas.tsxのViewportPortal統合
 
 - **編集ファイル**: `public/src/components/ERCanvas.tsx`
 - **変更内容**:
-  - `actionAddText` を import
-  - `handleAddText` ハンドラを追加:
-    - viewport中央の座標を計算（`useViewport()` で取得可能）
-    - デフォルト値でTextBoxを作成（仕様書のデフォルト値を参照）
-    - `actionAddText` をdispatch
-  - ツールバーに「テキスト追加」ボタンを追加（矩形追加ボタンの隣）
-    - スタイルは矩形追加ボタンと同様
-- **注意事項**: 
-  - viewport中央の計算は `viewport.x`, `viewport.y`, `viewport.zoom` を使用
-  - `shadow.enabled: false` で初期化（DropShadow全体をデフォルト値で初期化）
-- **実装メモ**: viewport中央の計算は後回しにし、まずは固定座標(0, 0)で実装済み
+  - 394〜402行目の`ViewportPortal`ブロックを修正
+  - 背面レイヤー（395〜397行目）に`renderTexts(layerOrder.backgroundItems)`を追加
+  - 前面レイヤー（399〜402行目）に`renderTexts(layerOrder.foregroundItems)`を追加
+  - テキストと矩形を同じPortal内で描画（それぞれ`renderRectangles`と`renderTexts`を呼び出し）
 
-### [x] ERCanvas.tsxのnodeTypes登録
+### [ ] ERCanvas.tsxからReact Flow関連のテキスト処理を削除
 
 - **編集ファイル**: `public/src/components/ERCanvas.tsx`
 - **変更内容**:
-  - `TextNode` コンポーネントを import
-  - `nodeTypes` に `textNode: TextNode` を追加
+  - 36行目の`nodeTypes`から`textNode: TextNode`を削除
+  - 22行目の`import TextNode`を削除
+  - 23行目の`convertToReactFlowTexts`のimportを削除
+  - 255〜258行目の`onNodeDragStop`内のテキストノード処理を削除
+  - 422行目の`viewModelTexts`の購読を削除（既にtextsは別の場所で購読しているため不要）
+  - 428行目の`convertToReactFlowTexts(viewModelTexts)`を削除
+  - 431行目の`setNodes`から`...textNodes`を削除（entityNodesのみにする）
 
-### [x] ERCanvas.tsxでテキストをReact Flowノードに変換
+### [ ] TextNode.tsxコンポーネントの削除
 
-- **編集ファイル**: `public/src/components/ERCanvas.tsx`
-- **変更内容**:
-  - `convertToReactFlowTexts` を `reactFlowConverter.ts` から import
-  - `viewModelTexts` を購読: `useViewModel((vm) => vm.erDiagram.texts)`
-  - `useEffect` でノード更新処理に `convertToReactFlowTexts(viewModelTexts)` を追加
-  - `setNodes` で entityNodes と textNodes をマージして設定
-  - テキストノードのドラッグ処理も追加（`onNodeDragStop`でtextNodeの場合に`actionUpdateTextPosition`をdispatch）
+- **削除ファイル**: `public/src/components/TextNode.tsx`
+- **理由**: ViewportPortal方式への移行により、React Flowカスタムノードとしてのテキスト描画は不要になるため
 
-### [x] App.tsxでテキストプロパティパネルを表示
+### [ ] reactFlowConverter.tsのconvertToReactFlowTexts関数を削除
 
-- **編集ファイル**: `public/src/components/App.tsx`
-- **変更内容**:
-  - `TextPropertyPanel` コンポーネントを import
-  - 159行目付近の条件分岐を更新:
-    - `selectedItem?.kind === 'rectangle'` の場合に `RectanglePropertyPanel` を表示
-    - `selectedItem?.kind === 'text'` の場合に `TextPropertyPanel` を表示
-  - 右サイドバーのスタイルは共通（幅300px、背景白、左ボーダー、縦スクロール）
+- **編集ファイル**: `public/src/utils/reactFlowConverter.ts`
+- **変更内容**: 
+  - 149〜165行目の`convertToReactFlowTexts`関数を削除
+  - 4行目の`import type { TextBox }`を削除（使用されなくなるため）
 
-### [x] LayerPanel.tsxのテキスト表示対応
+### [ ] TextPropertyPanel.tsxから枠線関連UIを削除
 
-- **編集ファイル**: `public/src/components/LayerPanel.tsx`
-- **変更内容**:
-  - 48行目付近の `displayName` 計算ロジックで `LayerItemKind.TEXT` の場合の処理を追加済み
-  - 確認のみでOK（既に対応済み）
+- **編集ファイル**: `public/src/components/TextPropertyPanel.tsx`
+- **変更内容**: 
+  - 24行目の`showStrokePicker`状態を削除
+  - 322〜359行目の「枠線色」セクションを削除
+  - 361〜380行目の「枠線幅」セクションを削除
+  - 57〜59行目の`handleStrokeChange`関数を削除
+  - 61〜66行目の`handleStrokeWidthChange`関数を削除
 
-### [x] ビルドの確認（フェーズ2）
+### [ ] TextPropertyPanel.tsxのDOM測定処理修正
+
+- **編集ファイル**: `public/src/components/TextPropertyPanel.tsx`
+- **変更内容**: 
+  - 140〜173行目の`handleFitToContent`関数を修正
+    - 148行目の`border`スタイル設定を削除（borderは不要になるため）
+  - **注意**: TextNode.tsxの74行目にも同様の`border`設定があるが、TextNode.tsx自体を削除するため修正不要
+
+### [ ] ビルドの確認（フェーズ2）
 
 - **コマンド**: 
   1. `cd public && npm run build`
   2. `cd .. && npm run build`
 - **確認事項**: 
   - ビルドエラーが発生しないこと
-  - TextNodeコンポーネントが正しくバンドルされること
-- **結果**: ✅ ビルド成功（フロントエンド、バックエンド共に成功）
-
----
-
-## フェーズ2完了報告
-
-**完了日時**: 2026-01-25
-
-**実装内容**:
-- ✅ `convertToReactFlowTexts`関数の実装（reactFlowConverter.ts）
-- ✅ `TextNode.tsx`コンポーネントの実装（React Flowカスタムノード）
-  - F2キーで編集モード開始
-  - 編集中はtextareaオーバーレイ
-  - NodeResizerによるリサイズ対応
-  - autoSizeMode対応（DOM測定を含む）
-  - ドロップシャドウのレンダリング
-- ✅ `TextPropertyPanel.tsx`の実装
-  - 全プロパティの編集UI（内容、フォント、配置、色、枠線、透明度、パディング、ドロップシャドウ等）
-  - react-colorfulのHexColorPickerとHexColorInputを使用
-  - 「内容に合わせる」ボタンでDOM測定実行
-- ✅ ERCanvas.tsxの更新
-  - TextNodeのimportとnodeTypes登録
-  - テキスト追加ボタンの実装
-  - viewModelTextsの購読とReact Flowノードへの変換
-  - テキストノードのドラッグ処理（actionUpdateTextPositionのdispatch）
-- ✅ App.tsxの更新
-  - TextPropertyPanelの表示条件追加
-- ✅ LayerPanel.tsxのテキスト表示対応確認（既に対応済み）
-- ✅ ビルド成功（フロントエンド、バックエンド共に成功）
-
-**linterエラー**: なし
-
-**既知の制限事項**:
-- テキスト追加時の座標は固定(0, 0)（viewport中央の計算は未実装）
+  - `TextNode.tsx`が削除されているため、ビルド成果物に含まれないこと
+  - ViewportPortalでテキストが正しくレンダリングされること（手動確認）
 
 ---
 
 ## 指示者宛ての懸念事項（作業対象外）
 
-### 型生成に関する懸念
+### ViewportPortal方式への移行の影響範囲
 
-- **現状**: `npm run generate` が実行されていないため、`TextBox`, `TextAlign`, `TextAutoSizeMode`, `TextOverflowMode`, `DropShadow` 型が存在しない
 - **影響**: 
-  - フロントエンド (`public/src/api/client/models/`) に `TextBox.ts` などが生成されていない
-  - バックエンド (`lib/generated/api-types.ts`) に `TextBox` 型が存在しない
-  - 旧 `Text.ts` ファイルが残っている可能性がある
-- **対応**: フェーズ1の最初に `npm run generate` を実行する必要がある
+  - テキストの編集UI実装が複雑化（ViewportPortal内で`<textarea>`を表示するため、座標変換が必要）
+  - F2キーのグローバルイベントリスナーと`<textarea>`のフォーカス管理が必要
+  - IME（日本語入力）との互換性確認が必要
+- **対応**: 承知済み。プロトタイピング段階なので、実装後に手動テストで動作確認
 
-### テキスト測定に関する懸念
+### DOM測定処理の重複
 
-- **autoSizeMode対応**: DOM測定はブラウザ環境でのみ実行可能なため、テストコードでのカバレッジが限定的
-- **対応案**: 
-  - `actionFitTextBoundsToContent` はwidth/heightを受け取るだけの純粋関数なのでテスト可能
-  - 測定処理自体は `TextNode.tsx` または `TextPropertyPanel.tsx` のUI側で実装
-  - E2Eテストまたは手動テストで動作確認が必要
+- **現状**: `TextPropertyPanel.tsx`の`handleFitToContent`とテキスト編集確定時のDOM測定処理が類似
+- **影響**: コードの重複が発生する
+- **対応**: 一旦共通化は見送り。将来的にリファクタリングで`utils`に共通関数を切り出す
 
-### React Flow統合に関する懸念
+### ResizeHandlesコンポーネントの汎用化
 
-- **編集モード実装の複雑性**: 
-  - `<textarea>` オーバーレイとReact Flowのドラッグ処理の競合可能性
-  - IME（日本語入力）との互換性
-- **対応案**: 
-  - 編集中は `pointer-events: none` をReact Flowに設定するなど、イベント伝播を制御
-  - プロトタイピング段階なので、問題が発生した場合は手動テストで確認しながら修正
+- **現状**: `ResizeHandles`コンポーネントは矩形専用の実装（rectangleIdとrectanglesを直接参照）
+- **影響**: テキストでも使用するため、何らかの対応が必要
+- **対応**: 一旦共通化は見送り。タスクでは最小限の修正（propsで必要な値を受け取る）で対応し、将来的にリファクタリング
 
-### レイヤーパネルのテキスト表示
+### テキストのデフォルト値の不一致
 
-- **現状**: `LayerPanel.tsx` の48行目で既に `LayerItemKind.TEXT` に対応済み
-- **確認**: 実装済みかどうか確認が必要
+- **現状**: 
+  - 仕様書では`shadow.offsetX: 2px`, `shadow.offsetY: 2px`, `shadow.blur: 4px`, `shadow.opacity: 0.3`
+  - ERCanvas.tsxの実装では全て0または0.5
+- **影響**: デフォルト値が仕様と一致しない
+- **対応**: 仕様書が正しいため、`handleAddText`のshadowデフォルト値を修正
 
 ---
 
 ## 事前修正提案
 
-なし。TypeSpecの型定義は既に更新されており、型生成を実行すれば実装可能な状態になっている。
+なし。仕様書の変更内容に沿って実装を修正すれば対応可能。

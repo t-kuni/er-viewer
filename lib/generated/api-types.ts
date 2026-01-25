@@ -215,6 +215,9 @@ export interface components {
             fill: string;
         };
         ViewModel: {
+            format: string;
+            /** Format: int32 */
+            version: number;
             erDiagram: components["schemas"]["ERDiagramViewModel"];
             ui: components["schemas"]["GlobalUIState"];
             buildInfo: components["schemas"]["BuildInfoState"];

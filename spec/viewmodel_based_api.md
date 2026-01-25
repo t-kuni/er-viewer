@@ -30,12 +30,27 @@ GET /api/init
 - エラー時: `ErrorResponse`
 
 **レスポンスに含まれる内容**
-- `erDiagram`: 空のER図状態（nodes/edges/rectangles は空のRecord）
-- `ui`: 初期のグローバルUI状態（すべてのフラグがfalse、選択なし）
+- `format`: `"er-viewer"` （固定値）
+- `version`: `1` （現在は固定値）
+- `erDiagram`: 空のER図状態
+  - `nodes`: `{}`（空のRecord）
+  - `edges`: `{}`（空のRecord）
+  - `rectangles`: `{}`（空のRecord）
+  - `ui.hover`: `null`
+  - `ui.highlightedNodeIds`: `[]`
+  - `ui.highlightedEdgeIds`: `[]`
+  - `ui.highlightedColumnIds`: `[]`
+  - `ui.layerOrder.backgroundItems`: `[]`
+  - `ui.layerOrder.foregroundItems`: `[]`
+  - `loading`: `false`
+- `ui`: 初期のグローバルUI状態
+  - `selectedItem`: `null`
+  - `showBuildInfoModal`: `false`
+  - `showLayerPanel`: `false`
 - `buildInfo`: ビルド情報の完全なデータ
   - `data`: BuildInfo型のビルド情報
-  - `loading`: false
-  - `error`: null
+  - `loading`: `false`
+  - `error`: `null`
 
 ### POST /api/reverse-engineer
 
@@ -69,11 +84,11 @@ POST /api/reverse-engineer
 
 ## 削除されるAPI
 
-以下のAPIエンドポイントは削除される（後日再設計予定）：
+以下のAPIエンドポイントは削除される：
 
 - `GET /api/er-data`
-- `POST /api/layout`
-- `GET /api/layout`
+- `POST /api/layout` - インポート・エクスポート機能で代替（詳細は[インポート・エクスポート機能仕様](./import_export_feature.md)を参照）
+- `GET /api/layout` - インポート・エクスポート機能で代替（詳細は[インポート・エクスポート機能仕様](./import_export_feature.md)を参照）
 - `GET /api/table/{tableName}/ddl`
 - `GET /api/build-info`
 
@@ -93,6 +108,8 @@ POST /api/reverse-engineer
 詳細な型定義は [scheme/main.tsp](/scheme/main.tsp) を参照。
 
 **ViewModel**（ルート）
+- `format: string` - データフォーマット識別子（詳細は[インポート・エクスポート機能仕様](/spec/import_export_feature.md)を参照）
+- `version: number` - データフォーマットのバージョン（詳細は[インポート・エクスポート機能仕様](/spec/import_export_feature.md)を参照）
 - `erDiagram: ERDiagramViewModel` - ER図の状態
 - `ui: GlobalUIState` - グローバルUI状態
 - `buildInfo: BuildInfoState` - ビルド情報のキャッシュ
@@ -130,6 +147,7 @@ POST /api/reverse-engineer
 ### Usecaseの設計
 
 **GetInitialViewModelUsecase**
+- format/versionのデフォルト値を設定（`"er-viewer"`, `1`）
 - BuildInfoを生成
 - 空のERDiagramViewModelを生成
 - 初期のGlobalUIStateを生成
@@ -139,7 +157,7 @@ POST /api/reverse-engineer
 - リクエストのViewModelを受け取る
 - データベースからER図を生成
 - ViewModelのerDiagramを更新
-- ui状態とbuildInfo状態は維持
+- format/version、ui状態、buildInfo状態は維持
 - 更新後のViewModelを返却
 
 ## 実現可能性の検証
@@ -180,10 +198,6 @@ POST /api/reverse-engineer
 - 対処：EntityNodeViewModelに既にddlフィールドがあるため、そこから取得可能
 
 ### 確認事項
-
-**レイアウトの保存機能**
-- 削除される`POST /api/layout`と`GET /api/layout`の代替は後日設計するか？
-- 提案：MVP段階では保存機能なしで進め、必要に応じて`POST /api/save`などを追加
 
 **増分リバースエンジニア**
 - 既存のレイアウトを維持したまま新しいテーブルを追加する機能は？

@@ -211,6 +211,8 @@ model BuildInfoState {
 
 // Root view model for the entire frontend application
 model ViewModel {
+  format: string; // データフォーマット識別子（固定値: "er-viewer"）
+  version: int32; // データフォーマットのバージョン（現在は 1 固定）
   erDiagram: ERDiagramViewModel; // ER図の状態
   ui: GlobalUIState; // グローバルUI状態
   buildInfo: BuildInfoState; // ビルド情報のキャッシュ

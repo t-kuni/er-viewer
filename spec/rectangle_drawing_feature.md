@@ -160,20 +160,6 @@ const nodeTypes = {
 }
 ```
 
-## 永続化
-
-### データの保存
-
-矩形データは`ERDiagramViewModel.rectangles`に保存される（TypeSpecで既に定義済み）。
-
-保存機能は後日設計予定（詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照）。
-
-現在のMVP段階では、矩形データはフロントエンドのストアのみで管理され、永続化はされない。
-
-### 読み込み
-
-将来的な保存機能が実装された後、`GET /api/init`やその他のAPIで`rectangles`を取得し、`ERDiagramViewModel.rectangles`に反映する。
-
 ## 実装時の注意事項
 
 * TypeSpecの型定義を更新した後、`npm run generate`でフロントエンドとバックエンドの型を再生成する
@@ -189,7 +175,6 @@ const nodeTypes = {
 5. リサイズ: `NodeResizer`を導入し、`onResizeEnd`で`actionUpdateRectangleBounds`をdispatch
 6. プロパティパネル実装（詳細は[rectangle_property_panel.md](./rectangle_property_panel.md)を参照）
 7. z-index固定設定（`elevateNodesOnSelect={false}`または`zIndexMode="manual"`）
-8. データ永続化機能の追加（後日実装）
 
 ## 懸念事項・確認事項
 

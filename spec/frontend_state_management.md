@@ -370,16 +370,7 @@ Redux DevTools相当はないが、以下で補完可能：
 3. ViewModelをそのままストアに設定
 
 **初期ViewModelの内容**:
-- `erDiagram.nodes`, `erDiagram.edges`, `erDiagram.rectangles`: 空のオブジェクト（`{}`）
-- `erDiagram.ui.hover`: `null`
-- `erDiagram.ui.highlightedXxxIds`: 空の配列（`[]`）
-- `erDiagram.loading`: `false`
-- `ui.selectedItem`: `null`
-- `ui.showBuildInfoModal`: `false`
-- `ui.showLayerPanel`: `false`
-- `buildInfo.data`: BuildInfo型のデータ（サーバーで生成）
-- `buildInfo.loading`: `false`
-- `buildInfo.error`: `null`
+初期ViewModelの詳細な値は [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md) の「GET /api/init」を参照。
 
 **実装時の注意**:
 - `highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`は、配列から`Set`に変換してパフォーマンスを最適化する（O(1)の検索性能）

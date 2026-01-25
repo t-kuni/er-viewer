@@ -1,22 +1,21 @@
-# ER Diagram Viewerにおけるテキスト描画機能の実装方針検討
+# リバースエンジニアリング実行時のデータベース接続情報UI入力機能の検討
 
 ## リサーチ要件
 
-以下の仕様のテキスト描画機能を検討してほしい：
+以下について検討してほしい：
 
-* テキストを描画できる
-* 改行できる
-* 矩形を設定してその範囲に文字列を描画することができる。また、入力した文字に範囲を最適化することもできる。
-* ドラッグで位置を変更できる
-* 矩形の端のハンドル(?)をドラッグするとリサイズできる
-* 大まかな操作感は矩形編集と揃える
-* 左寄せ、中央寄せ、右寄せを選択できる
-* 塗りつぶし色とボーダー色を選択できる（矩形編集のカラーピッカーとプリセット色を踏襲する）
-* ドロップシャドウを設定できる
-* 右サイドパネルでプロパティを編集する
-* フォントのサイズを編集できる
-* フォントを選択できる必要はないが、クロスプラットフォーム対応で、多言語に対応できるとありがたい
-* ライブラリを導入したほうがよいか？
+* リバースエンジニアリング実行時に接続先をUI上から入力できるようにする
+* どういうUIが良いか？
+* 一旦、サポートするのはMySQLのみ。将来的にはPostgreSQLも対応する
+* 環境変数に以下の値が存在する場合はデフォルト値として扱う
+  * 開発時は頻繁に実行するので、それを簡略化するための仕組み
+  * `DB_HOST`
+  * `DB_PORT`
+  * `DB_USER`
+  * `DB_PASSWORD`
+  * `DB_NAME`
+* リバースエンジニアリングが成功した場合は接続情報をViewModel内に保持する。次回実行時にUIにはこの値が設定されている（環境変数より優先される）
+  * パスワードは状態に持たない方がいいかも
 
 ## プロジェクト概要
 
@@ -40,13 +39,176 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 - 不要になったコードは捨てる
 - AIが作業するため学習コストは考慮不要
 
-## 現在の状態管理アーキテクチャ
+## 現在のリバースエンジニアリング機能の実装
 
-### ViewModelの構造
+### 処理フロー
 
-アプリケーション全体の状態は`ViewModel`という単一の型で管理されている。すべての型は`scheme/main.tsp`で定義されている。
+1. ユーザーが画面上の「リバースエンジニア」ボタンを押下
+2. フロントエンドが現在のViewModelを`POST /api/reverse-engineer`に送信
+3. バックエンドがデータベースに接続してスキーマ情報を取得
+4. エンティティとリレーションシップを抽出
+5. デフォルトレイアウトでER図を構築
+6. ViewModelのerDiagramを更新して返却
+7. フロントエンドがcanvas上にER図をレンダリング
 
-#### ViewModel（ルート型）
+### フロントエンド実装
+
+フロントエンドの実装は`public/src/commands/reverseEngineerCommand.ts`に存在する：
+
+```typescript
+export async function commandReverseEngineer(
+  dispatch: Store['dispatch'],
+  getState: Store['getState']
+): Promise<void> {
+  dispatch(actionSetLoading, true);
+  
+  try {
+    // 現在のViewModelを取得
+    const currentViewModel = getState() as ViewModel;
+    
+    // サーバーにViewModelを送信し、更新後のViewModelを取得
+    const updatedViewModel = await DefaultService.apiReverseEngineer(currentViewModel);
+    
+    // エラーレスポンスのチェック
+    if ('error' in updatedViewModel) {
+      throw new Error(updatedViewModel.error);
+    }
+    
+    // 更新後のViewModelをStoreに設定
+    dispatch(actionSetViewModel, updatedViewModel);
+  } catch (error) {
+    console.error('Failed to reverse engineer:', error);
+  } finally {
+    dispatch(actionSetLoading, false);
+  }
+}
+```
+
+### バックエンド実装
+
+#### Usecase
+
+バックエンドのUsecaseは`lib/usecases/ReverseEngineerUsecase.ts`に実装されている：
+
+```typescript
+export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
+  return async (viewModel: ViewModel): Promise<ViewModel> => {
+    const dbManager = deps.createDatabaseManager();
+    try {
+      await dbManager.connect();
+      
+      // データベースからER図を生成
+      const erData = await dbManager.generateERData();
+      
+      await dbManager.disconnect();
+      
+      // EntityNodeViewModelのRecordを生成
+      const nodes: Record<string, EntityNodeViewModel> = {};
+      erData.entities.forEach((entity: Entity, index: number) => {
+        const col = index % 4;
+        const row = Math.floor(index / 4);
+        
+        nodes[entity.id] = {
+          id: entity.id,
+          name: entity.name,
+          x: 50 + col * 300,
+          y: 50 + row * 200,
+          columns: entity.columns,
+          ddl: entity.ddl,
+        };
+      });
+      
+      // RelationshipEdgeViewModelのRecordを生成
+      const edges: Record<string, RelationshipEdgeViewModel> = {};
+      erData.relationships.forEach((relationship: Relationship) => {
+        edges[relationship.id] = {
+          id: relationship.id,
+          sourceEntityId: relationship.fromEntityId,
+          sourceColumnId: relationship.fromColumnId,
+          targetEntityId: relationship.toEntityId,
+          targetColumnId: relationship.toColumnId,
+          constraintName: relationship.constraintName,
+        };
+      });
+      
+      // ViewModelを更新して返却
+      return {
+        format: viewModel.format,
+        version: viewModel.version,
+        erDiagram: {
+          ...viewModel.erDiagram,
+          nodes,
+          edges,
+          loading: false,
+        },
+        ui: viewModel.ui,
+        buildInfo: viewModel.buildInfo,
+      };
+    } catch (error) {
+      await dbManager.disconnect();
+      throw error;
+    }
+  };
+}
+```
+
+#### データベース接続
+
+データベース接続は`lib/database.ts`の`DatabaseManager`クラスで管理されている：
+
+```typescript
+class DatabaseManager {
+  private connection: mysql.Connection | null;
+
+  async connect(): Promise<void> {
+    const config: DatabaseConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '3306'),
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || 'password',
+      database: process.env.DB_NAME || 'test',
+    };
+
+    this.connection = await mysql.createConnection(config);
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.connection) {
+      await this.connection.end();
+      this.connection = null;
+    }
+  }
+
+  async generateERData(): Promise<ERData> {
+    // データベースからエンティティとリレーションシップを取得
+    // ...
+  }
+}
+```
+
+現在の接続情報は環境変数からのみ取得しており、ハードコードされたデフォルト値がフォールバックとして使用されている。
+
+### API定義
+
+APIは`scheme/main.tsp`で定義されている：
+
+```typescript
+@route("/api")
+namespace API {
+  // Reverse engineer database to generate ER diagram
+  @post
+  @route("/reverse-engineer")
+  op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
+}
+```
+
+現在は`ViewModel`のみを受け取り、接続情報は環境変数から取得している。
+
+## ViewModelの構造
+
+すべての型は`scheme/main.tsp`で定義されている。
+
+### ViewModel（ルート型）
 
 ```typescript
 model ViewModel {
@@ -58,418 +220,401 @@ model ViewModel {
 }
 ```
 
-#### ERDiagramViewModel
+### ERDiagramViewModel
 
 ```typescript
 model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;       // エンティティノード（テーブル）
   edges: Record<RelationshipEdgeViewModel>; // リレーションシップ（外部キー）
   rectangles: Record<Rectangle>;            // 矩形（グループ化・領域区別用）
+  texts: Record<TextBox>;                   // テキスト（注釈・説明用）
   ui: ERDiagramUIState;                     // ER図のUI状態
   loading: boolean;                         // リバースエンジニア処理中フラグ
 }
 ```
 
-#### Text（現在の定義）
-
-現在、TypeSpecには以下のようなText型が定義されているが、実装はされていない：
-
-```typescript
-model Text {
-  id: string; // UUID
-  x: float64;
-  y: float64;
-  content: string;
-  fontSize: float64;
-  fill: string;
-}
-```
-
-#### Rectangle（既存実装の参考）
-
-矩形機能は既に実装済みで、以下の型定義がある：
-
-```typescript
-model Rectangle {
-  id: string; // UUID
-  x: float64;
-  y: float64;
-  width: float64;
-  height: float64;
-  fill: string;        // 背景色（例: "#E3F2FD"）
-  stroke: string;      // 枠線色（例: "#90CAF9"）
-  strokeWidth: float64;// 枠線幅（px）
-  opacity: float64;    // 透明度（0〜1）
-}
-```
-
-#### GlobalUIState（グローバルUI状態）
+### GlobalUIState
 
 ```typescript
 model GlobalUIState {
-  selectedItem: LayerItemRef | null; // 選択中のアイテム（矩形、テキスト、エンティティ）
-  showBuildInfoModal: boolean;       // ビルド情報モーダル表示フラグ
-  showLayerPanel: boolean;           // レイヤーパネル表示フラグ
+  selectedItem: LayerItemRef | null; // 選択中のアイテム
+  showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
+  showLayerPanel: boolean; // レイヤーパネル表示フラグ
 }
 ```
 
-#### LayerItemRef
+## 現在の環境変数の使用状況
 
-```typescript
-enum LayerItemKind {
-  entity,    // エンティティ（ER図レイヤー固定、編集不可）
-  relation,  // リレーション（ER図レイヤー固定、編集不可）
-  rectangle, // 矩形（前面・背面に配置可能）
-  text,      // テキスト（前面・背面に配置可能）
-}
+バックエンドで使用されている環境変数：
 
-model LayerItemRef {
-  kind: LayerItemKind;
-  id: string; // UUID
-}
-```
+- `DB_HOST`: データベースホスト（デフォルト: `localhost`）
+- `DB_PORT`: データベースポート（デフォルト: `3306`）
+- `DB_USER`: データベースユーザー（デフォルト: `root`）
+- `DB_PASSWORD`: データベースパスワード（デフォルト: `password`）
+- `DB_NAME`: データベース名（デフォルト: `test`）
 
-### 状態管理の仕組み
-
-- **単一状態ツリー**: アプリケーション全体の状態を`ViewModel`で管理
-- **純粋関数Action**: すべての状態更新は `action(viewModel, ...params) => newViewModel` の形式で実装
-- **状態管理**: 自前Store + React `useSyncExternalStore`（ライブラリ非依存）
-
-Storeは`public/src/store/erDiagramStore.ts`に実装されている。
-
-### ID仕様
-
-すべての`id`フィールドはUUID (Universally Unique Identifier)を使用している。
-
-- UUIDは`crypto.randomUUID()`で生成
-- 一度生成されたIDは保存され、増分更新時も維持される（永続性を持つ）
-
-## 矩形描画機能の既存実装（参考情報）
-
-テキスト描画機能と操作感を揃えるため、既に実装されている矩形描画機能の仕様を参考情報として記載する。
-
-### 矩形の基本機能
-
-* ツールバーの「矩形追加」ボタンをクリックすると、viewport中央に固定サイズの矩形を追加
-* 新規作成時のデフォルト値：
-  - サイズ: 幅200px × 高さ150px
-  - 背景色: 淡い青（`#E3F2FD`）
-  - 枠線色: 青（`#90CAF9`）
-  - 枠線幅: 2px
-  - 透明度: 0.5
-
-### 矩形の操作
-
-* 矩形をドラッグして位置を変更可能
-* 選択中の矩形に対してリサイズハンドルを表示
-* React Flowの`NodeResizer`コンポーネントを使用してリサイズ
-* 最小サイズ: 幅40px × 高さ40px
-
-### 矩形のプロパティパネル
-
-右サイドバーに矩形プロパティパネルが表示される（矩形選択時のみ）：
-
-#### プロパティ編集項目
-
-1. **背景色（fill）**
-   - カラーピッカー（`HexColorPicker` + `HexColorInput` from react-colorful）
-   - プリセット色ボタン: 8色を横2列 × 縦4行でグリッド表示
-   - プリセット色:
-     * 青: `#E3F2FD`
-     * シアン: `#E0F7FA`
-     * ティール: `#E0F2F1`
-     * 緑: `#E8F5E9`
-     * 黄: `#FFFDE7`
-     * オレンジ: `#FFF3E0`
-     * ピンク: `#FCE4EC`
-     * グレー: `#F5F5F5`
-
-2. **枠線色（stroke）**
-   - カラーピッカー（同上）
-   - プリセット色ボタン（同上）
-
-3. **透明度（opacity）**
-   - `<input type="range">`スライダー + 現在値表示
-   - 範囲: 0〜1、ステップ0.01
-   - 表示形式: パーセント表示（例: 50%）
-
-4. **枠線幅（strokeWidth）**
-   - `<input type="number">` + 単位表示（px）
-   - 範囲: 0以上、ステップ1
-
-5. **削除ボタン**
-   - 赤背景（`#dc3545`）、白文字
-   - クリック時に即座に削除（確認ダイアログなし）
-
-### カラーピッカーの実装
-
-矩形機能では以下のライブラリを使用している：
-
-* **react-colorful**: 軽量なカラーピッカーライブラリ
-  - `HexColorPicker`: インタラクティブなカラーピッカー
-  - `HexColorInput`: HEX値の直接入力フィールド
-
-カラーピッカーとプリセット色を一体化した再利用可能なコンポーネント（`ColorPickerWithPresets`）が実装されている。
-
-### React Flow統合
-
-矩形はReact Flowのカスタムノード（`rectangleNode`）として実装されている：
-
-* `RectangleNode`コンポーネント（`public/src/components/RectangleNode.tsx`）
-* `NodeResizer`を内包し、選択時にリサイズハンドルを表示
-* 最小サイズ: 幅40px × 高さ40px
-* `onResizeEnd`でリサイズ完了時に座標とサイズを更新
-
-### Action設計
-
-矩形操作用のActionが`public/src/actions/rectangleActions.ts`に実装されている：
-
-* `actionAddRectangle(vm, rectangle)`: 新規矩形を追加
-* `actionRemoveRectangle(vm, rectangleId)`: 矩形を削除
-* `actionUpdateRectanglePosition(vm, rectangleId, x, y)`: 矩形の位置を更新
-* `actionUpdateRectangleSize(vm, rectangleId, width, height)`: 矩形のサイズを更新
-* `actionUpdateRectangleBounds(vm, rectangleId, {x, y, width, height})`: 矩形の座標とサイズを一括更新
-* `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイルを部分更新
-
-すべてのActionは純粋関数で実装され、状態に変化がない場合は同一参照を返す。
-
-### z-index制御
-
-矩形はエンティティより背景に配置される：
-
-* 矩形ノード: `zIndex = 0`
-* エンティティノード: `zIndex = 100`
-* エッジ: デフォルト（0未満）
-
-React Flow設定：
-
-* `elevateNodesOnSelect={false}`: 選択時に矩形が前面に出ないようにする
-* または`zIndexMode="manual"`: 自動z-index制御を無効化し、明示的にzIndexを管理
-
-## 既存のレイヤー管理機能
-
-レイヤー管理機能が実装されている。テキストもこのレイヤー管理システムに統合される予定。
-
-### LayerOrder
-
-```typescript
-model LayerOrder {
-  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
-  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
-}
-```
-
-矩形やテキストは前面・背面に配置可能。エンティティとリレーションはER図レイヤー固定で編集不可。
-
-### レイヤーパネル
-
-レイヤーパネル（`LayerPanel`コンポーネント）が実装されており、以下の機能がある：
-
-* レイヤー順序の表示
-* アイテムの選択
-* レイヤー順序の変更（ドラッグ&ドロップ）
+これらは`DatabaseManager.connect()`メソッド内で使用されている。
 
 ## 検討してほしい内容
 
-以下の観点から、テキスト描画機能の実装方針を検討してほしい：
+### 1. UIデザイン
 
-### 1. データモデル設計
+接続情報を入力するためのUIをどのように設計すべきか？
 
-- 現在のText型をどのように拡張すべきか？
-- 必要なプロパティは何か？（例: width, height, textAlign, fontFamily, stroke, strokeWidth, opacity, shadowなど）
-- 矩形を設定してその範囲に文字列を描画する仕様をどのように実装すべきか？
-- 「入力した文字に範囲を最適化する」機能をどのように実装すべきか？
-- 改行対応はどのように実装すべきか？
+#### 考慮すべき点
 
-### 2. テキスト編集の実装方法
+- **表示タイミング**: 
+  - リバースエンジニアボタン押下時にモーダル/ダイアログを表示するか？
+  - 常に画面上に表示しておくか？
+  - 設定パネルとして表示するか？
+- **入力フィールド**:
+  - ホスト、ポート、ユーザー、パスワード、データベース名の5つのフィールド
+  - パスワードフィールドは目隠し表示（type="password"）
+  - デフォルト値の表示方法（環境変数やViewModel内の保存済み値）
+- **データベースタイプの選択**:
+  - 将来的にPostgreSQLも対応する予定だが、現時点ではMySQLのみ
+  - 将来の拡張性を考慮して、データベースタイプの選択UIを用意すべきか？
+  - 現時点では非表示にして、内部的にはMySQLのみサポートとするか？
+- **接続テスト機能**:
+  - 「接続テスト」ボタンで接続確認できるようにするか？
+  - MVP段階では不要か？
+- **保存機能**:
+  - 接続情報をViewModelに保存する場合、保存ボタンが必要か？
+  - リバースエンジニア実行時に自動で保存するか？
 
-- テキストの編集UIをどのように実装すべきか？
-  - インライン編集（ダブルクリックで編集モード）
-  - サイドパネルのテキストエリア
-  - モーダルダイアログ
-- 改行の入力方法
-- リアルタイム編集とプレビュー
-- 編集中と編集完了後の状態管理
+#### UI例の提示
 
-### 3. React Flowとの統合
+以下のような選択肢が考えられるが、それぞれのメリット・デメリットを評価してほしい：
 
-- テキストをReact Flowのカスタムノードとして実装すべきか？
-- テキストのドラッグ移動の実装方法
-- リサイズハンドルの実装方法（`NodeResizer`を使うか、独自実装か）
-- テキストの描画方法（HTML要素、SVG、Canvasなど）
-- 矩形との操作感の統一
+**パターン1: モーダルダイアログ**
+- リバースエンジニアボタン押下時にモーダルを表示
+- 接続情報を入力して「実行」ボタンで実行
+- モーダル内に入力フォームと実行ボタンを配置
 
-### 4. プロパティパネルの設計
+**パターン2: サイドパネル**
+- 画面左右にサイドパネルとして常時表示
+- 接続情報を入力して「リバースエンジニア」ボタンで実行
+- レイヤーパネルのような折りたたみ可能なパネル
 
-右サイドバーに表示するテキストプロパティパネルの項目：
+**パターン3: インライン展開**
+- リバースエンジニアボタンの近くに展開/折りたたみ可能な入力エリア
+- 接続情報を表示/非表示切り替え可能
 
-- テキスト内容の編集
-- フォントサイズ
-- テキスト配置（左寄せ、中央寄せ、右寄せ）
-- 塗りつぶし色（矩形と同じカラーピッカー）
-- ボーダー色（矩形と同じカラーピッカー）
-- ボーダー幅
-- 透明度
-- ドロップシャドウ（設定項目は何が必要か？）
-- 削除ボタン
+**パターン4: 設定画面**
+- 専用の設定画面/設定モーダルで接続情報を管理
+- リバースエンジニアボタンは保存済みの接続情報を使用
 
-### 5. フォントの扱い
+どのパターンが適切か、または他に良いパターンがあるか提案してほしい。
 
-- クロスプラットフォーム対応のフォント選択
-- 多言語対応（日本語、英語、中国語など）
-- フォントファミリーの選択は必要か？不要か？
-- システムフォントを使うか、Webフォントを使うか？
-- フォールバックフォントの設定
+### 2. データモデルの設計
 
-### 6. ドロップシャドウの実装
+接続情報をViewModelに保持する場合、どのようなデータ構造にすべきか？
 
-- ドロップシャドウの設定項目（例: offsetX, offsetY, blur, color, opacity）
-- CSSの`box-shadow`や`text-shadow`を使うか？
-- SVGフィルターを使うか？
-- プロパティパネルでの設定UI
+#### 考慮すべき点
 
-### 7. テキストのレンダリング
+- **配置場所**: ViewModelのどこに接続情報を配置するか？
+  - `ViewModel`のトップレベルに`databaseConnection`のようなフィールドを追加？
+  - `GlobalUIState`に追加？
+  - `ERDiagramViewModel`に追加？
+  - 別の新しいフィールド（例: `settings`）を追加？
+- **パスワードの扱い**:
+  - パスワードをViewModelに保存するべきか？
+  - セキュリティの観点からパスワードは保存しない方が良い可能性
+  - パスワード以外の接続情報のみ保存する選択肢
+  - 開発時の利便性とセキュリティのバランス
+- **データベースタイプのフィールド**:
+  - 将来のPostgreSQL対応を考慮して、`databaseType: "mysql" | "postgresql"`のようなフィールドを用意するか？
+- **任意性**:
+  - 接続情報が未設定の場合はどうするか？
+  - すべてのフィールドをoptional（`| null`）にするか？
+- **デフォルト値の優先順位**:
+  - ViewModel内の値 > 環境変数 > ハードコードされたデフォルト値
+  - この優先順位で良いか？
 
-- HTML要素（`<div>`）で描画するか？
-- SVG（`<text>`）で描画するか？
-- Canvasで描画するか？
-- 各方法のメリット・デメリット
-- 改行、テキスト配置、ドロップシャドウの実装難易度
+#### データ構造例
 
-### 8. リサイズ機能
+以下のような構造が考えられるが、メリット・デメリットを分析してほしい：
 
-- テキストボックスのリサイズ方法
-- 「入力した文字に範囲を最適化する」機能の実装
-  - 自動サイズ調整ボタン
-  - 常に自動調整（リサイズ不可）
-  - ユーザーが選択可能
-- 最小サイズの設定
-- テキストがボックスからあふれた場合の処理（省略記号、スクロール、自動拡大など）
+**パターン1: ViewModelのトップレベルに配置**
 
-### 9. Action設計
+```typescript
+model DatabaseConnection {
+  host: string | null;
+  port: int32 | null;
+  user: string | null;
+  password: string | null; // または除外
+  database: string | null;
+  type: "mysql" | "postgresql"; // 将来の拡張用
+}
 
-テキスト操作用のActionに必要な関数：
+model ViewModel {
+  format: string;
+  version: int32;
+  erDiagram: ERDiagramViewModel;
+  ui: GlobalUIState;
+  buildInfo: BuildInfoState;
+  databaseConnection: DatabaseConnection | null; // 追加
+}
+```
 
-- `actionAddText(vm, text)`: 新規テキストを追加
-- `actionRemoveText(vm, textId)`: テキストを削除
-- `actionUpdateTextPosition(vm, textId, x, y)`: テキストの位置を更新
-- `actionUpdateTextSize(vm, textId, width, height)`: テキストのサイズを更新
-- `actionUpdateTextBounds(vm, textId, {x, y, width, height})`: テキストの座標とサイズを一括更新
-- `actionUpdateTextContent(vm, textId, content)`: テキスト内容を更新
-- `actionUpdateTextStyle(vm, textId, stylePatch)`: テキストのスタイルを部分更新
+**パターン2: GlobalUIStateに配置**
 
-その他必要なActionはあるか？
+```typescript
+model DatabaseConnection {
+  host: string | null;
+  port: int32 | null;
+  user: string | null;
+  // passwordは保存しない
+  database: string | null;
+}
 
-### 10. ライブラリの必要性
+model GlobalUIState {
+  selectedItem: LayerItemRef | null;
+  showBuildInfoModal: boolean;
+  showLayerPanel: boolean;
+  databaseConnection: DatabaseConnection | null; // 追加
+}
+```
 
-以下のようなライブラリの導入を検討すべきか？
+**パターン3: 設定専用の新しいフィールド**
 
-- リッチテキストエディタ（例: Slate, Draft.js, Quill）
-- テキスト描画ライブラリ（例: fabric.js, konva）
-- SVGテキスト処理ライブラリ
-- フォント管理ライブラリ
+```typescript
+model AppSettings {
+  database: {
+    host: string | null;
+    port: int32 | null;
+    user: string | null;
+    database: string | null;
+  } | null;
+}
 
-または、ネイティブHTMLとCSSで十分か？
+model ViewModel {
+  format: string;
+  version: int32;
+  erDiagram: ERDiagramViewModel;
+  ui: GlobalUIState;
+  buildInfo: BuildInfoState;
+  settings: AppSettings; // 追加
+}
+```
 
-### 11. z-index制御
+どのパターンが適切か、または他に良い構造があるか提案してほしい。
 
-- テキストのz-indexをどのように設定すべきか？
-- 矩形と同様に背景・前面レイヤーに配置可能にするか？
-- デフォルトの配置位置は？
+### 3. API設計
 
-### 12. テキスト作成のUX
+接続情報をフロントエンドからバックエンドに渡す方法をどうするか？
 
-- テキスト作成方法
-  - ツールバーの「テキスト追加」ボタン（矩形と同様）
-  - キャンバス上でクリック
-  - キャンバス上でドラッグ範囲選択
-- 新規作成時のデフォルト値（サイズ、色、フォントサイズなど）
+#### 考慮すべき点
 
-### 13. 複数選択時の挙動
+- **API変更の方法**:
+  - 現在の`POST /api/reverse-engineer`にパラメータを追加するか？
+  - 新しいAPIエンドポイントを作成するか？
+- **リクエストボディ**:
+  - ViewModelに接続情報を含めて送信するか？
+  - 接続情報を別途送信するか？
+- **環境変数との関係**:
+  - フロントエンドから送信された接続情報と環境変数のどちらを優先するか？
+  - 接続情報が未指定の場合は環境変数を使用するか？
 
-- 複数のテキストが選択されている場合の処理
-- 一括編集機能は必要か？（MVPでは不要かもしれない）
+#### API設計例
 
-### 14. パフォーマンス
+以下のような選択肢が考えられるが、メリット・デメリットを評価してほしい：
 
-- テキストノードが大量に存在する場合のパフォーマンス
-- 仮想化やレンダリング最適化は必要か？（MVPでは不要かもしれない）
+**パターン1: ViewModelに接続情報を含める**
 
-### 15. アクセシビリティ
+```typescript
+// ViewModelに接続情報を追加
+@post
+@route("/reverse-engineer")
+op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
+```
 
-- テキストノードのアクセシビリティ
-- スクリーンリーダー対応
-- キーボード操作対応
+- ViewModelに`databaseConnection`フィールドを追加
+- バックエンドはViewModel内の接続情報を使用してデータベースに接続
+- 接続情報が未設定の場合は環境変数を使用
 
-### 16. 既存機能との統合
+**パターン2: 接続情報を別パラメータとして送信**
 
-- レイヤー管理機能との統合
-- インポート・エクスポート機能との統合
-- テキストデータの永続化
+```typescript
+model ReverseEngineerRequest {
+  viewModel: ViewModel;
+  databaseConnection: DatabaseConnection;
+}
 
-### 17. 他のWebアプリケーションでの事例
+@post
+@route("/reverse-engineer")
+op reverseEngineer(@body request: ReverseEngineerRequest): ViewModel | ErrorResponse;
+```
 
-- 類似のアプリケーション（図表作成ツール、ダイアグラムエディタなど）でのテキスト描画機能の実装例
-  - Figma
-  - Miro
-  - Excalidraw
-  - draw.io
-  - Lucidchart
-- ベストプラクティスや参考になる設計パターン
+- リクエストボディに`viewModel`と`databaseConnection`を含める
+- ViewModelとは独立して接続情報を管理
+
+**パターン3: 新しいAPIエンドポイント**
+
+```typescript
+// 接続情報付きリバースエンジニア
+@post
+@route("/reverse-engineer-with-connection")
+op reverseEngineerWithConnection(
+  @body viewModel: ViewModel,
+  @body connection: DatabaseConnection
+): ViewModel | ErrorResponse;
+
+// 既存のAPIは環境変数を使用
+@post
+@route("/reverse-engineer")
+op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
+```
+
+- 接続情報を指定する場合と環境変数を使用する場合で別のエンドポイントを用意
+
+どのパターンが適切か、または他に良い設計があるか提案してほしい。
+
+### 4. パスワードの扱い
+
+パスワードをViewModelに保存することのセキュリティリスクと対処法を検討してほしい。
+
+#### 考慮すべき点
+
+- **保存の必要性**:
+  - MVPフェーズではパスワードを保存した方が開発効率が良い
+  - しかし、セキュリティリスクがある
+- **セキュリティリスク**:
+  - ViewModelはJSON形式でファイルに保存される（インポート・エクスポート機能）
+  - ブラウザのローカルストレージやファイルに平文パスワードが保存される
+  - 誤って第三者にファイルを共有してしまうリスク
+- **代替案**:
+  - パスワードは保存せず、毎回入力を求める
+  - パスワードのみブラウザのSessionStorageに一時保存
+  - パスワードは環境変数のみから取得し、UI入力は受け付けない
+- **MVP段階での許容範囲**:
+  - 開発用途であればパスワード保存を許容するか？
+  - セキュリティ警告を表示するか？
+
+どのような方針が適切か、メリット・デメリットを示してほしい。
+
+### 5. 実装への影響範囲
+
+この機能を実装する場合の影響範囲を分析してほしい。
+
+#### 考慮すべき点
+
+- **フロントエンド**:
+  - UI コンポーネントの追加（入力フォーム、モーダル、パネルなど）
+  - コマンド関数の変更（`commandReverseEngineer`）
+  - Action関数の追加（接続情報の更新など）
+  - ViewModelの型定義の変更
+- **バックエンド**:
+  - Usecaseの変更（`ReverseEngineerUsecase`）
+  - DatabaseManagerの変更（動的な接続情報の受け取り）
+  - API定義の変更（`scheme/main.tsp`）
+- **状態管理**:
+  - ViewModelに接続情報フィールドを追加
+  - 初期化処理の変更（デフォルト値の設定）
+- **インポート・エクスポート**:
+  - 接続情報が含まれるViewModelのインポート・エクスポート
+  - パスワードを含む場合のセキュリティ警告
+
+変更が必要なファイル・関数・型定義をリストアップし、実装工数を見積もってほしい。
+
+### 6. UXの考慮
+
+開発者がリバースエンジニアリングを頻繁に実行する際のUXを検討してほしい。
+
+#### 考慮すべき点
+
+- **頻繁な実行**:
+  - 開発時は同じデータベースに対して何度もリバースエンジニアリングを実行する
+  - 毎回接続情報を入力するのは煩雑
+- **デフォルト値の活用**:
+  - 環境変数のデフォルト値が設定されていれば、入力不要にする
+  - 前回の接続情報が保存されていれば、それを使用する
+- **ショートカット**:
+  - 「前回と同じ接続情報で実行」ボタンを用意する
+  - 接続情報の編集が必要な場合のみUIを表示する
+- **エラーハンドリング**:
+  - 接続失敗時のエラーメッセージ表示
+  - 接続情報の再入力を促す
+
+開発時の利便性を最大化するためのUX設計を提案してほしい。
+
+### 7. 将来の拡張性
+
+PostgreSQL対応など、将来の拡張を考慮した設計を検討してほしい。
+
+#### 考慮すべき点
+
+- **データベースタイプの管理**:
+  - MySQLとPostgreSQLでは接続パラメータが異なる可能性
+  - データベースタイプ選択UIの設計
+- **ポートのデフォルト値**:
+  - MySQL: 3306
+  - PostgreSQL: 5432
+  - データベースタイプに応じたデフォルト値の変更
+- **接続文字列**:
+  - PostgreSQLは接続文字列形式をサポート
+  - 将来的に接続文字列入力をサポートするか？
+- **追加パラメータ**:
+  - SSL接続の設定
+  - タイムアウトの設定
+  - その他のデータベース固有の設定
+
+現時点ではMySQLのみのサポートだが、将来の拡張を容易にする設計を提案してほしい。
+
+### 8. 推奨案
+
+最終的に、以下について推奨案を提示してほしい：
+
+1. **UIデザイン**: どのUIパターンを推奨するか（モーダル、サイドパネル、など）
+2. **データモデル**: ViewModelのどこに接続情報を配置するか
+3. **API設計**: どのようにAPIを設計するか
+4. **パスワードの扱い**: パスワードを保存するか、しないか
+5. **優先順位**: デフォルト値の優先順位（ViewModel > 環境変数 > ハードコード）
+6. **実装ステップ**: 段階的に実装する場合の順序
+
+それぞれの推奨案について、理由と根拠を示してほしい。
 
 ## 期待する回答
 
 以下について、具体的な見解と理由を提示してほしい：
 
-1. **データモデル設計**
-   - Text型に必要なプロパティの完全なリスト（具体的な型定義）
-   - 矩形を設定して文字列を描画する仕様の実装方法
-   - 自動サイズ調整機能の実装方法
+1. **UIデザインの提案**
+   - 推奨するUIパターン（モーダル、サイドパネル、など）
+   - UI要素の配置とデザイン
+   - UXフローの説明（画面遷移、ユーザー操作）
 
-2. **テキスト編集の実装方法**
-   - 編集UIの実装方法（インライン編集、サイドパネル、モーダルなど）
-   - 改行対応の実装方法
-   - メリット・デメリット
+2. **データモデルの設計**
+   - TypeSpecでの型定義（具体的なコード例）
+   - ViewModelのどこに配置するか
+   - パスワード保存の有無とその理由
 
-3. **テキストのレンダリング方法**
-   - HTML、SVG、Canvasのどれを使うべきか
-   - 各方法のメリット・デメリット
-   - 改行、テキスト配置、ドロップシャドウの実装難易度
+3. **API設計**
+   - 推奨するAPIの形式（リクエスト・レスポンスの構造）
+   - TypeSpecでの定義（具体的なコード例）
 
-4. **React Flowとの統合方法**
-   - カスタムノードとして実装する際の注意点
-   - ドラッグ移動とリサイズの実装方法
+4. **パスワード管理のベストプラクティス**
+   - パスワードを保存する場合の対策
+   - パスワードを保存しない場合の代替案
+   - MVPフェーズでの推奨方針
 
-5. **プロパティパネルの設計**
-   - 必要な編集項目のリスト
-   - UIレイアウト
-   - 矩形プロパティパネルとの共通化
+5. **実装への影響範囲**
+   - 変更が必要なファイル・関数のリスト
+   - フロントエンド・バックエンドそれぞれの実装内容
+   - 実装工数の見積もり
 
-6. **フォントの扱い**
-   - クロスプラットフォーム対応のフォント選択方法
-   - 多言語対応の実装方法
-   - フォントファミリーの選択が必要かどうか
+6. **UX設計**
+   - 開発時の効率を最大化するUXフロー
+   - デフォルト値の活用方法
+   - エラーハンドリングの方針
 
-7. **ドロップシャドウの実装**
-   - 必要な設定項目
-   - 実装方法（CSS、SVGフィルターなど）
-   - プロパティパネルのUI
+7. **将来の拡張性**
+   - PostgreSQL対応時の変更範囲
+   - データベースタイプ選択UIの設計
+   - その他の拡張ポイント
 
-8. **ライブラリの必要性**
-   - どのライブラリが有用か、またはネイティブAPIで十分か
-   - 各ライブラリのメリット・デメリット
-
-9. **Action設計**
-   - 必要なActionのリスト
-   - 純粋関数としての実装方法
-
-10. **UXとアクセシビリティ**
-    - テキスト作成方法
-    - 編集フロー
-    - キーボード操作対応
-
-11. **他のアプリケーションでの事例**
-    - 参考になる実装例やベストプラクティス
-    - 類似ツールの分析
+8. **実装の優先順位**
+   - MVP段階で必須の機能
+   - 後回しにできる機能
+   - 段階的な実装の推奨ステップ
 
 可能であれば、複数の実装案を比較し、それぞれのメリット・デメリットを示してほしい。

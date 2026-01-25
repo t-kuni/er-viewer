@@ -12,7 +12,7 @@
 
 ## フェーズ1: バックエンドの修正
 
-### □ 型定義の生成
+### ✅ 型定義の生成
 
 **編集対象**: `lib/generated/api-types.ts`, `public/src/api/client/`
 
@@ -30,7 +30,7 @@
 
 ---
 
-### □ DatabaseManager の修正
+### ✅ DatabaseManager の修正
 
 **編集対象**: `lib/database.ts`
 
@@ -51,7 +51,7 @@ async connect(config?: Partial<DatabaseConfig>): Promise<void>
 
 ---
 
-### □ ReverseEngineerUsecase の修正
+### ✅ ReverseEngineerUsecase の修正
 
 **編集対象**: `lib/usecases/ReverseEngineerUsecase.ts`
 
@@ -82,7 +82,7 @@ async connect(config?: Partial<DatabaseConfig>): Promise<void>
 
 ---
 
-### □ サーバーエンドポイントの修正
+### ✅ サーバーエンドポイントの修正
 
 **編集対象**: `server.ts`
 
@@ -105,7 +105,7 @@ const updatedViewModel = await reverseEngineerUsecase(request);
 
 ---
 
-### □ ReverseEngineerUsecase のテスト修正
+### ✅ ReverseEngineerUsecase のテスト修正
 
 **編集対象**: `tests/usecases/ReverseEngineerUsecase.test.ts`
 
@@ -122,7 +122,7 @@ const updatedViewModel = await reverseEngineerUsecase(request);
 
 ---
 
-### □ バックエンドのビルド確認
+### ✅ バックエンドのビルド確認
 
 **コマンド**: `npm run generate && npm run build`（バックエンドのビルド）
 
@@ -132,7 +132,7 @@ const updatedViewModel = await reverseEngineerUsecase(request);
 
 ---
 
-### □ バックエンドのテスト実行
+### ✅ バックエンドのテスト実行
 
 **コマンド**: `npm run test`
 
@@ -144,7 +144,7 @@ const updatedViewModel = await reverseEngineerUsecase(request);
 
 ## フェーズ2: フロントエンドの修正
 
-### □ GlobalUIActions の追加
+### ✅ GlobalUIActions の追加
 
 **編集対象**: `public/src/actions/globalUIActions.ts`
 
@@ -166,7 +166,7 @@ export function actionHideDatabaseConnectionModal(viewModel: ViewModel): ViewMod
 
 ---
 
-### □ DatabaseConnectionModal コンポーネントの作成
+### ✅ DatabaseConnectionModal コンポーネントの作成
 
 **新規作成**: `public/src/components/DatabaseConnectionModal.tsx`
 
@@ -203,7 +203,7 @@ interface DatabaseConnectionModalProps {
 
 ---
 
-### □ reverseEngineerCommand の修正
+### ✅ reverseEngineerCommand の修正
 
 **編集対象**: `public/src/commands/reverseEngineerCommand.ts`
 
@@ -238,7 +238,7 @@ export async function commandReverseEngineer(
 
 ---
 
-### □ App.tsx の修正
+### ✅ App.tsx の修正
 
 **編集対象**: `public/src/components/App.tsx`
 
@@ -257,7 +257,7 @@ export async function commandReverseEngineer(
 
 ---
 
-### □ getInitialViewModelValues の修正
+### ✅ getInitialViewModelValues の修正
 
 **編集対象**: `public/src/utils/getInitialViewModelValues.ts`
 
@@ -278,7 +278,7 @@ export function getInitialGlobalUIState(): GlobalUIState {
 
 ---
 
-### □ GlobalUIActions のテスト追加
+### ✅ GlobalUIActions のテスト追加
 
 **編集対象**: `public/tests/actions/globalUIActions.test.ts`
 
@@ -294,7 +294,7 @@ export function getInitialGlobalUIState(): GlobalUIState {
 
 ---
 
-### □ フロントエンドのビルド確認
+### ✅ フロントエンドのビルド確認
 
 **コマンド**: `cd public && npm run build`
 
@@ -304,7 +304,7 @@ export function getInitialGlobalUIState(): GlobalUIState {
 
 ---
 
-### □ フロントエンドのテスト実行
+### ✅ フロントエンドのテスト実行
 
 **コマンド**: `cd public && npm run test`
 

@@ -41,3 +41,43 @@ export function actionHideBuildInfoModal(
     },
   };
 }
+
+/**
+ * データベース接続モーダルを表示する
+ */
+export function actionShowDatabaseConnectionModal(
+  viewModel: ViewModel
+): ViewModel {
+  // 変化がない場合は同一参照を返す
+  if (viewModel.ui.showDatabaseConnectionModal === true) {
+    return viewModel;
+  }
+
+  return {
+    ...viewModel,
+    ui: {
+      ...viewModel.ui,
+      showDatabaseConnectionModal: true,
+    },
+  };
+}
+
+/**
+ * データベース接続モーダルを非表示にする
+ */
+export function actionHideDatabaseConnectionModal(
+  viewModel: ViewModel
+): ViewModel {
+  // 変化がない場合は同一参照を返す
+  if (viewModel.ui.showDatabaseConnectionModal === false) {
+    return viewModel;
+  }
+
+  return {
+    ...viewModel,
+    ui: {
+      ...viewModel.ui,
+      showDatabaseConnectionModal: false,
+    },
+  };
+}

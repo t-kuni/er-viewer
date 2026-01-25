@@ -29,20 +29,21 @@ class DatabaseManager {
     console.log('DatabaseManager constructor completed');
   }
 
-  async connect(): Promise<void> {
+  async connect(config?: Partial<DatabaseConfig>): Promise<void> {
     console.log('DatabaseManager.connect() called');
     try {
-      const config: DatabaseConfig = {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '3306'),
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || 'password',
-        database: process.env.DB_NAME || 'test',
+      // 接続情報の解決: 優先順位は 引数 > 環境変数 > エラー
+      const resolvedConfig: DatabaseConfig = {
+        host: config?.host ?? process.env.DB_HOST ?? (() => { throw new Error('Database host is not specified'); })(),
+        port: config?.port ?? (process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (() => { throw new Error('Database port is not specified'); })()),
+        user: config?.user ?? process.env.DB_USER ?? (() => { throw new Error('Database user is not specified'); })(),
+        password: config?.password ?? process.env.DB_PASSWORD ?? (() => { throw new Error('Database password is not specified'); })(),
+        database: config?.database ?? process.env.DB_NAME ?? (() => { throw new Error('Database name is not specified'); })(),
       };
-      console.log('Database config prepared:', { ...config, password: '***' });
+      console.log('Database config prepared:', { ...resolvedConfig, password: '***' });
 
       console.log('Attempting to create MySQL connection...');
-      this.connection = await mysql.createConnection(config);
+      this.connection = await mysql.createConnection(resolvedConfig);
       console.log('Connected to MySQL database successfully');
     } catch (error) {
       console.error('Database connection failed:', error);

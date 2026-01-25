@@ -22,8 +22,6 @@ import RelationshipEdge from './RelationshipEdge'
 import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
-import { erDiagramStore } from '../store/erDiagramStore'
-import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
 import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
@@ -664,7 +662,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   // Storeから状態を購読
   const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
   const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
-  const loading = useViewModel((vm) => vm.erDiagram.loading)
   
   // エンティティとエッジを更新
   useEffect(() => {
@@ -674,10 +671,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
     setNodes(entityNodes)
     setEdges(newEdges)
   }, [viewModelNodes, viewModelEdges])
-  
-  const handleReverseEngineer = async () => {
-    await commandReverseEngineer(dispatch, erDiagramStore.getState)
-  }
   
   const handleAddRectangle = () => {
     const newRectangle: Rectangle = {
@@ -728,20 +721,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '0.5rem' }}>
-        <button 
-          onClick={handleReverseEngineer}
-          disabled={loading}
-          style={{
-            padding: '0.5rem 1rem',
-            background: loading ? '#ccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {loading ? '処理中...' : 'リバースエンジニア'}
-        </button>
         <button 
           onClick={handleAddRectangle}
           style={{

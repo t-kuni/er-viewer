@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createReverseEngineerUsecase, type ViewModel } from '../../lib/usecases/ReverseEngineerUsecase';
+import { createReverseEngineerUsecase, type ViewModel, type ReverseEngineerRequest } from '../../lib/usecases/ReverseEngineerUsecase';
 import DatabaseManager from '../../lib/database';
 
 describe('ReverseEngineerUsecase', () => {
@@ -22,7 +22,7 @@ describe('ReverseEngineerUsecase', () => {
     }
   });
 
-  it('ViewModelを受け取り、ER図が更新されたViewModelを返す', async () => {
+  it('環境変数から接続情報を取得してER図を生成する', async () => {
     // 環境変数を設定
     process.env.DB_HOST = 'localhost';
     process.env.DB_PORT = '30177';
@@ -58,6 +58,7 @@ describe('ReverseEngineerUsecase', () => {
         selectedItem: null,
         showBuildInfoModal: true, // UI状態を設定
         showLayerPanel: false,
+        showDatabaseConnectionModal: false,
       },
       buildInfo: {
         data: {
@@ -81,7 +82,13 @@ describe('ReverseEngineerUsecase', () => {
       },
     };
     
-    const result = await usecase(inputViewModel);
+    // ReverseEngineerRequestを作成
+    const request: ReverseEngineerRequest = {
+      viewModel: inputViewModel,
+      password: 'rootpass',
+    };
+    
+    const result = await usecase(request);
     
     // formatとversionが維持されることを検証
     expect(result.format).toBe("er-viewer");
@@ -131,5 +138,301 @@ describe('ReverseEngineerUsecase', () => {
     expect(result.buildInfo.data).toEqual(inputViewModel.buildInfo.data);
     expect(result.buildInfo.loading).toBe(false);
     expect(result.buildInfo.error).toBeNull();
+    
+    // settingsに接続情報が保存されることを確認
+    expect(result.settings).toBeDefined();
+    expect(result.settings!.lastDatabaseConnection).toBeDefined();
+    expect(result.settings!.lastDatabaseConnection!.type).toBe('mysql');
+    expect(result.settings!.lastDatabaseConnection!.host).toBe('localhost');
+    expect(result.settings!.lastDatabaseConnection!.port).toBe(30177);
+    expect(result.settings!.lastDatabaseConnection!.user).toBe('root');
+    expect(result.settings!.lastDatabaseConnection!.database).toBe('erviewer');
+  });
+
+  it('viewModel.settings.lastDatabaseConnectionから接続情報を取得する', async () => {
+    // 環境変数をクリア
+    delete process.env.DB_HOST;
+    delete process.env.DB_PORT;
+    delete process.env.DB_USER;
+    delete process.env.DB_NAME;
+    // パスワードのみ環境変数で設定
+    process.env.DB_PASSWORD = 'rootpass';
+    
+    const usecase = createReverseEngineerUsecase({
+      createDatabaseManager: () => new DatabaseManager(),
+    });
+    
+    const inputViewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: {
+            backgroundItems: [],
+            foregroundItems: [],
+          },
+        },
+        loading: false,
+      },
+      ui: {
+        selectedItem: null,
+        showBuildInfoModal: false,
+        showLayerPanel: false,
+        showDatabaseConnectionModal: false,
+      },
+      buildInfo: {
+        data: {
+          version: '1.0.0',
+          name: 'test',
+          buildTime: '2026-01-25T12:00:00Z',
+          buildTimestamp: 1737806400000,
+          buildDate: '2026-01-25',
+          git: {
+            commit: 'abc123',
+            commitShort: 'abc',
+            branch: 'main',
+            tag: null,
+          },
+          nodeVersion: 'v18.0.0',
+          platform: 'linux',
+          arch: 'x64',
+        },
+        loading: false,
+        error: null,
+      },
+      settings: {
+        lastDatabaseConnection: {
+          type: 'mysql',
+          host: 'localhost',
+          port: 30177,
+          user: 'root',
+          database: 'erviewer',
+        },
+      },
+    };
+    
+    const request: ReverseEngineerRequest = {
+      viewModel: inputViewModel,
+      password: 'rootpass',
+    };
+    
+    const result = await usecase(request);
+    
+    // ER図が生成されることを確認
+    expect(Object.keys(result.erDiagram.nodes).length).toBeGreaterThan(0);
+    
+    // settingsが維持されることを確認
+    expect(result.settings!.lastDatabaseConnection!.host).toBe('localhost');
+    expect(result.settings!.lastDatabaseConnection!.port).toBe(30177);
+  });
+
+  it('request.passwordからパスワードを取得する', async () => {
+    // 環境変数を設定（パスワード以外）
+    process.env.DB_HOST = 'localhost';
+    process.env.DB_PORT = '30177';
+    process.env.DB_USER = 'root';
+    process.env.DB_NAME = 'erviewer';
+    delete process.env.DB_PASSWORD; // パスワード環境変数をクリア
+    
+    const usecase = createReverseEngineerUsecase({
+      createDatabaseManager: () => new DatabaseManager(),
+    });
+    
+    const inputViewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: {
+            backgroundItems: [],
+            foregroundItems: [],
+          },
+        },
+        loading: false,
+      },
+      ui: {
+        selectedItem: null,
+        showBuildInfoModal: false,
+        showLayerPanel: false,
+        showDatabaseConnectionModal: false,
+      },
+      buildInfo: {
+        data: {
+          version: '1.0.0',
+          name: 'test',
+          buildTime: '2026-01-25T12:00:00Z',
+          buildTimestamp: 1737806400000,
+          buildDate: '2026-01-25',
+          git: {
+            commit: 'abc123',
+            commitShort: 'abc',
+            branch: 'main',
+            tag: null,
+          },
+          nodeVersion: 'v18.0.0',
+          platform: 'linux',
+          arch: 'x64',
+        },
+        loading: false,
+        error: null,
+      },
+    };
+    
+    const request: ReverseEngineerRequest = {
+      viewModel: inputViewModel,
+      password: 'rootpass', // パスワードをリクエストで指定
+    };
+    
+    const result = await usecase(request);
+    
+    // ER図が生成されることを確認
+    expect(Object.keys(result.erDiagram.nodes).length).toBeGreaterThan(0);
+  });
+
+  it('接続情報が不足している場合にエラーを投げる', async () => {
+    // 環境変数をクリア
+    delete process.env.DB_HOST;
+    delete process.env.DB_PORT;
+    delete process.env.DB_USER;
+    delete process.env.DB_PASSWORD;
+    delete process.env.DB_NAME;
+    
+    const usecase = createReverseEngineerUsecase({
+      createDatabaseManager: () => new DatabaseManager(),
+    });
+    
+    const inputViewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: {
+            backgroundItems: [],
+            foregroundItems: [],
+          },
+        },
+        loading: false,
+      },
+      ui: {
+        selectedItem: null,
+        showBuildInfoModal: false,
+        showLayerPanel: false,
+        showDatabaseConnectionModal: false,
+      },
+      buildInfo: {
+        data: {
+          version: '1.0.0',
+          name: 'test',
+          buildTime: '2026-01-25T12:00:00Z',
+          buildTimestamp: 1737806400000,
+          buildDate: '2026-01-25',
+          git: {
+            commit: 'abc123',
+            commitShort: 'abc',
+            branch: 'main',
+            tag: null,
+          },
+          nodeVersion: 'v18.0.0',
+          platform: 'linux',
+          arch: 'x64',
+        },
+        loading: false,
+        error: null,
+      },
+    };
+    
+    const request: ReverseEngineerRequest = {
+      viewModel: inputViewModel,
+    };
+    
+    await expect(usecase(request)).rejects.toThrow('Database connection information is incomplete');
+  });
+
+  it('パスワードが不足している場合にエラーを投げる', async () => {
+    // 環境変数を設定（パスワード以外）
+    process.env.DB_HOST = 'localhost';
+    process.env.DB_PORT = '30177';
+    process.env.DB_USER = 'root';
+    process.env.DB_NAME = 'erviewer';
+    delete process.env.DB_PASSWORD;
+    
+    const usecase = createReverseEngineerUsecase({
+      createDatabaseManager: () => new DatabaseManager(),
+    });
+    
+    const inputViewModel: ViewModel = {
+      format: "er-viewer",
+      version: 1,
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: {
+            backgroundItems: [],
+            foregroundItems: [],
+          },
+        },
+        loading: false,
+      },
+      ui: {
+        selectedItem: null,
+        showBuildInfoModal: false,
+        showLayerPanel: false,
+        showDatabaseConnectionModal: false,
+      },
+      buildInfo: {
+        data: {
+          version: '1.0.0',
+          name: 'test',
+          buildTime: '2026-01-25T12:00:00Z',
+          buildTimestamp: 1737806400000,
+          buildDate: '2026-01-25',
+          git: {
+            commit: 'abc123',
+            commitShort: 'abc',
+            branch: 'main',
+            tag: null,
+          },
+          nodeVersion: 'v18.0.0',
+          platform: 'linux',
+          arch: 'x64',
+        },
+        loading: false,
+        error: null,
+      },
+    };
+    
+    const request: ReverseEngineerRequest = {
+      viewModel: inputViewModel,
+      // passwordなし
+    };
+    
+    await expect(usecase(request)).rejects.toThrow('Database password is not specified');
   });
 });

@@ -26,6 +26,7 @@ export function getInitialGlobalUIState(): GlobalUIState {
     selectedItem: null,
     showBuildInfoModal: false,
     showLayerPanel: false,
+    showDatabaseConnectionModal: false,
   };
 }
 

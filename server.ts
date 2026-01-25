@@ -59,11 +59,11 @@ app.get('/api/init', async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/reverse-engineer - ViewModelを受け取り、更新後のViewModelを返却
+// POST /api/reverse-engineer - ReverseEngineerRequestを受け取り、更新後のViewModelを返却
 app.post('/api/reverse-engineer', async (req: Request, res: Response) => {
   try {
-    const viewModel = req.body;
-    const updatedViewModel = await reverseEngineerUsecase(viewModel);
+    const request = req.body; // ReverseEngineerRequest型
+    const updatedViewModel = await reverseEngineerUsecase(request);
     res.json(updatedViewModel);
   } catch (error) {
     console.error('Error during reverse engineering:', error);

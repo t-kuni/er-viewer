@@ -1,21 +1,25 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import ERCanvas from './ERCanvas'
 import BuildInfoModal from './BuildInfoModal'
+import DatabaseConnectionModal from './DatabaseConnectionModal'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
 import { TextPropertyPanel } from './TextPropertyPanel'
 import { LayerPanel } from './LayerPanel'
 import { useViewModel, useDispatch } from '../store/hooks'
-import { actionShowBuildInfoModal, actionHideBuildInfoModal } from '../actions/globalUIActions'
+import { actionShowBuildInfoModal, actionHideBuildInfoModal, actionShowDatabaseConnectionModal, actionHideDatabaseConnectionModal } from '../actions/globalUIActions'
 import { actionSelectItem, actionToggleLayerPanel } from '../actions/layerActions'
 import { actionSetViewModel } from '../actions/dataActions'
 import { commandInitialize } from '../commands/initializeCommand'
+import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { erDiagramStore } from '../store/erDiagramStore'
 import { exportViewModel } from '../utils/exportViewModel'
 import { importViewModel } from '../utils/importViewModel'
+import type { DatabaseConnectionState } from '../api/client'
 
 function App() {
   const dispatch = useDispatch()
+  const [dbConnectionError, setDbConnectionError] = useState<string | undefined>(undefined)
   
   // 初期化処理
   useEffect(() => {
@@ -25,9 +29,11 @@ function App() {
   // Storeから状態を取得
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
   const showBuildInfo = useViewModel((vm) => vm.ui.showBuildInfoModal)
+  const showDatabaseConnectionModal = useViewModel((vm) => vm.ui.showDatabaseConnectionModal)
   const showLayerPanel = useViewModel((vm) => vm.ui.showLayerPanel)
   const viewModel = useViewModel((vm) => vm)
   const buildInfo = useViewModel((vm) => vm.buildInfo)
+  const lastDatabaseConnection = useViewModel((vm) => vm.settings?.lastDatabaseConnection)
   
   // エクスポートハンドラ
   const handleExport = () => {
@@ -66,6 +72,26 @@ function App() {
     }
   }
   
+  // データベース接続モーダルの実行ハンドラ
+  const handleDatabaseConnectionExecute = async (connectionInfo: DatabaseConnectionState, password: string) => {
+    const result = await commandReverseEngineer(dispatch, erDiagramStore.getState, connectionInfo, password)
+    
+    if (result.success) {
+      // 成功時はモーダルを閉じる
+      dispatch(actionHideDatabaseConnectionModal)
+      setDbConnectionError(undefined)
+    } else {
+      // 失敗時はエラーメッセージを設定（モーダルは開いたまま）
+      setDbConnectionError(result.error)
+    }
+  }
+  
+  // データベース接続モーダルのキャンセルハンドラ
+  const handleDatabaseConnectionCancel = () => {
+    dispatch(actionHideDatabaseConnectionModal)
+    setDbConnectionError(undefined)
+  }
+  
   return (
     <div className="app">
       <header 
@@ -83,6 +109,19 @@ function App() {
         <input {...getInputProps()} />
         <h1 style={{ margin: 0 }}>ER Diagram Viewer</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => dispatch(actionShowDatabaseConnectionModal)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#555',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            リバースエンジニア
+          </button>
           <button 
             onClick={() => dispatch(actionToggleLayerPanel)}
             style={{
@@ -181,6 +220,14 @@ function App() {
       </main>
       {showBuildInfo && (
         <BuildInfoModal onClose={() => dispatch(actionHideBuildInfoModal)} />
+      )}
+      {showDatabaseConnectionModal && (
+        <DatabaseConnectionModal 
+          onExecute={handleDatabaseConnectionExecute}
+          onCancel={handleDatabaseConnectionCancel}
+          initialValues={lastDatabaseConnection}
+          errorMessage={dbConnectionError}
+        />
       )}
     </div>
   )

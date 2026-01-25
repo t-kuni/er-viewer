@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -16,6 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { LayerItemRef } from '../api/client';
+import { LayerItemKind } from '../api/client';
 import { useDispatch, useViewModel } from '../store/hooks';
 import {
   actionSelectItem,
@@ -40,9 +42,9 @@ function SortableItem({ item, isSelected, onSelect }: SortableItemProps) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const displayName = item.kind === 'rectangle' 
+  const displayName = item.kind === LayerItemKind.RECTANGLE 
     ? `Rectangle ${item.id.substring(0, 6)}`
-    : item.kind === 'text'
+    : item.kind === LayerItemKind.TEXT
     ? `Text ${item.id.substring(0, 6)}`
     : item.id;
 
@@ -64,6 +66,31 @@ function SortableItem({ item, isSelected, onSelect }: SortableItemProps) {
       onClick={() => onSelect(item)}
     >
       {displayName}
+    </div>
+  );
+}
+
+interface DroppableSectionProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+function DroppableSection({ id, children }: DroppableSectionProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        minHeight: '60px',
+        backgroundColor: isOver ? '#f0f0f0' : 'transparent',
+        transition: 'background-color 0.2s',
+        borderRadius: '4px',
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -98,15 +125,27 @@ export function LayerPanel() {
     const parseItemId = (id: string): LayerItemRef | null => {
       const parts = id.split('-');
       if (parts.length < 2) return null;
-      const kind = parts[0] as 'rectangle' | 'text';
+      const kindStr = parts[0];
+      let kind: LayerItemKind;
+      
+      if (kindStr === 'rectangle') {
+        kind = LayerItemKind.RECTANGLE;
+      } else if (kindStr === 'text') {
+        kind = LayerItemKind.TEXT;
+      } else if (kindStr === 'entity') {
+        kind = LayerItemKind.ENTITY;
+      } else if (kindStr === 'relation') {
+        kind = LayerItemKind.RELATION;
+      } else {
+        return null;
+      }
+      
       const itemId = parts.slice(1).join('-');
       return { kind, id: itemId };
     };
 
     const activeItem = parseItemId(active.id as string);
-    const overItem = parseItemId(over.id as string);
-
-    if (!activeItem || !overItem) {
+    if (!activeItem) {
       return;
     }
 
@@ -126,40 +165,71 @@ export function LayerPanel() {
     };
 
     const activePosition = findPosition(activeItem);
-    const overPosition = findPosition(overItem);
-
-    if (!activePosition || !overPosition) {
+    if (!activePosition) {
       return;
     }
 
-    // 同一セクション内の並べ替え
-    if (activePosition === overPosition) {
-      const items = activePosition === 'foreground' 
+    // ドロップ先がセクションかアイテムかを判定
+    const overId = over.id as string;
+    
+    if (overId === 'foreground-section' || overId === 'background-section') {
+      // セクションへのドロップ
+      const toPosition = overId === 'foreground-section' ? 'foreground' : 'background';
+      
+      if (activePosition === toPosition) {
+        // 同じセクション内の場合は何もしない
+        return;
+      }
+      
+      // セクションの末尾に追加
+      const toItems = toPosition === 'foreground' 
         ? layerOrder.foregroundItems 
         : layerOrder.backgroundItems;
+      const toIndex = toItems.length;
       
-      const activeIndex = items.findIndex(
-        (i) => i.kind === activeItem.kind && i.id === activeItem.id
-      );
-      const overIndex = items.findIndex(
-        (i) => i.kind === overItem.kind && i.id === overItem.id
-      );
-
-      if (activeIndex !== -1 && overIndex !== -1) {
-        dispatch(actionReorderLayerItems, activePosition, activeIndex, overIndex);
-      }
+      dispatch(actionMoveLayerItem, activeItem, toPosition, toIndex);
     } else {
-      // セクション間の移動
-      const overItems = overPosition === 'foreground'
-        ? layerOrder.foregroundItems
-        : layerOrder.backgroundItems;
-      
-      const overIndex = overItems.findIndex(
-        (i) => i.kind === overItem.kind && i.id === overItem.id
-      );
+      // アイテムへのドロップ
+      const overItem = parseItemId(overId);
+      if (!overItem) {
+        return;
+      }
 
-      if (overIndex !== -1) {
-        dispatch(actionMoveLayerItem, activeItem, overPosition, overIndex);
+      const overPosition = findPosition(overItem);
+
+      if (!overPosition) {
+        return;
+      }
+
+      // 同一セクション内の並べ替え
+      if (activePosition === overPosition) {
+        const items = activePosition === 'foreground' 
+          ? layerOrder.foregroundItems 
+          : layerOrder.backgroundItems;
+        
+        const activeIndex = items.findIndex(
+          (i) => i.kind === activeItem.kind && i.id === activeItem.id
+        );
+        const overIndex = items.findIndex(
+          (i) => i.kind === overItem.kind && i.id === overItem.id
+        );
+
+        if (activeIndex !== -1 && overIndex !== -1) {
+          dispatch(actionReorderLayerItems, activePosition, activeIndex, overIndex);
+        }
+      } else {
+        // セクション間の移動
+        const overItems = overPosition === 'foreground'
+          ? layerOrder.foregroundItems
+          : layerOrder.backgroundItems;
+        
+        const overIndex = overItems.findIndex(
+          (i) => i.kind === overItem.kind && i.id === overItem.id
+        );
+
+        if (overIndex !== -1) {
+          dispatch(actionMoveLayerItem, activeItem, overPosition, overIndex);
+        }
       }
     }
   };
@@ -208,29 +278,34 @@ export function LayerPanel() {
           }}>
             前面
           </div>
-          <SortableContext items={foregroundIds} strategy={verticalListSortingStrategy}>
-            {layerOrder.foregroundItems.length === 0 ? (
-              <div style={{ 
-                padding: '16px', 
-                textAlign: 'center', 
-                color: '#999',
-                fontSize: '12px',
-                border: '1px dashed #ddd',
-                borderRadius: '4px'
-              }}>
-                (空)
-              </div>
-            ) : (
-              layerOrder.foregroundItems.map((item) => (
-                <SortableItem
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  isSelected={isItemSelected(item)}
-                  onSelect={handleSelect}
-                />
-              ))
-            )}
-          </SortableContext>
+          <DroppableSection id="foreground-section">
+            <SortableContext items={foregroundIds} strategy={verticalListSortingStrategy}>
+              {layerOrder.foregroundItems.length === 0 ? (
+                <div style={{ 
+                  padding: '16px', 
+                  textAlign: 'center', 
+                  color: '#999',
+                  fontSize: '12px',
+                  border: '1px dashed #ddd',
+                  borderRadius: '4px'
+                }}>
+                  (空)
+                </div>
+              ) : (
+                layerOrder.foregroundItems.map((item) => {
+                  const layerItem = item as LayerItemRef;
+                  return (
+                    <SortableItem
+                      key={`${layerItem.kind}-${layerItem.id}`}
+                      item={layerItem}
+                      isSelected={isItemSelected(layerItem)}
+                      onSelect={handleSelect}
+                    />
+                  );
+                })
+              )}
+            </SortableContext>
+          </DroppableSection>
         </div>
 
         {/* ER図セクション（固定） */}
@@ -269,29 +344,34 @@ export function LayerPanel() {
           }}>
             背面
           </div>
-          <SortableContext items={backgroundIds} strategy={verticalListSortingStrategy}>
-            {layerOrder.backgroundItems.length === 0 ? (
-              <div style={{ 
-                padding: '16px', 
-                textAlign: 'center', 
-                color: '#999',
-                fontSize: '12px',
-                border: '1px dashed #ddd',
-                borderRadius: '4px'
-              }}>
-                (空)
-              </div>
-            ) : (
-              layerOrder.backgroundItems.map((item) => (
-                <SortableItem
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  isSelected={isItemSelected(item)}
-                  onSelect={handleSelect}
-                />
-              ))
-            )}
-          </SortableContext>
+          <DroppableSection id="background-section">
+            <SortableContext items={backgroundIds} strategy={verticalListSortingStrategy}>
+              {layerOrder.backgroundItems.length === 0 ? (
+                <div style={{ 
+                  padding: '16px', 
+                  textAlign: 'center', 
+                  color: '#999',
+                  fontSize: '12px',
+                  border: '1px dashed #ddd',
+                  borderRadius: '4px'
+                }}>
+                  (空)
+                </div>
+              ) : (
+                layerOrder.backgroundItems.map((item) => {
+                  const layerItem = item as LayerItemRef;
+                  return (
+                    <SortableItem
+                      key={`${layerItem.kind}-${layerItem.id}`}
+                      item={layerItem}
+                      isSelected={isItemSelected(layerItem)}
+                      onSelect={handleSelect}
+                    />
+                  );
+                })
+              )}
+            </SortableContext>
+          </DroppableSection>
         </div>
       </div>
 
@@ -308,7 +388,7 @@ export function LayerPanel() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
-            {activeItem.kind === 'rectangle' 
+            {activeItem.kind === LayerItemKind.RECTANGLE 
               ? `Rectangle ${activeItem.id.substring(0, 6)}`
               : `Text ${activeItem.id.substring(0, 6)}`}
           </div>

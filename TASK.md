@@ -1,193 +1,331 @@
-# テキスト描画機能 ViewportPortal方式への移行タスク
+# データベース接続設定機能実装タスク
 
-**✅ フェーズ2完了：すべてのタスクが完了しました。ビルドとテスト（100個）がすべてパスしました。**
+データベース接続設定モーダルUIを追加し、リバースエンジニアリング実行時にユーザーが接続情報を入力・確認できるようにする。
 
-仕様書の更新（直前のコミット）に伴い、テキスト描画機能の実装方式を変更する。
-仕様書の詳細は [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) を参照。
-
-## 変更概要
-
-直前のコミットで以下の仕様変更が行われた：
-
-1. **TypeSpecモデル変更**: `TextBox`から`stroke`と`strokeWidth`を削除（枠線を持たないシンプルなテキストに変更）
-2. **描画方式変更**: React FlowカスタムノードからViewportPortal方式へ変更（矩形と同じ実装パターン）
-3. **デフォルト値追加**: shadowのoffsetX/offsetY/blur/spread等のデフォルト値を明示
-4. **プロパティパネル簡素化**: 枠線色・枠線幅のUIを削除
-
-## 現在の実装状況
-
-既に以下のファイルが実装済み：
-
-- ✅ `public/src/actions/textActions.ts` - テキスト操作用Action（ただし`stroke`/`strokeWidth`参照を削除する必要あり）
-- ✅ `public/tests/actions/textActions.test.ts` - テストコード（ただし`stroke`/`strokeWidth`参照を削除する必要あり）
-- ✅ `public/src/components/TextNode.tsx` - React Flowカスタムノード実装（**ViewportPortal方式に移行のため削除予定**）
-- ✅ `public/src/components/TextPropertyPanel.tsx` - プロパティパネル（ただし枠線関連UIを削除する必要あり）
-- ✅ `public/src/utils/reactFlowConverter.ts` - `convertToReactFlowTexts`関数（**ViewportPortal方式に移行のため削除予定**）
-- ✅ `public/src/components/ERCanvas.tsx` - テキスト追加ボタン、React Flow統合（ViewportPortal方式に書き換える必要あり）
-
-## フェーズ分け方針
-
-以下の2フェーズに分けて実装する：
-
-* **フェーズ1**: 型定義の修正・型生成・Actionとテストコードの修正・テスト実行
-* **フェーズ2**: UIコンポーネントのViewportPortal方式への移行・ビルド確認
-
-各フェーズの最後にビルド・テスト実行を行い、動作確認を行う。
+**関連仕様書**:
+- [データベース接続設定仕様](/spec/database_connection_settings.md)
+- [リバースエンジニアリング機能仕様](/spec/reverse_engineering.md)
+- [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md)
+- [scheme/main.tsp](/scheme/main.tsp)
 
 ---
 
-## フェーズ1: 型定義の修正・型生成・Action修正・テスト
+## フェーズ1: バックエンドの修正
 
-### [✓] TypeSpecのTextBoxモデル修正
+### □ 型定義の生成
 
-- **編集ファイル**: `scheme/main.tsp`
-- **変更内容**: 
-  - 122行目の`stroke: string;`を削除
-  - 123行目の`strokeWidth: float64;`を削除
-  - 121行目のコメントを`opacity: float64;     // テキスト全体の不透明度（0..1）`に変更（既に変更済みの可能性あり）
-- **実施結果**: すでに削除済みでした。
+**編集対象**: `lib/generated/api-types.ts`, `public/src/api/client/`
 
-### [✓] 型生成の実行
+**変更点**:
+- `npm run generate` を実行して、`scheme/main.tsp` から更新された型定義を生成
+- 以下の型が生成されることを確認:
+  - `DatabaseType` enum
+  - `DatabaseConnectionState` model
+  - `AppSettings` model
+  - `ReverseEngineerRequest` model
+  - `ViewModel.settings` フィールド
+  - `GlobalUIState.showDatabaseConnectionModal` フィールド
 
-- **コマンド**: `npm run generate`
-- **確認事項**: 
-  - `lib/generated/api-types.ts`で`TextBox`に`stroke`と`strokeWidth`が存在しないこと
-  - `public/src/api/client/models/TextBox.ts`で`stroke`と`strokeWidth`が存在しないこと
-  - 他の型定義は正しく生成されていること
-- **実施結果**: 型生成成功。TextBoxに`stroke`と`strokeWidth`が存在しないことを確認。
-
-### [✓] textActions.tsの修正
-
-- **編集ファイル**: `public/src/actions/textActions.ts`
-- **変更内容**: 
-  - `actionUpdateTextStyle`関数（227〜286行目）の修正：
-    - `stylePatch`の型定義から`stroke?: string;`と`strokeWidth?: number;`を削除（235〜236行目付近）
-    - `hasChanges`の判定から`stroke`と`strokeWidth`の比較を削除（255〜256行目）
-    - スプレッド演算子での更新処理から`stroke`と`strokeWidth`を削除（277〜278行目）
-- **実施結果**: 修正完了。
-
-### [✓] textActions.test.tsの修正
-
-- **編集ファイル**: `public/tests/actions/textActions.test.ts`
-- **変更内容**: 
-  - `createMockViewModel`のテキスト定義から`stroke`と`strokeWidth`を削除（39〜40行目）
-  - `actionAddText`テストケースのnewText定義から`stroke`と`strokeWidth`を削除（97〜98行目、137〜138行目、174〜175行目）
-  - `actionUpdateTextStyle`テストケースの全てのスタイルプロパティ更新テストから`stroke`と`strokeWidth`を削除（392〜404行目）
-- **実施結果**: 修正完了。
-
-### [✓] ビルドの確認（フェーズ1）
-
-- **コマンド**: 
-  1. `npm run generate` （型生成）
-  2. `cd public && npm run build` （フロントエンドビルド）
-  3. `cd .. && npm run build` （バックエンドビルド、ルートディレクトリで実行）
-- **確認事項**: 
-  - ビルドエラーが発生しないこと
-  - 型定義が正しく生成されていること
-- **実施結果**: ビルド成功。型定義も正しく生成されている。
-
-### [✓] テストの実行（フェーズ1）
-
-- **コマンド**: `npm run test`
-- **確認事項**: 
-  - 既存テストが全てパスすること
-  - textActions.test.tsのテストが全てパスすること
-- **実施結果**: 全てのテスト（100個）がパス。
+**備考**: すでにmain.tspは更新されているため、generateコマンドの実行のみ
 
 ---
 
-## フェーズ2: ViewportPortal方式への移行・ビルド確認
+### □ DatabaseManager の修正
 
-### [✓] ERCanvas.tsxにテキスト描画関数を追加
+**編集対象**: `lib/database.ts`
 
-- **実施結果**: `renderTexts`関数を追加。仕様書通りにすべてのスタイルを実装し、テキストをViewportPortal内で描画できるようにした。
+**変更点**:
+- `connect()` メソッドのシグネチャを変更し、外部から接続設定を上書き可能にする
+  - `async connect(config?: Partial<DatabaseConfig>): Promise<void>`
+- 接続情報解決ロジックを実装:
+  - 優先順位: 引数で渡された`config` > 環境変数 > エラー
+  - host, port, user, database, password すべてについて解決
+- 環境変数からのフォールバック処理を維持
 
-### [✓] ERCanvas.tsxにテキストドラッグ処理を追加
+**インタフェース**:
+```typescript
+async connect(config?: Partial<DatabaseConfig>): Promise<void>
+```
 
-- **実施結果**: `handleTextMouseDown`関数と`draggingText`状態を追加。マウスムーブ時にviewport.zoomを考慮した座標変換を行い、リアルタイムに位置を更新する実装を完成。
-
-### [✓] ERCanvas.tsxにテキストリサイズハンドルを追加
-
-- **実施結果**: `handleTextResize`関数を追加し、リサイズ完了時に`actionUpdateTextBounds`と`actionSetTextAutoSizeMode`を自動的にdispatchする実装を完成。
-
-### [✓] ResizeHandlesコンポーネントの最小限の修正
-
-- **実施結果**: propsに`x`と`y`を追加し、`rectangles`購読を削除。`renderRectangles`と`renderTexts`の両方で`x`と`y`を渡すように修正。
-
-### [✓] ERCanvas.tsxのテキスト編集UI追加
-
-- **実施結果**: `editingTextId`と`draftContent`のローカル状態を追加。F2キーで編集モード開始、Enter/Esc/Ctrl+Enterのキーボード操作、blur時の編集確定を実装。`autoSizeMode`に応じたDOM測定処理も実装。
-
-### [✓] ERCanvas.tsxのhandleAddText修正
-
-- **実施結果**: `stroke`と`strokeWidth`を削除。shadowのデフォルト値を仕様書通りに更新（offsetX: 2, offsetY: 2, blur: 4, opacity: 0.3）。
-
-### [✓] ERCanvas.tsxのViewportPortal統合
-
-- **実施結果**: 背面レイヤーと前面レイヤーの両方に`renderTexts`を追加。テキストと矩形が同じPortal内で正しくレンダリングされるようにした。
-
-### [✓] ERCanvas.tsxからReact Flow関連のテキスト処理を削除
-
-- **実施結果**: `TextNode`のimport、`nodeTypes`からの`textNode`、`convertToReactFlowTexts`のimport、`onNodeDragStop`内のテキストノード処理、`viewModelTexts`の購読とconvertToReactFlowTextsの呼び出しをすべて削除。
-
-### [✓] TextNode.tsxコンポーネントの削除
-
-- **実施結果**: `public/src/components/TextNode.tsx`を削除。ViewportPortal方式への移行により不要になった。
-
-### [✓] reactFlowConverter.tsのconvertToReactFlowTexts関数を削除
-
-- **実施結果**: `convertToReactFlowTexts`関数と`import type { TextBox }`を削除。
-
-### [✓] TextPropertyPanel.tsxから枠線関連UIを削除
-
-- **実施結果**: `showStrokePicker`状態、`handleStrokeChange`関数、`handleStrokeWidthChange`関数、枠線色セクション、枠線幅セクションを削除。
-
-### [✓] TextPropertyPanel.tsxのDOM測定処理修正
-
-- **実施結果**: `handleFitToContent`関数から`border`スタイル設定を削除。
-
-### [✓] ビルドの確認（フェーズ2）
-
-- **実施結果**: 
-  - 型生成成功
-  - フロントエンドビルド成功
-  - バックエンドビルド成功
-  - すべてのテスト（100個）がパス
+**参照**: [データベース接続設定仕様 - DatabaseManager変更](/spec/database_connection_settings.md#databasemanager-変更)
 
 ---
 
-## 指示者宛ての懸念事項（作業対象外）
+### □ ReverseEngineerUsecase の修正
 
-### ViewportPortal方式への移行の影響範囲
+**編集対象**: `lib/usecases/ReverseEngineerUsecase.ts`
 
-- **影響**: 
-  - テキストの編集UI実装が複雑化（ViewportPortal内で`<textarea>`を表示するため、座標変換が必要）
-  - F2キーのグローバルイベントリスナーと`<textarea>`のフォーカス管理が必要
-  - IME（日本語入力）との互換性確認が必要
-- **対応**: 承知済み。プロトタイピング段階なので、実装後に手動テストで動作確認
+**変更点**:
+- 引数を `viewModel: ViewModel` から `request: ReverseEngineerRequest` に変更
+- 接続情報解決ロジックを実装:
+  1. `request.viewModel.settings.lastDatabaseConnection` から取得（存在する場合）
+  2. 上記がない場合は環境変数（`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`）
+  3. どちらもない場合はエラー
+- パスワード解決ロジックを実装:
+  1. `request.password` から取得（存在し、空でない場合）
+  2. 上記がない場合は環境変数（`DB_PASSWORD`）
+  3. どちらもない場合はエラー
+- 解決した接続情報を `DatabaseManager.connect(config)` に渡す
+- 成功時、`viewModel.settings.lastDatabaseConnection` に接続情報（passwordを除く）をセット
+- 既存の`settings`フィールドがない場合は新規作成
 
-### DOM測定処理の重複
+**インタフェース変更**:
+```typescript
+// 変更前
+(viewModel: ViewModel): Promise<ViewModel>
 
-- **現状**: `TextPropertyPanel.tsx`の`handleFitToContent`とテキスト編集確定時のDOM測定処理が類似
-- **影響**: コードの重複が発生する
-- **対応**: 一旦共通化は見送り。将来的にリファクタリングで`utils`に共通関数を切り出す
+// 変更後
+(request: ReverseEngineerRequest): Promise<ViewModel>
+```
 
-### ResizeHandlesコンポーネントの汎用化
-
-- **現状**: `ResizeHandles`コンポーネントは矩形専用の実装（rectangleIdとrectanglesを直接参照）
-- **影響**: テキストでも使用するため、何らかの対応が必要
-- **対応**: 一旦共通化は見送り。タスクでは最小限の修正（propsで必要な値を受け取る）で対応し、将来的にリファクタリング
-
-### テキストのデフォルト値の不一致
-
-- **現状**: 
-  - 仕様書では`shadow.offsetX: 2px`, `shadow.offsetY: 2px`, `shadow.blur: 4px`, `shadow.opacity: 0.3`
-  - ERCanvas.tsxの実装では全て0または0.5
-- **影響**: デフォルト値が仕様と一致しない
-- **対応**: 仕様書が正しいため、`handleAddText`のshadowデフォルト値を修正
+**参照**: [データベース接続設定仕様 - Usecase変更](/spec/database_connection_settings.md#usecase-変更)
 
 ---
 
-## 事前修正提案
+### □ サーバーエンドポイントの修正
 
-なし。仕様書の変更内容に沿って実装を修正すれば対応可能。
+**編集対象**: `server.ts`
+
+**変更点**:
+- `/api/reverse-engineer` エンドポイントのリクエストボディ受け取りを変更
+  - 変更前: `req.body` を `viewModel` として扱う
+  - 変更後: `req.body` を `ReverseEngineerRequest` として扱う
+- エラーレスポンスを `{ error: string }` 形式で返却（既存と同じ）
+
+**変更箇所**:
+```typescript
+// 変更前
+const viewModel = req.body;
+const updatedViewModel = await reverseEngineerUsecase(viewModel);
+
+// 変更後
+const request = req.body; // ReverseEngineerRequest型
+const updatedViewModel = await reverseEngineerUsecase(request);
+```
+
+---
+
+### □ ReverseEngineerUsecase のテスト修正
+
+**編集対象**: `tests/usecases/ReverseEngineerUsecase.test.ts`
+
+**変更点**:
+- テストの入力を `ViewModel` から `ReverseEngineerRequest` 形式に変更
+- テストケース追加:
+  - `viewModel.settings.lastDatabaseConnection` を使用した接続情報解決のテスト
+  - `request.password` を使用したパスワード解決のテスト
+  - 環境変数フォールバックのテスト
+  - 接続情報・パスワードがどちらもない場合のエラーテスト
+- 成功時に `viewModel.settings.lastDatabaseConnection` が更新されることを検証
+
+**参照**: [データベース接続設定仕様 - バックエンドでの接続情報解決](/spec/database_connection_settings.md#バックエンドでの接続情報解決)
+
+---
+
+### □ バックエンドのビルド確認
+
+**コマンド**: `npm run generate && npm run build`（バックエンドのビルド）
+
+**確認事項**:
+- TypeScriptのコンパイルエラーがないこと
+- 型定義が正しく生成されていること
+
+---
+
+### □ バックエンドのテスト実行
+
+**コマンド**: `npm run test`
+
+**確認事項**:
+- 既存のテストが通ること
+- 新規追加したテストが通ること
+
+---
+
+## フェーズ2: フロントエンドの修正
+
+### □ GlobalUIActions の追加
+
+**編集対象**: `public/src/actions/globalUIActions.ts`
+
+**変更点**:
+- `actionShowDatabaseConnectionModal` を追加
+  - `showDatabaseConnectionModal` を `true` にセット
+  - 既存の `actionShowBuildInfoModal` と同様の実装
+- `actionHideDatabaseConnectionModal` を追加
+  - `showDatabaseConnectionModal` を `false` にセット
+  - 既存の `actionHideBuildInfoModal` と同様の実装
+
+**インタフェース**:
+```typescript
+export function actionShowDatabaseConnectionModal(viewModel: ViewModel): ViewModel
+export function actionHideDatabaseConnectionModal(viewModel: ViewModel): ViewModel
+```
+
+**参照**: [データベース接続設定仕様 - 状態管理](/spec/database_connection_settings.md#状態管理)
+
+---
+
+### □ DatabaseConnectionModal コンポーネントの作成
+
+**新規作成**: `public/src/components/DatabaseConnectionModal.tsx`
+
+**実装内容**:
+- モーダルコンポーネント（背景クリックで閉じない、ESCキーで閉じる）
+- 入力フィールド:
+  - Database Type: 固定表示（"MySQL"）
+  - Host: テキスト入力（placeholder: "localhost"）
+  - Port: 数値入力（placeholder: "3306"）
+  - User: テキスト入力（placeholder: "root"）
+  - Password: パスワード入力（マスク表示、placeholderなし）
+  - Database: テキスト入力（placeholder: "test"）
+- ボタン:
+  - 実行: リバースエンジニアリング実行
+  - キャンセル: モーダルを閉じる
+- エラーメッセージ表示エリア
+- 初期値:
+  - `viewModel.settings?.lastDatabaseConnection` から取得
+  - パスワードは常に空
+
+**Props**:
+```typescript
+interface DatabaseConnectionModalProps {
+  onExecute: (connectionInfo: DatabaseConnectionState, password: string) => void;
+  onCancel: () => void;
+  initialValues?: DatabaseConnectionState;
+  errorMessage?: string;
+}
+```
+
+**UI仕様**: [データベース接続設定仕様 - モーダルUI要素](/spec/database_connection_settings.md#モーダルui要素)
+
+**参考コンポーネント**: `BuildInfoModal.tsx`（モーダル実装の参考）
+
+---
+
+### □ reverseEngineerCommand の修正
+
+**編集対象**: `public/src/commands/reverseEngineerCommand.ts`
+
+**変更点**:
+- 引数を追加して接続情報とパスワードを受け取る
+  - `connectionInfo: DatabaseConnectionState`
+  - `password: string`
+- 現在のViewModelをコピーし、`settings.lastDatabaseConnection` を更新
+- `ReverseEngineerRequest` 形式でリクエストを送信
+  - `viewModel`: 更新後のViewModel
+  - `password`: 引数で受け取ったパスワード
+- エラー時の処理を追加（エラーメッセージを返却）
+
+**インタフェース変更**:
+```typescript
+// 変更前
+export async function commandReverseEngineer(
+  dispatch: Store['dispatch'],
+  getState: Store['getState']
+): Promise<void>
+
+// 変更後
+export async function commandReverseEngineer(
+  dispatch: Store['dispatch'],
+  getState: Store['getState'],
+  connectionInfo: DatabaseConnectionState,
+  password: string
+): Promise<{ success: boolean; error?: string }>
+```
+
+**参照**: [データベース接続設定仕様 - コマンド変更](/spec/database_connection_settings.md#コマンド変更)
+
+---
+
+### □ App.tsx の修正
+
+**編集対象**: `public/src/components/App.tsx`
+
+**変更点**:
+- 「リバースエンジニア」ボタンを追加（ヘッダー内）
+- ボタン押下時に `actionShowDatabaseConnectionModal` をdispatch
+- `DatabaseConnectionModal` コンポーネントを条件付きレンダリング
+  - 表示条件: `viewModel.ui.showDatabaseConnectionModal === true`
+- モーダルの `onExecute` で `commandReverseEngineer` を呼び出し
+- モーダルの `onCancel` で `actionHideDatabaseConnectionModal` をdispatch
+- エラー処理: コマンド失敗時にエラーメッセージをモーダルに表示
+
+**参考実装**: BuildInfoModalの表示制御（既存実装）
+
+**参照**: [データベース接続設定仕様 - UXフロー](/spec/database_connection_settings.md#uxフロー)
+
+---
+
+### □ getInitialViewModelValues の修正
+
+**編集対象**: `public/src/utils/getInitialViewModelValues.ts`
+
+**変更点**:
+- `getInitialGlobalUIState()` 関数に `showDatabaseConnectionModal: false` を追加
+
+**変更箇所**:
+```typescript
+export function getInitialGlobalUIState(): GlobalUIState {
+  return {
+    selectedItem: null,
+    showBuildInfoModal: false,
+    showLayerPanel: false,
+    showDatabaseConnectionModal: false, // 追加
+  };
+}
+```
+
+---
+
+### □ GlobalUIActions のテスト追加
+
+**編集対象**: `public/tests/actions/globalUIActions.test.ts`
+
+**変更点**:
+- `actionShowDatabaseConnectionModal` のテスト追加
+  - `showDatabaseConnectionModal` が `true` になることを検証
+  - 既に `true` の場合、同一参照を返すことを検証
+- `actionHideDatabaseConnectionModal` のテスト追加
+  - `showDatabaseConnectionModal` が `false` になることを検証
+  - 既に `false` の場合、同一参照を返すことを検証
+
+**参考**: 既存の `actionShowBuildInfoModal` / `actionHideBuildInfoModal` のテスト
+
+---
+
+### □ フロントエンドのビルド確認
+
+**コマンド**: `cd public && npm run build`
+
+**確認事項**:
+- TypeScriptのコンパイルエラーがないこと
+- Reactコンポーネントが正しくビルドされること
+
+---
+
+### □ フロントエンドのテスト実行
+
+**コマンド**: `cd public && npm run test`
+
+**確認事項**:
+- 既存のテストが通ること
+- 新規追加したテストが通ること
+
+---
+
+## 補足事項
+
+### 実装の注意点
+
+- パスワードは `ViewModel` に保存せず、API呼び出し時のみ送信する
+- モーダルのパスワード欄は常に空で表示（セキュリティのため）
+- エラー時はモーダルを開いたまま、エラーメッセージを表示
+- 成功時のみ `lastDatabaseConnection` を更新
+- 環境変数がある場合、パスワード入力を省略可能（開発時の利便性）
+
+### 既存機能への影響
+
+- `GetInitialViewModelUsecase` の修正は不要（`settings` は optional なのでデフォルトで未設定でOK）
+- インポート・エクスポート機能は既に `settings` フィールドに対応済み（仕様書更新済み）
+- 既存のリバースエンジニアリング機能は、接続情報入力UI追加により改善される

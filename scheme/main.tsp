@@ -75,13 +75,64 @@ model Rectangle {
   opacity: float64;     // 透明度（0〜1）
 }
 
-model Text {
-  id: string; // UUID
+// Text alignment options
+enum TextAlign {
+  left,
+  center,
+  right,
+}
+
+// Text auto-size behavior
+enum TextAutoSizeMode {
+  manual,      // ユーザーのwidth/heightを維持
+  fitContent,  // 内容に合わせて width/height を両方更新
+  fitWidth,    // width固定で、高さだけ内容に合わせて更新（折り返し前提）
+}
+
+// Text overflow handling
+enum TextOverflowMode {
+  clip,    // はみ出しは隠す
+  scroll,  // スクロール（表示側だけ）
+}
+
+// Drop shadow effect
+model DropShadow {
+  enabled: boolean;
+  offsetX: float64;
+  offsetY: float64;
+  blur: float64;
+  spread: float64;
+  color: string;    // "#RRGGBB"
+  opacity: float64; // 0..1
+}
+
+// Text box model (for annotations and labels)
+model TextBox {
+  id: string;    // UUID
   x: float64;
   y: float64;
-  content: string;
-  fontSize: float64;
-  fill: string;
+  width: float64;
+  height: float64;
+
+  content: string;      // "\n" を含むプレーンテキスト
+  fontSize: float64;    // px
+  lineHeight: float64;  // px
+  textAlign: TextAlign;
+
+  textColor: string;    // 文字色（例: "#000000"）
+
+  stroke: string;       // ボックス枠線色（例: "#000000"）
+  strokeWidth: float64; // ボックス枠線幅（px）
+  opacity: float64;     // ボックス全体の不透明度（0..1）
+
+  paddingX: float64;
+  paddingY: float64;
+
+  wrap: boolean;                 // true: 折り返し（幅制約あり）
+  overflow: TextOverflowMode;    // 表示のはみ出し
+
+  autoSizeMode: TextAutoSizeMode;
+  shadow: DropShadow;
 }
 
 // Build info model
@@ -122,7 +173,7 @@ model EntityLayoutItem {
 model LayoutData {
   entities: Record<EntityLayoutItem>;
   rectangles: Record<Rectangle>;
-  texts: Record<Text>;
+  texts: Record<TextBox>;
 }
 
 // ViewModel for ER diagram rendering
@@ -191,6 +242,7 @@ model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;
   edges: Record<RelationshipEdgeViewModel>;
   rectangles: Record<Rectangle>; // 矩形（グループ化・領域区別用）
+  texts: Record<TextBox>; // テキスト（注釈・説明用）
   ui: ERDiagramUIState;
   loading: boolean; // リバースエンジニア処理中フラグ
 }

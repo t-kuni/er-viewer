@@ -49,6 +49,7 @@
   - `nodes`: エンティティノード（`Record<EntityNodeViewModel>`）
   - `edges`: リレーションシップエッジ（`Record<RelationshipEdgeViewModel>`）
   - `rectangles`: 矩形（`Record<Rectangle>`）
+  - `texts`: テキストボックス（`Record<TextBox>`）
   - `ui`: ER図のUI状態（`ERDiagramUIState`型）
   - `loading`: リバースエンジニア処理中フラグ
 
@@ -137,26 +138,38 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
   
 * `actionSetLoading(viewModel, loading)`: ローディング状態の更新（リバースエンジニア処理）
 
-##### 矩形関連
+##### 矩形・テキスト関連
 
 * `actionAddRectangle(viewModel, rectangle)`: 矩形を追加
 * `actionUpdateRectanglePosition(viewModel, rectangleId, x, y)`: 矩形の位置を更新
 * `actionUpdateRectangleStyle(viewModel, rectangleId, style)`: 矩形のスタイルを更新
 * `actionRemoveRectangle(viewModel, rectangleId)`: 矩形を削除
+* `actionAddText(viewModel, textBox)`: テキストを追加
+* `actionUpdateTextContent(viewModel, textId, content)`: テキストの内容を更新
+* `actionRemoveText(viewModel, textId)`: テキストを削除
+
+矩形・テキストの詳細なAction一覧は各機能の仕様書を参照：
+- 矩形: [rectangle_drawing_feature.md](./rectangle_drawing_feature.md)
+- テキスト: [text_drawing_feature.md](./text_drawing_feature.md)
 
 #### グローバルUI関連のAction
 
-* `actionSelectRectangle(viewModel, rectangleId)`: 矩形を選択
-  - `viewModel.ui.selectedRectangleId` を更新
+* `actionSelectItem(viewModel, itemRef)`: アイテム（矩形・テキスト）を選択
+  - `viewModel.ui.selectedItem` を更新
   
-* `actionDeselectRectangle(viewModel)`: 矩形の選択を解除
-  - `viewModel.ui.selectedRectangleId` を null に設定
+* `actionDeselectItem(viewModel)`: アイテムの選択を解除
+  - `viewModel.ui.selectedItem` を null に設定
   
 * `actionShowBuildInfoModal(viewModel)`: ビルド情報モーダルを表示
   - `viewModel.ui.showBuildInfoModal` を true に設定
   
 * `actionHideBuildInfoModal(viewModel)`: ビルド情報モーダルを非表示
   - `viewModel.ui.showBuildInfoModal` を false に設定
+
+* `actionToggleLayerPanel(viewModel)`: レイヤーパネルの表示/非表示を切り替え
+  - `viewModel.ui.showLayerPanel` をトグル
+
+レイヤー管理関連のActionは[layer_management.md](./layer_management.md)を参照。
 
 #### ViewModel全体を更新するAction
 
@@ -197,7 +210,7 @@ function useDispatch(): Store['dispatch'];
 
 * `useViewModel(selector)`: 必要な部分だけ購読（再レンダリング最小化）
   - 例: `useViewModel(vm => vm.erDiagram.nodes)` でER図のノードだけを購読
-  - 例: `useViewModel(vm => vm.ui.selectedRectangleId)` で選択中の矩形IDだけを購読
+  - 例: `useViewModel(vm => vm.ui.selectedItem)` で選択中のアイテムだけを購読
 * `useDispatch()`: dispatch関数を取得
 
 ## React Flowとの統合
@@ -296,12 +309,12 @@ describe('actionHoverEntity', () => {
   });
 });
 
-describe('actionSelectRectangle', () => {
-  it('矩形を選択する', () => {
+describe('actionSelectItem', () => {
+  it('アイテムを選択する', () => {
     const viewModel = createTestViewModel();
-    const next = actionSelectRectangle(viewModel, 'rect1');
+    const next = actionSelectItem(viewModel, { kind: 'rectangle', id: 'rect1' });
     
-    expect(next.ui.selectedRectangleId).toBe('rect1');
+    expect(next.ui.selectedItem).toEqual({ kind: 'rectangle', id: 'rect1' });
   });
 });
 

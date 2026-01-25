@@ -41,6 +41,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.nodes` - エンティティノード
 - `erDiagram.edges` - リレーションシップエッジ
 - `erDiagram.rectangles` - 矩形
+- `erDiagram.texts` - テキストボックス
 - `erDiagram.ui.layerOrder` - レイヤー順序
 
 ### インポート時の処理
@@ -51,6 +52,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.nodes` - インポートしたデータで置き換え
 - `erDiagram.edges` - インポートしたデータで置き換え
 - `erDiagram.rectangles` - インポートしたデータで置き換え
+- `erDiagram.texts` - インポートしたデータで置き換え
 - `erDiagram.ui.layerOrder` - インポートしたデータで置き換え
 - `erDiagram.loading` - `false` をセット
 

@@ -99,23 +99,8 @@ model ERDiagramViewModel {
 
 ## z-index制御
 
-### レイヤー順序
-
-矩形はエンティティより背景に配置される：
-
-* 矩形ノード: `zIndex = 0`
-* エンティティノード: `zIndex = 100`
-* エッジ: デフォルト（0未満）
-
-### React Flow設定
-
-* `elevateNodesOnSelect={false}`: 選択時に矩形が前面に出ないようにする
-* または`zIndexMode="manual"`: 自動z-index制御を無効化し、明示的にzIndexを管理
-
-### 複数矩形の重なり順
-
-MVP段階では作成順固定とし、重なり順の変更機能は後回し。
-将来的に必要になった場合は、`Rectangle`に`zIndex`フィールドを追加し、Actionで重なり順を変更可能にする。
+矩形のz-index（重なり順）はレイヤーパネルで管理される。
+詳細は[layer_management.md](./layer_management.md)を参照。
 
 ## Action設計
 
@@ -151,14 +136,7 @@ MVP段階では作成順固定とし、重なり順の変更機能は後回し�
 
 ### nodeTypes登録
 
-`ERCanvas.tsx`の`nodeTypes`に`rectangleNode`を追加：
-
-```typescript
-const nodeTypes = {
-  entityNode: EntityNode,
-  rectangleNode: RectangleNode,
-}
-```
+`ERCanvas.tsx`の`nodeTypes`に`rectangleNode`を追加する。
 
 ## 実装時の注意事項
 

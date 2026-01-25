@@ -36,6 +36,7 @@ GET /api/init
   - `nodes`: `{}`（空のRecord）
   - `edges`: `{}`（空のRecord）
   - `rectangles`: `{}`（空のRecord）
+  - `texts`: `{}`（空のRecord）
   - `ui.hover`: `null`
   - `ui.highlightedNodeIds`: `[]`
   - `ui.highlightedEdgeIds`: `[]`
@@ -118,6 +119,7 @@ POST /api/reverse-engineer
 - `nodes: Record<EntityNodeViewModel>` - エンティティノード（キーはUUID）
 - `edges: Record<RelationshipEdgeViewModel>` - リレーションシップエッジ（キーはUUID）
 - `rectangles: Record<Rectangle>` - 矩形（キーはUUID）
+- `texts: Record<TextBox>` - テキストボックス（キーはUUID）
 - `ui: ERDiagramUIState` - ER図のUI状態
 - `loading: boolean` - 処理中フラグ
 

@@ -193,15 +193,19 @@ Rectangle → Node {
   data: { id: rectangle.id, width, height, fill, stroke }
 }
 
-Text → Node {
+TextBox → Node {
   id: text.id,  // UUID
   type: 'textNode',
   position: { x, y },
-  data: { id: text.id, content, fontSize, fill }
+  data: { ...text } // TextBoxの全プロパティ
 }
 ```
 
 全ての要素がUUIDをキーとするRecord型で統一されており、削除・更新が容易な設計となっている。
+
+矩形・テキストの詳細仕様：
+* 矩形: [rectangle_drawing_feature.md](./rectangle_drawing_feature.md)を参照
+* テキスト: [text_drawing_feature.md](./text_drawing_feature.md)を参照
 
 データのインポート・エクスポート機能については[インポート・エクスポート機能仕様](./import_export_feature.md)を参照。
 

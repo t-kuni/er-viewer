@@ -51,6 +51,7 @@ describe('GetInitialViewModelUsecase', () => {
     expect(viewModel.ui.selectedItem).toBeNull();
     expect(viewModel.ui.showBuildInfoModal).toBe(false);
     expect(viewModel.ui.showLayerPanel).toBe(false);
+    expect(viewModel.ui.showDatabaseConnectionModal).toBe(false);
 
     // buildInfoの検証
     expect(viewModel.buildInfo.data).toEqual(mockBuildInfo);
@@ -87,5 +88,87 @@ describe('GetInitialViewModelUsecase', () => {
     expect(viewModel.buildInfo.data).toEqual(mockBuildInfo);
     expect(viewModel.buildInfo.data?.version).toBe('2.0.0');
     expect(viewModel.buildInfo.data?.git.tag).toBe('v2.0.0');
+  });
+
+  it('環境変数が設定されている場合、settingsに初期接続情報が含まれる', () => {
+    // 環境変数を設定
+    const originalEnv = { ...process.env };
+    process.env.DB_HOST = 'test-host';
+    process.env.DB_PORT = '5432';
+    process.env.DB_USER = 'test-user';
+    process.env.DB_NAME = 'test-db';
+
+    const mockBuildInfo: BuildInfo = {
+      version: '1.0.0',
+      name: 'er-viewer',
+      buildTime: '2026-01-25T12:00:00Z',
+      buildTimestamp: 1737806400000,
+      buildDate: '2026-01-25',
+      git: {
+        commit: 'abc123',
+        commitShort: 'abc',
+        branch: 'main',
+        tag: null,
+      },
+      nodeVersion: 'v18.0.0',
+      platform: 'linux',
+      arch: 'x64',
+    };
+
+    const usecase = createGetInitialViewModelUsecase({
+      getBuildInfo: () => mockBuildInfo,
+    });
+
+    const viewModel = usecase();
+
+    // settingsが含まれていることを確認
+    expect(viewModel.settings).toBeDefined();
+    expect(viewModel.settings?.lastDatabaseConnection).toBeDefined();
+    expect(viewModel.settings?.lastDatabaseConnection?.type).toBe('mysql');
+    expect(viewModel.settings?.lastDatabaseConnection?.host).toBe('test-host');
+    expect(viewModel.settings?.lastDatabaseConnection?.port).toBe(5432);
+    expect(viewModel.settings?.lastDatabaseConnection?.user).toBe('test-user');
+    expect(viewModel.settings?.lastDatabaseConnection?.database).toBe('test-db');
+
+    // 環境変数を元に戻す
+    process.env = originalEnv;
+  });
+
+  it('環境変数が設定されていない場合、settingsは含まれない', () => {
+    // 環境変数をクリア
+    const originalEnv = { ...process.env };
+    delete process.env.DB_HOST;
+    delete process.env.DB_PORT;
+    delete process.env.DB_USER;
+    delete process.env.DB_NAME;
+
+    const mockBuildInfo: BuildInfo = {
+      version: '1.0.0',
+      name: 'er-viewer',
+      buildTime: '2026-01-25T12:00:00Z',
+      buildTimestamp: 1737806400000,
+      buildDate: '2026-01-25',
+      git: {
+        commit: 'abc123',
+        commitShort: 'abc',
+        branch: 'main',
+        tag: null,
+      },
+      nodeVersion: 'v18.0.0',
+      platform: 'linux',
+      arch: 'x64',
+    };
+
+    const usecase = createGetInitialViewModelUsecase({
+      getBuildInfo: () => mockBuildInfo,
+    });
+
+    const viewModel = usecase();
+
+    // settingsが含まれていないことを確認
+    expect(viewModel.settings).toBeUndefined();
+
+    // 環境変数を元に戻す
+    process.env = originalEnv;
   });
 });

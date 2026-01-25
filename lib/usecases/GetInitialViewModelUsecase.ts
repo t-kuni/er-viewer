@@ -8,6 +8,8 @@ export type GlobalUIState = components['schemas']['GlobalUIState'];
 export type BuildInfoState = components['schemas']['BuildInfoState'];
 export type LayerOrder = components['schemas']['LayerOrder'];
 export type ERDiagramUIState = components['schemas']['ERDiagramUIState'];
+export type AppSettings = components['schemas']['AppSettings'];
+export type DatabaseConnectionState = components['schemas']['DatabaseConnectionState'];
 
 // 依存性の型定義
 export type GetInitialViewModelDeps = {
@@ -50,6 +52,7 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       selectedItem: null,
       showBuildInfoModal: false,
       showLayerPanel: false,
+      showDatabaseConnectionModal: false,
     };
 
     // BuildInfoStateを構築
@@ -59,6 +62,21 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       error: null,
     };
 
+    // 環境変数から初期の接続情報を構築（存在する場合のみ）
+    let settings: AppSettings | undefined = undefined;
+    if (process.env.DB_HOST || process.env.DB_PORT || process.env.DB_USER || process.env.DB_NAME) {
+      const lastDatabaseConnection: DatabaseConnectionState = {
+        type: 'mysql',
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306,
+        user: process.env.DB_USER || 'root',
+        database: process.env.DB_NAME || 'test',
+      };
+      settings = {
+        lastDatabaseConnection,
+      };
+    }
+
     // ViewModelを組み立てて返却
     const viewModel: ViewModel = {
       format: "er-viewer",
@@ -66,6 +84,7 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       erDiagram,
       ui,
       buildInfo: buildInfoState,
+      ...(settings && { settings }),
     };
 
     return viewModel;

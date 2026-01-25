@@ -1,15 +1,22 @@
-# ER Diagram Viewerにおけるインポート・エクスポート機能の実装方針検討
+# ER Diagram Viewerにおけるテキスト描画機能の実装方針検討
 
 ## リサーチ要件
 
-以下の仕様のインポート・エクスポート機能を検討してほしい：
+以下の仕様のテキスト描画機能を検討してほしい：
 
-* 画面上に「インポート」「エクスポート」ボタンを作成する
-* 基本的にはViewModelをインポート・エクスポートできれば問題ないと思うが、UIの一時的な状態など不要な値も含まれている
-* エクスポートはブラウザのダウンロードのような挙動になればいいかもしれない（ファイル選択モーダルは無くていいかも）
-* 画面上にファイルをD&Dすればインポートになるようにもしたい
-* 何かしらライブラリを導入した方がよいか？不要か？
-* 過去に「永続化機能」を検討していたが「インポート・エクスポート機能」に一本化で良さそう
+* テキストを描画できる
+* 改行できる
+* 矩形を設定してその範囲に文字列を描画することができる。また、入力した文字に範囲を最適化することもできる。
+* ドラッグで位置を変更できる
+* 矩形の端のハンドル(?)をドラッグするとリサイズできる
+* 大まかな操作感は矩形編集と揃える
+* 左寄せ、中央寄せ、右寄せを選択できる
+* 塗りつぶし色とボーダー色を選択できる（矩形編集のカラーピッカーとプリセット色を踏襲する）
+* ドロップシャドウを設定できる
+* 右サイドパネルでプロパティを編集する
+* フォントのサイズを編集できる
+* フォントを選択できる必要はないが、クロスプラットフォーム対応で、多言語に対応できるとありがたい
+* ライブラリを導入したほうがよいか？
 
 ## プロジェクト概要
 
@@ -43,6 +50,8 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 
 ```typescript
 model ViewModel {
+  format: string; // データフォーマット識別子（固定値: "er-viewer"）
+  version: int32; // データフォーマットのバージョン（現在は 1 固定）
   erDiagram: ERDiagramViewModel; // ER図の状態
   ui: GlobalUIState; // グローバルUI状態
   buildInfo: BuildInfoState; // ビルド情報のキャッシュ
@@ -61,33 +70,24 @@ model ERDiagramViewModel {
 }
 ```
 
-#### EntityNodeViewModel
+#### Text（現在の定義）
+
+現在、TypeSpecには以下のようなText型が定義されているが、実装はされていない：
 
 ```typescript
-model EntityNodeViewModel {
-  id: string; // UUID (エンティティID)
-  name: string;
-  x: float64;       // 表示位置X
-  y: float64;       // 表示位置Y
-  columns: Column[];
-  ddl: string;
+model Text {
+  id: string; // UUID
+  x: float64;
+  y: float64;
+  content: string;
+  fontSize: float64;
+  fill: string;
 }
 ```
 
-#### RelationshipEdgeViewModel
+#### Rectangle（既存実装の参考）
 
-```typescript
-model RelationshipEdgeViewModel {
-  id: string; // UUID (リレーションシップID)
-  sourceEntityId: string;   // エンティティID (UUID)
-  sourceColumnId: string;   // カラムID (UUID)
-  targetEntityId: string;   // エンティティID (UUID)
-  targetColumnId: string;   // カラムID (UUID)
-  constraintName: string;
-}
-```
-
-#### Rectangle
+矩形機能は既に実装済みで、以下の型定義がある：
 
 ```typescript
 model Rectangle {
@@ -103,32 +103,6 @@ model Rectangle {
 }
 ```
 
-#### Column
-
-```typescript
-model Column {
-  id: string; // UUID
-  name: string;
-  type: string;
-  nullable: boolean;
-  key: string;
-  default: string | null;
-  extra: string;
-}
-```
-
-#### ERDiagramUIState（ER図のUI状態）
-
-```typescript
-model ERDiagramUIState {
-  hover: HoverTarget | null;
-  highlightedNodeIds: string[];    // Entity IDs (UUID)
-  highlightedEdgeIds: string[];    // Edge IDs (UUID)
-  highlightedColumnIds: string[];  // Column IDs (UUID)
-  layerOrder: LayerOrder;          // レイヤー順序
-}
-```
-
 #### GlobalUIState（グローバルUI状態）
 
 ```typescript
@@ -139,56 +113,21 @@ model GlobalUIState {
 }
 ```
 
-#### BuildInfoState
-
-```typescript
-model BuildInfoState {
-  data: BuildInfo | null; // キャッシュされたビルド情報
-  loading: boolean;       // ビルド情報取得中フラグ
-  error: string | null;   // エラーメッセージ
-}
-```
-
-#### LayerOrder
-
-```typescript
-model LayerOrder {
-  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
-  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
-}
-```
-
 #### LayerItemRef
 
 ```typescript
+enum LayerItemKind {
+  entity,    // エンティティ（ER図レイヤー固定、編集不可）
+  relation,  // リレーション（ER図レイヤー固定、編集不可）
+  rectangle, // 矩形（前面・背面に配置可能）
+  text,      // テキスト（前面・背面に配置可能）
+}
+
 model LayerItemRef {
-  kind: LayerItemKind; // "entity" | "relation" | "rectangle" | "text"
-  id: string;          // UUID
+  kind: LayerItemKind;
+  id: string; // UUID
 }
 ```
-
-### データの分類
-
-ViewModelに含まれるデータは以下のように分類できる：
-
-#### 永続化すべきデータ（エクスポート対象）
-
-- `erDiagram.nodes`: エンティティノード（位置、カラム情報、DDL）
-- `erDiagram.edges`: リレーションシップ（外部キー関係）
-- `erDiagram.rectangles`: ユーザーが作成した矩形（グループ化用）
-- `erDiagram.ui.layerOrder`: レイヤー順序（ユーザーが設定した表示順）
-
-#### 一時的なUI状態（エクスポート不要）
-
-- `erDiagram.ui.hover`: ホバー中の要素
-- `erDiagram.ui.highlightedNodeIds`: ハイライト中のノード
-- `erDiagram.ui.highlightedEdgeIds`: ハイライト中のエッジ
-- `erDiagram.ui.highlightedColumnIds`: ハイライト中のカラム
-- `erDiagram.loading`: ローディング状態フラグ
-- `ui.selectedItem`: 選択中のアイテム
-- `ui.showBuildInfoModal`: ビルド情報モーダル表示フラグ
-- `ui.showLayerPanel`: レイヤーパネル表示フラグ
-- `buildInfo`: ビルド情報のキャッシュ（アプリ起動時に取得されるため不要）
 
 ### 状態管理の仕組み
 
@@ -198,128 +137,6 @@ ViewModelに含まれるデータは以下のように分類できる：
 
 Storeは`public/src/store/erDiagramStore.ts`に実装されている。
 
-### 現在のデータ取得フロー
-
-#### 1. 初期化（/api/init）
-
-アプリケーション起動時に`/api/init`エンドポイントを呼び出し、初期状態のViewModelを取得する。
-
-```typescript
-// GetInitialViewModelUsecase.ts（バックエンド）
-export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) {
-  return async (): Promise<ViewModel> => {
-    const buildInfo = await deps.readBuildInfo();
-    
-    return {
-      erDiagram: {
-        nodes: {},
-        edges: {},
-        rectangles: {},
-        ui: {
-          hover: null,
-          highlightedNodeIds: [],
-          highlightedEdgeIds: [],
-          highlightedColumnIds: [],
-          layerOrder: { backgroundItems: [], foregroundItems: [] },
-        },
-        loading: false,
-      },
-      ui: {
-        selectedItem: null,
-        showBuildInfoModal: false,
-        showLayerPanel: false,
-      },
-      buildInfo: {
-        data: buildInfo,
-        loading: false,
-        error: null,
-      },
-    };
-  };
-}
-```
-
-#### 2. リバースエンジニアリング（/api/reverse-engineer）
-
-現在、`/api/reverse-engineer`エンドポイントはViewModelを受け取り、ViewModelを返す設計になっている。
-
-```typescript
-// ReverseEngineerUsecase.ts（バックエンド）
-export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
-  return async (viewModel: ViewModel): Promise<ViewModel> => {
-    const dbManager = deps.createDatabaseManager();
-    try {
-      await dbManager.connect();
-      const erData = await dbManager.generateERData();
-      const layoutData = dbManager.generateDefaultLayoutData(erData.entities);
-      await dbManager.disconnect();
-      
-      // ViewModelを複製して、nodesとedgesを更新
-      const updatedViewModel: ViewModel = {
-        ...viewModel,
-        erDiagram: {
-          ...viewModel.erDiagram,
-          nodes: {},
-          edges: {},
-        },
-      };
-      
-      // ERDataをViewModelに変換
-      for (const entity of erData.entities) {
-        const layoutItem = layoutData.entities[entity.id];
-        updatedViewModel.erDiagram.nodes[entity.id] = {
-          id: entity.id,
-          name: entity.name,
-          x: layoutItem.x,
-          y: layoutItem.y,
-          columns: entity.columns,
-          ddl: entity.ddl,
-        };
-      }
-      
-      for (const relationship of erData.relationships) {
-        updatedViewModel.erDiagram.edges[relationship.id] = {
-          id: relationship.id,
-          sourceEntityId: relationship.fromEntityId,
-          targetEntityId: relationship.toEntityId,
-          sourceColumnId: relationship.fromColumnId,
-          targetColumnId: relationship.toColumnId,
-          constraintName: relationship.constraintName,
-        };
-      }
-      
-      return updatedViewModel;
-    } catch (error) {
-      await dbManager.disconnect();
-      throw error;
-    }
-  };
-}
-```
-
-フロントエンドでは以下のようにAPIを呼び出している：
-
-```typescript
-// reverseEngineerCommand.ts（フロントエンド）
-export async function commandReverseEngineer(
-  dispatch: Store['dispatch']
-): Promise<void> {
-  dispatch(actionSetLoading, true);
-  
-  try {
-    const currentViewModel = store.getState();
-    const updatedViewModel = await DefaultService.apiReverseEngineer(currentViewModel);
-    
-    // 更新されたViewModelをそのまま設定
-    dispatch(actionSetData, updatedViewModel);
-  } catch (error) {
-    console.error('Failed to reverse engineer:', error);
-  } finally {
-    dispatch(actionSetLoading, false);
-  }
-}
-```
-
 ### ID仕様
 
 すべての`id`フィールドはUUID (Universally Unique Identifier)を使用している。
@@ -327,162 +144,332 @@ export async function commandReverseEngineer(
 - UUIDは`crypto.randomUUID()`で生成
 - 一度生成されたIDは保存され、増分更新時も維持される（永続性を持つ）
 
-### 現在のAPIエンドポイント
+## 矩形描画機能の既存実装（参考情報）
+
+テキスト描画機能と操作感を揃えるため、既に実装されている矩形描画機能の仕様を参考情報として記載する。
+
+### 矩形の基本機能
+
+* ツールバーの「矩形追加」ボタンをクリックすると、viewport中央に固定サイズの矩形を追加
+* 新規作成時のデフォルト値：
+  - サイズ: 幅200px × 高さ150px
+  - 背景色: 淡い青（`#E3F2FD`）
+  - 枠線色: 青（`#90CAF9`）
+  - 枠線幅: 2px
+  - 透明度: 0.5
+
+### 矩形の操作
+
+* 矩形をドラッグして位置を変更可能
+* 選択中の矩形に対してリサイズハンドルを表示
+* React Flowの`NodeResizer`コンポーネントを使用してリサイズ
+* 最小サイズ: 幅40px × 高さ40px
+
+### 矩形のプロパティパネル
+
+右サイドバーに矩形プロパティパネルが表示される（矩形選択時のみ）：
+
+#### プロパティ編集項目
+
+1. **背景色（fill）**
+   - カラーピッカー（`HexColorPicker` + `HexColorInput` from react-colorful）
+   - プリセット色ボタン: 8色を横2列 × 縦4行でグリッド表示
+   - プリセット色:
+     * 青: `#E3F2FD`
+     * シアン: `#E0F7FA`
+     * ティール: `#E0F2F1`
+     * 緑: `#E8F5E9`
+     * 黄: `#FFFDE7`
+     * オレンジ: `#FFF3E0`
+     * ピンク: `#FCE4EC`
+     * グレー: `#F5F5F5`
+
+2. **枠線色（stroke）**
+   - カラーピッカー（同上）
+   - プリセット色ボタン（同上）
+
+3. **透明度（opacity）**
+   - `<input type="range">`スライダー + 現在値表示
+   - 範囲: 0〜1、ステップ0.01
+   - 表示形式: パーセント表示（例: 50%）
+
+4. **枠線幅（strokeWidth）**
+   - `<input type="number">` + 単位表示（px）
+   - 範囲: 0以上、ステップ1
+
+5. **削除ボタン**
+   - 赤背景（`#dc3545`）、白文字
+   - クリック時に即座に削除（確認ダイアログなし）
+
+### カラーピッカーの実装
+
+矩形機能では以下のライブラリを使用している：
+
+* **react-colorful**: 軽量なカラーピッカーライブラリ
+  - `HexColorPicker`: インタラクティブなカラーピッカー
+  - `HexColorInput`: HEX値の直接入力フィールド
+
+カラーピッカーとプリセット色を一体化した再利用可能なコンポーネント（`ColorPickerWithPresets`）が実装されている。
+
+### React Flow統合
+
+矩形はReact Flowのカスタムノード（`rectangleNode`）として実装されている：
+
+* `RectangleNode`コンポーネント（`public/src/components/RectangleNode.tsx`）
+* `NodeResizer`を内包し、選択時にリサイズハンドルを表示
+* 最小サイズ: 幅40px × 高さ40px
+* `onResizeEnd`でリサイズ完了時に座標とサイズを更新
+
+### Action設計
+
+矩形操作用のActionが`public/src/actions/rectangleActions.ts`に実装されている：
+
+* `actionAddRectangle(vm, rectangle)`: 新規矩形を追加
+* `actionRemoveRectangle(vm, rectangleId)`: 矩形を削除
+* `actionUpdateRectanglePosition(vm, rectangleId, x, y)`: 矩形の位置を更新
+* `actionUpdateRectangleSize(vm, rectangleId, width, height)`: 矩形のサイズを更新
+* `actionUpdateRectangleBounds(vm, rectangleId, {x, y, width, height})`: 矩形の座標とサイズを一括更新
+* `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイルを部分更新
+
+すべてのActionは純粋関数で実装され、状態に変化がない場合は同一参照を返す。
+
+### z-index制御
+
+矩形はエンティティより背景に配置される：
+
+* 矩形ノード: `zIndex = 0`
+* エンティティノード: `zIndex = 100`
+* エッジ: デフォルト（0未満）
+
+React Flow設定：
+
+* `elevateNodesOnSelect={false}`: 選択時に矩形が前面に出ないようにする
+* または`zIndexMode="manual"`: 自動z-index制御を無効化し、明示的にzIndexを管理
+
+## 既存のレイヤー管理機能
+
+レイヤー管理機能が実装されている。テキストもこのレイヤー管理システムに統合される予定。
+
+### LayerOrder
 
 ```typescript
-// scheme/main.tsp
-@route("/api")
-namespace API {
-  
-  // Get initial ViewModel
-  // Returns the initial state of the application including build info
-  @get
-  @route("/init")
-  op initialize(): ViewModel | ErrorResponse;
-
-  // Reverse engineer database to generate ER diagram
-  // Accepts current ViewModel and returns updated ViewModel with ER diagram data
-  @post
-  @route("/reverse-engineer")
-  op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
+model LayerOrder {
+  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
+  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
 }
 ```
+
+矩形やテキストは前面・背面に配置可能。エンティティとリレーションはER図レイヤー固定で編集不可。
+
+### レイヤーパネル
+
+レイヤーパネル（`LayerPanel`コンポーネント）が実装されており、以下の機能がある：
+
+* レイヤー順序の表示
+* アイテムの選択
+* レイヤー順序の変更（ドラッグ&ドロップ）
 
 ## 検討してほしい内容
 
-以下の観点から、インポート・エクスポート機能の実装方針を検討してほしい：
+以下の観点から、テキスト描画機能の実装方針を検討してほしい：
 
-### 1. エクスポートするデータの形式
+### 1. データモデル設計
 
-- ViewModelをそのままエクスポートするべきか？
-- エクスポート用の型（ExportData）を定義すべきか？
-- エクスポート用の型を定義する場合、どのフィールドを含めるべきか？
-- JSON形式でよいか？他の形式（YAML、バイナリなど）も検討すべきか？
+- 現在のText型をどのように拡張すべきか？
+- 必要なプロパティは何か？（例: width, height, textAlign, fontFamily, stroke, strokeWidth, opacity, shadowなど）
+- 矩形を設定してその範囲に文字列を描画する仕様をどのように実装すべきか？
+- 「入力した文字に範囲を最適化する」機能をどのように実装すべきか？
+- 改行対応はどのように実装すべきか？
 
-### 2. エクスポート機能の実装方針
+### 2. テキスト編集の実装方法
 
-- ブラウザの`download`属性を使った単純なダウンロードでよいか？
-- ファイル名はどのように決定すべきか？（例: `er-diagram-{timestamp}.json`）
-- ファイル選択モーダルは不要か？
-- エクスポートボタンの配置場所はどこが適切か？
-- エクスポートはクライアント側で完結させるか、サーバー側にエンドポイントを用意するか？
+- テキストの編集UIをどのように実装すべきか？
+  - インライン編集（ダブルクリックで編集モード）
+  - サイドパネルのテキストエリア
+  - モーダルダイアログ
+- 改行の入力方法
+- リアルタイム編集とプレビュー
+- 編集中と編集完了後の状態管理
 
-### 3. インポート機能の実装方針
+### 3. React Flowとの統合
 
-- ドラッグ&ドロップの実装方法
-  - ライブラリを使うべきか？ネイティブAPI（HTML5 Drag and Drop API）で十分か？
-  - ドロップ領域はどこにすべきか？（全画面、特定のエリア）
-- ファイル選択ダイアログも提供すべきか？
-- インポートしたデータのバリデーション
-  - 型チェックはどのように行うべきか？
-  - 不正なデータを検出した場合の処理は？
-- インポート時の既存データの扱い
-  - 完全に上書きするか？
-  - マージするか？（マージの場合、IDの競合をどう扱うか？）
+- テキストをReact Flowのカスタムノードとして実装すべきか？
+- テキストのドラッグ移動の実装方法
+- リサイズハンドルの実装方法（`NodeResizer`を使うか、独自実装か）
+- テキストの描画方法（HTML要素、SVG、Canvasなど）
+- 矩形との操作感の統一
 
-### 4. ライブラリの必要性
+### 4. プロパティパネルの設計
+
+右サイドバーに表示するテキストプロパティパネルの項目：
+
+- テキスト内容の編集
+- フォントサイズ
+- テキスト配置（左寄せ、中央寄せ、右寄せ）
+- 塗りつぶし色（矩形と同じカラーピッカー）
+- ボーダー色（矩形と同じカラーピッカー）
+- ボーダー幅
+- 透明度
+- ドロップシャドウ（設定項目は何が必要か？）
+- 削除ボタン
+
+### 5. フォントの扱い
+
+- クロスプラットフォーム対応のフォント選択
+- 多言語対応（日本語、英語、中国語など）
+- フォントファミリーの選択は必要か？不要か？
+- システムフォントを使うか、Webフォントを使うか？
+- フォールバックフォントの設定
+
+### 6. ドロップシャドウの実装
+
+- ドロップシャドウの設定項目（例: offsetX, offsetY, blur, color, opacity）
+- CSSの`box-shadow`や`text-shadow`を使うか？
+- SVGフィルターを使うか？
+- プロパティパネルでの設定UI
+
+### 7. テキストのレンダリング
+
+- HTML要素（`<div>`）で描画するか？
+- SVG（`<text>`）で描画するか？
+- Canvasで描画するか？
+- 各方法のメリット・デメリット
+- 改行、テキスト配置、ドロップシャドウの実装難易度
+
+### 8. リサイズ機能
+
+- テキストボックスのリサイズ方法
+- 「入力した文字に範囲を最適化する」機能の実装
+  - 自動サイズ調整ボタン
+  - 常に自動調整（リサイズ不可）
+  - ユーザーが選択可能
+- 最小サイズの設定
+- テキストがボックスからあふれた場合の処理（省略記号、スクロール、自動拡大など）
+
+### 9. Action設計
+
+テキスト操作用のActionに必要な関数：
+
+- `actionAddText(vm, text)`: 新規テキストを追加
+- `actionRemoveText(vm, textId)`: テキストを削除
+- `actionUpdateTextPosition(vm, textId, x, y)`: テキストの位置を更新
+- `actionUpdateTextSize(vm, textId, width, height)`: テキストのサイズを更新
+- `actionUpdateTextBounds(vm, textId, {x, y, width, height})`: テキストの座標とサイズを一括更新
+- `actionUpdateTextContent(vm, textId, content)`: テキスト内容を更新
+- `actionUpdateTextStyle(vm, textId, stylePatch)`: テキストのスタイルを部分更新
+
+その他必要なActionはあるか？
+
+### 10. ライブラリの必要性
 
 以下のようなライブラリの導入を検討すべきか？
 
-- ドラッグ&ドロップ用ライブラリ（例: react-dropzone）
-- JSONスキーマバリデーション用ライブラリ（例: ajv, zod）
-- ファイルダウンロード用ライブラリ（例: file-saver）
+- リッチテキストエディタ（例: Slate, Draft.js, Quill）
+- テキスト描画ライブラリ（例: fabric.js, konva）
+- SVGテキスト処理ライブラリ
+- フォント管理ライブラリ
 
-または、ネイティブAPIで十分か？
+または、ネイティブHTMLとCSSで十分か？
 
-### 5. エクスポート用データ型の設計
+### 11. z-index制御
 
-エクスポート用の型を定義する場合、以下のような構造が考えられるが、適切か？
+- テキストのz-indexをどのように設定すべきか？
+- 矩形と同様に背景・前面レイヤーに配置可能にするか？
+- デフォルトの配置位置は？
 
-```typescript
-model ExportData {
-  version: string; // エクスポート形式のバージョン（将来の互換性のため）
-  timestamp: int64; // エクスポート時刻
-  nodes: Record<EntityNodeViewModel>;
-  edges: Record<RelationshipEdgeViewModel>;
-  rectangles: Record<Rectangle>;
-  layerOrder: LayerOrder;
-}
-```
+### 12. テキスト作成のUX
 
-または、他の設計があるか？
+- テキスト作成方法
+  - ツールバーの「テキスト追加」ボタン（矩形と同様）
+  - キャンバス上でクリック
+  - キャンバス上でドラッグ範囲選択
+- 新規作成時のデフォルト値（サイズ、色、フォントサイズなど）
 
-### 6. バージョン管理と互換性
+### 13. 複数選択時の挙動
 
-- エクスポートデータに形式のバージョン情報を含めるべきか？
-- 将来的にViewModelの型が変更された場合、過去のエクスポートデータとの互換性をどう保つべきか？
-- マイグレーション機能は必要か？
+- 複数のテキストが選択されている場合の処理
+- 一括編集機能は必要か？（MVPでは不要かもしれない）
 
-### 7. エラーハンドリング
+### 14. パフォーマンス
 
-- インポート時のエラーをどのようにユーザーに伝えるべきか？
-  - トーストメッセージ
-  - モーダルダイアログ
-  - インラインエラー表示
-- エクスポート時のエラー（例: ブラウザがダウンロードをブロック）をどう扱うか？
+- テキストノードが大量に存在する場合のパフォーマンス
+- 仮想化やレンダリング最適化は必要か？（MVPでは不要かもしれない）
 
-### 8. UX上の考慮点
+### 15. アクセシビリティ
 
-- エクスポート時に確認ダイアログは必要か？
-- インポート時に確認ダイアログは必要か？（既存データが上書きされる警告）
-- ドラッグ&ドロップ時の視覚的フィードバック（ドロップ可能領域のハイライトなど）
-- インポート・エクスポートの進行状況表示は必要か？
+- テキストノードのアクセシビリティ
+- スクリーンリーダー対応
+- キーボード操作対応
 
-### 9. セキュリティ上の考慮点
+### 16. 既存機能との統合
 
-- インポートしたJSONファイルの内容をどこまで信頼すべきか？
-- XSS攻撃のリスクはあるか？（例: エクスポートデータに悪意のあるスクリプトを含める）
-- ファイルサイズの制限は必要か？
+- レイヤー管理機能との統合
+- インポート・エクスポート機能との統合
+- テキストデータの永続化
 
-### 10. テスト戦略
+### 17. 他のWebアプリケーションでの事例
 
-- インポート・エクスポート機能のテストをどのように書くべきか？
-  - Unit Test
-  - Integration Test
-  - E2E Test
-- 不正なデータのテストケースをどう作るべきか？
-
-### 11. 既存の類似機能との統合
-
-- 「永続化機能」としてLocalStorageやIndexedDBへの保存も検討されていたとのことだが、インポート・エクスポート機能に一本化でよいか？
-- インポート・エクスポート機能と自動保存機能を組み合わせる可能性はあるか？
-
-### 12. 他のWebアプリケーションでの事例
-
-- 類似のアプリケーション（図表作成ツール、ダイアグラムエディタなど）でのインポート・エクスポート機能の実装例
+- 類似のアプリケーション（図表作成ツール、ダイアグラムエディタなど）でのテキスト描画機能の実装例
+  - Figma
+  - Miro
+  - Excalidraw
+  - draw.io
+  - Lucidchart
 - ベストプラクティスや参考になる設計パターン
 
 ## 期待する回答
 
 以下について、具体的な見解と理由を提示してほしい：
 
-1. **エクスポートデータの形式**
-   - ViewModelをそのまま使うべきか、ExportData型を定義すべきか
-   - どのフィールドを含めるべきか（具体的な型定義）
+1. **データモデル設計**
+   - Text型に必要なプロパティの完全なリスト（具体的な型定義）
+   - 矩形を設定して文字列を描画する仕様の実装方法
+   - 自動サイズ調整機能の実装方法
 
-2. **実装方針**
-   - クライアント側で完結させるか、サーバー側にエンドポイントを用意するか
-   - ドラッグ&ドロップの実装方法（ライブラリ vs ネイティブAPI）
-   - ファイルダウンロードの実装方法
+2. **テキスト編集の実装方法**
+   - 編集UIの実装方法（インライン編集、サイドパネル、モーダルなど）
+   - 改行対応の実装方法
+   - メリット・デメリット
 
-3. **ライブラリの必要性**
+3. **テキストのレンダリング方法**
+   - HTML、SVG、Canvasのどれを使うべきか
+   - 各方法のメリット・デメリット
+   - 改行、テキスト配置、ドロップシャドウの実装難易度
+
+4. **React Flowとの統合方法**
+   - カスタムノードとして実装する際の注意点
+   - ドラッグ移動とリサイズの実装方法
+
+5. **プロパティパネルの設計**
+   - 必要な編集項目のリスト
+   - UIレイアウト
+   - 矩形プロパティパネルとの共通化
+
+6. **フォントの扱い**
+   - クロスプラットフォーム対応のフォント選択方法
+   - 多言語対応の実装方法
+   - フォントファミリーの選択が必要かどうか
+
+7. **ドロップシャドウの実装**
+   - 必要な設定項目
+   - 実装方法（CSS、SVGフィルターなど）
+   - プロパティパネルのUI
+
+8. **ライブラリの必要性**
    - どのライブラリが有用か、またはネイティブAPIで十分か
    - 各ライブラリのメリット・デメリット
 
-4. **エラーハンドリングとUX**
-   - エラー表示の方法
-   - 確認ダイアログの必要性
-   - 視覚的フィードバック
+9. **Action設計**
+   - 必要なActionのリスト
+   - 純粋関数としての実装方法
 
-5. **セキュリティとバリデーション**
-   - インポートデータのバリデーション方法
-   - セキュリティ上の注意点
+10. **UXとアクセシビリティ**
+    - テキスト作成方法
+    - 編集フロー
+    - キーボード操作対応
 
-6. **バージョン管理**
-   - エクスポート形式のバージョン管理の必要性
-   - 将来の互換性への対応
-
-7. **他のアプリケーションでの事例**
-   - 参考になる実装例やベストプラクティス
+11. **他のアプリケーションでの事例**
+    - 参考になる実装例やベストプラクティス
+    - 類似ツールの分析
 
 可能であれば、複数の実装案を比較し、それぞれのメリット・デメリットを示してほしい。

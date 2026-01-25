@@ -43,6 +43,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.rectangles` - 矩形
 - `erDiagram.texts` - テキストボックス
 - `erDiagram.ui.layerOrder` - レイヤー順序
+- `settings` - アプリケーション設定（データベース接続情報など、パスワードは含まない）
 
 ### インポート時の処理
 
@@ -55,6 +56,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.texts` - インポートしたデータで置き換え
 - `erDiagram.ui.layerOrder` - インポートしたデータで置き換え
 - `erDiagram.loading` - `false` をセット
+- `settings` - インポートしたデータで置き換え（存在する場合）
 
 **インポート時にデフォルト値をセットするフィールド**
 

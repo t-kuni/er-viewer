@@ -40,6 +40,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AppSettings: {
+            lastDatabaseConnection?: components["schemas"]["DatabaseConnectionState"];
+        };
         BuildInfo: {
             version: string;
             name: string;
@@ -71,6 +74,16 @@ export interface components {
             default: string | null;
             extra: string;
         };
+        DatabaseConnectionState: {
+            type: components["schemas"]["DatabaseType"];
+            host: string;
+            /** Format: int32 */
+            port: number;
+            user: string;
+            database: string;
+        };
+        /** @enum {string} */
+        DatabaseType: "mysql" | "postgresql";
         DropShadow: {
             enabled: boolean;
             /** Format: double */
@@ -158,6 +171,7 @@ export interface components {
             selectedItem: components["schemas"]["LayerItemRef"] | null;
             showBuildInfoModal: boolean;
             showLayerPanel: boolean;
+            showDatabaseConnectionModal: boolean;
         };
         HoverTarget: {
             /** @enum {string} */
@@ -220,6 +234,10 @@ export interface components {
             targetColumnId: string;
             constraintName: string;
         };
+        ReverseEngineerRequest: {
+            viewModel: components["schemas"]["ViewModel"];
+            password?: string;
+        };
         /** @enum {string} */
         TextAlign: "left" | "center" | "right";
         /** @enum {string} */
@@ -261,6 +279,7 @@ export interface components {
             erDiagram: components["schemas"]["ERDiagramViewModel"];
             ui: components["schemas"]["GlobalUIState"];
             buildInfo: components["schemas"]["BuildInfoState"];
+            settings?: components["schemas"]["AppSettings"];
         };
     };
     responses: never;
@@ -309,7 +328,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ViewModel"];
+                "application/json": components["schemas"]["ReverseEngineerRequest"];
             };
         };
         responses: {

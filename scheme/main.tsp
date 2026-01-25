@@ -249,6 +249,7 @@ model GlobalUIState {
   selectedItem: LayerItemRef | null; // 選択中のアイテム（矩形、テキスト、エンティティ）
   showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
   showLayerPanel: boolean; // レイヤーパネル表示フラグ
+  showDatabaseConnectionModal: boolean; // データベース接続設定モーダル表示フラグ
 }
 
 // Build info cache state
@@ -258,6 +259,28 @@ model BuildInfoState {
   error: string | null; // エラーメッセージ
 }
 
+// Database connection settings
+
+// Database type enum
+enum DatabaseType {
+  mysql,
+  postgresql, // 将来対応用
+}
+
+// Database connection state (password不含)
+model DatabaseConnectionState {
+  type: DatabaseType;
+  host: string;
+  port: int32;
+  user: string;
+  database: string;
+}
+
+// Application settings
+model AppSettings {
+  lastDatabaseConnection?: DatabaseConnectionState; // リバースエンジニア成功時に更新
+}
+
 // Root view model for the entire frontend application
 model ViewModel {
   format: string; // データフォーマット識別子（固定値: "er-viewer"）
@@ -265,6 +288,13 @@ model ViewModel {
   erDiagram: ERDiagramViewModel; // ER図の状態
   ui: GlobalUIState; // グローバルUI状態
   buildInfo: BuildInfoState; // ビルド情報のキャッシュ
+  settings?: AppSettings; // アプリケーション設定
+}
+
+// Reverse engineer request
+model ReverseEngineerRequest {
+  viewModel: ViewModel;
+  password?: string; // データベース接続用パスワード
 }
 
 // API Routes
@@ -278,8 +308,8 @@ namespace API {
   op initialize(): ViewModel | ErrorResponse;
 
   // Reverse engineer database to generate ER diagram
-  // Accepts current ViewModel and returns updated ViewModel with ER diagram data
+  // Accepts current ViewModel and password, returns updated ViewModel with ER diagram data
   @post
   @route("/reverse-engineer")
-  op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
+  op reverseEngineer(@body request: ReverseEngineerRequest): ViewModel | ErrorResponse;
 }

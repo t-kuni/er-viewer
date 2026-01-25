@@ -48,10 +48,12 @@ GET /api/init
   - `selectedItem`: `null`
   - `showBuildInfoModal`: `false`
   - `showLayerPanel`: `false`
+  - `showDatabaseConnectionModal`: `false`
 - `buildInfo`: ビルド情報の完全なデータ
   - `data`: BuildInfo型のビルド情報
   - `loading`: `false`
   - `error`: `null`
+- `settings`: 未設定（`undefined`または`null`）
 
 ### POST /api/reverse-engineer
 
@@ -63,17 +65,21 @@ POST /api/reverse-engineer
 ```
 
 **リクエスト**
-- ボディ: `ViewModel`（現在の状態）
+- ボディ: `ReverseEngineerRequest`
+  - `viewModel`: 現在のViewModel
+  - `password`: データベース接続用パスワード（オプション）
 
 **レスポンス**
 - 成功時: `ViewModel`（更新後の状態）
 - エラー時: `ErrorResponse`
 
 **処理内容**
+- データベース接続情報を解決（詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
 - データベースに接続してスキーマ情報を取得
 - エンティティとリレーションシップを抽出
 - デフォルトのレイアウト（グリッド配置）でER図を構築
 - リクエストで受け取ったViewModelのerDiagramを更新して返却
+- `settings.lastDatabaseConnection`を更新（パスワードを除く）
 - ui状態とbuildInfo状態はリクエストから引き継ぐ
 
 **レイアウトアルゴリズム**
@@ -114,6 +120,7 @@ POST /api/reverse-engineer
 - `erDiagram: ERDiagramViewModel` - ER図の状態
 - `ui: GlobalUIState` - グローバルUI状態
 - `buildInfo: BuildInfoState` - ビルド情報のキャッシュ
+- `settings?: AppSettings` - アプリケーション設定（詳細は[データベース接続設定仕様](/spec/database_connection_settings.md)を参照）
 
 **ERDiagramViewModel**
 - `nodes: Record<EntityNodeViewModel>` - エンティティノード（キーはUUID）

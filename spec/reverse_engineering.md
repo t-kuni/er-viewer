@@ -18,9 +18,11 @@
 ### 画面操作フロー
 
 1. ユーザーが画面上の「リバースエンジニア」ボタンを押下
-2. フロントエンドが現在のViewModelを`POST /api/reverse-engineer`に送信
-3. バックエンドが更新後のViewModelを返却
-4. フロントエンドがcanvas上にER図をレンダリング
+2. データベース接続設定モーダルが表示される（詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
+3. ユーザーが接続情報を入力して「実行」ボタンを押下
+4. フロントエンドが現在のViewModelと接続情報を`POST /api/reverse-engineer`に送信
+5. バックエンドが更新後のViewModelを返却
+6. フロントエンドがcanvas上にER図をレンダリング
 
 ## バックエンド処理仕様
 
@@ -78,6 +80,7 @@
 
 ## 関連仕様書
 
+- [データベース接続設定仕様](./database_connection_settings.md) - データベース接続情報の入力・管理
 - [ViewModelベースAPI仕様](./viewmodel_based_api.md) - API仕様の詳細
 - [フロントエンド状態管理仕様](./frontend_state_management.md) - フロントエンドの状態管理
 - [scheme/main.tsp](/scheme/main.tsp) - API型定義

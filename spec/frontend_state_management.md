@@ -45,6 +45,7 @@
   - `erDiagram`: ER図の状態（`ERDiagramViewModel`型）
   - `ui`: グローバルUI状態（`GlobalUIState`型）
   - `buildInfo`: ビルド情報のキャッシュ（`BuildInfoState`型）
+  - `settings`: アプリケーション設定（`AppSettings`型、詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
 - `ERDiagramViewModel`: ER図関連の状態
   - `nodes`: エンティティノード（`Record<EntityNodeViewModel>`）
   - `edges`: リレーションシップエッジ（`Record<RelationshipEdgeViewModel>`）

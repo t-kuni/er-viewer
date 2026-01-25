@@ -103,11 +103,11 @@ class DatabaseManager {
                 REFERENCED_COLUMN_NAME,
                 CONSTRAINT_NAME
             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-            WHERE TABLE_SCHEMA = ? 
+            WHERE TABLE_SCHEMA = DATABASE() 
             AND TABLE_NAME = ? 
             AND REFERENCED_TABLE_NAME IS NOT NULL
         `,
-      [process.env.DB_NAME || 'test', tableName],
+      [tableName],
     );
 
     return (rows as any[]).map((row) => {

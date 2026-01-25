@@ -42,6 +42,7 @@ describe('ReverseEngineerUsecase', () => {
         nodes: {},
         edges: {},
         rectangles: {},
+        texts: {},
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -169,6 +170,7 @@ describe('ReverseEngineerUsecase', () => {
         nodes: {},
         edges: {},
         rectangles: {},
+        texts: {},
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -252,6 +254,7 @@ describe('ReverseEngineerUsecase', () => {
         nodes: {},
         edges: {},
         rectangles: {},
+        texts: {},
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -322,6 +325,7 @@ describe('ReverseEngineerUsecase', () => {
         nodes: {},
         edges: {},
         rectangles: {},
+        texts: {},
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -388,6 +392,7 @@ describe('ReverseEngineerUsecase', () => {
         nodes: {},
         edges: {},
         rectangles: {},
+        texts: {},
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -434,5 +439,798 @@ describe('ReverseEngineerUsecase', () => {
     };
     
     await expect(usecase(request)).rejects.toThrow('Database password is not specified');
+  });
+
+  // 増分リバースエンジニアリングのテストケース
+  describe('増分リバースエンジニアリング', () => {
+    it('既存エンティティの座標維持テスト', async () => {
+      // 環境変数を設定
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelにusersテーブルのノードを設定
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [], // 古いカラム情報
+              ddl: 'old ddl',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          texts: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [],
+              foregroundItems: [],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // usersテーブルのノードが存在し、座標が維持されることを確認
+      const usersNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'users');
+      expect(usersNode).toBeDefined();
+      expect(usersNode!.id).toBe('existing-users-id'); // IDが維持される
+      expect(usersNode!.x).toBe(100); // x座標が維持される
+      expect(usersNode!.y).toBe(200); // y座標が維持される
+      
+      // カラム情報が最新に更新されることを確認
+      expect(usersNode!.columns.length).toBeGreaterThan(0);
+      const idColumn = usersNode!.columns.find(c => c.name === 'id');
+      expect(idColumn).toBeDefined();
+      expect(idColumn!.key).toBe('PRI');
+      
+      // ddlが更新されることを確認
+      expect(usersNode!.ddl).not.toBe('old ddl');
+    });
+
+    it('新規エンティティの追加テスト', async () => {
+      // 環境変数を設定（erviewer-2スキーマを使用）
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer-2';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelに一部のテーブルのみ設定
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 50,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+            'existing-roles-id': {
+              id: 'existing-roles-id',
+              name: 'roles',
+              x: 350,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          texts: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [],
+              foregroundItems: [],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // 既存のノードが維持されることを確認
+      const usersNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'users');
+      expect(usersNode).toBeDefined();
+      expect(usersNode!.x).toBe(50);
+      expect(usersNode!.y).toBe(50);
+      
+      // 新規テーブル（task_comments）が追加されることを確認
+      const taskCommentsNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'task_comments');
+      expect(taskCommentsNode).toBeDefined();
+      
+      // 新規エンティティが既存エンティティの右側に配置されることを確認
+      expect(taskCommentsNode!.x).toBeGreaterThan(350); // 既存の最大X座標よりも右側
+      
+      // データベースに存在するすべてのテーブルが含まれることを確認
+      const nodeNames = Object.values(result.erDiagram.nodes).map(n => n.name);
+      expect(nodeNames).toContain('subscriptions');
+      expect(nodeNames).toContain('audit_logs');
+      
+      // 【追加】新規エンティティのリレーションシップが生成されることを確認
+      const edges = Object.values(result.erDiagram.edges);
+      
+      // task_commentsからusersへのリレーションシップが存在することを確認
+      const taskCommentsToUsersEdge = edges.find(e => 
+        e.sourceEntityId === taskCommentsNode!.id && 
+        e.targetEntityId === usersNode!.id
+      );
+      expect(taskCommentsToUsersEdge).toBeDefined();
+      console.log('task_commentsからusersへのエッジ:', taskCommentsToUsersEdge);
+      
+      // subscriptionsからusersへのリレーションシップが存在することを確認
+      const subscriptionsNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'subscriptions');
+      expect(subscriptionsNode).toBeDefined();
+      const subscriptionsToUsersEdge = edges.find(e => 
+        e.sourceEntityId === subscriptionsNode!.id && 
+        e.targetEntityId === usersNode!.id
+      );
+      expect(subscriptionsToUsersEdge).toBeDefined();
+      console.log('subscriptionsからusersへのエッジ:', subscriptionsToUsersEdge);
+    });
+
+    it('削除エンティティの除外テスト', async () => {
+      // 環境変数を設定（erviewer-2スキーマを使用）
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer-2';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelにactivitiesテーブルを設定（erviewer-2には存在しない）
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 50,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+            'existing-activities-id': {
+              id: 'existing-activities-id',
+              name: 'activities',
+              x: 350,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          texts: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [],
+              foregroundItems: [],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // usersテーブルは維持されることを確認
+      const usersNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'users');
+      expect(usersNode).toBeDefined();
+      
+      // activitiesテーブルが削除されることを確認
+      const activitiesNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'activities');
+      expect(activitiesNode).toBeUndefined();
+    });
+
+    it('カラム変更の反映テスト', async () => {
+      // 環境変数を設定（erviewer-2スキーマを使用）
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer-2';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelにusersテーブルを設定（erviewerのカラム情報）
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [
+                {
+                  id: 'old-column-id-1',
+                  name: 'first_name', // erviewer-2ではgiven_nameに変更されている
+                  type: 'varchar(50)',
+                  nullable: true,
+                  key: '',
+                  default: null,
+                  extra: '',
+                },
+                {
+                  id: 'old-column-id-2',
+                  name: 'avatar_url', // erviewer-2では削除されている
+                  type: 'varchar(255)',
+                  nullable: true,
+                  key: '',
+                  default: null,
+                  extra: '',
+                },
+              ],
+              ddl: 'old ddl',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          texts: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [],
+              foregroundItems: [],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // usersテーブルが存在することを確認
+      const usersNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'users');
+      expect(usersNode).toBeDefined();
+      
+      // カラムが最新情報に更新されることを確認
+      const givenNameColumn = usersNode!.columns.find(c => c.name === 'given_name');
+      expect(givenNameColumn).toBeDefined(); // given_nameが存在する
+      
+      const firstNameColumn = usersNode!.columns.find(c => c.name === 'first_name');
+      expect(firstNameColumn).toBeUndefined(); // first_nameは存在しない
+      
+      const avatarUrlColumn = usersNode!.columns.find(c => c.name === 'avatar_url');
+      expect(avatarUrlColumn).toBeUndefined(); // avatar_urlは削除されている
+      
+      const phoneNumberColumn = usersNode!.columns.find(c => c.name === 'phone_number');
+      expect(phoneNumberColumn).toBeDefined(); // phone_numberが追加されている
+    });
+
+    it('UI状態のクリアテスト', async () => {
+      // 環境変数を設定
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelにハイライト状態を設定
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          texts: {},
+          ui: {
+            hover: { type: 'entity', id: 'existing-users-id' },
+            highlightedNodeIds: ['existing-users-id'],
+            highlightedEdgeIds: ['some-edge-id'],
+            highlightedColumnIds: ['some-column-id'],
+            layerOrder: {
+              backgroundItems: [],
+              foregroundItems: [],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // すべてのハイライト状態がクリアされることを確認
+      expect(result.erDiagram.ui.hover).toBeNull();
+      expect(result.erDiagram.ui.highlightedNodeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedEdgeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedColumnIds).toEqual([]);
+    });
+
+    it('レイヤー順序の更新テスト', async () => {
+      // 環境変数を設定（erviewer-2スキーマを使用）
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer-2';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelにレイヤー順序を設定
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 50,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+            'existing-activities-id': {
+              id: 'existing-activities-id',
+              name: 'activities',
+              x: 350,
+              y: 50,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {
+            'rect-1': {
+              id: 'rect-1',
+              x: 100,
+              y: 100,
+              width: 200,
+              height: 150,
+              backgroundColor: '#ffffff',
+              borderColor: '#000000',
+              borderWidth: 1,
+              borderRadius: 0,
+              dropShadow: {
+                enabled: false,
+                offsetX: 0,
+                offsetY: 0,
+                blur: 0,
+                spread: 0,
+                color: '#000000',
+                opacity: 0.5,
+              },
+            },
+          },
+          texts: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [
+                { kind: 'rectangle', id: 'rect-1' },
+                { kind: 'entity', id: 'existing-activities-id' }, // 削除予定
+              ],
+              foregroundItems: [
+                { kind: 'entity', id: 'existing-users-id' },
+              ],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // 削除されたエンティティがレイヤー順序から除外されることを確認
+      const backgroundEntityIds = result.erDiagram.ui.layerOrder.backgroundItems
+        .filter(item => item.kind === 'entity')
+        .map(item => item.id);
+      expect(backgroundEntityIds).not.toContain('existing-activities-id');
+      
+      // 矩形の参照は維持されることを確認
+      const backgroundRectIds = result.erDiagram.ui.layerOrder.backgroundItems
+        .filter(item => item.kind === 'rectangle')
+        .map(item => item.id);
+      expect(backgroundRectIds).toContain('rect-1');
+      
+      // 残存するエンティティの参照は維持されることを確認
+      const foregroundEntityIds = result.erDiagram.ui.layerOrder.foregroundItems
+        .filter(item => item.kind === 'entity')
+        .map(item => item.id);
+      expect(foregroundEntityIds).toContain('existing-users-id');
+    });
+
+    it('矩形・テキストの維持テスト', async () => {
+      // 環境変数を設定
+      process.env.DB_HOST = 'localhost';
+      process.env.DB_PORT = '30177';
+      process.env.DB_USER = 'root';
+      process.env.DB_PASSWORD = 'rootpass';
+      process.env.DB_NAME = 'erviewer';
+      
+      const usecase = createReverseEngineerUsecase({
+        createDatabaseManager: () => new DatabaseManager(),
+      });
+      
+      // 既存のViewModelに矩形とテキストを設定
+      const inputViewModel: ViewModel = {
+        format: "er-viewer",
+        version: 1,
+        erDiagram: {
+          nodes: {
+            'existing-users-id': {
+              id: 'existing-users-id',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {
+            'rect-1': {
+              id: 'rect-1',
+              x: 100,
+              y: 100,
+              width: 200,
+              height: 150,
+              backgroundColor: '#ffffff',
+              borderColor: '#000000',
+              borderWidth: 1,
+              borderRadius: 0,
+              dropShadow: {
+                enabled: false,
+                offsetX: 0,
+                offsetY: 0,
+                blur: 0,
+                spread: 0,
+                color: '#000000',
+                opacity: 0.5,
+              },
+            },
+          },
+          texts: {
+            'text-1': {
+              id: 'text-1',
+              x: 50,
+              y: 50,
+              content: 'テストテキスト',
+              fontSize: 14,
+              fontWeight: 'normal',
+              fontStyle: 'normal',
+              textDecoration: 'none',
+              color: '#000000',
+              textAlign: 'left',
+              autoSizeMode: 'fitContent',
+              width: 100,
+              height: 30,
+              verticalAlign: 'top',
+              lineHeight: 1.5,
+              letterSpacing: 0,
+              overflow: 'clip',
+              dropShadow: {
+                enabled: false,
+                offsetX: 0,
+                offsetY: 0,
+                blur: 0,
+                spread: 0,
+                color: '#000000',
+                opacity: 0.5,
+              },
+            },
+          },
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: {
+              backgroundItems: [
+                { kind: 'rectangle', id: 'rect-1' },
+              ],
+              foregroundItems: [
+                { kind: 'text', id: 'text-1' },
+              ],
+            },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+          showDatabaseConnectionModal: false,
+        },
+        buildInfo: {
+          data: {
+            version: '1.0.0',
+            name: 'test',
+            buildTime: '2026-01-25T12:00:00Z',
+            buildTimestamp: 1737806400000,
+            buildDate: '2026-01-25',
+            git: {
+              commit: 'abc123',
+              commitShort: 'abc',
+              branch: 'main',
+              tag: null,
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const request: ReverseEngineerRequest = {
+        viewModel: inputViewModel,
+        password: 'rootpass',
+      };
+      
+      const result = await usecase(request);
+      
+      // 矩形がそのまま維持されることを確認
+      expect(result.erDiagram.rectangles['rect-1']).toBeDefined();
+      expect(result.erDiagram.rectangles['rect-1'].x).toBe(100);
+      expect(result.erDiagram.rectangles['rect-1'].y).toBe(100);
+      expect(result.erDiagram.rectangles['rect-1'].width).toBe(200);
+      expect(result.erDiagram.rectangles['rect-1'].height).toBe(150);
+      
+      // テキストがそのまま維持されることを確認
+      expect(result.erDiagram.texts['text-1']).toBeDefined();
+      expect(result.erDiagram.texts['text-1'].content).toBe('テストテキスト');
+      expect(result.erDiagram.texts['text-1'].x).toBe(50);
+      expect(result.erDiagram.texts['text-1'].y).toBe(50);
+      
+      // レイヤー順序も維持されることを確認
+      expect(result.erDiagram.ui.layerOrder.backgroundItems).toContainEqual({ kind: 'rectangle', id: 'rect-1' });
+      expect(result.erDiagram.ui.layerOrder.foregroundItems).toContainEqual({ kind: 'text', id: 'text-1' });
+    });
   });
 });

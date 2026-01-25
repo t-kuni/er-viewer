@@ -79,45 +79,58 @@ export function convertToReactFlowEdges(
   edges: { [key: string]: RelationshipEdgeViewModel },
   nodes: { [key: string]: EntityNodeViewModel }
 ): Edge[] {
-  return Object.values(edges).map((edge) => {
-    // ノードの中心座標を計算（初回レンダリング時はデフォルトサイズを使用）
-    const sourceNode = nodes[edge.sourceEntityId];
-    const targetNode = nodes[edge.targetEntityId];
+  return Object.values(edges)
+    .filter((edge) => {
+      // ノードが存在するか確認
+      const sourceNode = nodes[edge.sourceEntityId];
+      const targetNode = nodes[edge.targetEntityId];
 
-    // デフォルトサイズ（width: 200, height: 100）
-    const defaultWidth = 200;
-    const defaultHeight = 100;
+      // ノードが見つからない場合はスキップ
+      if (!sourceNode || !targetNode) {
+        return false;
+      }
+      
+      return true; // 両方のノードが存在する場合のみ処理
+    })
+    .map((edge) => {
+      // ここに来た時点で両方のノードが存在することが保証されている
+      const sourceNode = nodes[edge.sourceEntityId];
+      const targetNode = nodes[edge.targetEntityId];
 
-    const sourceCenter = {
-      x: sourceNode.x + defaultWidth / 2,
-      y: sourceNode.y + defaultHeight / 2,
-    };
-    const targetCenter = {
-      x: targetNode.x + defaultWidth / 2,
-      y: targetNode.y + defaultHeight / 2,
-    };
+      // デフォルトサイズ（width: 200, height: 100）
+      const defaultWidth = 200;
+      const defaultHeight = 100;
 
-    // 最適なハンドルを計算
-    const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter);
+      const sourceCenter = {
+        x: sourceNode.x + defaultWidth / 2,
+        y: sourceNode.y + defaultHeight / 2,
+      };
+      const targetCenter = {
+        x: targetNode.x + defaultWidth / 2,
+        y: targetNode.y + defaultHeight / 2,
+      };
 
-    return {
-      id: edge.id,
-      type: 'relationshipEdge',
-      source: edge.sourceEntityId,
-      target: edge.targetEntityId,
-      sourceHandle,
-      targetHandle,
-      zIndex: -100, // エッジは背後に配置
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-      },
-      data: {
-        sourceColumnId: edge.sourceColumnId,
-        targetColumnId: edge.targetColumnId,
-        constraintName: edge.constraintName,
-      },
-    };
-  });
+      // 最適なハンドルを計算
+      const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter);
+
+      return {
+        id: edge.id,
+        type: 'relationshipEdge',
+        source: edge.sourceEntityId,
+        target: edge.targetEntityId,
+        sourceHandle,
+        targetHandle,
+        zIndex: -100, // エッジは背後に配置
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+        },
+        data: {
+          sourceColumnId: edge.sourceColumnId,
+          targetColumnId: edge.targetColumnId,
+          constraintName: edge.constraintName,
+        },
+      };
+    });
 }
 
 /**

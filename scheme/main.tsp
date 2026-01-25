@@ -62,20 +62,7 @@ model Relationship {
   constraintName: string;
 }
 
-// ER Data model
-model ERData {
-  entities: Entity[];
-  relationships: Relationship[];
-}
-
-// Layout models
-model EntityLayoutItem {
-  id: string; // UUID (エンティティIDと同じ)
-  name: string;
-  x: float64;
-  y: float64;
-}
-
+// Rectangle model (for grouping and annotations)
 model Rectangle {
   id: string; // UUID
   x: float64;
@@ -97,17 +84,6 @@ model Text {
   fill: string;
 }
 
-model LayoutData {
-  entities: Record<EntityLayoutItem>;
-  rectangles: Record<Rectangle>;
-  texts: Record<Text>;
-}
-
-// DDL response model
-model DDLResponse {
-  ddl: string;
-}
-
 // Build info model
 model BuildInfo {
   version: string;
@@ -124,17 +100,6 @@ model BuildInfo {
   nodeVersion: string;
   platform: string;
   arch: string;
-}
-
-// Success response model
-model SuccessResponse {
-  success: boolean;
-}
-
-// Reverse engineer response model
-model ReverseEngineerResponse {
-  erData: ERData;
-  layoutData: LayoutData;
 }
 
 // ViewModel for ER diagram rendering
@@ -232,33 +197,15 @@ model ViewModel {
 @route("/api")
 namespace API {
   
-  // Get ER data
+  // Get initial ViewModel
+  // Returns the initial state of the application including build info
   @get
-  @route("/er-data")
-  op getERData(): ERData | ErrorResponse;
+  @route("/init")
+  op init(): ViewModel | ErrorResponse;
 
-  // Reverse engineer database to generate ER data and default layout
+  // Reverse engineer database to generate ER diagram
+  // Accepts current ViewModel and returns updated ViewModel with ER diagram data
   @post
   @route("/reverse-engineer")
-  op reverseEngineer(): ReverseEngineerResponse | ErrorResponse;
-
-  // Save layout data
-  @post
-  @route("/layout")
-  op saveLayout(@body layoutData: LayoutData): SuccessResponse | ErrorResponse;
-
-  // Get layout data
-  @get
-  @route("/layout")
-  op getLayout(): LayoutData | ErrorResponse;
-
-  // Get table DDL
-  @get
-  @route("/table/{tableName}/ddl")
-  op getTableDDL(@path tableName: string): DDLResponse | ErrorResponse;
-
-  // Get build information
-  @get
-  @route("/build-info")
-  op getBuildInfo(): BuildInfo | ErrorResponse;
+  op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
 }

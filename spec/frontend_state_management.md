@@ -78,17 +78,19 @@
 * **React Flow内部状態**: ドラッグ中のノード位置（uncontrolledモードでパフォーマンス確保）
 * **フォーム入力中の一時的な値**: 確定前のテキスト入力など
 
-### ビルド情報のキャッシュについて
+### ビルド情報について
 
 `ViewModel.buildInfo`はビルド情報をキャッシュし、次の利点を提供する：
 
-* **キャッシュ**: モーダルを閉じても、次回開いたときに再取得不要（取得済みの場合）
-* **テスト容易性**: ローディング・エラー状態をActionでテスト可能
+* **初期化時取得**: `GET /api/init`でアプリケーション起動時に取得（詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照）
+* **キャッシュ**: モーダルを閉じても、次回開いたときに再取得不要
+* **テスト容易性**: ビルド情報の状態をActionでテスト可能
 * **状態の一元管理**: ビルド情報の状態をコンポーネント外で管理
 
 **実装方法**:
-- `BuildInfoModal`コンポーネントのマウント時（`useEffect`の依存配列を空にする）に、`buildInfo.data`が`null`の場合のみ`commandFetchBuildInfo`を実行
-- これにより、アプリケーション起動後の初回モーダル表示時のみAPIを呼び出し、2回目以降はキャッシュを使用
+- アプリケーション起動時に`commandInitialize`を実行し、`GET /api/init`から初期ViewModelを取得
+- 初期ViewModelには既にビルド情報が含まれている
+- `BuildInfoModal`は`viewModel.buildInfo.data`を表示するだけ
 
 ## Action層の設計
 
@@ -156,11 +158,9 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 * `actionHideBuildInfoModal(viewModel)`: ビルド情報モーダルを非表示
   - `viewModel.ui.showBuildInfoModal` を false に設定
 
-#### ビルド情報関連のAction
+#### ViewModel全体を更新するAction
 
-* `actionSetBuildInfoLoading(viewModel, loading)`: ビルド情報の読み込み状態を設定
-* `actionSetBuildInfo(viewModel, buildInfo)`: ビルド情報を設定
-* `actionSetBuildInfoError(viewModel, error)`: ビルド情報のエラーを設定
+* `actionSetViewModel(viewModel, newViewModel)`: ViewModel全体を更新（APIレスポンスの反映用）
 
 ### Actionの実装ルール
 
@@ -240,34 +240,34 @@ React Flowのイベントを使用し、mousemoveは使わない：
 
 ### Command層
 
-Actionは純粋関数のため、API呼び出しは別層（Command）で実施：
+Actionは純粋関数のため、API呼び出しは別層（Command）で実施。
+
+API仕様の詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照。
 
 ```typescript
-async function commandReverseEngineer(dispatch) {
+async function commandInitialize(dispatch) {
+  try {
+    // GET /api/init から初期ViewModelを取得
+    const viewModel = await api.init();
+    // ViewModelをそのままストアに設定
+    dispatch(actionSetViewModel, viewModel);
+  } catch (error) {
+    // エラーハンドリング
+  }
+}
+
+async function commandReverseEngineer(dispatch, getState) {
   dispatch(actionSetLoading, true);
   try {
-    const response = await api.reverseEngineer();
-    // ReverseEngineerResponseからERDiagramViewModelを構築
-    const erDiagram = buildERDiagramViewModel(response.erData, response.layoutData);
-    // 注意: リバースエンジニアリング時に矩形データは返されない
-    dispatch(actionSetData, erDiagram.nodes, erDiagram.edges);
+    // 現在のViewModelをリクエストとして送信
+    const currentViewModel = getState();
+    const viewModel = await api.reverseEngineer(currentViewModel);
+    // レスポンスのViewModelでストアを更新
+    dispatch(actionSetViewModel, viewModel);
   } catch (error) {
     // エラーハンドリング
   } finally {
     dispatch(actionSetLoading, false);
-  }
-}
-
-async function commandFetchBuildInfo(dispatch) {
-  dispatch(actionSetBuildInfoLoading, true);
-  try {
-    const buildInfo = await api.getBuildInfo();
-    dispatch(actionSetBuildInfo, buildInfo);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'ビルド情報の取得に失敗しました';
-    dispatch(actionSetBuildInfoError, errorMessage);
-  } finally {
-    dispatch(actionSetBuildInfoLoading, false);
   }
 }
 ```
@@ -350,26 +350,34 @@ Redux DevTools相当はないが、以下で補完可能：
 
 既存コードからの移行手順：
 
-1. `scheme/main.tsp`に`ViewModel`型と関連する型を追加
-2. Store・Action基盤を実装（`ViewModel`を状態として保持）
-3. HoverContextのロジックをAction化し、Contextを廃止
-4. ERCanvasの状態管理をStoreに移行
-5. React Flow統合を調整（ドラッグ確定時の反映）
-6. App.tsxのローカル状態（`selectedRectangleId`, `showBuildInfoModal`）をStoreに移行
-7. BuildInfoModalのローカル状態（`buildInfo`, `loading`, `error`）をStoreに移行
+1. `scheme/main.tsp`に`ViewModel`型と関連する型を追加（完了済み）
+2. バックエンドAPIを新仕様に変更（[ViewModelベースAPI仕様](./viewmodel_based_api.md)参照）
+3. Store・Action基盤を実装（`ViewModel`を状態として保持）
+4. `commandInitialize`を実装し、アプリケーション起動時に`GET /api/init`を呼び出し
+5. HoverContextのロジックをAction化し、Contextを廃止
+6. ERCanvasの状態管理をStoreに移行
+7. React Flow統合を調整（ドラッグ確定時の反映）
+8. App.tsxのローカル状態（`selectedItem`, `showBuildInfoModal`, `showLayerPanel`）をStoreに移行
+9. BuildInfoModalをキャッシュされたビルド情報を表示するだけに簡素化
 
 ### 初期状態の構築
 
-アプリケーション起動時の初期状態は、[`scheme/main.tsp`](../scheme/main.tsp)で定義された各型のデフォルト値を設定する。
+アプリケーション起動時の初期状態は`GET /api/init`から取得する（詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照）。
 
-**初期値の方針**:
+**初期化フロー**:
+1. アプリケーション起動時に`commandInitialize`を実行
+2. `GET /api/init`から初期ViewModelを取得
+3. ViewModelをそのままストアに設定
+
+**初期ViewModelの内容**:
 - `erDiagram.nodes`, `erDiagram.edges`, `erDiagram.rectangles`: 空のオブジェクト（`{}`）
 - `erDiagram.ui.hover`: `null`
 - `erDiagram.ui.highlightedXxxIds`: 空の配列（`[]`）
 - `erDiagram.loading`: `false`
-- `ui.selectedRectangleId`: `null`
+- `ui.selectedItem`: `null`
 - `ui.showBuildInfoModal`: `false`
-- `buildInfo.data`: `null`
+- `ui.showLayerPanel`: `false`
+- `buildInfo.data`: BuildInfo型のデータ（サーバーで生成）
 - `buildInfo.loading`: `false`
 - `buildInfo.error`: `null`
 

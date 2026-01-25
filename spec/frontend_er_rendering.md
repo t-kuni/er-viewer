@@ -53,7 +53,7 @@ React Flowはノード・エッジベースの図エディタに必要な機能�
 
 * **サイズ**
   * カラム数に応じて可変
-  * width/heightをLayoutDataに保存
+  * width/heightは自動計算（将来的に保存機能を追加する可能性あり）
 
 #### 補助ノード
 
@@ -95,7 +95,7 @@ React Flowはノード・エッジベースの図エディタに必要な機能�
 | 機能 | 実装方法 |
 |------|----------|
 | インタラクティブなER図表示 | React Flowのノード/エッジで実装 |
-| エンティティのドラッグ&ドロップ配置 | React Flow標準機能（ドラッグ完了時にLayoutData更新） |
+| エンティティのドラッグ&ドロップ配置 | React Flow標準機能（ドラッグ完了時にViewModelのnodesを更新） |
 | ズーム・パン操作 | React Flow標準機能（ホイール/ドラッグ） |
 | リレーション線の表示（直角ポリライン） | Custom Edgeで実装 |
 
@@ -125,22 +125,22 @@ React Flowはノード・エッジベースの図エディタに必要な機能�
 
 ### データフロー
 
-1. バックエンドAPIから`ReverseEngineerResponse`を取得（`erData`と`layoutData`）
-2. フロントエンドで`ERData + LayoutData`を`ERDiagramViewModel`に変換（nodes/edgesが連想配列形式）
+API仕様の詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照。
+
+1. バックエンドAPIから`ViewModel`を取得（初期化時は`GET /api/init`、リバースエンジニア時は`POST /api/reverse-engineer`）
+2. ViewModelをそのままストアに保存
 3. ERDiagramViewModel.nodes/edges（連想配列） → React Flowの nodes/edges（配列） に変換
 4. ユーザー操作でReact Flowのnodes/edgesが更新される
-5. 変更をLayoutDataに反映してバックエンドに保存
+5. ドラッグ確定時などにViewModelのnodesを更新してストアに反映
 
 ### ViewModelのデータ形式
 
-フロントエンドで構築する`ERDiagramViewModel`は以下の形式：
+`ERDiagramViewModel`は以下の形式（TypeSpecで定義済み）：
 
 * `nodes`: Record<EntityNodeViewModel>（UUIDをキーとした連想配列）
 * `edges`: Record<RelationshipEdgeViewModel>（UUIDをキーとした連想配列）
 
 連想配列形式により、ID検索がO(1)で可能となり、ホバーインタラクション時のパフォーマンスが向上する。
-
-**変換処理**: フロントエンドで`ERData`の`entities`と`relationships`を、`LayoutData`の座標情報と組み合わせて`ERDiagramViewModel`を構築。将来的にはバックエンドで変換する可能性あり。
 
 ### データ型マッピング
 
@@ -151,34 +151,34 @@ React Flowは配列形式を期待するため、以下の変換を行う：
 * `Object.values(viewModel.nodes)` → React Flow nodes配列
 * `Object.values(viewModel.edges)` → React Flow edges配列
 
-#### ERData → React Flow nodes
+#### EntityNodeViewModel → React Flow nodes
 
 ```
-Entity → Node {
-  id: entity.id,  // UUID
+EntityNodeViewModel → Node {
+  id: node.id,  // UUID
   type: 'entityNode',  // Custom Node
-  position: { x, y },  // LayoutDataから取得（entity.idで検索）
+  position: { x: node.x, y: node.y },
   data: {
-    id: entity.id,
-    name: entity.name,
-    columns: entity.columns,
-    ddl: entity.ddl
+    id: node.id,
+    name: node.name,
+    columns: node.columns,
+    ddl: node.ddl
   }
 }
 ```
 
-#### Relationship → React Flow edges
+#### RelationshipEdgeViewModel → React Flow edges
 
 ```
-Relationship → Edge {
-  id: relationship.id,  // UUID
+RelationshipEdgeViewModel → Edge {
+  id: edge.id,  // UUID
   type: 'relationshipEdge',  // Custom Edge
-  source: fromEntityId,  // Entity UUID
-  target: toEntityId,  // Entity UUID
+  source: edge.sourceEntityId,  // Entity UUID
+  target: edge.targetEntityId,  // Entity UUID
   data: {
-    fromColumnId,  // Column UUID
-    toColumnId,  // Column UUID
-    constraintName
+    sourceColumnId: edge.sourceColumnId,  // Column UUID
+    targetColumnId: edge.targetColumnId,  // Column UUID
+    constraintName: edge.constraintName
   }
 }
 ```
@@ -201,22 +201,11 @@ Text → Node {
 }
 ```
 
-### LayoutData 保存形式
+### データ保存
 
-既存のLayoutData型（TypeSpecで定義）に合わせる：
+データ保存機能は後日設計予定（詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照）。
 
-* `entities`: Record<EntityLayoutItem>（UUIDをキーとしたマップ）
-  * 各EntityLayoutItemには`id`（UUID）、`name`（テーブル名）、`x`、`y`座標が含まれる
-  * width/heightはノード自体のサイズであり、LayoutDataには保存しない
-* `rectangles`: Record<Rectangle>（UUIDをキーとしたマップ）
-  * 各Rectangleには id, x, y, width, height, fill, stroke が含まれる
-* `texts`: Record<Text>（UUIDをキーとしたマップ）
-  * 各Textには id, x, y, content, fontSize, fill が含まれる
-
-React FlowのnodesからLayoutDataへの変換時：
-* エンティティノード → entities（UUIDをキー、EntityLayoutItemを値とするRecord）
-* 矩形ノード → rectangles（UUIDをキー、Rectangleを値とするRecord）
-* テキストノード → texts（UUIDをキー、Textを値とするRecord）
+現在のMVP段階では、データはフロントエンドのストアのみで管理され、永続化はされない。
 
 全ての要素がUUIDをキーとするRecord型で統一されており、削除・更新が容易な設計となっている。
 

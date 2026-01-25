@@ -162,19 +162,17 @@ const nodeTypes = {
 
 ## 永続化
 
-### LayoutDataへの保存
+### データの保存
 
-矩形データは`LayoutData.rectangles`に保存される（TypeSpecで既に定義済み）。
+矩形データは`ERDiagramViewModel.rectangles`に保存される（TypeSpecで既に定義済み）。
 
-保存API（`POST /api/layout`）は既存のものを使用し、`LayoutData`全体を送信：
+保存機能は後日設計予定（詳細は[ViewModelベースAPI仕様](./viewmodel_based_api.md)を参照）。
 
-* `entities`: エンティティの座標情報
-* `rectangles`: 矩形の情報（拡張されたstrokeWidth/opacityを含む）
-* `texts`: テキストの情報
+現在のMVP段階では、矩形データはフロントエンドのストアのみで管理され、永続化はされない。
 
 ### 読み込み
 
-リバースエンジニア時（`POST /api/reverse-engineer`）、またはレイアウト取得時（`GET /api/layout`）にバックエンドから`rectangles`を取得し、`ERDiagramViewModel.rectangles`に反映。
+将来的な保存機能が実装された後、`GET /api/init`やその他のAPIで`rectangles`を取得し、`ERDiagramViewModel.rectangles`に反映する。
 
 ## 実装時の注意事項
 
@@ -191,7 +189,7 @@ const nodeTypes = {
 5. リサイズ: `NodeResizer`を導入し、`onResizeEnd`で`actionUpdateRectangleBounds`をdispatch
 6. プロパティパネル実装（詳細は[rectangle_property_panel.md](./rectangle_property_panel.md)を参照）
 7. z-index固定設定（`elevateNodesOnSelect={false}`または`zIndexMode="manual"`）
-8. LayoutData保存・読み込みをテスト
+8. データ永続化機能の追加（後日実装）
 
 ## 懸念事項・確認事項
 

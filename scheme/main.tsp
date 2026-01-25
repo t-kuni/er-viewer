@@ -120,10 +120,7 @@ model TextBox {
   textAlign: TextAlign;
 
   textColor: string;    // 文字色（例: "#000000"）
-
-  stroke: string;       // ボックス枠線色（例: "#000000"）
-  strokeWidth: float64; // ボックス枠線幅（px）
-  opacity: float64;     // ボックス全体の不透明度（0..1）
+  opacity: float64;     // テキスト全体の不透明度（0..1）
 
   paddingX: float64;
   paddingY: float64;

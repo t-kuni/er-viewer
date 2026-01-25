@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import DatabaseManager from './lib/database';
 import { createGetBuildInfoUsecase } from './lib/usecases/GetBuildInfoUsecase';
 import { createReverseEngineerUsecase } from './lib/usecases/ReverseEngineerUsecase';
+import { createGetInitialViewModelUsecase } from './lib/usecases/GetInitialViewModelUsecase';
 
 dotenv.config();
 
@@ -37,71 +38,36 @@ const getBuildInfoUsecase = createGetBuildInfoUsecase({
   processArch: process.arch,
 });
 
+// GetInitialViewModelUsecaseの依存性注入
+const getInitialViewModelUsecase = createGetInitialViewModelUsecase({
+  getBuildInfo: getBuildInfoUsecase,
+});
+
 // ReverseEngineerUsecaseの依存性注入
 const reverseEngineerUsecase = createReverseEngineerUsecase({
   createDatabaseManager: () => new DatabaseManager(),
 });
 
-app.get('/api/er-data', async (_req: Request, res: Response) => {
+// GET /api/init - 初期ViewModelを返却
+app.get('/api/init', async (_req: Request, res: Response) => {
   try {
-    res.status(404).json({ error: 'No ER data found' });
+    const viewModel = getInitialViewModelUsecase();
+    res.json(viewModel);
   } catch (error) {
-    console.error('Error loading ER data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error getting initial ViewModel:', error);
+    res.status(500).json({ error: 'Failed to get initial ViewModel' });
   }
 });
 
-app.post('/api/reverse-engineer', async (_req: Request, res: Response) => {
+// POST /api/reverse-engineer - ViewModelを受け取り、更新後のViewModelを返却
+app.post('/api/reverse-engineer', async (req: Request, res: Response) => {
   try {
-    const response = await reverseEngineerUsecase();
-    res.json(response);
+    const viewModel = req.body;
+    const updatedViewModel = await reverseEngineerUsecase(viewModel);
+    res.json(updatedViewModel);
   } catch (error) {
     console.error('Error during reverse engineering:', error);
     res.status(500).json({ error: 'Failed to reverse engineer database' });
-  }
-});
-
-app.post('/api/layout', async (_req: Request, res: Response) => {
-  try {
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving layout data:', error);
-    res.status(500).json({ error: 'Failed to save layout data' });
-  }
-});
-
-app.get('/api/layout', async (_req: Request, res: Response) => {
-  try {
-    res.json({
-      entities: {},
-      rectangles: {},
-      texts: {},
-    });
-  } catch (error) {
-    console.error('Error loading layout data:', error);
-    res.status(500).json({ error: 'Failed to load layout data' });
-  }
-});
-
-app.get('/api/table/:tableName/ddl', async (req: Request, res: Response) => {
-  try {
-    await dbManager.connect();
-    const ddl = await dbManager.getTableDDL(req.params.tableName);
-    await dbManager.disconnect();
-    res.json({ ddl });
-  } catch (error) {
-    console.error('Error getting table DDL:', error);
-    res.status(500).json({ error: 'Failed to get table DDL' });
-  }
-});
-
-app.get('/api/build-info', async (_req: Request, res: Response) => {
-  try {
-    const buildInfo = getBuildInfoUsecase();
-    res.json(buildInfo);
-  } catch (error) {
-    console.error('Error getting build info:', error);
-    res.status(500).json({ error: 'Failed to get build info' });
   }
 });
 

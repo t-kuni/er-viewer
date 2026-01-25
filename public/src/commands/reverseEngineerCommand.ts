@@ -1,33 +1,33 @@
 import { DefaultService } from '../api/client';
-import { buildERDiagramViewModel } from '../utils/viewModelConverter';
-import { actionSetData, actionSetLoading } from '../actions/dataActions';
+import { actionSetViewModel, actionSetLoading } from '../actions/dataActions';
 import type { Store } from '../store/erDiagramStore';
+import type { ViewModel } from '../api/client';
 
 /**
  * リバースエンジニアリングを実行するCommand
  * @param dispatch Store.dispatch関数
+ * @param getState Store.getState関数
  */
 export async function commandReverseEngineer(
-  dispatch: Store['dispatch']
+  dispatch: Store['dispatch'],
+  getState: Store['getState']
 ): Promise<void> {
   dispatch(actionSetLoading, true);
   
   try {
-    const response = await DefaultService.apiReverseEngineer();
+    // 現在のViewModelを取得
+    const currentViewModel = getState() as ViewModel;
+    
+    // サーバーにViewModelを送信し、更新後のViewModelを取得
+    const updatedViewModel = await DefaultService.apiReverseEngineer(currentViewModel);
     
     // エラーレスポンスのチェック
-    if ('error' in response) {
-      throw new Error(response.error);
+    if ('error' in updatedViewModel) {
+      throw new Error(updatedViewModel.error);
     }
     
-    // ReverseEngineerResponseからERDiagramViewModelを構築
-    const erDiagram = buildERDiagramViewModel(
-      response.erData,
-      response.layoutData
-    );
-    
-    // データをStoreに設定
-    dispatch(actionSetData, erDiagram);
+    // 更新後のViewModelをStoreに設定
+    dispatch(actionSetViewModel, updatedViewModel);
   } catch (error) {
     console.error('Failed to reverse engineer:', error);
     // エラーはコンソールに出力するのみ（MVPフェーズ）

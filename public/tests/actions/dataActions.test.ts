@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  actionSetViewModel,
   actionSetData,
   actionUpdateNodePositions,
   actionSetLoading,
@@ -46,6 +47,68 @@ describe('dataActions', () => {
       loading: false,
       error: null,
     },
+  });
+
+  describe('actionSetViewModel', () => {
+    it('ViewModel全体が正しく置き換えられる', () => {
+      const oldViewModel = createMockViewModel();
+      
+      const newViewModel: ViewModel = {
+        erDiagram: {
+          nodes: {
+            'entity-new': {
+              id: 'entity-new',
+              name: 'products',
+              x: 1000,
+              y: 2000,
+              columns: [],
+              ddl: 'CREATE TABLE products...',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: { backgroundItems: [], foregroundItems: [] },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: { kind: 'rectangle', id: 'rect-1' },
+          showBuildInfoModal: true,
+          showLayerPanel: true,
+        },
+        buildInfo: {
+          data: {
+            name: 'er-viewer',
+            version: '1.0.0',
+            buildTime: '2026-01-25T00:00:00Z',
+            git: {
+              commitHash: 'abc123',
+              commitShort: 'abc123',
+              branch: 'main',
+            },
+            nodeVersion: 'v18.0.0',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const result = actionSetViewModel(oldViewModel, newViewModel);
+
+      // 新しいViewModelがそのまま返される
+      expect(result).toBe(newViewModel);
+      expect(result).not.toBe(oldViewModel);
+      expect(result.erDiagram).toEqual(newViewModel.erDiagram);
+      expect(result.ui).toEqual(newViewModel.ui);
+      expect(result.buildInfo).toEqual(newViewModel.buildInfo);
+    });
   });
 
   describe('actionSetData', () => {

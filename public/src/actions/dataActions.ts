@@ -6,6 +6,19 @@ type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewMode
 type ERDiagramViewModel = components['schemas']['ERDiagramViewModel'];
 
 /**
+ * ViewModel全体を更新するAction
+ * @param viewModel 現在の状態（未使用だが、インタフェースの一貫性のため引数として受け取る）
+ * @param newViewModel 新しいViewModel
+ * @returns 新しいViewModel
+ */
+export function actionSetViewModel(
+  viewModel: ViewModel,
+  newViewModel: ViewModel
+): ViewModel {
+  return newViewModel;
+}
+
+/**
  * リバースエンジニア結果を設定するAction
  * @param viewModel 現在の状態
  * @param erDiagram ERDiagramViewModel全体

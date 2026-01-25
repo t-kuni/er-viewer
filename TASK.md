@@ -15,13 +15,14 @@
 
 ### TypeSpec定義の型生成
 
-- [ ] `npm run generate`を実行してTypeSpecから型定義を生成
+- [x] `npm run generate`を実行してTypeSpecから型定義を生成
   - `scheme/main.tsp`の変更を反映
   - `lib/generated/api-types.ts`と`public/src/api/client/`が更新される
+  - **対処済み**: API名を`init`から`initialize`に変更
 
 ### GetInitialViewModelUsecaseの実装
 
-- [ ] `lib/usecases/GetInitialViewModelUsecase.ts`を新規作成
+- [x] `lib/usecases/GetInitialViewModelUsecase.ts`を新規作成
   - インタフェース: `createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) => () => ViewModel`
   - 依存性注入するもの:
     - `getBuildInfo: () => BuildInfo` (GetBuildInfoUsecaseの実行関数)
@@ -35,7 +36,7 @@
 
 ### ReverseEngineerUsecaseの修正
 
-- [ ] `lib/usecases/ReverseEngineerUsecase.ts`を修正
+- [x] `lib/usecases/ReverseEngineerUsecase.ts`を修正
   - インタフェース変更: `(viewModel: ViewModel) => Promise<ViewModel>`
     - 引数: 現在のViewModelを受け取る
     - 戻り値: 更新後のViewModelを返す
@@ -52,7 +53,7 @@
 
 ### DatabaseManagerの修正
 
-- [ ] `lib/database.ts`を修正
+- [x] `lib/database.ts`を修正（変更不要、既存のメソッドをそのまま使用）
   - `generateERData()`メソッドは削除せず残す（ReverseEngineerUsecase内で利用）
   - `generateDefaultLayoutData()`メソッドは削除せず残す（またはロジックをUsecaseに移動）
   - `ERData`, `LayoutData`, `EntityLayoutItem`型は復活させた型定義を使用
@@ -60,7 +61,7 @@
 
 ### server.tsのAPI実装
 
-- [ ] `server.ts`を修正
+- [x] `server.ts`を修正
   - 新規エンドポイント追加:
     - `GET /api/init` - GetInitialViewModelUsecaseを呼び出し、ViewModelを返却
   - 既存エンドポイント修正:
@@ -75,37 +76,38 @@
 
 ### バックエンドテストの実装
 
-- [ ] `tests/usecases/GetInitialViewModelUsecase.test.ts`を新規作成
+- [x] `tests/usecases/GetInitialViewModelUsecase.test.ts`を新規作成
   - GetInitialViewModelUsecaseの動作を検証
   - ビルド情報が正しく含まれることを確認
   - 初期状態が正しいことを確認
 
-- [ ] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
+- [x] `tests/usecases/ReverseEngineerUsecase.test.ts`を修正
   - ViewModelを引数として受け取る新しいインタフェースに対応
   - ViewModelの`erDiagram`が更新されることを確認
   - `ui`と`buildInfo`が引き継がれることを確認
 
 ### ビルド・テストの確認
 
-- [ ] バックエンドのビルドを確認
+- [x] バックエンドのビルドを確認
   - `npm run generate`でTypeSpecから型定義を生成
   - TypeScriptのコンパイルエラーがないことを確認
 
-- [ ] バックエンドのテストを実行
+- [x] バックエンドのテストを実行
   - `npm run test`でテストが全てパスすることを確認
 
 ## フェーズ2: フロントエンド実装
 
 ### actionSetViewModelの実装
 
-- [ ] `public/src/actions/dataActions.ts`に`actionSetViewModel`を追加
+- [x] `public/src/actions/dataActions.ts`に`actionSetViewModel`を追加
   - インタフェース: `(viewModel: ViewModel, newViewModel: ViewModel) => ViewModel`
   - 処理内容: ViewModelを丸ごと差し替える（`return newViewModel`）
   - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「ViewModel全体を更新するAction」セクション
+  - **注**: 既に実装済みでした
 
 ### commandInitializeの実装
 
-- [ ] `public/src/commands/initializeCommand.ts`を新規作成
+- [x] `public/src/commands/initializeCommand.ts`を新規作成
   - インタフェース: `async (dispatch: Store['dispatch']) => Promise<void>`
   - 処理内容:
     - `GET /api/init`を呼び出し
@@ -115,24 +117,25 @@
 
 ### commandReverseEngineerの修正
 
-- [ ] `public/src/commands/reverseEngineerCommand.ts`を修正
+- [x] `public/src/commands/reverseEngineerCommand.ts`を修正
   - 処理内容の変更:
     - 現在のViewModelを`erDiagramStore.getState()`で取得
     - `POST /api/reverse-engineer`に現在のViewModelを送信
     - レスポンスのViewModelを`actionSetViewModel`でStoreに設定
     - `buildERDiagramViewModel()`関数の呼び出しは削除（サーバーがViewModelを返すため不要）
   - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「Command層」セクション
+  - **注**: ERCanvas.tsxでの呼び出しも修正（getStateを渡すように変更）
 
 ### App.tsxの初期化処理追加
 
-- [ ] `public/src/components/App.tsx`を修正
+- [x] `public/src/components/App.tsx`を修正
   - `useEffect`を追加し、コンポーネントマウント時に`commandInitialize`を実行
   - 依存配列は空配列（初回マウント時のみ実行）
   - 参考: [フロントエンド状態管理仕様](./spec/frontend_state_management.md)の「初期化フロー」セクション
 
 ### BuildInfoModalの修正
 
-- [ ] `public/src/components/BuildInfoModal.tsx`を修正
+- [x] `public/src/components/BuildInfoModal.tsx`を修正
   - ローカル状態（`buildInfo`, `loading`, `error`）を削除
   - `useViewModel`でStoreから`viewModel.buildInfo`を取得
   - `commandFetchBuildInfo`の呼び出しを削除
@@ -141,33 +144,39 @@
 
 ### buildInfoActionsの削除
 
-- [ ] `public/src/actions/buildInfoActions.ts`を削除
+- [x] `public/src/actions/buildInfoActions.ts`を削除
   - `actionSetBuildInfoLoading`, `actionSetBuildInfo`, `actionSetBuildInfoError`は不要
   - `actionSetViewModel`で代替
 
 ### buildInfoCommandの削除
 
-- [ ] `public/src/commands/buildInfoCommand.ts`を削除
+- [x] `public/src/commands/buildInfoCommand.ts`を削除
   - `commandFetchBuildInfo`は不要（初期化時に取得済み）
 
 ### viewModelConverterの削除
 
-- [ ] `public/src/utils/viewModelConverter.ts`を削除
+- [x] `public/src/utils/viewModelConverter.ts`を削除
   - `buildERDiagramViewModel()`関数は不要（サーバーがViewModelを返すため）
+
+### 不要ファイルの削除
+
+- [x] `public/src/app.ts`を削除
+  - 旧実装で使用されていないファイル
 
 ### フロントエンドテストの修正
 
-- [ ] `public/tests/actions/buildInfoActions.test.ts`を削除
+- [x] `public/tests/actions/buildInfoActions.test.ts`を削除
   - 対応するActionが削除されたため
 
-- [ ] `public/tests/actions/dataActions.test.ts`を修正
+- [x] `public/tests/actions/dataActions.test.ts`を修正
   - `actionSetViewModel`のテストを追加
   - 既存のテストは保持
 
 ### ビルドの確認
 
-- [ ] フロントエンドのビルドを確認
-  - TypeScriptのコンパイルエラーがないことを確認
+- [x] フロントエンドのビルドを確認
+  - Viteビルドが成功することを確認
+  - テストが全てパス（64テスト）することを確認
 
 ## 懸念事項
 

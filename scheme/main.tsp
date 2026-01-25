@@ -224,7 +224,7 @@ namespace API {
   // Returns the initial state of the application including build info
   @get
   @route("/init")
-  op init(): ViewModel | ErrorResponse;
+  op initialize(): ViewModel | ErrorResponse;
 
   // Reverse engineer database to generate ER diagram
   // Accepts current ViewModel and returns updated ViewModel with ER diagram data

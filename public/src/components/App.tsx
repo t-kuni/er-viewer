@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import ERCanvas from './ERCanvas'
 import BuildInfoModal from './BuildInfoModal'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
@@ -6,9 +6,16 @@ import { LayerPanel } from './LayerPanel'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionShowBuildInfoModal, actionHideBuildInfoModal } from '../actions/globalUIActions'
 import { actionSelectItem, actionToggleLayerPanel } from '../actions/layerActions'
+import { commandInitialize } from '../commands/initializeCommand'
+import { erDiagramStore } from '../store/erDiagramStore'
 
 function App() {
   const dispatch = useDispatch()
+  
+  // 初期化処理
+  useEffect(() => {
+    commandInitialize(dispatch)
+  }, [])
   
   // Storeから状態を取得
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)

@@ -1,25 +1,15 @@
-import React, { useEffect } from 'react'
-import { useViewModel, useDispatch } from '../store/hooks'
-import { commandFetchBuildInfo } from '../commands/buildInfoCommand'
+import React from 'react'
+import { useViewModel } from '../store/hooks'
 
 interface BuildInfoModalProps {
   onClose: () => void
 }
 
 function BuildInfoModal({ onClose }: BuildInfoModalProps) {
-  const dispatch = useDispatch()
-  
-  // Storeから状態を取得
+  // Storeからビルド情報を取得（初期化時にキャッシュ済み）
   const buildInfo = useViewModel((vm) => vm.buildInfo.data)
   const loading = useViewModel((vm) => vm.buildInfo.loading)
   const error = useViewModel((vm) => vm.buildInfo.error)
-
-  // マウント時にビルド情報がない場合のみ取得
-  useEffect(() => {
-    if (buildInfo === null) {
-      commandFetchBuildInfo(dispatch)
-    }
-  }, [])
 
   return (
     <div style={{

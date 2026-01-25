@@ -22,6 +22,7 @@ import RelationshipEdge from './RelationshipEdge'
 import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
+import { erDiagramStore } from '../store/erDiagramStore'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
@@ -422,7 +423,7 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   }, [viewModelNodes, viewModelEdges])
   
   const handleReverseEngineer = async () => {
-    await commandReverseEngineer(dispatch)
+    await commandReverseEngineer(dispatch, erDiagramStore.getState)
   }
   
   const handleAddRectangle = () => {

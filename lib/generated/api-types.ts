@@ -4,48 +4,16 @@
  */
 
 export interface paths {
-    "/api/build-info": {
+    "/api/init": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["API_getBuildInfo"];
+        get: operations["API_initialize"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/er-data": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["API_getERData"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/layout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["API_getLayout"];
-        put?: never;
-        post: operations["API_saveLayout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -62,22 +30,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["API_reverseEngineer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/table/{tableName}/ddl": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["API_getTableDDL"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -118,9 +70,6 @@ export interface components {
             key: string;
             default: string | null;
             extra: string;
-        };
-        DDLResponse: {
-            ddl: string;
         };
         ERData: {
             entities: components["schemas"]["Entity"][];
@@ -254,13 +203,6 @@ export interface components {
             targetColumnId: string;
             constraintName: string;
         };
-        ReverseEngineerResponse: {
-            erData: components["schemas"]["ERData"];
-            layoutData: components["schemas"]["LayoutData"];
-        };
-        SuccessResponse: {
-            success: boolean;
-        };
         Text: {
             id: string;
             /** Format: double */
@@ -286,7 +228,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    API_getBuildInfo: {
+    API_initialize: {
         parameters: {
             query?: never;
             header?: never;
@@ -301,98 +243,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BuildInfo"];
-                };
-            };
-            /** @description An unexpected error response. */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    API_getERData: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ERData"];
-                };
-            };
-            /** @description An unexpected error response. */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    API_getLayout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LayoutData"];
-                };
-            };
-            /** @description An unexpected error response. */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    API_saveLayout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LayoutData"];
-            };
-        };
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["ViewModel"];
                 };
             };
             /** @description An unexpected error response. */
@@ -413,7 +264,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewModel"];
+            };
+        };
         responses: {
             /** @description The request has succeeded. */
             200: {
@@ -421,38 +276,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReverseEngineerResponse"];
-                };
-            };
-            /** @description An unexpected error response. */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    API_getTableDDL: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tableName: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DDLResponse"];
+                    "application/json": components["schemas"]["ViewModel"];
                 };
             };
             /** @description An unexpected error response. */

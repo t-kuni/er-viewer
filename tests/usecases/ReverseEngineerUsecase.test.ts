@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createReverseEngineerUsecase } from '../../lib/usecases/ReverseEngineerUsecase';
+import { createReverseEngineerUsecase, type ViewModel } from '../../lib/usecases/ReverseEngineerUsecase';
 import DatabaseManager from '../../lib/database';
 
 describe('ReverseEngineerUsecase', () => {
@@ -22,7 +22,7 @@ describe('ReverseEngineerUsecase', () => {
     }
   });
 
-  it('ERDataとLayoutDataを返す（正常系）', async () => {
+  it('ViewModelを受け取り、ER図が更新されたViewModelを返す', async () => {
     // 環境変数を設定
     process.env.DB_HOST = 'localhost';
     process.env.DB_PORT = '30177';
@@ -34,76 +34,96 @@ describe('ReverseEngineerUsecase', () => {
       createDatabaseManager: () => new DatabaseManager(),
     });
     
-    const result = await usecase();
+    // 入力用のViewModelを作成
+    const inputViewModel: ViewModel = {
+      erDiagram: {
+        nodes: {},
+        edges: {},
+        rectangles: {},
+        ui: {
+          hover: null,
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          highlightedColumnIds: [],
+          layerOrder: {
+            backgroundItems: [],
+            foregroundItems: [],
+          },
+        },
+        loading: false,
+      },
+      ui: {
+        selectedItem: null,
+        showBuildInfoModal: true, // UI状態を設定
+        showLayerPanel: false,
+      },
+      buildInfo: {
+        data: {
+          version: '1.0.0',
+          name: 'test',
+          buildTime: '2026-01-25T12:00:00Z',
+          buildTimestamp: 1737806400000,
+          buildDate: '2026-01-25',
+          git: {
+            commit: 'abc123',
+            commitShort: 'abc',
+            branch: 'main',
+            tag: null,
+          },
+          nodeVersion: 'v18.0.0',
+          platform: 'linux',
+          arch: 'x64',
+        },
+        loading: false,
+        error: null,
+      },
+    };
     
-    // ERDataの検証
-    expect(result.erData).toBeDefined();
-    expect(result.erData.entities).toBeDefined();
-    expect(Array.isArray(result.erData.entities)).toBe(true);
-    expect(result.erData.entities.length).toBeGreaterThan(0);
+    const result = await usecase(inputViewModel);
+    
+    // ViewModelの構造を検証
+    expect(result.erDiagram).toBeDefined();
+    expect(result.ui).toBeDefined();
+    expect(result.buildInfo).toBeDefined();
+    
+    // nodesの検証
+    expect(result.erDiagram.nodes).toBeDefined();
+    expect(typeof result.erDiagram.nodes).toBe('object');
+    expect(Object.keys(result.erDiagram.nodes).length).toBeGreaterThan(0);
     
     // init.sqlで作成されたテーブル（users）が含まれることを確認
-    const usersTable = result.erData.entities.find(e => e.name === 'users');
-    expect(usersTable).toBeDefined();
-    expect(usersTable!.columns).toBeDefined();
-    expect(usersTable!.columns.length).toBeGreaterThan(0);
+    const usersNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'users');
+    expect(usersNode).toBeDefined();
+    expect(usersNode!.columns).toBeDefined();
+    expect(usersNode!.columns.length).toBeGreaterThan(0);
+    expect(typeof usersNode!.x).toBe('number');
+    expect(typeof usersNode!.y).toBe('number');
     
     // idカラムが存在することを確認
-    const idColumn = usersTable!.columns.find(c => c.name === 'id');
+    const idColumn = usersNode!.columns.find(c => c.name === 'id');
     expect(idColumn).toBeDefined();
     expect(idColumn!.key).toBe('PRI');
     
-    // relationshipsの検証
-    expect(result.erData.relationships).toBeDefined();
-    expect(Array.isArray(result.erData.relationships)).toBe(true);
+    // edgesの検証
+    expect(result.erDiagram.edges).toBeDefined();
+    expect(typeof result.erDiagram.edges).toBe('object');
     
-    // LayoutDataの検証
-    expect(result.layoutData).toBeDefined();
-    expect(result.layoutData.entities).toBeDefined();
-    expect(Object.keys(result.layoutData.entities).length).toBeGreaterThan(0);
-    
-    // entitiesの各エントリが正しい構造を持つことを確認
-    Object.values(result.layoutData.entities).forEach(entity => {
-      expect(entity.id).toBeDefined();
-      expect(entity.name).toBeDefined();
-      expect(typeof entity.x).toBe('number');
-      expect(typeof entity.y).toBe('number');
-    });
-    
-    // Columnにidが存在することを確認
-    const firstColumn = usersTable!.columns[0];
-    expect(firstColumn.id).toBeDefined();
-    expect(typeof firstColumn.id).toBe('string');
-    
-    // ForeignKeyにidが存在することを確認（もしFKがあれば）
-    if (usersTable!.foreignKeys.length > 0) {
-      const firstFK = usersTable!.foreignKeys[0];
-      expect(firstFK.id).toBeDefined();
-      expect(typeof firstFK.id).toBe('string');
+    // Edgeが存在する場合の検証
+    const edges = Object.values(result.erDiagram.edges);
+    if (edges.length > 0) {
+      const firstEdge = edges[0];
+      expect(firstEdge.id).toBeDefined();
+      expect(firstEdge.sourceEntityId).toBeDefined();
+      expect(firstEdge.targetEntityId).toBeDefined();
+      expect(firstEdge.sourceColumnId).toBeDefined();
+      expect(firstEdge.targetColumnId).toBeDefined();
     }
     
-    // Relationshipにid, fromEntityId, toEntityIdが存在することを確認
-    if (result.erData.relationships.length > 0) {
-      const firstRelationship = result.erData.relationships[0];
-      expect(firstRelationship.id).toBeDefined();
-      expect(typeof firstRelationship.id).toBe('string');
-      expect(firstRelationship.fromEntityId).toBeDefined();
-      expect(typeof firstRelationship.fromEntityId).toBe('string');
-      expect(firstRelationship.toEntityId).toBeDefined();
-      expect(typeof firstRelationship.toEntityId).toBe('string');
-      
-      // fromEntityId/toEntityIdが実際のエンティティIDと一致することを確認
-      const fromEntity = result.erData.entities.find(e => e.id === firstRelationship.fromEntityId);
-      expect(fromEntity).toBeDefined();
-      
-      const toEntity = result.erData.entities.find(e => e.id === firstRelationship.toEntityId);
-      expect(toEntity).toBeDefined();
-      
-      // fromColumnId/toColumnIdが存在することを確認
-      expect(firstRelationship.fromColumnId).toBeDefined();
-      expect(typeof firstRelationship.fromColumnId).toBe('string');
-      expect(firstRelationship.toColumnId).toBeDefined();
-      expect(typeof firstRelationship.toColumnId).toBe('string');
-    }
+    // UI状態とBuildInfo状態が引き継がれることを確認
+    expect(result.ui.showBuildInfoModal).toBe(true); // 入力と同じ値
+    expect(result.ui.showLayerPanel).toBe(false);
+    expect(result.buildInfo.data).toEqual(inputViewModel.buildInfo.data);
+    expect(result.buildInfo.loading).toBe(false);
+    expect(result.buildInfo.error).toBeNull();
   });
 });

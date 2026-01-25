@@ -27,6 +27,7 @@ const initialState: ViewModel = {
     nodes: {},
     edges: {},
     rectangles: {},
+    texts: {},
     ui: {
       hover: null,
       highlightedNodeIds: [],

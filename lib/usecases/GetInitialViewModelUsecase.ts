@@ -40,6 +40,7 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       nodes: {},
       edges: {},
       rectangles: {},
+      texts: {},
       ui: erDiagramUIState,
       loading: false,
     };

@@ -71,6 +71,20 @@ export interface components {
             default: string | null;
             extra: string;
         };
+        DropShadow: {
+            enabled: boolean;
+            /** Format: double */
+            offsetX: number;
+            /** Format: double */
+            offsetY: number;
+            /** Format: double */
+            blur: number;
+            /** Format: double */
+            spread: number;
+            color: string;
+            /** Format: double */
+            opacity: number;
+        };
         ERData: {
             entities: components["schemas"]["Entity"][];
             relationships: components["schemas"]["Relationship"][];
@@ -91,6 +105,9 @@ export interface components {
             };
             rectangles: {
                 [key: string]: components["schemas"]["Rectangle"];
+            };
+            texts: {
+                [key: string]: components["schemas"]["TextBox"];
             };
             ui: components["schemas"]["ERDiagramUIState"];
             loading: boolean;
@@ -167,7 +184,7 @@ export interface components {
                 [key: string]: components["schemas"]["Rectangle"];
             };
             texts: {
-                [key: string]: components["schemas"]["Text"];
+                [key: string]: components["schemas"]["TextBox"];
             };
         };
         Rectangle: {
@@ -203,17 +220,43 @@ export interface components {
             targetColumnId: string;
             constraintName: string;
         };
-        Text: {
+        /** @enum {string} */
+        TextAlign: "left" | "center" | "right";
+        /** @enum {string} */
+        TextAutoSizeMode: "manual" | "fitContent" | "fitWidth";
+        TextBox: {
             id: string;
             /** Format: double */
             x: number;
             /** Format: double */
             y: number;
+            /** Format: double */
+            width: number;
+            /** Format: double */
+            height: number;
             content: string;
             /** Format: double */
             fontSize: number;
-            fill: string;
+            /** Format: double */
+            lineHeight: number;
+            textAlign: components["schemas"]["TextAlign"];
+            textColor: string;
+            stroke: string;
+            /** Format: double */
+            strokeWidth: number;
+            /** Format: double */
+            opacity: number;
+            /** Format: double */
+            paddingX: number;
+            /** Format: double */
+            paddingY: number;
+            wrap: boolean;
+            overflow: components["schemas"]["TextOverflowMode"];
+            autoSizeMode: components["schemas"]["TextAutoSizeMode"];
+            shadow: components["schemas"]["DropShadow"];
         };
+        /** @enum {string} */
+        TextOverflowMode: "clip" | "scroll";
         ViewModel: {
             format: string;
             /** Format: int32 */

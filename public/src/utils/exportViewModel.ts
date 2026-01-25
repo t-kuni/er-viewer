@@ -25,6 +25,7 @@ export function exportViewModel(viewModel: ViewModel): void {
         nodes: viewModel.erDiagram.nodes,
         edges: viewModel.erDiagram.edges,
         rectangles: viewModel.erDiagram.rectangles,
+        texts: viewModel.erDiagram.texts,
         ui: {
           hover: null,
           highlightedNodeIds: [],

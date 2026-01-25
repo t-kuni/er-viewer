@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import ERCanvas from './ERCanvas'
 import BuildInfoModal from './BuildInfoModal'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
+import { TextPropertyPanel } from './TextPropertyPanel'
 import { LayerPanel } from './LayerPanel'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionShowBuildInfoModal, actionHideBuildInfoModal } from '../actions/globalUIActions'
@@ -156,7 +157,7 @@ function App() {
         }}>
           <ERCanvas onSelectionChange={handleSelectionChange} />
         </div>
-        {selectedItem?.kind === 'rectangle' && (
+        {selectedItem && (
           <div 
             style={{ 
               width: '300px', 
@@ -169,7 +170,12 @@ function App() {
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
-            <RectanglePropertyPanel rectangleId={selectedItem.id} />
+            {selectedItem.kind === 'rectangle' && (
+              <RectanglePropertyPanel rectangleId={selectedItem.id} />
+            )}
+            {selectedItem.kind === 'text' && (
+              <TextPropertyPanel textId={selectedItem.id} />
+            )}
           </div>
         )}
       </main>

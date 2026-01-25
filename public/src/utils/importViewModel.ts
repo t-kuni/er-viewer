@@ -81,6 +81,7 @@ export function importViewModel(
             nodes: importedViewModel.erDiagram?.nodes || {},
             edges: importedViewModel.erDiagram?.edges || {},
             rectangles: importedViewModel.erDiagram?.rectangles || {},
+            texts: importedViewModel.erDiagram?.texts || {},
             ui: {
               hover: null,
               highlightedNodeIds: [],

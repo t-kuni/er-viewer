@@ -19,18 +19,21 @@ import {
 import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
-import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
+import TextNode from './TextNode'
+import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowTexts, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { erDiagramStore } from '../store/erDiagramStore'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
+import { actionAddText, actionUpdateTextPosition } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
-import type { Rectangle, LayerItemRef } from '../api/client'
+import type { Rectangle, TextBox, LayerItemRef } from '../api/client'
 
 const nodeTypes = {
   entityNode: EntityNode,
+  textNode: TextNode,
 } as NodeTypes
 
 const edgeTypes = {
@@ -176,10 +179,12 @@ function ERCanvasInner({
   // Store購読
   const layerOrder = useViewModel((vm) => vm.erDiagram.ui.layerOrder)
   const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
+  const texts = useViewModel((vm) => vm.erDiagram.texts)
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
   
   // ドラッグ状態管理
   const [draggingRect, setDraggingRect] = useState<{ id: string; startX: number; startY: number; rectStartX: number; rectStartY: number } | null>(null)
+  const [draggingText, setDraggingText] = useState<{ id: string; startX: number; startY: number; textStartX: number; textStartY: number } | null>(null)
   
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -247,6 +252,9 @@ function ERCanvasInner({
         })
 
         setEdges(updatedEdges)
+      } else if (node.type === 'textNode') {
+        // テキストノードの位置を更新
+        dispatch(actionUpdateTextPosition, node.id, node.position.x, node.position.y)
       }
     },
     [edges, getNodes, setEdges, dispatch]
@@ -411,16 +419,18 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   // Storeから状態を購読
   const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
   const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
+  const viewModelTexts = useViewModel((vm) => vm.erDiagram.texts)
   const loading = useViewModel((vm) => vm.erDiagram.loading)
   
-  // エンティティとエッジを更新
+  // エンティティ、テキスト、エッジを更新
   useEffect(() => {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
+    const textNodes = convertToReactFlowTexts(viewModelTexts)
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
     
-    setNodes(entityNodes)
+    setNodes([...entityNodes, ...textNodes])
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges])
+  }, [viewModelNodes, viewModelEdges, viewModelTexts])
   
   const handleReverseEngineer = async () => {
     await commandReverseEngineer(dispatch, erDiagramStore.getState)
@@ -439,6 +449,39 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
       opacity: 0.5,
     }
     dispatch(actionAddRectangle, newRectangle)
+  }
+  
+  const handleAddText = () => {
+    const newText: TextBox = {
+      id: crypto.randomUUID(),
+      x: 0, // viewport中央に配置する実装は後回し、まずは固定座標
+      y: 0,
+      width: 200,
+      height: 80,
+      content: '',
+      fontSize: 16,
+      lineHeight: 24,
+      textAlign: 'left',
+      textColor: '#000000',
+      stroke: '#000000',
+      strokeWidth: 1,
+      opacity: 1.0,
+      paddingX: 8,
+      paddingY: 8,
+      wrap: true,
+      overflow: 'clip',
+      autoSizeMode: 'manual',
+      shadow: {
+        enabled: false,
+        offsetX: 0,
+        offsetY: 0,
+        blur: 0,
+        spread: 0,
+        color: '#000000',
+        opacity: 0.5,
+      },
+    }
+    dispatch(actionAddText, newText)
   }
   
   return (
@@ -470,6 +513,19 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
           }}
         >
           矩形追加
+        </button>
+        <button 
+          onClick={handleAddText}
+          style={{
+            padding: '0.5rem 1rem',
+            background: '#17a2b8',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          テキスト追加
         </button>
       </div>
       <ReactFlowProvider>

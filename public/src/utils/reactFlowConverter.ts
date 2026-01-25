@@ -1,6 +1,7 @@
 import type { Node, Edge } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 import type { components } from '../../../lib/generated/api-types';
+import type { TextBox } from '../api/client';
 
 type EntityNodeViewModel = components['schemas']['EntityNodeViewModel'];
 type RelationshipEdgeViewModel = components['schemas']['RelationshipEdgeViewModel'];
@@ -142,5 +143,23 @@ export function convertToReactFlowRectangles(
       strokeWidth: rect.strokeWidth,
       opacity: rect.opacity,
     },
+  }));
+}
+
+/**
+ * ERDiagramViewModelのtextsをReact Flow形式に変換する
+ * @param texts TextBoxのRecord
+ * @returns React Flowのノード配列
+ */
+export function convertToReactFlowTexts(
+  texts: { [key: string]: TextBox }
+): Node[] {
+  return Object.values(texts).map((text) => ({
+    id: text.id,
+    type: 'textNode',
+    position: { x: text.x, y: text.y },
+    width: text.width,
+    height: text.height,
+    data: text,
   }));
 }

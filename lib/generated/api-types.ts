@@ -241,9 +241,6 @@ export interface components {
             lineHeight: number;
             textAlign: components["schemas"]["TextAlign"];
             textColor: string;
-            stroke: string;
-            /** Format: double */
-            strokeWidth: number;
             /** Format: double */
             opacity: number;
             /** Format: double */

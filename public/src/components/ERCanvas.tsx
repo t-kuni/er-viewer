@@ -19,21 +19,19 @@ import {
 import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
-import TextNode from './TextNode'
-import { convertToReactFlowNodes, convertToReactFlowEdges, convertToReactFlowTexts, computeOptimalHandles } from '../utils/reactFlowConverter'
+import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { erDiagramStore } from '../store/erDiagramStore'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
 import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
-import { actionAddText, actionUpdateTextPosition } from '../actions/textActions'
+import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
 import type { Rectangle, TextBox, LayerItemRef } from '../api/client'
 
 const nodeTypes = {
   entityNode: EntityNode,
-  textNode: TextNode,
 } as NodeTypes
 
 const edgeTypes = {
@@ -44,18 +42,18 @@ const edgeTypes = {
 function ResizeHandles({ 
   rectangleId, 
   width, 
-  height, 
+  height,
+  x,
+  y,
   onResize 
 }: { 
   rectangleId: string
   width: number
   height: number
+  x: number
+  y: number
   onResize: (rectangleId: string, newBounds: { x: number; y: number; width: number; height: number }) => void
 }) {
-  const dispatch = useDispatch()
-  const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
-  const rectangle = rectangles[rectangleId]
-
   const handleMouseDown = (e: React.MouseEvent, position: string) => {
     e.stopPropagation()
     
@@ -63,8 +61,8 @@ function ResizeHandles({
     const startY = e.clientY
     const startWidth = width
     const startHeight = height
-    const startRectX = rectangle.x
-    const startRectY = rectangle.y
+    const startRectX = x
+    const startRectY = y
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const dx = moveEvent.clientX - startX
@@ -186,6 +184,10 @@ function ERCanvasInner({
   const [draggingRect, setDraggingRect] = useState<{ id: string; startX: number; startY: number; rectStartX: number; rectStartY: number } | null>(null)
   const [draggingText, setDraggingText] = useState<{ id: string; startX: number; startY: number; textStartX: number; textStartY: number } | null>(null)
   
+  // テキスト編集状態管理
+  const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  const [draftContent, setDraftContent] = useState<string>('')
+  
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
@@ -252,9 +254,6 @@ function ERCanvasInner({
         })
 
         setEdges(updatedEdges)
-      } else if (node.type === 'textNode') {
-        // テキストノードの位置を更新
-        dispatch(actionUpdateTextPosition, node.id, node.position.x, node.position.y)
       }
     },
     [edges, getNodes, setEdges, dispatch]
@@ -295,7 +294,7 @@ function ERCanvasInner({
     })
   }, [rectangles, dispatch])
   
-  // マウスムーブ時のドラッグ処理
+  // マウスムーブ時のドラッグ処理（矩形）
   useEffect(() => {
     if (!draggingRect) return
     
@@ -322,9 +321,79 @@ function ERCanvasInner({
     }
   }, [draggingRect, viewport.zoom, dispatch])
   
-  // リサイズハンドラー
+  // マウスムーブ時のドラッグ処理（テキスト）
+  useEffect(() => {
+    if (!draggingText) return
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = (e.clientX - draggingText.startX) / viewport.zoom
+      const dy = (e.clientY - draggingText.startY) / viewport.zoom
+      
+      const newX = draggingText.textStartX + dx
+      const newY = draggingText.textStartY + dy
+      
+      dispatch(actionUpdateTextPosition, draggingText.id, newX, newY)
+    }
+    
+    const handleMouseUp = () => {
+      setDraggingText(null)
+    }
+    
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [draggingText, viewport.zoom, dispatch])
+  
+  // F2キーでテキスト編集モード開始
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2' && selectedItem?.kind === 'text' && !editingTextId) {
+        const text = texts[selectedItem.id]
+        if (text) {
+          setEditingTextId(selectedItem.id)
+          setDraftContent(text.content)
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedItem, editingTextId, texts])
+  
+  // リサイズハンドラー（矩形）
   const handleResize = useCallback((rectangleId: string, newBounds: { x: number; y: number; width: number; height: number }) => {
     dispatch(actionUpdateRectangleBounds, rectangleId, newBounds)
+  }, [dispatch])
+  
+  // テキストのドラッグ処理
+  const handleTextMouseDown = useCallback((e: React.MouseEvent, textId: string) => {
+    e.stopPropagation()
+    
+    const text = texts[textId]
+    if (!text) return
+    
+    // 選択状態を更新
+    dispatch(actionSelectItem, { kind: 'text', id: textId } as LayerItemRef)
+    
+    setDraggingText({
+      id: textId,
+      startX: e.clientX,
+      startY: e.clientY,
+      textStartX: text.x,
+      textStartY: text.y,
+    })
+  }, [texts, dispatch])
+  
+  // リサイズハンドラー（テキスト）
+  const handleTextResize = useCallback((textId: string, newBounds: { x: number; y: number; width: number; height: number }) => {
+    dispatch(actionUpdateTextBounds, textId, newBounds)
+    dispatch(actionSetTextAutoSizeMode, textId, 'manual')
   }, [dispatch])
   
   // 矩形の描画（ViewportPortal使用）
@@ -368,6 +437,8 @@ function ERCanvasInner({
               rectangleId={item.id} 
               width={rectangle.width} 
               height={rectangle.height}
+              x={rectangle.x}
+              y={rectangle.y}
               onResize={handleResize}
             />
           )}
@@ -375,6 +446,128 @@ function ERCanvasInner({
       )
     })
   }
+  
+  // テキストの描画（ViewportPortal使用）
+  const renderTexts = (items: readonly any[]) => {
+    return items.map((item) => {
+      if (item.kind !== 'text') return null
+      
+      const text = texts[item.id]
+      if (!text) return null
+      
+      const zIndex = calculateZIndex(layerOrder as any, item as LayerItemRef)
+      const isSelected = selectedItem?.kind === 'text' && selectedItem.id === item.id
+      
+      // シャドウのCSS生成
+      const boxShadow = text.shadow.enabled
+        ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
+        : 'none'
+      
+      return (
+        <div
+          key={item.id}
+          style={{
+            position: 'absolute',
+            left: text.x,
+            top: text.y,
+            width: text.width,
+            height: text.height,
+            color: text.textColor,
+            opacity: text.opacity,
+            padding: `${text.paddingY}px ${text.paddingX}px`,
+            textAlign: text.textAlign,
+            whiteSpace: 'pre-wrap',
+            overflowWrap: text.wrap ? 'anywhere' : 'normal',
+            wordBreak: text.wrap ? 'break-word' : 'normal',
+            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+            fontSize: `${text.fontSize}px`,
+            lineHeight: `${text.lineHeight}px`,
+            overflow: text.overflow === 'scroll' ? 'auto' : 'hidden',
+            cursor: 'move',
+            boxSizing: 'border-box',
+            outline: isSelected ? '2px solid #1976d2' : 'none',
+            outlineOffset: '2px',
+            pointerEvents: 'auto',
+            boxShadow,
+            zIndex,
+          }}
+          onMouseDown={(e) => handleTextMouseDown(e, item.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            dispatch(actionSelectItem, item)
+          }}
+        >
+          {text.content}
+          {isSelected && (
+            <ResizeHandles 
+              rectangleId={item.id} 
+              width={text.width} 
+              height={text.height}
+              x={text.x}
+              y={text.y}
+              onResize={handleTextResize}
+            />
+          )}
+        </div>
+      )
+    })
+  }
+  
+  // テキスト編集確定処理
+  const handleEditConfirm = useCallback(() => {
+    if (editingTextId) {
+      dispatch(actionUpdateTextContent, editingTextId, draftContent)
+      
+      // autoSizeModeに応じてDOM測定を実行
+      const text = texts[editingTextId]
+      if (text && (text.autoSizeMode === 'fitContent' || text.autoSizeMode === 'fitWidth')) {
+        // DOM測定
+        const measureDiv = document.createElement('div')
+        measureDiv.style.position = 'absolute'
+        measureDiv.style.visibility = 'hidden'
+        measureDiv.style.fontSize = `${text.fontSize}px`
+        measureDiv.style.lineHeight = `${text.lineHeight}px`
+        measureDiv.style.padding = `${text.paddingY}px ${text.paddingX}px`
+        measureDiv.style.whiteSpace = 'pre-wrap'
+        measureDiv.style.fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif'
+        
+        if (text.wrap) {
+          measureDiv.style.overflowWrap = 'anywhere'
+          measureDiv.style.wordBreak = 'break-word'
+          if (text.autoSizeMode === 'fitWidth') {
+            measureDiv.style.width = `${text.width}px`
+          }
+        }
+        
+        measureDiv.textContent = draftContent || ' '
+        document.body.appendChild(measureDiv)
+        
+        const measuredWidth = measureDiv.scrollWidth
+        const measuredHeight = measureDiv.scrollHeight
+        
+        document.body.removeChild(measureDiv)
+        
+        if (text.autoSizeMode === 'fitContent') {
+          dispatch(actionUpdateTextBounds, editingTextId, {
+            x: text.x,
+            y: text.y,
+            width: Math.max(40, measuredWidth),
+            height: Math.max(20, measuredHeight),
+          })
+        } else if (text.autoSizeMode === 'fitWidth') {
+          dispatch(actionUpdateTextBounds, editingTextId, {
+            x: text.x,
+            y: text.y,
+            width: text.width,
+            height: Math.max(20, measuredHeight),
+          })
+        }
+      }
+      
+      setEditingTextId(null)
+      setDraftContent('')
+    }
+  }, [editingTextId, draftContent, texts, dispatch])
   
   return (
     <ReactFlow
@@ -391,15 +584,67 @@ function ERCanvasInner({
       elevateEdgesOnSelect={false}
       fitView
     >
-      {/* 背面矩形 */}
+      {/* 背面レイヤー */}
       <ViewportPortal>
         {renderRectangles(layerOrder.backgroundItems)}
+        {renderTexts(layerOrder.backgroundItems)}
       </ViewportPortal>
       
-      {/* 前面矩形 */}
+      {/* 前面レイヤー */}
       <ViewportPortal>
         {renderRectangles(layerOrder.foregroundItems)}
+        {renderTexts(layerOrder.foregroundItems)}
       </ViewportPortal>
+      
+      {/* テキスト編集UI */}
+      {editingTextId && texts[editingTextId] && (
+        <ViewportPortal>
+          {(() => {
+            const text = texts[editingTextId]
+            const boxShadow = text.shadow.enabled
+              ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
+              : 'none'
+            
+            return (
+              <textarea
+                autoFocus
+                value={draftContent}
+                onChange={(e) => setDraftContent(e.target.value)}
+                onBlur={handleEditConfirm}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setEditingTextId(null)
+                    setDraftContent('')
+                  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    handleEditConfirm()
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  left: text.x,
+                  top: text.y,
+                  width: text.width,
+                  height: text.height,
+                  padding: `${text.paddingY}px ${text.paddingX}px`,
+                  fontSize: `${text.fontSize}px`,
+                  lineHeight: `${text.lineHeight}px`,
+                  color: text.textColor,
+                  textAlign: text.textAlign,
+                  outline: '2px solid #3b82f6',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  resize: 'none',
+                  overflow: 'auto',
+                  boxSizing: 'border-box',
+                  zIndex: 10000,
+                  border: 'none',
+                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+                  boxShadow,
+                }}
+              />
+            )
+          })()}
+        </ViewportPortal>
+      )}
       
       <Controls />
       <Background />
@@ -419,18 +664,16 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
   // Storeから状態を購読
   const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
   const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
-  const viewModelTexts = useViewModel((vm) => vm.erDiagram.texts)
   const loading = useViewModel((vm) => vm.erDiagram.loading)
   
-  // エンティティ、テキスト、エッジを更新
+  // エンティティとエッジを更新
   useEffect(() => {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
-    const textNodes = convertToReactFlowTexts(viewModelTexts)
     const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
     
-    setNodes([...entityNodes, ...textNodes])
+    setNodes(entityNodes)
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges, viewModelTexts])
+  }, [viewModelNodes, viewModelEdges])
   
   const handleReverseEngineer = async () => {
     await commandReverseEngineer(dispatch, erDiagramStore.getState)
@@ -463,8 +706,6 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
       lineHeight: 24,
       textAlign: 'left',
       textColor: '#000000',
-      stroke: '#000000',
-      strokeWidth: 1,
       opacity: 1.0,
       paddingX: 8,
       paddingY: 8,
@@ -473,12 +714,12 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
       autoSizeMode: 'manual',
       shadow: {
         enabled: false,
-        offsetX: 0,
-        offsetY: 0,
-        blur: 0,
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
         spread: 0,
         color: '#000000',
-        opacity: 0.5,
+        opacity: 0.3,
       },
     }
     dispatch(actionAddText, newText)

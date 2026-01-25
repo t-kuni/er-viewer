@@ -21,7 +21,6 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   const text = useViewModel((vm) => vm.erDiagram.texts[textId]);
 
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [showStrokePicker, setShowStrokePicker] = useState(false);
   const [showShadowColorPicker, setShowShadowColorPicker] = useState(false);
 
   if (!text) {
@@ -52,17 +51,6 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
 
   const handleTextColorChange = (textColor: string) => {
     dispatch(actionUpdateTextStyle, textId, { textColor });
-  };
-
-  const handleStrokeChange = (stroke: string) => {
-    dispatch(actionUpdateTextStyle, textId, { stroke });
-  };
-
-  const handleStrokeWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const strokeWidth = parseFloat(e.target.value);
-    if (!isNaN(strokeWidth) && strokeWidth >= 0) {
-      dispatch(actionUpdateTextStyle, textId, { strokeWidth });
-    }
   };
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +133,6 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
     measureDiv.style.fontSize = `${text.fontSize}px`;
     measureDiv.style.lineHeight = `${text.lineHeight}px`;
     measureDiv.style.padding = `${text.paddingY}px ${text.paddingX}px`;
-    measureDiv.style.border = `${text.strokeWidth}px solid transparent`;
     measureDiv.style.whiteSpace = 'pre-wrap';
     measureDiv.style.fontFamily =
       'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif';
@@ -317,66 +304,6 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
         {showTextColorPicker && (
           <HexColorPicker color={text.textColor} onChange={handleTextColorChange} />
         )}
-      </div>
-
-      {/* 枠線色 */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          枠線色
-        </label>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '0.5rem',
-          }}
-        >
-          <div
-            onClick={() => setShowStrokePicker(!showStrokePicker)}
-            style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: text.stroke,
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          />
-          <HexColorInput
-            color={text.stroke}
-            onChange={handleStrokeChange}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              fontSize: '14px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-            }}
-          />
-        </div>
-        {showStrokePicker && <HexColorPicker color={text.stroke} onChange={handleStrokeChange} />}
-      </div>
-
-      {/* 枠線幅 */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          枠線幅: {text.strokeWidth}px
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={text.strokeWidth}
-          onChange={handleStrokeWidthChange}
-          style={{
-            width: '100%',
-            padding: '0.5rem',
-            fontSize: '14px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        />
       </div>
 
       {/* 透明度 */}

@@ -232,8 +232,6 @@ export function actionUpdateTextStyle(
     lineHeight?: number;
     textAlign?: components['schemas']['TextAlign'];
     textColor?: string;
-    stroke?: string;
-    strokeWidth?: number;
     opacity?: number;
     wrap?: boolean;
     overflow?: components['schemas']['TextOverflowMode'];
@@ -252,8 +250,6 @@ export function actionUpdateTextStyle(
     (stylePatch.lineHeight !== undefined && stylePatch.lineHeight !== textBox.lineHeight) ||
     (stylePatch.textAlign !== undefined && stylePatch.textAlign !== textBox.textAlign) ||
     (stylePatch.textColor !== undefined && stylePatch.textColor !== textBox.textColor) ||
-    (stylePatch.stroke !== undefined && stylePatch.stroke !== textBox.stroke) ||
-    (stylePatch.strokeWidth !== undefined && stylePatch.strokeWidth !== textBox.strokeWidth) ||
     (stylePatch.opacity !== undefined && stylePatch.opacity !== textBox.opacity) ||
     (stylePatch.wrap !== undefined && stylePatch.wrap !== textBox.wrap) ||
     (stylePatch.overflow !== undefined && stylePatch.overflow !== textBox.overflow);
@@ -274,8 +270,6 @@ export function actionUpdateTextStyle(
           ...(stylePatch.lineHeight !== undefined && { lineHeight: stylePatch.lineHeight }),
           ...(stylePatch.textAlign !== undefined && { textAlign: stylePatch.textAlign }),
           ...(stylePatch.textColor !== undefined && { textColor: stylePatch.textColor }),
-          ...(stylePatch.stroke !== undefined && { stroke: stylePatch.stroke }),
-          ...(stylePatch.strokeWidth !== undefined && { strokeWidth: stylePatch.strokeWidth }),
           ...(stylePatch.opacity !== undefined && { opacity: stylePatch.opacity }),
           ...(stylePatch.wrap !== undefined && { wrap: stylePatch.wrap }),
           ...(stylePatch.overflow !== undefined && { overflow: stylePatch.overflow }),

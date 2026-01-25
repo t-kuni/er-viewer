@@ -36,8 +36,6 @@ describe('textActions', () => {
           lineHeight: 24,
           textAlign: 'left',
           textColor: '#000000',
-          stroke: '#000000',
-          strokeWidth: 1,
           opacity: 1.0,
           paddingX: 8,
           paddingY: 8,
@@ -94,8 +92,6 @@ describe('textActions', () => {
         lineHeight: 20,
         textAlign: 'center',
         textColor: '#FF0000',
-        stroke: '#0000FF',
-        strokeWidth: 2,
         opacity: 0.8,
         paddingX: 4,
         paddingY: 4,
@@ -134,8 +130,6 @@ describe('textActions', () => {
         lineHeight: 20,
         textAlign: 'center',
         textColor: '#FF0000',
-        stroke: '#0000FF',
-        strokeWidth: 2,
         opacity: 0.8,
         paddingX: 4,
         paddingY: 4,
@@ -172,8 +166,6 @@ describe('textActions', () => {
         lineHeight: 20,
         textAlign: 'center',
         textColor: '#FF0000',
-        stroke: '#0000FF',
-        strokeWidth: 2,
         opacity: 0.8,
         paddingX: 4,
         paddingY: 4,
@@ -389,8 +381,6 @@ describe('textActions', () => {
         lineHeight: 28,
         textAlign: 'center',
         textColor: '#0000FF',
-        stroke: '#FF0000',
-        strokeWidth: 3,
         opacity: 0.7,
         wrap: false,
         overflow: 'scroll',
@@ -400,8 +390,6 @@ describe('textActions', () => {
       expect(result.erDiagram.texts['text-1'].lineHeight).toBe(28);
       expect(result.erDiagram.texts['text-1'].textAlign).toBe('center');
       expect(result.erDiagram.texts['text-1'].textColor).toBe('#0000FF');
-      expect(result.erDiagram.texts['text-1'].stroke).toBe('#FF0000');
-      expect(result.erDiagram.texts['text-1'].strokeWidth).toBe(3);
       expect(result.erDiagram.texts['text-1'].opacity).toBe(0.7);
       expect(result.erDiagram.texts['text-1'].wrap).toBe(false);
       expect(result.erDiagram.texts['text-1'].overflow).toBe('scroll');

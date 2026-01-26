@@ -53,6 +53,11 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       showBuildInfoModal: false,
       showLayerPanel: false,
       showDatabaseConnectionModal: false,
+      layoutOptimization: {
+        isRunning: false,
+        progress: 0,
+        currentStage: null,
+      },
     };
 
     // BuildInfoStateを構築

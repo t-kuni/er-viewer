@@ -27,6 +27,11 @@ export function getInitialGlobalUIState(): GlobalUIState {
     showBuildInfoModal: false,
     showLayerPanel: false,
     showDatabaseConnectionModal: false,
+    layoutOptimization: {
+      isRunning: false,
+      progress: 0,
+      currentStage: null,
+    },
   };
 }
 

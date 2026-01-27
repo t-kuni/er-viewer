@@ -50,7 +50,6 @@ function RelationshipEdge({
           strokeWidth: isHighlighted ? 4 : 2,
           fill: 'none',
           opacity: isDimmed ? 0.2 : 1,
-          transition: 'all 0.2s ease-in-out',
         }}
       />
     </g>

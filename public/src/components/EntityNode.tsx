@@ -46,7 +46,6 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         opacity: isDimmed ? 0.2 : 1,
         boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
         zIndex: isHighlighted ? 1000 : 1,
-        transition: isDraggingEntity ? 'none' : 'all 0.2s ease-in-out',
       }}
       onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
       onMouseLeave={() => dispatch(actionClearHover)}
@@ -88,7 +87,6 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
                 fontSize: '12px',
                 backgroundColor: isColumnHighlighted ? '#e3f2fd' : 'transparent',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s ease-in-out',
               }}
               onMouseEnter={(e) => handleColumnMouseEnter(e, col.id)}
               onMouseLeave={handleColumnMouseLeave}

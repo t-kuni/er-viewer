@@ -102,6 +102,17 @@ export interface components {
             entities: components["schemas"]["Entity"][];
             relationships: components["schemas"]["Relationship"][];
         };
+        ERDiagramIndex: {
+            entityToEdges: {
+                [key: string]: string[];
+            };
+            columnToEntity: {
+                [key: string]: string;
+            };
+            columnToEdges: {
+                [key: string]: string[];
+            };
+        };
         ERDiagramUIState: {
             hover: components["schemas"]["HoverTarget"] | null;
             highlightedNodeIds: string[];
@@ -123,6 +134,7 @@ export interface components {
             texts: {
                 [key: string]: components["schemas"]["TextBox"];
             };
+            index: components["schemas"]["ERDiagramIndex"];
             ui: components["schemas"]["ERDiagramUIState"];
             loading: boolean;
         };

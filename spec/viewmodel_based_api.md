@@ -37,6 +37,10 @@ GET /api/init
   - `edges`: `{}`（空のRecord）
   - `rectangles`: `{}`（空のRecord）
   - `texts`: `{}`（空のRecord）
+  - `index`: 空のインデックス
+    - `entityToEdges`: `{}`（空のRecord）
+    - `columnToEntity`: `{}`（空のRecord）
+    - `columnToEdges`: `{}`（空のRecord）
   - `ui.hover`: `null`
   - `ui.highlightedNodeIds`: `[]`
   - `ui.highlightedEdgeIds`: `[]`
@@ -78,6 +82,10 @@ POST /api/reverse-engineer
 - データベースに接続してスキーマ情報を取得
 - エンティティとリレーションシップを抽出
 - デフォルトのレイアウトでER図を構築（詳細は[リバースエンジニアリング機能仕様](./reverse_engineering.md)の「デフォルトレイアウト仕様」を参照）
+- **逆引きインデックス（`index`）を計算** - ホバーインタラクションのパフォーマンス最適化のため
+  - `entityToEdges`: 各エンティティに接続されているエッジのリストを生成
+  - `columnToEntity`: 各カラムが所属するエンティティを特定
+  - `columnToEdges`: 各カラムに接続されているエッジのリストを生成
 - リクエストで受け取ったViewModelのerDiagramを更新して返却
 - `settings.lastDatabaseConnection`を更新（パスワードを除く）
 - ui状態とbuildInfo状態はリクエストから引き継ぐ
@@ -120,6 +128,7 @@ POST /api/reverse-engineer
 - `edges: Record<RelationshipEdgeViewModel>` - リレーションシップエッジ（キーはUUID）
 - `rectangles: Record<Rectangle>` - 矩形（キーはUUID）
 - `texts: Record<TextBox>` - テキストボックス（キーはUUID）
+- `index: ERDiagramIndex` - 逆引きインデックス（パフォーマンス最適化用）
 - `ui: ERDiagramUIState` - ER図のUI状態
 - `loading: boolean` - 処理中フラグ
 
@@ -151,14 +160,17 @@ POST /api/reverse-engineer
 **GetInitialViewModelUsecase**
 - format/versionのデフォルト値を設定（`"er-viewer"`, `1`）
 - BuildInfoを生成
-- 空のERDiagramViewModelを生成
+- 空のERDiagramViewModelを生成（空のインデックスを含む）
 - 初期のGlobalUIStateを生成
 - これらを組み合わせてViewModelを返却
 
 **ReverseEngineerUsecase**
 - リクエストのViewModelを受け取る
 - データベースからER図を生成
-- ViewModelのerDiagramを更新
+- **逆引きインデックスを計算**
+  - `nodes`と`edges`から`index`を生成
+  - 計算ロジックはユーティリティ関数として実装
+- ViewModelのerDiagramを更新（nodes, edges, indexを含む）
 - format/version、ui状態、buildInfo状態は維持
 - 更新後のViewModelを返却
 

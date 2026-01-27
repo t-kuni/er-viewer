@@ -42,6 +42,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.edges` - リレーションシップエッジ
 - `erDiagram.rectangles` - 矩形
 - `erDiagram.texts` - テキストボックス
+- `erDiagram.index` - 逆引きインデックス（そのまま保持するが、インポート時に再計算される）
 - `erDiagram.ui.layerOrder` - レイヤー順序
 - `settings` - アプリケーション設定（データベース接続情報など、パスワードは含まない）
 
@@ -54,6 +55,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 - `erDiagram.edges` - インポートしたデータで置き換え
 - `erDiagram.rectangles` - インポートしたデータで置き換え
 - `erDiagram.texts` - インポートしたデータで置き換え
+- `erDiagram.index` - **nodes/edgesから再計算する**（ファイルに含まれていても無視し、常に再計算）
 - `erDiagram.ui.layerOrder` - インポートしたデータで置き換え
 - `erDiagram.loading` - `false` をセット
 - `settings` - インポートしたデータで置き換え（存在する場合）
@@ -128,6 +130,7 @@ ER図のデータをJSON形式でエクスポート・インポートする機�
 3. バリデーションを実行
 4. バリデーション成功時:
    - パースした `ViewModel` をベースに、一時UI状態とキャッシュを補完（インポート時の処理に従う）
+   - **`erDiagram.index` を `nodes` と `edges` から再計算**（フロントエンドで実行）
    - 補完した `ViewModel` を Store に設定（`actionSetViewModel`）
 5. バリデーション失敗時:
    - エラーメッセージをユーザーに表示（トースト通知があれば使用、なければアラート）

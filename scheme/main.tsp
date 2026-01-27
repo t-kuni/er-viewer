@@ -225,6 +225,14 @@ model LayerOrder {
   foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
 }
 
+// Reverse index for fast lookup
+// These indices are computed from nodes/edges and enable O(1) or O(connections) lookup performance
+model ERDiagramIndex {
+  entityToEdges: Record<string[]>;    // entityId → edgeIds (接続されているエッジのリスト)
+  columnToEntity: Record<string>;      // columnId → entityId (カラムが所属するエンティティ)
+  columnToEdges: Record<string[]>;     // columnId → edgeIds (カラムに接続されているエッジのリスト)
+}
+
 // UI state for ER diagram
 model ERDiagramUIState {
   hover: HoverTarget | null;
@@ -241,6 +249,7 @@ model ERDiagramViewModel {
   edges: Record<RelationshipEdgeViewModel>;
   rectangles: Record<Rectangle>; // 矩形（グループ化・領域区別用）
   texts: Record<TextBox>; // テキスト（注釈・説明用）
+  index: ERDiagramIndex; // 逆引きインデックス（パフォーマンス最適化用）
   ui: ERDiagramUIState;
   loading: boolean; // リバースエンジニア処理中フラグ
 }

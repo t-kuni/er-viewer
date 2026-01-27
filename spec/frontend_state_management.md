@@ -51,6 +51,7 @@
   - `edges`: リレーションシップエッジ（`Record<RelationshipEdgeViewModel>`）
   - `rectangles`: 矩形（`Record<Rectangle>`）
   - `texts`: テキストボックス（`Record<TextBox>`）
+  - `index`: 逆引きインデックス（`ERDiagramIndex`型、パフォーマンス最適化用）
   - `ui`: ER図のUI状態（`ERDiagramUIState`型）
   - `loading`: リバースエンジニア処理中フラグ
 
@@ -59,6 +60,21 @@
 - フロントエンドでは配列を`Set`や`Map`に変換して使用する
   - 例: `highlightedNodeIds`は配列として定義されているが、実装では`Set`に変換してO(1)検索を実現
 - TypeScript型は`npm run generate`で自動生成される
+
+**逆引きインデックス（`ERDiagramIndex`）**:
+- ホバーインタラクションのパフォーマンス最適化のため、逆引きインデックスを保持
+- `nodes`と`edges`から計算され、データ更新時に再構築される
+- **インデックスの内容**:
+  - `entityToEdges`: `entityId` → `edgeIds[]` - エンティティに接続されているエッジのリスト
+  - `columnToEntity`: `columnId` → `entityId` - カラムが所属するエンティティID
+  - `columnToEdges`: `columnId` → `edgeIds[]` - カラムに接続されているエッジのリスト
+- **パフォーマンス効果**:
+  - インデックスなし: エンティティホバー時にO(エッジ数)の線形探索が必要
+  - インデックスあり: O(1)または O(接続数)で関連要素を取得可能
+- **更新タイミング**:
+  - リバースエンジニア実行時（バックエンドで計算してAPIレスポンスに含める）
+  - データ変更時（将来的な機能：エンティティ/エッジの追加・削除）
+  - インポート時（JSONファイルからViewModelを読み込む際に再計算）
 
 **ID仕様**:
 - ID仕様の詳細は[`scheme/main.tsp`](../scheme/main.tsp)のコメントを参照
@@ -117,13 +133,17 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 
 * `actionHoverEntity(viewModel, entityId)`: エンティティにホバーした時
   - ホバー対象と隣接するノード・エッジ・関連カラムをハイライト対象に設定
+  - `viewModel.erDiagram.index.entityToEdges` を使用して接続エッジを高速検索（O(1)）
   - `viewModel.erDiagram.ui.hover` と `highlightedXxxIds` を更新
   
 * `actionHoverEdge(viewModel, edgeId)`: エッジにホバーした時
   - エッジと両端のノード、両端のカラム（IDで識別）をハイライト対象に設定
+  - `viewModel.erDiagram.edges[edgeId]` から直接エッジを取得（O(1)）
   
 * `actionHoverColumn(viewModel, columnId)`: カラムにホバーした時
   - カラムと関連するエッジ・ノード・対応カラムをハイライト対象に設定
+  - `viewModel.erDiagram.index.columnToEntity` で所属エンティティを取得（O(1)）
+  - `viewModel.erDiagram.index.columnToEdges` で接続エッジを取得（O(1)）
   
 * `actionClearHover(viewModel)`: ホバーを解除した時
   - すべてのハイライトをクリア
@@ -133,9 +153,11 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 * `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定
   - 既存のUI状態を保持したままデータ部分のみ更新
   - 注意: リバースエンジニアリング時に矩形データは返されない（矩形は手動で追加される）
+  - **逆引きインデックス（`index`）はバックエンドで計算済みのものがAPIレスポンスに含まれる**
   
 * `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新
   - `nodePositions`: `Array<{ id: string, x: number, y: number }>`
+  - ノードの位置のみ更新するため、インデックスの再計算は不要
   
 * `actionSetLoading(viewModel, loading)`: ローディング状態の更新（リバースエンジニア処理）
 

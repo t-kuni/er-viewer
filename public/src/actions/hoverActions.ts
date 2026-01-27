@@ -4,6 +4,23 @@ type ViewModel = components['schemas']['ViewModel'];
 type HoverTarget = components['schemas']['HoverTarget'];
 
 /**
+ * 配列の内容が同じかどうかを判定する（順序は考慮しない）
+ */
+function arraysHaveSameElements(arr1: string[], arr2: string[]): boolean {
+  if (arr1.length !== arr2.length) return false;
+  const sorted1 = [...arr1].sort();
+  const sorted2 = [...arr2].sort();
+  return sorted1.every((val, i) => val === sorted2[i]);
+}
+
+/**
+ * 配列の内容が既存と同じ場合は既存の参照を返す（再レンダリング最適化）
+ */
+function optimizeArray(newArray: string[], existingArray: string[]): string[] {
+  return arraysHaveSameElements(newArray, existingArray) ? existingArray : newArray;
+}
+
+/**
  * エンティティにホバーした時のAction
  * @param viewModel 現在の状態
  * @param entityId ホバーしたエンティティのID
@@ -23,26 +40,49 @@ export function actionHoverEntity(
   const highlightedEdgeIds = new Set<string>();
   const highlightedColumnIds = new Set<string>();
 
-  // エンティティに接続されているエッジを検索
-  for (const [edgeId, edge] of Object.entries(viewModel.erDiagram.edges)) {
-    if (edge.sourceEntityId === entityId || edge.targetEntityId === entityId) {
-      highlightedEdgeIds.add(edgeId);
-      // 接続先のノードもハイライト
-      highlightedNodeIds.add(edge.sourceEntityId);
-      highlightedNodeIds.add(edge.targetEntityId);
-      // エッジに関連するカラムもハイライト
-      highlightedColumnIds.add(edge.sourceColumnId);
-      highlightedColumnIds.add(edge.targetColumnId);
-    }
+  // インデックスを使って接続エッジを高速検索（O(1)）
+  const connectedEdgeIds = viewModel.erDiagram.index.entityToEdges[entityId] || [];
+  
+  for (const edgeId of connectedEdgeIds) {
+    const edge = viewModel.erDiagram.edges[edgeId];
+    if (!edge) continue;
+    
+    highlightedEdgeIds.add(edgeId);
+    // 接続先のノードもハイライト
+    highlightedNodeIds.add(edge.sourceEntityId);
+    highlightedNodeIds.add(edge.targetEntityId);
+    // エッジに関連するカラムもハイライト
+    highlightedColumnIds.add(edge.sourceColumnId);
+    highlightedColumnIds.add(edge.targetColumnId);
+  }
+
+  // 配列に変換
+  const newHighlightedNodeIds = Array.from(highlightedNodeIds);
+  const newHighlightedEdgeIds = Array.from(highlightedEdgeIds);
+  const newHighlightedColumnIds = Array.from(highlightedColumnIds);
+
+  // 既存の配列と内容が同じ場合は既存の参照を再利用（再レンダリング最適化）
+  const optimizedNodeIds = optimizeArray(newHighlightedNodeIds, viewModel.erDiagram.ui.highlightedNodeIds);
+  const optimizedEdgeIds = optimizeArray(newHighlightedEdgeIds, viewModel.erDiagram.ui.highlightedEdgeIds);
+  const optimizedColumnIds = optimizeArray(newHighlightedColumnIds, viewModel.erDiagram.ui.highlightedColumnIds);
+
+  // すべての配列が既存と同じ参照で、hoverも同じ場合は全体として同一参照を返す
+  const currentHover = viewModel.erDiagram.ui.hover;
+  const isSameHover = currentHover?.type === 'entity' && currentHover.id === entityId;
+  if (isSameHover &&
+      optimizedNodeIds === viewModel.erDiagram.ui.highlightedNodeIds &&
+      optimizedEdgeIds === viewModel.erDiagram.ui.highlightedEdgeIds &&
+      optimizedColumnIds === viewModel.erDiagram.ui.highlightedColumnIds) {
+    return viewModel;
   }
 
   // 新しいUI状態を作成（既存のlayerOrderを保持）
   const newUi = {
     ...viewModel.erDiagram.ui,
     hover: { type: 'entity' as const, id: entityId },
-    highlightedNodeIds: Array.from(highlightedNodeIds),
-    highlightedEdgeIds: Array.from(highlightedEdgeIds),
-    highlightedColumnIds: Array.from(highlightedColumnIds),
+    highlightedNodeIds: optimizedNodeIds,
+    highlightedEdgeIds: optimizedEdgeIds,
+    highlightedColumnIds: optimizedColumnIds,
   };
 
   return {
@@ -77,16 +117,31 @@ export function actionHoverEdge(
   }
 
   // エッジと両端のノード、両端のカラムをハイライト
-  const highlightedNodeIds = [edge.sourceEntityId, edge.targetEntityId];
-  const highlightedEdgeIds = [edgeId];
-  const highlightedColumnIds = [edge.sourceColumnId, edge.targetColumnId];
+  const newHighlightedNodeIds = [edge.sourceEntityId, edge.targetEntityId];
+  const newHighlightedEdgeIds = [edgeId];
+  const newHighlightedColumnIds = [edge.sourceColumnId, edge.targetColumnId];
+
+  // 既存の配列と内容が同じ場合は既存の参照を再利用（再レンダリング最適化）
+  const optimizedNodeIds = optimizeArray(newHighlightedNodeIds, viewModel.erDiagram.ui.highlightedNodeIds);
+  const optimizedEdgeIds = optimizeArray(newHighlightedEdgeIds, viewModel.erDiagram.ui.highlightedEdgeIds);
+  const optimizedColumnIds = optimizeArray(newHighlightedColumnIds, viewModel.erDiagram.ui.highlightedColumnIds);
+
+  // すべての配列が既存と同じ参照で、hoverも同じ場合は全体として同一参照を返す
+  const currentHover = viewModel.erDiagram.ui.hover;
+  const isSameHover = currentHover?.type === 'edge' && currentHover.id === edgeId;
+  if (isSameHover &&
+      optimizedNodeIds === viewModel.erDiagram.ui.highlightedNodeIds &&
+      optimizedEdgeIds === viewModel.erDiagram.ui.highlightedEdgeIds &&
+      optimizedColumnIds === viewModel.erDiagram.ui.highlightedColumnIds) {
+    return viewModel;
+  }
 
   const newUi = {
     ...viewModel.erDiagram.ui,
     hover: { type: 'edge' as const, id: edgeId },
-    highlightedNodeIds,
-    highlightedEdgeIds,
-    highlightedColumnIds,
+    highlightedNodeIds: optimizedNodeIds,
+    highlightedEdgeIds: optimizedEdgeIds,
+    highlightedColumnIds: optimizedColumnIds,
   };
 
   return {
@@ -117,40 +172,58 @@ export function actionHoverColumn(
   const highlightedEdgeIds = new Set<string>();
   const highlightedColumnIds = new Set<string>([columnId]);
 
-  // カラムを持つエンティティを検索
-  let ownerEntityId: string | null = null;
-  for (const [nodeId, node] of Object.entries(viewModel.erDiagram.nodes)) {
-    if (node.columns.some(col => col.id === columnId)) {
-      ownerEntityId = nodeId;
-      highlightedNodeIds.add(nodeId);
-      break;
-    }
-  }
+  // インデックスを使ってカラムの所属エンティティを高速検索（O(1)）
+  const ownerEntityId = viewModel.erDiagram.index.columnToEntity[columnId];
 
   if (!ownerEntityId) {
     console.warn(`Column owner not found: ${columnId}`);
     return viewModel;
   }
 
-  // カラムに関連するエッジを検索
-  for (const [edgeId, edge] of Object.entries(viewModel.erDiagram.edges)) {
-    if (edge.sourceColumnId === columnId || edge.targetColumnId === columnId) {
-      highlightedEdgeIds.add(edgeId);
-      // エッジの両端のノードもハイライト
-      highlightedNodeIds.add(edge.sourceEntityId);
-      highlightedNodeIds.add(edge.targetEntityId);
-      // エッジに関連するもう一方のカラムもハイライト
-      highlightedColumnIds.add(edge.sourceColumnId);
-      highlightedColumnIds.add(edge.targetColumnId);
-    }
+  highlightedNodeIds.add(ownerEntityId);
+
+  // インデックスを使ってカラムに接続されているエッジを高速検索（O(1)）
+  const connectedEdgeIds = viewModel.erDiagram.index.columnToEdges[columnId] || [];
+  
+  for (const edgeId of connectedEdgeIds) {
+    const edge = viewModel.erDiagram.edges[edgeId];
+    if (!edge) continue;
+    
+    highlightedEdgeIds.add(edgeId);
+    // エッジの両端のノードもハイライト
+    highlightedNodeIds.add(edge.sourceEntityId);
+    highlightedNodeIds.add(edge.targetEntityId);
+    // エッジに関連するもう一方のカラムもハイライト
+    highlightedColumnIds.add(edge.sourceColumnId);
+    highlightedColumnIds.add(edge.targetColumnId);
+  }
+
+  // 配列に変換
+  const newHighlightedNodeIds = Array.from(highlightedNodeIds);
+  const newHighlightedEdgeIds = Array.from(highlightedEdgeIds);
+  const newHighlightedColumnIds = Array.from(highlightedColumnIds);
+
+  // 既存の配列と内容が同じ場合は既存の参照を再利用（再レンダリング最適化）
+  const optimizedNodeIds = optimizeArray(newHighlightedNodeIds, viewModel.erDiagram.ui.highlightedNodeIds);
+  const optimizedEdgeIds = optimizeArray(newHighlightedEdgeIds, viewModel.erDiagram.ui.highlightedEdgeIds);
+  const optimizedColumnIds = optimizeArray(newHighlightedColumnIds, viewModel.erDiagram.ui.highlightedColumnIds);
+
+  // すべての配列が既存と同じ参照で、hoverも同じ場合は全体として同一参照を返す
+  const currentHover = viewModel.erDiagram.ui.hover;
+  const isSameHover = currentHover?.type === 'column' && currentHover.id === columnId;
+  if (isSameHover &&
+      optimizedNodeIds === viewModel.erDiagram.ui.highlightedNodeIds &&
+      optimizedEdgeIds === viewModel.erDiagram.ui.highlightedEdgeIds &&
+      optimizedColumnIds === viewModel.erDiagram.ui.highlightedColumnIds) {
+    return viewModel;
   }
 
   const newUi = {
     ...viewModel.erDiagram.ui,
     hover: { type: 'column' as const, id: columnId },
-    highlightedNodeIds: Array.from(highlightedNodeIds),
-    highlightedEdgeIds: Array.from(highlightedEdgeIds),
-    highlightedColumnIds: Array.from(highlightedColumnIds),
+    highlightedNodeIds: optimizedNodeIds,
+    highlightedEdgeIds: optimizedEdgeIds,
+    highlightedColumnIds: optimizedColumnIds,
   };
 
   return {

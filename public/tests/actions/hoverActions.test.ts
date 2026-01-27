@@ -51,6 +51,22 @@ describe('hoverActions', () => {
       },
       rectangles: {},
       texts: {},
+      index: {
+        entityToEdges: {
+          'entity-1': ['edge-1'],
+          'entity-2': ['edge-1'],
+        },
+        columnToEntity: {
+          'col-1': 'entity-1',
+          'col-2': 'entity-1',
+          'col-3': 'entity-2',
+          'col-4': 'entity-2',
+        },
+        columnToEdges: {
+          'col-1': ['edge-1'],
+          'col-4': ['edge-1'],
+        },
+      },
       ui: {
         hover: null,
         highlightedNodeIds: [],

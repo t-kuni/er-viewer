@@ -135,18 +135,25 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
   - ホバー対象と隣接するノード・エッジ・関連カラムをハイライト対象に設定
   - `viewModel.erDiagram.index.entityToEdges` を使用して接続エッジを高速検索（O(1)）
   - `viewModel.erDiagram.ui.hover` と `highlightedXxxIds` を更新
+  - **配列最適化**: 新しいハイライトID配列の内容が既存と同じ場合は既存の配列参照を再利用し、不要な再レンダリングを防ぐ
+  - **同一ホバー検出**: 同じエンティティに再度ホバーした場合はViewModelの参照をそのまま返し、完全に再レンダリングをスキップ
   
 * `actionHoverEdge(viewModel, edgeId)`: エッジにホバーした時
   - エッジと両端のノード、両端のカラム（IDで識別）をハイライト対象に設定
   - `viewModel.erDiagram.edges[edgeId]` から直接エッジを取得（O(1)）
+  - **配列最適化**: 配列の内容が既存と同じ場合は既存の参照を再利用
+  - **同一ホバー検出**: 同じエッジに再度ホバーした場合はViewModelの参照をそのまま返す
   
 * `actionHoverColumn(viewModel, columnId)`: カラムにホバーした時
   - カラムと関連するエッジ・ノード・対応カラムをハイライト対象に設定
   - `viewModel.erDiagram.index.columnToEntity` で所属エンティティを取得（O(1)）
   - `viewModel.erDiagram.index.columnToEdges` で接続エッジを取得（O(1)）
+  - **配列最適化**: 配列の内容が既存と同じ場合は既存の参照を再利用
+  - **同一ホバー検出**: 同じカラムに再度ホバーした場合はViewModelの参照をそのまま返す
   
 * `actionClearHover(viewModel)`: ホバーを解除した時
   - すべてのハイライトをクリア
+  - **最適化**: 既にクリア済みの場合は同一参照を返す
 
 ##### データ更新関連
 
@@ -368,7 +375,10 @@ describe('actionShowBuildInfoModal', () => {
 
 * selector購読により必要な部分だけ再描画される
 * Actionで「変化がない場合は同一参照を返す」を徹底
+  - **配列最適化**: ハイライトID配列の内容が変わらない場合は既存の配列参照を再利用し、`useSyncExternalStore`による不要な再レンダリングを防ぐ
+  - **同一ホバー検出**: 同じ要素に再度ホバーした場合はViewModel全体の参照を返し、全てのコンポーネントの再レンダリングをスキップ
 * `React.memo` や `useMemo` でコンポーネント最適化
+* **CSS transitionを使用しない**: ホバー時のハイライト表示を即座に反映し、応答性を最大化（transitionによる200ms程度の遅延を回避）
 
 ### DOMサイズの反映
 

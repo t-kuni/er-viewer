@@ -14,6 +14,7 @@ export function getInitialErDiagramUIState(): ERDiagramUIState {
       backgroundItems: [],
       foregroundItems: [],
     },
+    isDraggingEntity: false,
   };
 }
 

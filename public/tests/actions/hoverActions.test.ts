@@ -4,6 +4,8 @@ import {
   actionHoverEdge,
   actionHoverColumn,
   actionClearHover,
+  actionStartEntityDrag,
+  actionStopEntityDrag,
 } from '../../src/actions/hoverActions';
 import type { components } from '../../../lib/generated/api-types';
 
@@ -48,6 +50,7 @@ describe('hoverActions', () => {
         },
       },
       rectangles: {},
+      texts: {},
       ui: {
         hover: null,
         highlightedNodeIds: [],
@@ -57,12 +60,15 @@ describe('hoverActions', () => {
           backgroundItems: [],
           foregroundItems: [],
         },
+        isDraggingEntity: false,
       },
       loading: false,
     },
     ui: {
-      selectedRectangleId: null,
+      selectedItem: null,
       showBuildInfoModal: false,
+      showLayerPanel: false,
+      showDatabaseConnectionModal: false,
     },
     buildInfo: {
       data: null,
@@ -100,6 +106,16 @@ describe('hoverActions', () => {
         backgroundItems: [],
         foregroundItems: [],
       });
+    });
+
+    it('ドラッグ中はホバーイベントを無視する（同一参照を返す）', () => {
+      const viewModel = createMockViewModel();
+      viewModel.erDiagram.ui.isDraggingEntity = true;
+      
+      const result = actionHoverEntity(viewModel, 'entity-1');
+
+      // 同一参照が返される（変更なし）
+      expect(result).toBe(viewModel);
     });
   });
 
@@ -140,6 +156,16 @@ describe('hoverActions', () => {
         foregroundItems: [],
       });
     });
+
+    it('ドラッグ中はホバーイベントを無視する（同一参照を返す）', () => {
+      const viewModel = createMockViewModel();
+      viewModel.erDiagram.ui.isDraggingEntity = true;
+      
+      const result = actionHoverEdge(viewModel, 'edge-1');
+
+      // 同一参照が返される（変更なし）
+      expect(result).toBe(viewModel);
+    });
   });
 
   describe('actionHoverColumn', () => {
@@ -179,6 +205,16 @@ describe('hoverActions', () => {
         foregroundItems: [],
       });
     });
+
+    it('ドラッグ中はホバーイベントを無視する（同一参照を返す）', () => {
+      const viewModel = createMockViewModel();
+      viewModel.erDiagram.ui.isDraggingEntity = true;
+      
+      const result = actionHoverColumn(viewModel, 'col-4');
+
+      // 同一参照が返される（変更なし）
+      expect(result).toBe(viewModel);
+    });
   });
 
   describe('actionClearHover', () => {
@@ -216,6 +252,66 @@ describe('hoverActions', () => {
         backgroundItems: [],
         foregroundItems: [],
       });
+    });
+  });
+
+  describe('actionStartEntityDrag', () => {
+    it('isDraggingEntityがtrueに設定される', () => {
+      const viewModel = createMockViewModel();
+      const result = actionStartEntityDrag(viewModel);
+
+      expect(result.erDiagram.ui.isDraggingEntity).toBe(true);
+    });
+
+    it('hoverがnullに設定される', () => {
+      const viewModel = createMockViewModel();
+      // まずホバー状態を作る
+      const hoveredViewModel = actionHoverEntity(viewModel, 'entity-1');
+      
+      const result = actionStartEntityDrag(hoveredViewModel);
+
+      expect(result.erDiagram.ui.hover).toBeNull();
+    });
+
+    it('すべてのハイライト配列が空になる', () => {
+      const viewModel = createMockViewModel();
+      // まずホバー状態を作る
+      const hoveredViewModel = actionHoverEntity(viewModel, 'entity-1');
+      
+      const result = actionStartEntityDrag(hoveredViewModel);
+
+      expect(result.erDiagram.ui.highlightedNodeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedEdgeIds).toEqual([]);
+      expect(result.erDiagram.ui.highlightedColumnIds).toEqual([]);
+    });
+
+    it('すでにドラッグ中の場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      viewModel.erDiagram.ui.isDraggingEntity = true;
+      
+      const result = actionStartEntityDrag(viewModel);
+
+      expect(result).toBe(viewModel);
+    });
+  });
+
+  describe('actionStopEntityDrag', () => {
+    it('isDraggingEntityがfalseに設定される', () => {
+      const viewModel = createMockViewModel();
+      viewModel.erDiagram.ui.isDraggingEntity = true;
+      
+      const result = actionStopEntityDrag(viewModel);
+
+      expect(result.erDiagram.ui.isDraggingEntity).toBe(false);
+    });
+
+    it('すでにドラッグ停止状態の場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      // isDraggingEntityはデフォルトでfalse
+      
+      const result = actionStopEntityDrag(viewModel);
+
+      expect(result).toBe(viewModel);
     });
   });
 });

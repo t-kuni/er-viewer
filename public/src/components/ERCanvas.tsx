@@ -26,6 +26,7 @@ import { actionUpdateNodePositions } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
 import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
+import { actionStartEntityDrag, actionStopEntityDrag } from '../actions/hoverActions'
 import type { Rectangle, TextBox, LayerItemRef } from '../api/client'
 
 const nodeTypes = {
@@ -196,6 +197,15 @@ function ERCanvasInner({
     [setEdges]
   )
   
+  const onNodeDragStart = useCallback(
+    (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
+      if (node.type === 'entityNode') {
+        dispatch(actionStartEntityDrag)
+      }
+    },
+    [dispatch]
+  )
+
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
       if (node.type === 'entityNode') {
@@ -211,7 +221,11 @@ function ERCanvasInner({
           (edge) => edge.source === node.id || edge.target === node.id
         )
 
-        if (connectedEdges.length === 0) return
+        if (connectedEdges.length === 0) {
+          // ドラッグ終了をdispatch
+          dispatch(actionStopEntityDrag)
+          return
+        }
 
         // 全ノードの現在位置とサイズを取得
         const currentNodes = getNodes()
@@ -252,6 +266,9 @@ function ERCanvasInner({
         })
 
         setEdges(updatedEdges)
+        
+        // ドラッグ終了をdispatch
+        dispatch(actionStopEntityDrag)
       }
     },
     [edges, getNodes, setEdges, dispatch]
@@ -573,6 +590,7 @@ function ERCanvasInner({
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
       onSelectionChange={handleSelectionChange}
       onPaneClick={handlePaneClick}

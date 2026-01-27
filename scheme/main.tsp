@@ -232,6 +232,7 @@ model ERDiagramUIState {
   highlightedEdgeIds: string[]; // Edge IDs (UUID)
   highlightedColumnIds: string[]; // Column IDs (UUID)
   layerOrder: LayerOrder; // レイヤー順序
+  isDraggingEntity: boolean; // エンティティドラッグ中フラグ（true: ドラッグ中、false: 通常状態）
 }
 
 // Complete ER diagram view model

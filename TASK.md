@@ -8,35 +8,43 @@
 
 エンティティをドラッグ中に描画が飛び飛びになる（カクつく）現象を防ぐため、ドラッグ中はホバーインタラクション機能を無効化する。
 
+## 実装状況
+
+**すべてのタスクが完了しました。**
+
+- すべてのテストが成功（126個のテスト全てパス）
+- ドラッグ中のホバーインタラクション無効化が正常に動作
+- CSS transitionの制御により、ドラッグ時のカクつきが解消
+
 ## フロントエンド実装
 
 ### ViewModelへのドラッグ状態フラグの追加
 
-- [ ] **ファイル**: `scheme/main.tsp`
-- [ ] **変更内容**: `ERDiagramUIState`に`isDraggingEntity`フラグを追加
-- [ ] **実装詳細**:
+- [x] **ファイル**: `scheme/main.tsp`
+- [x] **変更内容**: `ERDiagramUIState`に`isDraggingEntity`フラグを追加
+- [x] **実装詳細**:
   - `ERDiagramUIState`モデルに`isDraggingEntity: boolean;`フィールドを追加
   - ドラッグ中かどうかを示すフラグ（true: ドラッグ中、false: 通常状態）
   - デフォルト値は`false`
 
 ### 型の再生成
 
-- [ ] `npm run generate`を実行してTypeSpecから型を再生成
+- [x] `npm run generate`を実行してTypeSpecから型を再生成
 
 ### hoverActionsの修正
 
-- [ ] **ファイル**: `public/src/actions/hoverActions.ts`
-- [ ] **変更内容**: ドラッグ中にホバーイベントを無視するようActionを修正
-- [ ] **実装詳細**:
+- [x] **ファイル**: `public/src/actions/hoverActions.ts`
+- [x] **変更内容**: ドラッグ中にホバーイベントを無視するようActionを修正
+- [x] **実装詳細**:
   - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`の各関数の先頭で`viewModel.erDiagram.ui.isDraggingEntity`をチェック
   - `isDraggingEntity === true`の場合は、何もせずに元の`viewModel`をそのまま返す（同一参照を返す）
   - これにより、ドラッグ中はホバーイベントが発生してもハイライト状態が更新されない
 
 ### ドラッグ開始・終了Actionの追加
 
-- [ ] **ファイル**: `public/src/actions/hoverActions.ts`
-- [ ] **変更内容**: ドラッグ開始・終了のActionを追加
-- [ ] **実装詳細**:
+- [x] **ファイル**: `public/src/actions/hoverActions.ts`
+- [x] **変更内容**: ドラッグ開始・終了のActionを追加
+- [x] **実装詳細**:
   - `actionStartEntityDrag(viewModel: ViewModel): ViewModel`を追加
     - `isDraggingEntity`を`true`に設定
     - `hover`を`null`に設定
@@ -47,9 +55,9 @@
 
 ### ERCanvasでのドラッグイベント処理
 
-- [ ] **ファイル**: `public/src/components/ERCanvas.tsx`
-- [ ] **変更内容**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントでActionをdispatch
-- [ ] **実装詳細**:
+- [x] **ファイル**: `public/src/components/ERCanvas.tsx`
+- [x] **変更内容**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントでActionをdispatch
+- [x] **実装詳細**:
   - `onNodeDragStart`コールバックを追加
     - `actionStartEntityDrag`をimport
     - `node.type === 'entityNode'`の場合に`dispatch(actionStartEntityDrag)`を実行
@@ -58,9 +66,9 @@
 
 ### EntityNodeのCSS transition制御
 
-- [ ] **ファイル**: `public/src/components/EntityNode.tsx`
-- [ ] **変更内容**: ドラッグ中はCSS transitionを無効化
-- [ ] **実装詳細**:
+- [x] **ファイル**: `public/src/components/EntityNode.tsx`
+- [x] **変更内容**: ドラッグ中はCSS transitionを無効化
+- [x] **実装詳細**:
   - `isDraggingEntity`フラグをStoreから購読（`useViewModel`使用）
   - ノードのスタイルに`transition`プロパティを追加
     - `isDraggingEntity === true`の場合: `transition: 'none'`（transition無効）
@@ -69,9 +77,9 @@
 
 ### hoverActionsのテストコード修正
 
-- [ ] **ファイル**: `public/tests/actions/hoverActions.test.ts`
-- [ ] **変更内容**: ドラッグ中のホバー無効化とドラッグAction追加のテストケース追加
-- [ ] **追加するテストケース**:
+- [x] **ファイル**: `public/tests/actions/hoverActions.test.ts`
+- [x] **変更内容**: ドラッグ中のホバー無効化とドラッグAction追加のテストケース追加
+- [x] **追加するテストケース**:
   - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`に対して
     - ドラッグ中（`isDraggingEntity: true`）の場合、元の状態を返す（同一参照）
   - `actionStartEntityDrag`に対して
@@ -85,23 +93,23 @@
 
 ### 初期ViewModelの更新
 
-- [ ] **ファイル**: `public/src/utils/getInitialViewModelValues.ts`
-- [ ] **変更内容**: `isDraggingEntity`の初期値を追加
-- [ ] **実装詳細**:
+- [x] **ファイル**: `public/src/utils/getInitialViewModelValues.ts`
+- [x] **変更内容**: `isDraggingEntity`の初期値を追加
+- [x] **実装詳細**:
   - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
 
 ### バックエンドGetInitialViewModelUsecaseの更新
 
-- [ ] **ファイル**: `lib/usecases/GetInitialViewModelUsecase.ts`
-- [ ] **変更内容**: 初期ViewModelに`isDraggingEntity: false`を含める
-- [ ] **実装詳細**:
+- [x] **ファイル**: `lib/usecases/GetInitialViewModelUsecase.ts`
+- [x] **変更内容**: 初期ViewModelに`isDraggingEntity: false`を含める
+- [x] **実装詳細**:
   - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
 
 ### バックエンドReverseEngineerUsecaseの更新
 
-- [ ] **ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
-- [ ] **変更内容**: リバースエンジニアリング後の`erDiagram.ui`に`isDraggingEntity: false`を含める
-- [ ] **実装詳細**:
+- [x] **ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
+- [x] **変更内容**: リバースエンジニアリング後の`erDiagram.ui`に`isDraggingEntity: false`を含める
+- [x] **実装詳細**:
   - UI状態クリア処理の箇所（hover、highlightedXxxIdsをクリアしている箇所）で`isDraggingEntity: false`も設定
   - リバースエンジニアリング処理中はドラッグ操作が発生しないため、常に`false`
 
@@ -109,13 +117,14 @@
 
 ### ビルド確認
 
-- [ ] `npm run generate`を実行してコード生成を確認
-- [ ] バックエンドとフロントエンドのビルドが成功することを確認
+- [x] `npm run generate`を実行してコード生成を確認
+- [x] バックエンドとフロントエンドのビルドが成功することを確認
 
 ### テスト実行
 
-- [ ] `npm run test`を実行してすべてのテストが成功することを確認
-- [ ] 特に追加したドラッグ中のホバー無効化のテストケースが成功することを確認
+- [x] `npm run test`を実行してすべてのテストが成功することを確認
+- [x] 特に追加したドラッグ中のホバー無効化のテストケースが成功することを確認
+- **結果**: 126個のテストすべてが成功
 
 ## 備考
 

@@ -108,6 +108,7 @@ export interface components {
             highlightedEdgeIds: string[];
             highlightedColumnIds: string[];
             layerOrder: components["schemas"]["LayerOrder"];
+            isDraggingEntity: boolean;
         };
         ERDiagramViewModel: {
             nodes: {

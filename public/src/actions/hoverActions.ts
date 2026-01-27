@@ -13,6 +13,11 @@ export function actionHoverEntity(
   viewModel: ViewModel,
   entityId: string
 ): ViewModel {
+  // ドラッグ中はホバーイベントを無視
+  if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
   // ハイライト対象の収集
   const highlightedNodeIds = new Set<string>([entityId]);
   const highlightedEdgeIds = new Set<string>();
@@ -59,6 +64,11 @@ export function actionHoverEdge(
   viewModel: ViewModel,
   edgeId: string
 ): ViewModel {
+  // ドラッグ中はホバーイベントを無視
+  if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
   const edge = viewModel.erDiagram.edges[edgeId];
   
   if (!edge) {
@@ -98,6 +108,11 @@ export function actionHoverColumn(
   viewModel: ViewModel,
   columnId: string
 ): ViewModel {
+  // ドラッグ中はホバーイベントを無視
+  if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
   const highlightedNodeIds = new Set<string>();
   const highlightedEdgeIds = new Set<string>();
   const highlightedColumnIds = new Set<string>([columnId]);
@@ -171,6 +186,64 @@ export function actionClearHover(
     highlightedNodeIds: [],
     highlightedEdgeIds: [],
     highlightedColumnIds: [],
+  };
+
+  return {
+    ...viewModel,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
+  };
+}
+
+/**
+ * エンティティドラッグ開始のAction
+ * @param viewModel 現在の状態
+ * @returns 新しい状態（変化がない場合は同一参照）
+ */
+export function actionStartEntityDrag(
+  viewModel: ViewModel
+): ViewModel {
+  // すでにドラッグ中の場合は同一参照を返す
+  if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
+  const newUi = {
+    ...viewModel.erDiagram.ui,
+    isDraggingEntity: true,
+    hover: null,
+    highlightedNodeIds: [],
+    highlightedEdgeIds: [],
+    highlightedColumnIds: [],
+  };
+
+  return {
+    ...viewModel,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      ui: newUi,
+    },
+  };
+}
+
+/**
+ * エンティティドラッグ終了のAction
+ * @param viewModel 現在の状態
+ * @returns 新しい状態（変化がない場合は同一参照）
+ */
+export function actionStopEntityDrag(
+  viewModel: ViewModel
+): ViewModel {
+  // すでにドラッグ停止状態の場合は同一参照を返す
+  if (!viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
+  const newUi = {
+    ...viewModel.erDiagram.ui,
+    isDraggingEntity: false,
   };
 
   return {

@@ -18,6 +18,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
   const highlightedNodeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedNodeIds)
   const highlightedColumnIds = useViewModel((vm) => vm.erDiagram.ui.highlightedColumnIds)
   const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
+  const isDraggingEntity = useViewModel((vm) => vm.erDiagram.ui.isDraggingEntity)
   
   // このノードがハイライト対象かどうか
   const isHighlighted = highlightedNodeIds.includes(data.id)
@@ -45,7 +46,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         opacity: isDimmed ? 0.2 : 1,
         boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
         zIndex: isHighlighted ? 1000 : 1,
-        transition: 'all 0.2s ease-in-out',
+        transition: isDraggingEntity ? 'none' : 'all 0.2s ease-in-out',
       }}
       onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
       onMouseLeave={() => dispatch(actionClearHover)}

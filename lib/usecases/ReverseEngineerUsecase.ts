@@ -221,6 +221,7 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
             highlightedEdgeIds: [], // クリア
             highlightedColumnIds: [], // クリア
             layerOrder,
+            isDraggingEntity: false, // ドラッグ中フラグをクリア
           },
           loading: false,
         },

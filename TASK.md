@@ -1,148 +1,317 @@
-# タスク一覧
+# タスク一覧: 逆引きインデックス実装によるホバーインタラクション最適化
 
 ## 概要
 
-ドラッグ中のホバーインタラクション無効化機能の実装。詳細は以下の仕様書を参照：
-- [フロントエンドER図レンダリング仕様](./spec/frontend_er_rendering.md) - ホバーインタラクション仕様の「4. ドラッグ中の動作」
-- [フロントエンド状態管理仕様](./spec/frontend_state_management.md) - ホバー検出の「ドラッグ中のホバー動作」
+直前のコミットで更新された仕様書に基づき、`ERDiagramIndex`（逆引きインデックス）を実装することで、ホバーインタラクションのパフォーマンスを最適化する。
 
-エンティティをドラッグ中に描画が飛び飛びになる（カクつく）現象を防ぐため、ドラッグ中はホバーインタラクション機能を無効化する。
+**仕様書の更新内容**:
+- [scheme/main.tsp](/scheme/main.tsp): `ERDiagramIndex`型を追加
+- [spec/frontend_er_rendering.md](/spec/frontend_er_rendering.md): 逆引きインデックスを使用した高速検索仕様を追加
+- [spec/frontend_state_management.md](/spec/frontend_state_management.md): `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`で逆引きインデックスを使用する仕様を追加
+- [spec/viewmodel_based_api.md](/spec/viewmodel_based_api.md): バックエンドでインデックスを計算する仕様を追加
+- [spec/import_export_feature.md](/spec/import_export_feature.md): インポート時にインデックスを再計算する仕様を追加
 
-## 実装状況
+**パフォーマンス改善の目的**:
+- 現在: O(全エッジ数) + O(全ノード数 × カラム数) の線形探索
+- 改善後: O(1) または O(接続数) の高速検索
+- 大規模ER図（100テーブル、500リレーション）で数百倍の高速化を実現
 
-**すべてのタスクが完了しました。**
+---
 
-- すべてのテストが成功（126個のテスト全てパス）
-- ドラッグ中のホバーインタラクション無効化が正常に動作
-- CSS transitionの制御により、ドラッグ時のカクつきが解消
+## フェーズ1: バックエンド実装（型生成・ビルド・テスト含む）
 
-## フロントエンド実装
+### バックエンド: 逆引きインデックス計算ユーティリティの実装
 
-### ViewModelへのドラッグ状態フラグの追加
+- [ ] **ファイル作成**: `/lib/utils/buildERDiagramIndex.ts`
+  - `buildERDiagramIndex`関数を実装
+  - **引数**: `nodes: Record<EntityNodeViewModel>`, `edges: Record<RelationshipEdgeViewModel>`
+  - **戻り値**: `ERDiagramIndex`
+  - **処理内容**:
+    - `entityToEdges`: 各エンティティに接続されているエッジのリストを生成
+      - `edges`を走査し、`sourceEntityId`と`targetEntityId`からマッピングを構築
+    - `columnToEntity`: 各カラムが所属するエンティティを特定
+      - `nodes`を走査し、各ノードの`columns`から`columnId → entityId`のマッピングを構築
+    - `columnToEdges`: 各カラムに接続されているエッジのリストを生成
+      - `edges`を走査し、`sourceColumnId`と`targetColumnId`からマッピングを構築
+  - **型定義**: `lib/generated/api-types.ts`から`ERDiagramIndex`、`EntityNodeViewModel`、`RelationshipEdgeViewModel`をインポート
 
-- [x] **ファイル**: `scheme/main.tsp`
-- [x] **変更内容**: `ERDiagramUIState`に`isDraggingEntity`フラグを追加
-- [x] **実装詳細**:
-  - `ERDiagramUIState`モデルに`isDraggingEntity: boolean;`フィールドを追加
-  - ドラッグ中かどうかを示すフラグ（true: ドラッグ中、false: 通常状態）
-  - デフォルト値は`false`
+### バックエンド: GetInitialViewModelUsecaseの修正
 
-### 型の再生成
+- [ ] **ファイル修正**: `/lib/usecases/GetInitialViewModelUsecase.ts`
+  - 空の`ERDiagramViewModel`を生成する際に、空のインデックスを追加
+  - **修正内容**:
+    ```typescript
+    const erDiagram: ERDiagramViewModel = {
+      nodes: {},
+      edges: {},
+      rectangles: {},
+      texts: {},
+      index: {  // 追加
+        entityToEdges: {},
+        columnToEntity: {},
+        columnToEdges: {},
+      },
+      ui: erDiagramUIState,
+      loading: false,
+    };
+    ```
+  - **参考**: 仕様書 [spec/viewmodel_based_api.md](/spec/viewmodel_based_api.md) の「GET /api/init」セクション
 
-- [x] `npm run generate`を実行してTypeSpecから型を再生成
+### バックエンド: ReverseEngineerUsecaseの修正
 
-### hoverActionsの修正
+- [ ] **ファイル修正**: `/lib/usecases/ReverseEngineerUsecase.ts`
+  - `buildERDiagramIndex`をインポート
+  - `nodes`と`edges`を生成した後、`buildERDiagramIndex`を呼び出して`index`を計算
+  - **修正箇所**: ViewModelを返却する直前（現在は199行目付近）
+  - **修正内容**:
+    ```typescript
+    // 逆引きインデックスを計算
+    const index = buildERDiagramIndex(nodes, edges);
+    
+    // ViewModelを更新して返却
+    return {
+      format: viewModel.format,
+      version: viewModel.version,
+      erDiagram: {
+        nodes,
+        edges,
+        rectangles: viewModel.erDiagram.rectangles,
+        texts: viewModel.erDiagram.texts,
+        index,  // 追加
+        ui: { ... },
+        loading: false,
+      },
+      ...
+    };
+    ```
+  - **参考**: 仕様書 [spec/viewmodel_based_api.md](/spec/viewmodel_based_api.md) の「ReverseEngineerUsecase」セクション
 
-- [x] **ファイル**: `public/src/actions/hoverActions.ts`
-- [x] **変更内容**: ドラッグ中にホバーイベントを無視するようActionを修正
-- [x] **実装詳細**:
-  - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`の各関数の先頭で`viewModel.erDiagram.ui.isDraggingEntity`をチェック
-  - `isDraggingEntity === true`の場合は、何もせずに元の`viewModel`をそのまま返す（同一参照を返す）
-  - これにより、ドラッグ中はホバーイベントが発生してもハイライト状態が更新されない
+### バックエンド: テストコード作成
 
-### ドラッグ開始・終了Actionの追加
+- [ ] **ファイル作成**: `/tests/utils/buildERDiagramIndex.test.ts`
+  - `buildERDiagramIndex`関数の単体テスト
+  - **テストケース**:
+    - 空のnodes/edgesで空のインデックスを返すこと
+    - 1つのエンティティと1つのエッジで正しくインデックスを構築すること
+    - 複数のエンティティと複数のエッジで正しくインデックスを構築すること
+    - カラムが複数のエッジに接続されている場合、`columnToEdges`に複数のエッジIDが含まれること
+    - エンティティが複数のエッジに接続されている場合、`entityToEdges`に複数のエッジIDが含まれること
 
-- [x] **ファイル**: `public/src/actions/hoverActions.ts`
-- [x] **変更内容**: ドラッグ開始・終了のActionを追加
-- [x] **実装詳細**:
-  - `actionStartEntityDrag(viewModel: ViewModel): ViewModel`を追加
-    - `isDraggingEntity`を`true`に設定
-    - `hover`を`null`に設定
-    - `highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`を空配列に設定
-  - `actionStopEntityDrag(viewModel: ViewModel): ViewModel`を追加
-    - `isDraggingEntity`を`false`に設定
-  - 両方とも変化がない場合は同一参照を返す（再レンダリング抑制）
+- [ ] **ファイル修正**: `/tests/usecases/GetInitialViewModelUsecase.test.ts`
+  - 空のインデックスが含まれていることを検証するアサーションを追加
+  - **修正内容**: `expect(result.erDiagram.index).toEqual({ entityToEdges: {}, columnToEntity: {}, columnToEdges: {} })`
 
-### ERCanvasでのドラッグイベント処理
+- [ ] **ファイル修正**: `/tests/usecases/ReverseEngineerUsecase.test.ts`
+  - 計算されたインデックスが正しいことを検証するアサーションを追加
+  - **修正内容**: 
+    - `result.erDiagram.index.entityToEdges`が正しく構築されていることを確認
+    - `result.erDiagram.index.columnToEntity`が正しく構築されていることを確認
+    - `result.erDiagram.index.columnToEdges`が正しく構築されていることを確認
 
-- [x] **ファイル**: `public/src/components/ERCanvas.tsx`
-- [x] **変更内容**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントでActionをdispatch
-- [x] **実装詳細**:
-  - `onNodeDragStart`コールバックを追加
-    - `actionStartEntityDrag`をimport
-    - `node.type === 'entityNode'`の場合に`dispatch(actionStartEntityDrag)`を実行
-  - `onNodeDragStop`コールバックに処理を追加
-    - 既存の処理（位置更新、エッジハンドル再計算）の後に`dispatch(actionStopEntityDrag)`を実行
+### バックエンド: ビルドとテストの確認
 
-### EntityNodeのCSS transition制御
+- [ ] **型生成の実行**: `npm run generate`
+  - `lib/generated/api-types.ts`に`ERDiagramIndex`型が含まれることを確認（既に生成済み）
 
-- [x] **ファイル**: `public/src/components/EntityNode.tsx`
-- [x] **変更内容**: ドラッグ中はCSS transitionを無効化
-- [x] **実装詳細**:
-  - `isDraggingEntity`フラグをStoreから購読（`useViewModel`使用）
-  - ノードのスタイルに`transition`プロパティを追加
-    - `isDraggingEntity === true`の場合: `transition: 'none'`（transition無効）
-    - `isDraggingEntity === false`の場合: `transition: 'all 0.2s ease-in-out'`（既存のtransition）
-  - React Flowのドラッグ操作とCSS transitionの干渉を防ぎ、スムーズな移動を実現
+- [ ] **ビルド確認**: `npm run build` または TypeScriptコンパイル
+  - エラーなくビルドできることを確認
 
-### hoverActionsのテストコード修正
+- [ ] **テスト実行**: `npm run test`
+  - 新規・修正したテストがすべてパスすることを確認
 
-- [x] **ファイル**: `public/tests/actions/hoverActions.test.ts`
-- [x] **変更内容**: ドラッグ中のホバー無効化とドラッグAction追加のテストケース追加
-- [x] **追加するテストケース**:
-  - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`に対して
-    - ドラッグ中（`isDraggingEntity: true`）の場合、元の状態を返す（同一参照）
-  - `actionStartEntityDrag`に対して
-    - `isDraggingEntity`が`true`に設定される
-    - `hover`が`null`に設定される
-    - 全てのハイライト配列が空になる
-    - すでにドラッグ中の場合は同一参照を返す
-  - `actionStopEntityDrag`に対して
-    - `isDraggingEntity`が`false`に設定される
-    - すでにドラッグ停止状態の場合は同一参照を返す
+---
 
-### 初期ViewModelの更新
+## フェーズ2: フロントエンド実装（ビルド・テスト含む）
 
-- [x] **ファイル**: `public/src/utils/getInitialViewModelValues.ts`
-- [x] **変更内容**: `isDraggingEntity`の初期値を追加
-- [x] **実装詳細**:
-  - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
+### フロントエンド: ホバーアクションの修正
 
-### バックエンドGetInitialViewModelUsecaseの更新
+- [ ] **ファイル修正**: `/public/src/actions/hoverActions.ts`
+  - `actionHoverEntity`を修正
+    - **現在の実装**: `Object.entries(viewModel.erDiagram.edges)`で全エッジを線形探索（27-37行目）
+    - **修正内容**: `viewModel.erDiagram.index.entityToEdges[entityId]`を使用して接続エッジを取得
+    - **参考**: 仕様書 [spec/frontend_state_management.md](/spec/frontend_state_management.md) の「actionHoverEntity」セクション
+    - **実装例**:
+      ```typescript
+      // インデックスから接続エッジIDのリストを取得
+      const connectedEdgeIds = viewModel.erDiagram.index.entityToEdges[entityId] || [];
+      
+      // 各エッジIDからエッジを取得
+      for (const edgeId of connectedEdgeIds) {
+        const edge = viewModel.erDiagram.edges[edgeId];
+        if (edge) {
+          highlightedEdgeIds.add(edgeId);
+          highlightedNodeIds.add(edge.sourceEntityId);
+          highlightedNodeIds.add(edge.targetEntityId);
+          highlightedColumnIds.add(edge.sourceColumnId);
+          highlightedColumnIds.add(edge.targetColumnId);
+        }
+      }
+      ```
 
-- [x] **ファイル**: `lib/usecases/GetInitialViewModelUsecase.ts`
-- [x] **変更内容**: 初期ViewModelに`isDraggingEntity: false`を含める
-- [x] **実装詳細**:
-  - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
+  - `actionHoverColumn`を修正
+    - **現在の実装**: `Object.entries(viewModel.erDiagram.nodes)`で全ノードを線形探索してカラムの所属エンティティを検索（122-128行目）、`Object.entries(viewModel.erDiagram.edges)`で全エッジを線形探索（136-146行目）
+    - **修正内容**: 
+      - `viewModel.erDiagram.index.columnToEntity[columnId]`で所属エンティティを取得
+      - `viewModel.erDiagram.index.columnToEdges[columnId]`で接続エッジを取得
+    - **参考**: 仕様書 [spec/frontend_state_management.md](/spec/frontend_state_management.md) の「actionHoverColumn」セクション
+    - **実装例**:
+      ```typescript
+      // インデックスから所属エンティティを取得
+      const ownerEntityId = viewModel.erDiagram.index.columnToEntity[columnId];
+      
+      if (!ownerEntityId) {
+        console.warn(`Column owner not found: ${columnId}`);
+        return viewModel;
+      }
+      
+      highlightedNodeIds.add(ownerEntityId);
+      
+      // インデックスから接続エッジIDのリストを取得
+      const connectedEdgeIds = viewModel.erDiagram.index.columnToEdges[columnId] || [];
+      
+      // 各エッジIDからエッジを取得
+      for (const edgeId of connectedEdgeIds) {
+        const edge = viewModel.erDiagram.edges[edgeId];
+        if (edge) {
+          highlightedEdgeIds.add(edgeId);
+          highlightedNodeIds.add(edge.sourceEntityId);
+          highlightedNodeIds.add(edge.targetEntityId);
+          highlightedColumnIds.add(edge.sourceColumnId);
+          highlightedColumnIds.add(edge.targetColumnId);
+        }
+      }
+      ```
 
-### バックエンドReverseEngineerUsecaseの更新
+  - **注意**: `actionHoverEdge`は既にO(1)の検索を行っているため修正不要（仕様書で確認済み）
 
-- [x] **ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
-- [x] **変更内容**: リバースエンジニアリング後の`erDiagram.ui`に`isDraggingEntity: false`を含める
-- [x] **実装詳細**:
-  - UI状態クリア処理の箇所（hover、highlightedXxxIdsをクリアしている箇所）で`isDraggingEntity: false`も設定
-  - リバースエンジニアリング処理中はドラッグ操作が発生しないため、常に`false`
+### フロントエンド: インポート機能の修正
 
-## ビルド・テスト
+- [ ] **ファイル作成**: `/public/src/utils/buildERDiagramIndex.ts`
+  - バックエンドの`buildERDiagramIndex`と同じロジックをフロントエンド用に実装
+  - **理由**: インポート時にフロントエンドでインデックスを再計算する必要があるため
+  - **実装内容**: バックエンドの`/lib/utils/buildERDiagramIndex.ts`と同じロジック
+  - **型定義**: `public/src/api/client`から`ERDiagramIndex`、`EntityNodeViewModel`、`RelationshipEdgeViewModel`をインポート
 
-### ビルド確認
+- [ ] **ファイル修正**: `/public/src/utils/importViewModel.ts`
+  - `buildERDiagramIndex`をインポート
+  - インポートしたViewModelの`nodes`と`edges`から`index`を再計算
+  - **修正箇所**: `resolve(viewModel)`の直前（現在は106行目）
+  - **修正内容**:
+    ```typescript
+    // インデックスを再計算
+    const index = buildERDiagramIndex(
+      importedViewModel.erDiagram?.nodes || {},
+      importedViewModel.erDiagram?.edges || {}
+    );
+    
+    // 一時UI状態とキャッシュを補完したViewModelを作成
+    const viewModel: ViewModel = {
+      format: importedViewModel.format,
+      version: importedViewModel.version,
+      erDiagram: {
+        nodes: importedViewModel.erDiagram?.nodes || {},
+        edges: importedViewModel.erDiagram?.edges || {},
+        rectangles: importedViewModel.erDiagram?.rectangles || {},
+        texts: importedViewModel.erDiagram?.texts || {},
+        index,  // 追加
+        ui: { ... },
+        loading: false,
+      },
+      ...
+    };
+    ```
+  - **参考**: 仕様書 [spec/import_export_feature.md](/spec/import_export_feature.md) の「インポート時の処理」セクション
 
-- [x] `npm run generate`を実行してコード生成を確認
-- [x] バックエンドとフロントエンドのビルドが成功することを確認
+- [ ] **ファイル修正**: `/public/src/utils/exportViewModel.ts`
+  - エクスポート時にインデックスを保持するように修正（現在は保持されていない可能性があるため確認）
+  - **修正内容**: 
+    ```typescript
+    const exportData: ViewModel = {
+      format: viewModel.format,
+      version: viewModel.version,
+      erDiagram: {
+        nodes: viewModel.erDiagram.nodes,
+        edges: viewModel.erDiagram.edges,
+        rectangles: viewModel.erDiagram.rectangles,
+        texts: viewModel.erDiagram.texts,
+        index: viewModel.erDiagram.index,  // 追加（インポート時に再計算されるが保持する）
+        ui: { ... },
+        loading: false,
+      },
+      ...
+    };
+    ```
+  - **注意**: 仕様書によると、インデックスはファイルに含まれていても無視され、インポート時に常に再計算される
 
-### テスト実行
+### フロントエンド: テストコード修正
 
-- [x] `npm run test`を実行してすべてのテストが成功することを確認
-- [x] 特に追加したドラッグ中のホバー無効化のテストケースが成功することを確認
-- **結果**: 126個のテストすべてが成功
+- [ ] **ファイル修正**: `/public/tests/actions/hoverActions.test.ts`
+  - テスト用の`createMockViewModel`に`index`フィールドを追加
+  - **修正内容**: 
+    ```typescript
+    const createMockViewModel = (): ViewModel => ({
+      erDiagram: {
+        nodes: { ... },
+        edges: { ... },
+        rectangles: {},
+        texts: {},
+        index: {  // 追加
+          entityToEdges: {
+            'entity-1': ['edge-1'],
+            'entity-2': ['edge-1'],
+          },
+          columnToEntity: {
+            'col-1': 'entity-1',
+            'col-2': 'entity-1',
+            'col-3': 'entity-2',
+            'col-4': 'entity-2',
+          },
+          columnToEdges: {
+            'col-1': ['edge-1'],
+            'col-4': ['edge-1'],
+          },
+        },
+        ui: { ... },
+        loading: false,
+      },
+      ...
+    });
+    ```
+  - **既存のテストケースが引き続きパスすることを確認**
 
-## 備考
+- [ ] **ファイル作成**: `/public/tests/utils/buildERDiagramIndex.test.ts`
+  - フロントエンドの`buildERDiagramIndex`関数の単体テスト
+  - **テストケース**: バックエンドのテストケースと同様
 
-### 実装のポイント
+### フロントエンド: ビルドの確認
 
-* **ホバー無効化の実装方法**: `isDraggingEntity`フラグをチェックして、ドラッグ中はホバーActionで何もせず元のviewModelを返す（同一参照を返すことで再レンダリングを抑制）
-* **ドラッグ検出**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントを使用
-* **CSS transition制御**: `isDraggingEntity`フラグに応じてEntityNodeのtransitionプロパティを動的に切り替え
-* **対象範囲**: エンティティノードのドラッグのみが対象。矩形ノードやテキストノードのドラッグは別の管理方式のため影響なし
+- [ ] **ビルド確認**: `cd public && npm run build`
+  - エラーなくビルドできることを確認
 
-### テスト戦略
+- [ ] **テスト実行**: `cd public && npm run test`
+  - 新規・修正したテストがすべてパスすることを確認
 
-* Action単体テストで`isDraggingEntity`フラグの動作を検証
-* ドラッグ中のホバーイベントが無視されることをテスト
-* ドラッグ開始・終了Actionのテスト
+---
 
-### 既存機能との整合性
+## 事前修正提案
 
-* 既存のホバーインタラクション機能は維持（ドラッグ中以外は正常に動作）
-* ViewModelの構造に`isDraggingEntity`フラグを追加するのみで、既存のフィールドは変更しない
-* React Flowの既存のドラッグ処理には影響を与えない
+なし。型定義は既に生成されており、実装に進むことができます。
+
+---
+
+## 指示者宛ての懸念事項（作業対象外）
+
+### 仕様の矛盾・実現不可能な点
+
+**確認した結果、仕様の矛盾や実現不可能な点はありませんでした。**
+
+### 確認事項
+
+1. **インデックスの一貫性**: インデックスは`nodes`/`edges`の変更時に必ず再計算する必要があります。今回の実装では以下のタイミングで再計算されます：
+   - リバースエンジニア実行時（バックエンド）
+   - インポート時（フロントエンド）
+   - 将来的にエンティティ/エッジの追加・削除機能を実装する際は、その都度インデックスを再計算する必要があります
+
+2. **パフォーマンステスト**: 実際に大規模ER図（100テーブル、500リレーション）でパフォーマンス改善を確認することを推奨します（MVPフェーズでは不要ですが、将来的に確認すると良いでしょう）
+
+3. **既存テストへの影響**: ホバーアクションのテストは、インデックスが正しく構築されている前提で動作するため、モックデータの`index`フィールドを正確に設定する必要があります

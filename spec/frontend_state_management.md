@@ -234,13 +234,19 @@ interface Store {
 `useSyncExternalStore`を使った購読：
 
 ```typescript
-function useViewModel<T>(selector: (vm: ViewModel) => T): T;
+function useViewModel<T>(
+  selector: (vm: ViewModel) => T,
+  equalityFn?: (a: T, b: T) => boolean
+): T;
 function useDispatch(): Store['dispatch'];
 ```
 
-* `useViewModel(selector)`: 必要な部分だけ購読（再レンダリング最小化）
+* `useViewModel(selector, equalityFn)`: 必要な部分だけ購読（再レンダリング最小化）
+  - `selector`: 状態から必要な部分を取り出す関数
+  - `equalityFn`: 前回の値と今回の値を比較する関数（省略時は参照比較）
   - 例: `useViewModel(vm => vm.erDiagram.nodes)` でER図のノードだけを購読
   - 例: `useViewModel(vm => vm.ui.selectedItem)` で選択中のアイテムだけを購読
+  - 例: `useViewModel(vm => vm.erDiagram.ui.highlightedNodeIds.includes(nodeId), (a, b) => a === b)` でboolean値を購読し、値ベースの比較を実施
 * `useDispatch()`: dispatch関数を取得
 
 ## React Flowとの統合
@@ -378,6 +384,12 @@ describe('actionShowBuildInfoModal', () => {
   - **配列最適化**: ハイライトID配列の内容が変わらない場合は既存の配列参照を再利用し、`useSyncExternalStore`による不要な再レンダリングを防ぐ
   - **同一ホバー検出**: 同じ要素に再度ホバーした場合はViewModel全体の参照を返し、全てのコンポーネントの再レンダリングをスキップ
 * `React.memo` や `useMemo` でコンポーネント最適化
+  - **EntityNodeとRelationshipEdgeのメモ化**: これらのコンポーネントを`React.memo`でラップし、propsが変わらない限り再レンダリングを防ぐ
+* **ホバーインタラクションの最適化**: 大量のエンティティ・リレーションがある場合のパフォーマンス最適化
+  - **selector最適化**: 各コンポーネントがハイライト配列全体ではなく「自分がハイライトされているか」という真偽値だけを購読する
+    - 例: `useViewModel(vm => vm.erDiagram.ui.highlightedNodeIds.includes(nodeId), (a, b) => a === b)`
+  - これにより、ホバー時に再レンダリングされるコンポーネントは「ハイライト状態が変化したコンポーネントのみ」に限定される
+  - ハイライト配列全体を購読すると、ホバーのたびに全てのEntityNode/RelationshipEdgeが再レンダリングされ、エンティティ数に比例して性能が劣化する
 * **CSS transitionを使用しない**: ホバー時のハイライト表示を即座に反映し、応答性を最大化（transitionによる200ms程度の遅延を回避）
 
 ### DOMサイズの反映

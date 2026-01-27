@@ -2,165 +2,138 @@
 
 ## 概要
 
-増分リバースエンジニアリング機能の実装。詳細は以下の仕様書を参照：
-- [増分リバース・エンジニアリング機能仕様](./spec/incremental_reverse_engineering.md)
-- [リバースエンジニアリング機能仕様](./spec/reverse_engineering.md)
+ドラッグ中のホバーインタラクション無効化機能の実装。詳細は以下の仕様書を参照：
+- [フロントエンドER図レンダリング仕様](./spec/frontend_er_rendering.md) - ホバーインタラクション仕様の「4. ドラッグ中の動作」
+- [フロントエンド状態管理仕様](./spec/frontend_state_management.md) - ホバー検出の「ドラッグ中のホバー動作」
 
-現状のReverseEngineerUsecaseは常に新規作成モード（エンティティを全件置き換え）で動作している。これを、既存のエンティティが存在する場合は差分のみを反映する増分更新モードに対応させる。
+エンティティをドラッグ中に描画が飛び飛びになる（カクつく）現象を防ぐため、ドラッグ中はホバーインタラクション機能を無効化する。
 
-## バックエンド実装
+## フロントエンド実装
 
-### ReverseEngineerUsecaseの修正
+### ViewModelへのドラッグ状態フラグの追加
 
-- [x] **ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
-- [x] **変更内容**: 増分リバースエンジニアリング機能を実装する
-- [x] **実装詳細**:
-  - [x] `viewModel.erDiagram.nodes`が空かどうかをチェックする処理を追加
-    - 空の場合: 現在の実装のまま（全件新規作成モード）
-    - 空でない場合: 増分更新モード
-  - [x] 増分更新モードの実装:
-    - [x] **エンティティのマッチング処理**:
-      - データベースから取得したテーブル名と既存ノードのテーブル名（`Entity.name`）で比較
-      - マッチしたエンティティのid、x座標、y座標を保持するMapを作成（キー: テーブル名、値: {id, x, y}）
-    - [x] **エンティティの差分反映**:
-      - マッチしたエンティティ: 既存のid、x、yを維持し、カラム情報を最新データで置き換え、ddlを更新
-      - 新規エンティティ: 新しいidを生成し、既存エンティティの最大座標を基準に配置
-        - 既存エンティティの最大X座標 + 300px（横方向の間隔）から開始
-        - 既存エンティティの最大Y座標と同じ行から開始
-        - 1行あたり4エンティティで折り返し（縦方向の間隔は200px）
-      - 削除エンティティ: ViewModelから削除（データベースに存在しないエンティティ）
-    - [x] **カラムの全件置き換え**:
-      - すべてのカラムに新しいidを生成
-      - type、nullable、key、default、extraはデータベースの最新情報を反映
-    - [x] **リレーションシップの全件置き換え**:
-      - すべてのリレーションシップに新しいidを生成
-      - マッチしたエンティティのIDを使用してリレーションシップを構築
-      - 削除されたエンティティに関連するリレーションシップは自動的に除外
-    - [x] **矩形・テキストの維持**:
-      - `erDiagram.rectangles`の内容をそのまま維持
-      - `erDiagram.texts`の内容をそのまま維持
-      - `erDiagram.ui.layerOrder`内のrectangleとtextの参照を維持
-    - [x] **UI状態のクリア**:
-      - `erDiagram.ui.hover`をクリア（nullに設定）
-      - `erDiagram.ui.highlightedNodeIds`をクリア（空配列に設定）
-      - `erDiagram.ui.highlightedEdgeIds`をクリア（空配列に設定）
-      - `erDiagram.ui.highlightedColumnIds`をクリア（空配列に設定）
-      - カラムとエッジのIDが新しく生成されるため、古いIDでの参照は無効になる
-    - [x] **レイヤー順序の更新**:
-      - 削除されたエンティティのIDが`erDiagram.ui.layerOrder.backgroundItems`または`foregroundItems`に含まれている場合、該当する参照を削除
-      - `LayerItemRef`の`kind`が`"entity"`で、`id`が削除されたエンティティのIDと一致する要素を除外
-- [x] **参考実装**:
-  - 現在の実装（58-71行目）は新規作成モードの処理として残す
-  - 増分更新モードは別の処理フローとして実装
-  - エンティティのマッチングには`Map`を使用すると効率的
-  - 新規エンティティの配置計算には`Math.max()`で既存エンティティの最大座標を取得
+- [ ] **ファイル**: `scheme/main.tsp`
+- [ ] **変更内容**: `ERDiagramUIState`に`isDraggingEntity`フラグを追加
+- [ ] **実装詳細**:
+  - `ERDiagramUIState`モデルに`isDraggingEntity: boolean;`フィールドを追加
+  - ドラッグ中かどうかを示すフラグ（true: ドラッグ中、false: 通常状態）
+  - デフォルト値は`false`
 
-### ReverseEngineerUsecaseのテストコード追加
+### 型の再生成
 
-- [x] **ファイル**: `tests/usecases/ReverseEngineerUsecase.test.ts`
-- [x] **変更内容**: 増分リバースエンジニアリング機能のテストケースを追加
-- [x] **追加するテストケース**:
-  - [x] **既存エンティティの座標維持テスト**:
-    - 既存のViewModelに`users`テーブルのノード（座標 x:100, y:200）を設定
-    - リバースエンジニアリングを実行
-    - `users`テーブルのノードのx、y座標が維持されることを確認
-    - `users`テーブルのカラム情報が最新に更新されることを確認（idは新しく生成される）
-  - [x] **新規エンティティの追加テスト**:
-    - 既存のViewModelに一部のテーブルのみ設定
-    - `erviewer-2`スキーマに接続してリバースエンジニアリングを実行
-    - データベースに存在するが既存ViewModelに存在しないテーブル（例: `task_comments`）が追加されることを確認
-    - 新規エンティティが既存エンティティの右側・下側に配置されることを確認
-  - [x] **削除エンティティの除外テスト**:
-    - 既存のViewModelに存在するが`erviewer-2`スキーマには存在しないテーブル（例: `activities`）を設定
-    - リバースエンジニアリングを実行
-    - `activities`テーブルのノードが削除されることを確認
-  - [x] **カラム変更の反映テスト**:
-    - `erviewer`スキーマと`erviewer-2`スキーマでカラムが異なるテーブルをテスト
-    - 例: `users.first_name` → `users.given_name`への変更
-    - 既存のViewModelに`erviewer`のカラム情報を設定し、`erviewer-2`に接続して実行
-    - カラムが最新情報に更新されることを確認
-  - [x] **UI状態のクリアテスト**:
-    - 既存のViewModelに`highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`を設定
-    - リバースエンジニアリングを実行
-    - すべてのハイライト状態が空配列になることを確認
-  - [x] **レイヤー順序の更新テスト**:
-    - 既存のViewModelのレイヤー順序に削除予定のエンティティ（例: `activities`）を設定
-    - リバースエンジニアリングを実行
-    - レイヤー順序から削除されたエンティティの参照が除外されることを確認
-    - 残存するエンティティや矩形・テキストの参照は維持されることを確認
-  - [x] **矩形・テキストの維持テスト**:
-    - 既存のViewModelに矩形とテキストを設定
-    - リバースエンジニアリングを実行
-    - 矩形とテキストがそのまま維持されることを確認
-- [x] **テスト実装のポイント**:
-  - init.sqlの`erviewer`と`erviewer-2`スキーマの差分を利用する
-  - 環境変数`DB_NAME`を`erviewer-2`に設定してテストを実行
-  - 既存のテストケースを参考にViewModelを構築
+- [ ] `npm run generate`を実行してTypeSpecから型を再生成
+
+### hoverActionsの修正
+
+- [ ] **ファイル**: `public/src/actions/hoverActions.ts`
+- [ ] **変更内容**: ドラッグ中にホバーイベントを無視するようActionを修正
+- [ ] **実装詳細**:
+  - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`の各関数の先頭で`viewModel.erDiagram.ui.isDraggingEntity`をチェック
+  - `isDraggingEntity === true`の場合は、何もせずに元の`viewModel`をそのまま返す（同一参照を返す）
+  - これにより、ドラッグ中はホバーイベントが発生してもハイライト状態が更新されない
+
+### ドラッグ開始・終了Actionの追加
+
+- [ ] **ファイル**: `public/src/actions/hoverActions.ts`
+- [ ] **変更内容**: ドラッグ開始・終了のActionを追加
+- [ ] **実装詳細**:
+  - `actionStartEntityDrag(viewModel: ViewModel): ViewModel`を追加
+    - `isDraggingEntity`を`true`に設定
+    - `hover`を`null`に設定
+    - `highlightedNodeIds`、`highlightedEdgeIds`、`highlightedColumnIds`を空配列に設定
+  - `actionStopEntityDrag(viewModel: ViewModel): ViewModel`を追加
+    - `isDraggingEntity`を`false`に設定
+  - 両方とも変化がない場合は同一参照を返す（再レンダリング抑制）
+
+### ERCanvasでのドラッグイベント処理
+
+- [ ] **ファイル**: `public/src/components/ERCanvas.tsx`
+- [ ] **変更内容**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントでActionをdispatch
+- [ ] **実装詳細**:
+  - `onNodeDragStart`コールバックを追加
+    - `actionStartEntityDrag`をimport
+    - `node.type === 'entityNode'`の場合に`dispatch(actionStartEntityDrag)`を実行
+  - `onNodeDragStop`コールバックに処理を追加
+    - 既存の処理（位置更新、エッジハンドル再計算）の後に`dispatch(actionStopEntityDrag)`を実行
+
+### EntityNodeのCSS transition制御
+
+- [ ] **ファイル**: `public/src/components/EntityNode.tsx`
+- [ ] **変更内容**: ドラッグ中はCSS transitionを無効化
+- [ ] **実装詳細**:
+  - `isDraggingEntity`フラグをStoreから購読（`useViewModel`使用）
+  - ノードのスタイルに`transition`プロパティを追加
+    - `isDraggingEntity === true`の場合: `transition: 'none'`（transition無効）
+    - `isDraggingEntity === false`の場合: `transition: 'all 0.2s ease-in-out'`（既存のtransition）
+  - React Flowのドラッグ操作とCSS transitionの干渉を防ぎ、スムーズな移動を実現
+
+### hoverActionsのテストコード修正
+
+- [ ] **ファイル**: `public/tests/actions/hoverActions.test.ts`
+- [ ] **変更内容**: ドラッグ中のホバー無効化とドラッグAction追加のテストケース追加
+- [ ] **追加するテストケース**:
+  - `actionHoverEntity`、`actionHoverEdge`、`actionHoverColumn`に対して
+    - ドラッグ中（`isDraggingEntity: true`）の場合、元の状態を返す（同一参照）
+  - `actionStartEntityDrag`に対して
+    - `isDraggingEntity`が`true`に設定される
+    - `hover`が`null`に設定される
+    - 全てのハイライト配列が空になる
+    - すでにドラッグ中の場合は同一参照を返す
+  - `actionStopEntityDrag`に対して
+    - `isDraggingEntity`が`false`に設定される
+    - すでにドラッグ停止状態の場合は同一参照を返す
+
+### 初期ViewModelの更新
+
+- [ ] **ファイル**: `public/src/utils/getInitialViewModelValues.ts`
+- [ ] **変更内容**: `isDraggingEntity`の初期値を追加
+- [ ] **実装詳細**:
+  - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
+
+### バックエンドGetInitialViewModelUsecaseの更新
+
+- [ ] **ファイル**: `lib/usecases/GetInitialViewModelUsecase.ts`
+- [ ] **変更内容**: 初期ViewModelに`isDraggingEntity: false`を含める
+- [ ] **実装詳細**:
+  - `erDiagram.ui`の初期値に`isDraggingEntity: false`を追加
+
+### バックエンドReverseEngineerUsecaseの更新
+
+- [ ] **ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
+- [ ] **変更内容**: リバースエンジニアリング後の`erDiagram.ui`に`isDraggingEntity: false`を含める
+- [ ] **実装詳細**:
+  - UI状態クリア処理の箇所（hover、highlightedXxxIdsをクリアしている箇所）で`isDraggingEntity: false`も設定
+  - リバースエンジニアリング処理中はドラッグ操作が発生しないため、常に`false`
 
 ## ビルド・テスト
 
 ### ビルド確認
 
-- [x] `npm run generate`を実行してコード生成を確認
-- [x] バックエンドとフロントエンドのビルドが成功することを確認
+- [ ] `npm run generate`を実行してコード生成を確認
+- [ ] バックエンドとフロントエンドのビルドが成功することを確認
 
 ### テスト実行
 
-- [x] `npm run test`を実行してすべてのテストが成功することを確認
-- [x] 特に追加した増分リバースエンジニアリングのテストケースが成功することを確認
+- [ ] `npm run test`を実行してすべてのテストが成功することを確認
+- [ ] 特に追加したドラッグ中のホバー無効化のテストケースが成功することを確認
 
 ## 備考
 
-### データベーススキーマの差分
+### 実装のポイント
 
-init.sqlの`erviewer`と`erviewer-2`スキーマには以下の差分が存在する（テストに活用できる）:
+* **ホバー無効化の実装方法**: `isDraggingEntity`フラグをチェックして、ドラッグ中はホバーActionで何もせず元のviewModelを返す（同一参照を返すことで再レンダリングを抑制）
+* **ドラッグ検出**: React Flowの`onNodeDragStart`/`onNodeDragStop`イベントを使用
+* **CSS transition制御**: `isDraggingEntity`フラグに応じてEntityNodeのtransitionプロパティを動的に切り替え
+* **対象範囲**: エンティティノードのドラッグのみが対象。矩形ノードやテキストノードのドラッグは別の管理方式のため影響なし
 
-- **テーブル名変更**: `user_profiles` → `profiles`
-- **カラム名変更**: `users.first_name` → `users.given_name`
-- **カラム追加**: `users.phone_number`
-- **カラム削除**: `users.avatar_url`
-- **カラム型変更**: `projects.budget`: DECIMAL(12,2) → DECIMAL(15,2)
-- **テーブル追加**: `task_comments`、`subscriptions`、`audit_logs`
-- **テーブル削除**: `activities`
-- **外部キー制約変更**: `user_roles.assigned_by`のON DELETE: SET NULL → RESTRICT
+### テスト戦略
 
-### 既存の仕様との整合性
+* Action単体テストで`isDraggingEntity`フラグの動作を検証
+* ドラッグ中のホバーイベントが無視されることをテスト
+* ドラッグ開始・終了Actionのテスト
 
-- レイアウト定数（横間隔300px、縦間隔200px、1行あたり4エンティティ、開始座標(50,50)）は既存の実装と同じ
-- ViewModelベースAPIの設計は変更なし（リクエストでViewModelを受け取り、更新後のViewModelを返却）
+### 既存機能との整合性
 
-## 実装完了
-
-**完了日時**: 2026-01-26
-
-### 実装内容
-
-1. **ReverseEngineerUsecaseの修正完了**
-   - 増分リバースエンジニアリング機能を実装
-   - 既存エンティティの座標とIDを維持
-   - 新規エンティティを既存エンティティの右側・下側に配置
-   - 削除されたエンティティをViewModelから除外
-   - カラムとリレーションシップを全件置き換え
-   - 矩形とテキストを維持
-   - UI状態（hover、ハイライト）をクリア
-   - レイヤー順序から削除されたエンティティの参照を除外
-
-2. **テストコード追加完了**
-   - 既存エンティティの座標維持テスト
-   - 新規エンティティの追加テスト
-   - 削除エンティティの除外テスト
-   - カラム変更の反映テスト
-   - UI状態のクリアテスト
-   - レイヤー順序の更新テスト
-   - 矩形・テキストの維持テスト
-
-3. **テスト結果**
-   - 全117テストケースが成功
-   - 新規追加した増分リバースエンジニアリングのテストケース7件も全て成功
-
-### 変更ファイル
-
-- `lib/usecases/ReverseEngineerUsecase.ts`: 増分リバースエンジニアリング機能の実装
-- `tests/usecases/ReverseEngineerUsecase.test.ts`: テストケースの追加
-
-すべてのタスクが完了し、テストも成功しました。
+* 既存のホバーインタラクション機能は維持（ドラッグ中以外は正常に動作）
+* ViewModelの構造に`isDraggingEntity`フラグを追加するのみで、既存のフィールドは変更しない
+* React Flowの既存のドラッグ処理には影響を与えない

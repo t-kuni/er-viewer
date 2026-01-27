@@ -18,11 +18,11 @@
 
 ---
 
-## フェーズ1: バックエンド実装（型生成・ビルド・テスト含む）
+## フェーズ1: バックエンド実装（型生成・ビルド・テスト含む）✅
 
 ### バックエンド: 逆引きインデックス計算ユーティリティの実装
 
-- [ ] **ファイル作成**: `/lib/utils/buildERDiagramIndex.ts`
+- [x] **ファイル作成**: `/lib/utils/buildERDiagramIndex.ts`
   - `buildERDiagramIndex`関数を実装
   - **引数**: `nodes: Record<EntityNodeViewModel>`, `edges: Record<RelationshipEdgeViewModel>`
   - **戻り値**: `ERDiagramIndex`
@@ -37,7 +37,7 @@
 
 ### バックエンド: GetInitialViewModelUsecaseの修正
 
-- [ ] **ファイル修正**: `/lib/usecases/GetInitialViewModelUsecase.ts`
+- [x] **ファイル修正**: `/lib/usecases/GetInitialViewModelUsecase.ts`
   - 空の`ERDiagramViewModel`を生成する際に、空のインデックスを追加
   - **修正内容**:
     ```typescript
@@ -59,7 +59,7 @@
 
 ### バックエンド: ReverseEngineerUsecaseの修正
 
-- [ ] **ファイル修正**: `/lib/usecases/ReverseEngineerUsecase.ts`
+- [x] **ファイル修正**: `/lib/usecases/ReverseEngineerUsecase.ts`
   - `buildERDiagramIndex`をインポート
   - `nodes`と`edges`を生成した後、`buildERDiagramIndex`を呼び出して`index`を計算
   - **修正箇所**: ViewModelを返却する直前（現在は199行目付近）
@@ -88,7 +88,7 @@
 
 ### バックエンド: テストコード作成
 
-- [ ] **ファイル作成**: `/tests/utils/buildERDiagramIndex.test.ts`
+- [x] **ファイル作成**: `/tests/utils/buildERDiagramIndex.test.ts`
   - `buildERDiagramIndex`関数の単体テスト
   - **テストケース**:
     - 空のnodes/edgesで空のインデックスを返すこと
@@ -97,11 +97,11 @@
     - カラムが複数のエッジに接続されている場合、`columnToEdges`に複数のエッジIDが含まれること
     - エンティティが複数のエッジに接続されている場合、`entityToEdges`に複数のエッジIDが含まれること
 
-- [ ] **ファイル修正**: `/tests/usecases/GetInitialViewModelUsecase.test.ts`
+- [x] **ファイル修正**: `/tests/usecases/GetInitialViewModelUsecase.test.ts`
   - 空のインデックスが含まれていることを検証するアサーションを追加
   - **修正内容**: `expect(result.erDiagram.index).toEqual({ entityToEdges: {}, columnToEntity: {}, columnToEdges: {} })`
 
-- [ ] **ファイル修正**: `/tests/usecases/ReverseEngineerUsecase.test.ts`
+- [x] **ファイル修正**: `/tests/usecases/ReverseEngineerUsecase.test.ts`
   - 計算されたインデックスが正しいことを検証するアサーションを追加
   - **修正内容**: 
     - `result.erDiagram.index.entityToEdges`が正しく構築されていることを確認
@@ -110,14 +110,14 @@
 
 ### バックエンド: ビルドとテストの確認
 
-- [ ] **型生成の実行**: `npm run generate`
+- [x] **型生成の実行**: `npm run generate`
   - `lib/generated/api-types.ts`に`ERDiagramIndex`型が含まれることを確認（既に生成済み）
 
-- [ ] **ビルド確認**: `npm run build` または TypeScriptコンパイル
+- [x] **ビルド確認**: `npm run build` または TypeScriptコンパイル
   - エラーなくビルドできることを確認
 
-- [ ] **テスト実行**: `npm run test`
-  - 新規・修正したテストがすべてパスすることを確認
+- [x] **テスト実行**: `npm run test`
+  - 新規・修正したテストがすべてパスすることを確認（131テスト全てパス）
 
 ---
 
@@ -315,3 +315,21 @@
 2. **パフォーマンステスト**: 実際に大規模ER図（100テーブル、500リレーション）でパフォーマンス改善を確認することを推奨します（MVPフェーズでは不要ですが、将来的に確認すると良いでしょう）
 
 3. **既存テストへの影響**: ホバーアクションのテストは、インデックスが正しく構築されている前提で動作するため、モックデータの`index`フィールドを正確に設定する必要があります
+
+---
+
+## 作業進捗
+
+### 2026-01-27: フェーズ1完了
+
+**実施内容**:
+- ✅ `/lib/utils/buildERDiagramIndex.ts`を作成し、逆引きインデックス計算ユーティリティを実装
+- ✅ `/lib/usecases/GetInitialViewModelUsecase.ts`を修正し、空のインデックスを追加
+- ✅ `/lib/usecases/ReverseEngineerUsecase.ts`を修正し、リバースエンジニア時にインデックスを計算
+- ✅ `/tests/utils/buildERDiagramIndex.test.ts`を作成し、5つのテストケースを実装
+- ✅ `/tests/usecases/GetInitialViewModelUsecase.test.ts`を修正し、インデックス検証を追加
+- ✅ `/tests/usecases/ReverseEngineerUsecase.test.ts`を修正し、インデックス検証を追加（全テストケースに`index`フィールドを追加）
+- ✅ テスト実行: 131テスト全てパス
+
+**次のステップ**:
+- フェーズ2: フロントエンド実装を開始してください

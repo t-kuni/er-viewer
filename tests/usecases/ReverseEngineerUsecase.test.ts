@@ -43,6 +43,11 @@ describe('ReverseEngineerUsecase', () => {
         edges: {},
         rectangles: {},
         texts: {},
+        index: {
+          entityToEdges: {},
+          columnToEntity: {},
+          columnToEdges: {},
+        },
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -148,6 +153,31 @@ describe('ReverseEngineerUsecase', () => {
     expect(result.settings!.lastDatabaseConnection!.port).toBe(30177);
     expect(result.settings!.lastDatabaseConnection!.user).toBe('root');
     expect(result.settings!.lastDatabaseConnection!.database).toBe('erviewer');
+    
+    // インデックスが計算されることを確認
+    expect(result.erDiagram.index).toBeDefined();
+    expect(result.erDiagram.index.entityToEdges).toBeDefined();
+    expect(result.erDiagram.index.columnToEntity).toBeDefined();
+    expect(result.erDiagram.index.columnToEdges).toBeDefined();
+    
+    // usersノードのIDを使ってインデックスが正しく構築されているか確認
+    if (usersNode) {
+      // usersノードのカラムIDがcolumnToEntityに含まれていることを確認
+      usersNode.columns.forEach(column => {
+        expect(result.erDiagram.index.columnToEntity[column.id]).toBe(usersNode.id);
+      });
+    }
+    
+    // エッジがある場合、インデックスが正しく構築されているか確認
+    if (edges.length > 0) {
+      const firstEdge = edges[0];
+      // sourceEntityIdとtargetEntityIdがentityToEdgesに含まれていることを確認
+      expect(result.erDiagram.index.entityToEdges[firstEdge.sourceEntityId]).toContain(firstEdge.id);
+      expect(result.erDiagram.index.entityToEdges[firstEdge.targetEntityId]).toContain(firstEdge.id);
+      // sourceColumnIdとtargetColumnIdがcolumnToEdgesに含まれていることを確認
+      expect(result.erDiagram.index.columnToEdges[firstEdge.sourceColumnId]).toContain(firstEdge.id);
+      expect(result.erDiagram.index.columnToEdges[firstEdge.targetColumnId]).toContain(firstEdge.id);
+    }
   });
 
   it('viewModel.settings.lastDatabaseConnectionから接続情報を取得する', async () => {
@@ -171,6 +201,11 @@ describe('ReverseEngineerUsecase', () => {
         edges: {},
         rectangles: {},
         texts: {},
+        index: {
+          entityToEdges: {},
+          columnToEntity: {},
+          columnToEdges: {},
+        },
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -255,6 +290,11 @@ describe('ReverseEngineerUsecase', () => {
         edges: {},
         rectangles: {},
         texts: {},
+        index: {
+          entityToEdges: {},
+          columnToEntity: {},
+          columnToEdges: {},
+        },
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -326,6 +366,11 @@ describe('ReverseEngineerUsecase', () => {
         edges: {},
         rectangles: {},
         texts: {},
+        index: {
+          entityToEdges: {},
+          columnToEntity: {},
+          columnToEdges: {},
+        },
         ui: {
           hover: null,
           highlightedNodeIds: [],
@@ -393,6 +438,11 @@ describe('ReverseEngineerUsecase', () => {
         edges: {},
         rectangles: {},
         texts: {},
+        index: {
+          entityToEdges: {},
+          columnToEntity: {},
+          columnToEdges: {},
+        },
         ui: {
           hover: null,
           highlightedNodeIds: [],

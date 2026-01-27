@@ -39,6 +39,11 @@ describe('GetInitialViewModelUsecase', () => {
     expect(viewModel.erDiagram.edges).toEqual({});
     expect(viewModel.erDiagram.rectangles).toEqual({});
     expect(viewModel.erDiagram.texts).toEqual({});
+    expect(viewModel.erDiagram.index).toEqual({
+      entityToEdges: {},
+      columnToEntity: {},
+      columnToEdges: {},
+    });
     expect(viewModel.erDiagram.loading).toBe(false);
     expect(viewModel.erDiagram.ui.hover).toBeNull();
     expect(viewModel.erDiagram.ui.highlightedNodeIds).toEqual([]);

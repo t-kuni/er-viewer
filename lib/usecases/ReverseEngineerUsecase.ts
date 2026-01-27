@@ -1,6 +1,7 @@
 import type DatabaseManager from '../database';
 import type { components } from '../generated/api-types.js';
 import type { DatabaseConfig } from '../database.js';
+import { buildERDiagramIndex } from '../utils/buildERDiagramIndex.js';
 
 // TypeSpecから生成された型を使用
 export type ViewModel = components['schemas']['ViewModel'];
@@ -197,6 +198,9 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
         });
       }
       
+      // 逆引きインデックスを計算
+      const index = buildERDiagramIndex(nodes, edges);
+      
       // 接続情報を保存（パスワードを除く）
       const lastDatabaseConnection: DatabaseConnectionState = {
         type: 'mysql', // 現在はMySQLのみサポート
@@ -215,6 +219,7 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
           edges,
           rectangles: viewModel.erDiagram.rectangles, // 矩形を維持
           texts: viewModel.erDiagram.texts, // テキストを維持
+          index,
           ui: {
             hover: null, // hoverはクリア
             highlightedNodeIds: [], // クリア

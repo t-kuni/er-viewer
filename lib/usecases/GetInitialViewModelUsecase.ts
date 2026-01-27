@@ -44,6 +44,11 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       edges: {},
       rectangles: {},
       texts: {},
+      index: {
+        entityToEdges: {},
+        columnToEntity: {},
+        columnToEdges: {},
+      },
       ui: erDiagramUIState,
       loading: false,
     };

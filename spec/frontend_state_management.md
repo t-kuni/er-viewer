@@ -250,6 +250,8 @@ React Flowのイベントを使用し、mousemoveは使わない：
 
 カラムホバーは `stopPropagation()` でエンティティホバーを抑制する。
 
+ドラッグ中のホバー動作については[frontend_er_rendering.md](./frontend_er_rendering.md)のホバーインタラクション仕様を参照。
+
 ## 非同期処理（API呼び出し）
 
 ### Command層

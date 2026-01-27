@@ -15,6 +15,7 @@ import {
   ViewportPortal,
   useViewport,
   NodeTypes,
+  useNodesInitialized,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
@@ -160,17 +161,27 @@ function ERCanvasInner({
   setNodes, 
   setEdges,
   dispatch,
-  onSelectionChange
+  onSelectionChange,
+  onNodesInitialized
 }: { 
   nodes: Node[], 
   edges: Edge[], 
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>, 
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
   dispatch: ReturnType<typeof useDispatch>,
-  onSelectionChange?: (rectangleId: string | null) => void
+  onSelectionChange?: (rectangleId: string | null) => void,
+  onNodesInitialized?: (initialized: boolean) => void
 }) {
   const { getNodes } = useReactFlow()
   const viewport = useViewport()
+  const nodesInitialized = useNodesInitialized()
+  
+  // ノード初期化状態を親に通知
+  useEffect(() => {
+    if (onNodesInitialized) {
+      onNodesInitialized(nodesInitialized)
+    }
+  }, [nodesInitialized, onNodesInitialized])
   
   // Store購読
   const layerOrder = useViewModel((vm) => vm.erDiagram.ui.layerOrder)
@@ -652,9 +663,10 @@ function ERCanvasInner({
 
 interface ERCanvasProps {
   onSelectionChange?: (rectangleId: string | null) => void
+  onNodesInitialized?: (initialized: boolean) => void
 }
 
-function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
+function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {}) {
   const dispatch = useDispatch()
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
@@ -756,6 +768,7 @@ function ERCanvas({ onSelectionChange }: ERCanvasProps = {}) {
           setEdges={setEdges} 
           dispatch={dispatch}
           onSelectionChange={onSelectionChange}
+          onNodesInitialized={onNodesInitialized}
         />
       </ReactFlowProvider>
     </div>

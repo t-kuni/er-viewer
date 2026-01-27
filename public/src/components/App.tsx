@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import ERCanvas from './ERCanvas'
 import BuildInfoModal from './BuildInfoModal'
 import DatabaseConnectionModal from './DatabaseConnectionModal'
+import LayoutProgressBar from './LayoutProgressBar'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
 import { TextPropertyPanel } from './TextPropertyPanel'
 import { LayerPanel } from './LayerPanel'
@@ -12,6 +13,7 @@ import { actionSelectItem, actionToggleLayerPanel } from '../actions/layerAction
 import { actionSetViewModel } from '../actions/dataActions'
 import { commandInitialize } from '../commands/initializeCommand'
 import { commandReverseEngineer } from '../commands/reverseEngineerCommand'
+import { commandLayoutOptimize } from '../commands/layoutOptimizeCommand'
 import { erDiagramStore } from '../store/erDiagramStore'
 import { exportViewModel } from '../utils/exportViewModel'
 import { importViewModel } from '../utils/importViewModel'
@@ -20,6 +22,7 @@ import type { DatabaseConnectionState } from '../api/client'
 function App() {
   const dispatch = useDispatch()
   const [dbConnectionError, setDbConnectionError] = useState<string | undefined>(undefined)
+  const [nodesInitialized, setNodesInitialized] = useState<boolean>(false)
   
   // 初期化処理
   useEffect(() => {
@@ -34,6 +37,8 @@ function App() {
   const viewModel = useViewModel((vm) => vm)
   const buildInfo = useViewModel((vm) => vm.buildInfo)
   const lastDatabaseConnection = useViewModel((vm) => vm.settings?.lastDatabaseConnection)
+  const erDiagram = useViewModel((vm) => vm.erDiagram)
+  const layoutOptimization = useViewModel((vm) => vm.ui.layoutOptimization)
   
   // エクスポートハンドラ
   const handleExport = () => {
@@ -92,6 +97,18 @@ function App() {
     setDbConnectionError(undefined)
   }
   
+  // 配置最適化ボタンのハンドラ
+  const handleLayoutOptimize = () => {
+    commandLayoutOptimize(dispatch, erDiagramStore.getState)
+  }
+  
+  // 配置最適化ボタンの有効/無効判定
+  const isLayoutOptimizeDisabled = 
+    erDiagram.loading || 
+    layoutOptimization.isRunning || 
+    Object.keys(erDiagram.nodes).length === 0 ||
+    !nodesInitialized
+  
   return (
     <div className="app">
       <header 
@@ -121,6 +138,21 @@ function App() {
             }}
           >
             リバースエンジニア
+          </button>
+          <button 
+            onClick={handleLayoutOptimize}
+            disabled={isLayoutOptimizeDisabled}
+            style={{
+              padding: '0.5rem 1rem',
+              background: isLayoutOptimizeDisabled ? '#888' : '#555',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: isLayoutOptimizeDisabled ? 'not-allowed' : 'pointer',
+              opacity: isLayoutOptimizeDisabled ? 0.6 : 1
+            }}
+          >
+            配置最適化
           </button>
           <button 
             onClick={() => dispatch(actionToggleLayerPanel)}
@@ -194,7 +226,10 @@ function App() {
           flex: 1, 
           position: 'relative' 
         }}>
-          <ERCanvas onSelectionChange={handleSelectionChange} />
+          <ERCanvas 
+            onSelectionChange={handleSelectionChange}
+            onNodesInitialized={setNodesInitialized}
+          />
         </div>
         {selectedItem && (
           <div 
@@ -229,6 +264,7 @@ function App() {
           errorMessage={dbConnectionError}
         />
       )}
+      <LayoutProgressBar />
     </div>
   )
 }

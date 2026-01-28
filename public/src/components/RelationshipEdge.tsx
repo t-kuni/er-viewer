@@ -20,7 +20,6 @@ function RelationshipEdge({
     (vm) => vm.erDiagram.ui.highlightedEdgeIds.includes(id),
     (a, b) => a === b
   )
-  const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   
   const [edgePath] = getSmoothStepPath({
     sourceX,
@@ -30,9 +29,6 @@ function RelationshipEdge({
     targetY,
     targetPosition,
   })
-  
-  // 他の要素がホバー中でこのエッジがハイライト対象でない場合
-  const isDimmed = hasHover && !isHighlighted
   
   return (
     <g
@@ -50,7 +46,6 @@ function RelationshipEdge({
           stroke: isHighlighted ? '#007bff' : '#333',
           strokeWidth: isHighlighted ? 4 : 2,
           fill: 'none',
-          opacity: isDimmed ? 0.2 : 1,
         }}
       />
     </g>

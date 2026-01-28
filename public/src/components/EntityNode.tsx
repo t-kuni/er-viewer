@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import type { Column } from '../api/client'
 import { useViewModel, useDispatch } from '../store/hooks'
@@ -20,22 +20,18 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
     (vm) => vm.erDiagram.ui.highlightedNodeIds.includes(data.id),
     (a, b) => a === b
   )
-  const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   const isDraggingEntity = useViewModel((vm) => vm.erDiagram.ui.isDraggingEntity)
   
-  // 他の要素がホバー中でこのノードがハイライト対象でない場合
-  const isDimmed = hasHover && !isHighlighted
-  
   // カラムホバーハンドラー
-  const handleColumnMouseEnter = (e: React.MouseEvent, columnId: string) => {
+  const handleColumnMouseEnter = useCallback((e: React.MouseEvent, columnId: string) => {
     e.stopPropagation()
     dispatch(actionHoverColumn, columnId)
-  }
+  }, [dispatch])
   
-  const handleColumnMouseLeave = (e: React.MouseEvent) => {
+  const handleColumnMouseLeave = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     dispatch(actionClearHover)
-  }
+  }, [dispatch])
   
   return (
     <div 
@@ -44,7 +40,6 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         borderRadius: '4px', 
         background: 'white',
         minWidth: '200px',
-        opacity: isDimmed ? 0.2 : 1,
         boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
         zIndex: isHighlighted ? 1000 : 1,
       }}

@@ -1,5 +1,45 @@
 # タスク一覧: ホバーハイライト機能の仕様変更対応
 
+## ✅ 作業完了 (2026-01-28)
+
+すべての実装タスクとビルド確認タスクが正常に完了しました。
+
+### 完了した作業
+
+1. **EntityNode.tsx の修正** ✅
+   - `useCallback`のimportを追加
+   - `hasHover`の購読を削除
+   - `isDimmed`変数の定義を削除
+   - `opacity`プロパティを削除
+   - `handleColumnMouseEnter`と`handleColumnMouseLeave`を`useCallback`でメモ化
+
+2. **RelationshipEdge.tsx の修正** ✅
+   - `hasHover`の購読を削除
+   - `isDimmed`変数の定義を削除
+   - `opacity`プロパティを削除
+
+3. **ERCanvas.tsx の確認** ✅
+   - イベントハンドラーは既にuseCallbackでメモ化済みのため修正不要を確認
+
+4. **テストの実行** ✅
+   - `hoverActions.test.ts`: 20テスト全て成功
+   - その他のテスト: 119テスト全て成功
+   - `ReverseEngineerUsecase.test.ts`: Docker Compose未起動のためスキップ（今回の修正とは無関係）
+
+5. **コード生成の実行** ✅
+   - `npm run generate`: 正常完了
+
+6. **フロントエンドのビルド確認** ✅
+   - `cd public && npm run build`: 正常完了
+   - TypeScriptのコンパイルエラーなし
+
+### 実装の影響範囲
+
+- **非ハイライト要素の透明度削除**: ホバー時に非ハイライト要素が薄暗く表示されなくなりました
+- **パフォーマンス向上**: イベントハンドラーのメモ化により、React.memoの効果が最大化されました
+
+---
+
 ## 概要
 
 `spec/frontend_er_rendering.md` と `spec/frontend_state_management.md` の仕様変更に対応する実装とテストの更新を行う。

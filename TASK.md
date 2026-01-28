@@ -1,218 +1,127 @@
-# タスク一覧: ホバーインタラクションのパフォーマンス最適化
-
-## 実装状況
-
-**完了日時**: 2026-01-28
-
-すべてのタスクが完了し、テストも全て成功しました（131テスト全てパス）。
-
-### 実装内容
-
-1. `useViewModel`フックに`equalityFn`パラメータを追加し、値ベースの比較による再レンダリング最適化を実装
-2. `EntityColumn`コンポーネントを新規作成し、各カラムが個別にハイライト状態を購読するように最適化
-3. `EntityNode`コンポーネントを最適化（selector最適化 + React.memo）
-4. `RelationshipEdge`コンポーネントを最適化（selector最適化 + React.memo）
-5. コード生成、ビルド、テストの実行確認
-
-### 技術的な注意点
-
-- TypeScript型エラー（EntityNode.tsx L15など）は`@xyflow/react`ライブラリの型定義の問題であり、実際の実行時には影響しない
-- テストとビルドは正常に完了しているため、機能的には問題なし
+# タスク一覧: ホバーハイライト機能の仕様変更対応
 
 ## 概要
 
-`frontend_state_management.md` と `frontend_er_rendering.md` の仕様変更に基づき、ホバー時の再レンダリングを最小化するための最適化を実装する。
+`spec/frontend_er_rendering.md` と `spec/frontend_state_management.md` の仕様変更に対応する実装とテストの更新を行う。
 
-大量のエンティティ・リレーションがある場合、現在の実装ではホバーするたびに全てのEntityNodeとRelationshipEdgeが再レンダリングされ、パフォーマンスが劣化する。各コンポーネントがハイライト配列全体ではなく「自分がハイライトされているか」という真偽値だけを購読することで、ハイライト状態が変化したコンポーネントのみが再レンダリングされるようにする。
+**主な変更内容**:
+1. 非ハイライト要素の透明度表示を削除（`opacity: 0.2〜0.3`の削除）
+2. イベントハンドラーのメモ化（`useCallback`）を追加してReact.memoの効果を最大化
 
 ## 参照仕様書
 
-- `/home/kuni/Documents/er-viewer/spec/frontend_state_management.md`
-  - 「React統合」セクション（234-250行目）
-  - 「ホバーインタラクションの最適化」セクション（387-391行目）
-- `/home/kuni/Documents/er-viewer/spec/frontend_er_rendering.md`
-  - 「実装時の注意事項」セクション（373-386行目）
+- `/home/kuni/Documents/er-viewer/spec/frontend_er_rendering.md` - L238-289（ハイライト機能の仕様）、L349-381（実装時の注意事項）
+- `/home/kuni/Documents/er-viewer/spec/frontend_state_management.md` - L393-395（イベントハンドラーのメモ化）
 
 ## 実装タスク
 
-### ✅ useViewModelフックの拡張
-
-**編集対象**: `/home/kuni/Documents/er-viewer/public/src/store/hooks.ts`
-
-**変更内容**:
-- `useViewModel`関数のシグネチャに`equalityFn`パラメータを追加する
-  ```typescript
-  function useViewModel<T>(
-    selector: (vm: ViewModel) => T,
-    equalityFn?: (a: T, b: T) => boolean
-  ): T
-  ```
-- `useSyncExternalStore`の実装を修正し、等価性チェック関数を適用する
-  - 前回のselector結果を保持し、`equalityFn`で比較する
-  - `equalityFn`が指定されていない場合は従来通り参照比較を行う（`Object.is`）
-  - 値が変わらない場合は前回の参照を返すことで、`useSyncExternalStore`による不要な再レンダリングを防ぐ
-
-**実装のポイント**:
-- `useSyncExternalStore`は参照比較を行うため、selectorが毎回新しい値（例: boolean）を返すと、値が同じでも参照が異なるため再レンダリングが発生する
-- `equalityFn`を使って値ベースの比較を行い、値が変わらない場合は前回の参照を返すことで、この問題を解決する
-- クロージャを使って前回の値を保持する実装が必要
-
-### ✅ EntityNodeコンポーネントの最適化
+### EntityNodeコンポーネントの修正
 
 **編集対象**: `/home/kuni/Documents/er-viewer/public/src/components/EntityNode.tsx`
 
 **変更内容**:
-1. **React.memoでラップ**: コンポーネント全体を`React.memo`でラップし、propsが変わらない限り再レンダリングを防ぐ
-   ```typescript
-   export default React.memo(EntityNode)
-   ```
 
-2. **selector最適化**: ハイライト配列全体ではなく「自分がハイライトされているか」という真偽値だけを購読する
-   - 現在の実装:
-     ```typescript
-     const highlightedNodeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedNodeIds)
-     const isHighlighted = highlightedNodeIds.includes(data.id)
-     ```
-   - 最適化後:
-     ```typescript
-     const isHighlighted = useViewModel(
-       (vm) => vm.erDiagram.ui.highlightedNodeIds.includes(data.id),
-       (a, b) => a === b
-     )
-     ```
-   
-**注意事項**:
-- `hasHover`は引き続き購読する（dimmed状態の計算に必要）
-- `isDraggingEntity`も引き続き購読する（ドラッグ中のホバー無効化に必要）
-- カラムのレンダリングはEntityColumnコンポーネントに委譲する
+1. **非ハイライト要素のopacity削除**
+   - 現在: `opacity: isDimmed ? 0.2 : 1` (L47)
+   - 修正後: `opacity: 1` を削除（デフォルト値のため指定不要）
+   - `isDimmed`変数の定義（L27）と使用箇所を削除
+   - `hasHover`の購読（L23）も不要になるため削除
 
-### ✅ EntityColumnコンポーネントの作成
-
-**新規作成**: `/home/kuni/Documents/er-viewer/public/src/components/EntityColumn.tsx`
-
-**変更内容**:
-カラムを別コンポーネントに切り出し、各カラムが自分のハイライト状態だけを購読するようにする。
-
-**コンポーネントのインターフェース**:
-```typescript
-interface EntityColumnProps {
-  column: Column
-  onMouseEnter: (e: React.MouseEvent, columnId: string) => void
-  onMouseLeave: (e: React.MouseEvent) => void
-}
-```
-
-**実装内容**:
-1. **React.memoでラップ**: コンポーネント全体を`React.memo`でラップ
-2. **selector最適化**: 各カラムが「自分がハイライトされているか」という真偽値だけを購読
-   ```typescript
-   const isHighlighted = useViewModel(
-     (vm) => vm.erDiagram.ui.highlightedColumnIds.includes(column.id),
-     (a, b) => a === b
-   )
-   ```
-3. **カラムの表示**: 既存のEntityNodeからカラム表示ロジックを移植
-   - PKアイコン（🔑）、FKアイコン（🔗）の表示
-   - ハイライト時の背景色変更
-   - ホバーイベントハンドラーの設定
-
-**EntityNodeからの移植箇所**:
-- EntityNode.tsxの78-99行目のカラムレンダリングロジック
-
-### ✅ EntityNodeコンポーネントのリファクタリング
-
-**編集対象**: `/home/kuni/Documents/er-viewer/public/src/components/EntityNode.tsx`（追加修正）
-
-**変更内容**:
-1. EntityColumnコンポーネントをimport
-2. カラムのmap内でEntityColumnコンポーネントを使用するように変更
-3. `highlightedColumnIds`の購読を削除（EntityColumnが個別に購読するため不要）
+2. **イベントハンドラーのメモ化**
+   - `handleColumnMouseEnter`と`handleColumnMouseLeave`を`useCallback`でメモ化
+   - 依存配列: `[dispatch]`
+   - 目的: EntityColumnコンポーネントのReact.memoを効かせるため（親の再レンダリング時に子への不要なprops変更を防ぐ）
 
 **修正前**:
 ```typescript
-{data.columns.map((col, index) => {
-  const isColumnHighlighted = highlightedColumnIds.includes(col.id)
-  
-  return (
-    <div 
-      key={index} 
-      style={{ 
-        padding: '4px',
-        borderBottom: '1px solid #eee',
-        fontSize: '12px',
-        backgroundColor: isColumnHighlighted ? '#e3f2fd' : 'transparent',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={(e) => handleColumnMouseEnter(e, col.id)}
-      onMouseLeave={handleColumnMouseLeave}
-    >
-      {col.key === 'PRI' && '🔑 '}
-      {col.key === 'MUL' && '🔗 '}
-      {col.name}
-    </div>
-  )
-})}
+const handleColumnMouseEnter = (e: React.MouseEvent, columnId: string) => {
+  e.stopPropagation()
+  dispatch(actionHoverColumn, columnId)
+}
+
+const handleColumnMouseLeave = (e: React.MouseEvent) => {
+  e.stopPropagation()
+  dispatch(actionClearHover)
+}
 ```
 
 **修正後**:
 ```typescript
-{data.columns.map((col, index) => (
-  <EntityColumn
-    key={index}
-    column={col}
-    onMouseEnter={handleColumnMouseEnter}
-    onMouseLeave={handleColumnMouseLeave}
-  />
-))}
+const handleColumnMouseEnter = useCallback((e: React.MouseEvent, columnId: string) => {
+  e.stopPropagation()
+  dispatch(actionHoverColumn, columnId)
+}, [dispatch])
+
+const handleColumnMouseLeave = useCallback((e: React.MouseEvent) => {
+  e.stopPropagation()
+  dispatch(actionClearHover)
+}, [dispatch])
 ```
 
-### ✅ RelationshipEdgeコンポーネントの最適化
+**必要なimport追加**:
+```typescript
+import React, { useCallback } from 'react'
+```
+
+### RelationshipEdgeコンポーネントの修正
 
 **編集対象**: `/home/kuni/Documents/er-viewer/public/src/components/RelationshipEdge.tsx`
 
 **変更内容**:
-1. **React.memoでラップ**: コンポーネント全体を`React.memo`でラップし、propsが変わらない限り再レンダリングを防ぐ
-   ```typescript
-   export default React.memo(RelationshipEdge)
-   ```
 
-2. **selector最適化**: ハイライト配列全体ではなく「自分がハイライトされているか」という真偽値だけを購読する
-   - 現在の実装:
-     ```typescript
-     const highlightedEdgeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedEdgeIds)
-     const isHighlighted = highlightedEdgeIds.includes(id)
-     ```
-   - 最適化後:
-     ```typescript
-     const isHighlighted = useViewModel(
-       (vm) => vm.erDiagram.ui.highlightedEdgeIds.includes(id),
-       (a, b) => a === b
-     )
-     ```
+1. **非ハイライト要素のopacity削除**
+   - 現在: `opacity: isDimmed ? 0.2 : 1` (L53)
+   - 修正後: opacity指定を削除（デフォルト値1を使用）
+   - `isDimmed`変数の定義（L35）と使用箇所を削除
+   - `hasHover`の購読（L23）も不要になるため削除
 
-**注意事項**:
-- `hasHover`は引き続き購読する（dimmed状態の計算に必要）
+**修正箇所**:
+- L23の`hasHover`購読行を削除
+- L35の`isDimmed`変数定義を削除
+- L53の`opacity: isDimmed ? 0.2 : 1`を削除
+
+### ERCanvasコンポーネントの確認
+
+**確認対象**: `/home/kuni/Documents/er-viewer/public/src/components/ERCanvas.tsx`
+
+**確認結果**:
+
+以下のイベントハンドラーは既にuseCallbackでメモ化されているため、**修正不要**:
+- `handleRectangleMouseDown` (L294-310) - useCallback適用済み
+- `handleTextMouseDown` (L390-406) - useCallback適用済み
+- `handleResize` (L385-387) - useCallback適用済み
+- `handleTextResize` (L409-412) - useCallback適用済み
+
+**変更内容**: なし（確認のみ）
 
 ## テストタスク
 
-### ✅ 既存テストの実行確認
+### hoverActions.test.tsの確認
 
-**実行対象**: 全てのテスト
+**確認対象**: `/home/kuni/Documents/er-viewer/public/tests/actions/hoverActions.test.ts`
 
 **確認内容**:
-- 既存のテスト（action系テスト）が引き続きパスすることを確認
-- 特に`hoverActions.test.ts`が影響を受けていないか確認
+- 既存のテストが仕様変更（非ハイライト要素の透明度削除）に影響を受けないことを確認
+- hoverActionsはViewModel内のUI状態を変更するだけで、透明度の計算はコンポーネント側で行うため、テストコードの修正は不要のはず
+- 念のため全テストを実行して、パスすることを確認
+
+### コンポーネントテストの検討
+
+**検討内容**:
+- EntityNodeとRelationshipEdgeのReact.memoとuseCallbackの効果を検証するテストが必要か検討
+- 現状、コンポーネント単体テストは存在しないため、新規作成は今回の対応範囲外とする
+- パフォーマンス検証はReact DevTools Profilerを使った手動確認に委ねる
 
 ## ビルド・動作確認タスク
 
-### ✅ コード生成の実行
+### コード生成の実行
 
 **実行コマンド**: `npm run generate`
 
 **確認内容**:
 - TypeSpecから生成される型定義が正しく生成されることを確認
 
-### ✅ フロントエンドのビルド確認
+### フロントエンドのビルド確認
 
 **実行コマンド**: `cd public && npm run build`
 
@@ -220,24 +129,31 @@ interface EntityColumnProps {
 - TypeScriptのコンパイルエラーがないことを確認
 - ビルドが正常に完了することを確認
 
-### ✅ テストの実行
+### テストの実行
 
 **実行コマンド**: `npm run test`
 
 **確認内容**:
-- 全てのテストがパスすることを確認
-- テストカバレッジが適切であることを確認
+- 全てのテストがパスすることを確認（131テスト全てパス想定）
+- 特にhoverActions.test.tsのテストに注目
 
 ## 指示者宛ての懸念事項（作業対象外）
 
-### パフォーマンス測定について
+### CSS transitionについて
 
-実装後、実際にパフォーマンスが改善されたかを定量的に測定する仕組みがないため、効果の検証が難しい可能性があります。以下の方法で測定を検討してください：
+**確認結果**: ホバーハイライト機能（EntityNode、RelationshipEdge、EntityColumn）にはCSS transitionは使用されていません。これらのコンポーネントはinline styleで直接スタイルを指定しているため、仕様書通り「CSS transitionを使用しない」が既に実現されています。
 
-1. **React DevTools Profiler**を使用して再レンダリング回数と時間を測定
-2. 大量のエンティティ（例: 100件以上）をインポートしてホバー時のフレームレートを測定
-3. Chrome DevToolsのPerformanceタブでホバー操作のフレームグラフを記録
+※ 他のコンポーネント（App.tsx、LayerPanel.tsx）やstyle.cssにはtransitionが存在しますが、ホバーハイライト機能とは無関係です。
 
-### 他のコンポーネントへの展開
+### 非ハイライト要素の透明度削除によるUX影響
 
-RectangleNodeやTextNodeなど、他の描画要素も同様の最適化が必要になる可能性があります。本タスク完了後、同じパターンを他のコンポーネントにも適用することを検討してください。
+非ハイライト要素の透明度表示を削除することで、視覚的な変化があります。これがUXに悪影響を与えないか、実際のアプリケーションで確認が必要です。
+
+**確認方法**:
+1. 大量のエンティティ（50件以上）を含むER図を読み込む
+2. ホバー時の視認性を確認（ハイライトされた要素が目立つか）
+3. 必要に応じて、ハイライト表示のスタイル（枠線の太さ、影の強さなど）を調整
+
+**代替案**:
+- 非ハイライト要素の透明度を0.2ではなく、0.5〜0.7程度に調整する
+- ハイライト要素の強調表示をより強くする（枠線をさらに太く、影をより強く）

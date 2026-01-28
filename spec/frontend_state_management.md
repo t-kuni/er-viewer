@@ -390,6 +390,9 @@ describe('actionShowBuildInfoModal', () => {
     - 例: `useViewModel(vm => vm.erDiagram.ui.highlightedNodeIds.includes(nodeId), (a, b) => a === b)`
   - これにより、ホバー時に再レンダリングされるコンポーネントは「ハイライト状態が変化したコンポーネントのみ」に限定される
   - ハイライト配列全体を購読すると、ホバーのたびに全てのEntityNode/RelationshipEdgeが再レンダリングされ、エンティティ数に比例して性能が劣化する
+  - **イベントハンドラーのメモ化**: コンポーネント内のイベントハンドラーを`useCallback`でメモ化し、子コンポーネントへの不要なprops変更を防ぐ
+    - メモ化されていないイベントハンドラーは毎回新しい関数参照が作られ、`React.memo`が効かなくなる
+    - 特にEntityColumnのような大量に存在する子コンポーネントでは、親のイベントハンドラーのメモ化が重要
 * **CSS transitionを使用しない**: ホバー時のハイライト表示を即座に反映し、応答性を最大化（transitionによる200ms程度の遅延を回避）
 
 ### DOMサイズの反映

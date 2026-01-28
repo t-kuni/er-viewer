@@ -15,8 +15,11 @@ function RelationshipEdge({
 }: EdgeProps) {
   const dispatch = useDispatch()
   
-  // UIステートから必要な部分だけ購読
-  const highlightedEdgeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedEdgeIds)
+  // このエッジがハイライトされているかどうかだけを購読（最適化）
+  const isHighlighted = useViewModel(
+    (vm) => vm.erDiagram.ui.highlightedEdgeIds.includes(id),
+    (a, b) => a === b
+  )
   const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   
   const [edgePath] = getSmoothStepPath({
@@ -28,8 +31,6 @@ function RelationshipEdge({
     targetPosition,
   })
   
-  // このエッジがハイライト対象かどうか
-  const isHighlighted = highlightedEdgeIds.includes(id)
   // 他の要素がホバー中でこのエッジがハイライト対象でない場合
   const isDimmed = hasHover && !isHighlighted
   
@@ -56,4 +57,5 @@ function RelationshipEdge({
   )
 }
 
-export default RelationshipEdge
+const MemoizedRelationshipEdge = React.memo(RelationshipEdge)
+export default MemoizedRelationshipEdge

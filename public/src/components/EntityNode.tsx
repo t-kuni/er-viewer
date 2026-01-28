@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react'
 import type { Column } from '../api/client'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEntity, actionHoverColumn, actionClearHover } from '../actions/hoverActions'
+import EntityColumn from './EntityColumn'
 
 interface EntityNodeData {
   id: string
@@ -14,14 +15,14 @@ interface EntityNodeData {
 function EntityNode({ data }: NodeProps<EntityNodeData>) {
   const dispatch = useDispatch()
   
-  // UIステートから必要な部分だけ購読
-  const highlightedNodeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedNodeIds)
-  const highlightedColumnIds = useViewModel((vm) => vm.erDiagram.ui.highlightedColumnIds)
+  // このノードがハイライトされているかどうかだけを購読（最適化）
+  const isHighlighted = useViewModel(
+    (vm) => vm.erDiagram.ui.highlightedNodeIds.includes(data.id),
+    (a, b) => a === b
+  )
   const hasHover = useViewModel((vm) => vm.erDiagram.ui.hover !== null)
   const isDraggingEntity = useViewModel((vm) => vm.erDiagram.ui.isDraggingEntity)
   
-  // このノードがハイライト対象かどうか
-  const isHighlighted = highlightedNodeIds.includes(data.id)
   // 他の要素がホバー中でこのノードがハイライト対象でない場合
   const isDimmed = hasHover && !isHighlighted
   
@@ -75,31 +76,18 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
         overflowY: 'auto',
         padding: '4px',
       }}>
-        {data.columns.map((col, index) => {
-          const isColumnHighlighted = highlightedColumnIds.includes(col.id)
-          
-          return (
-            <div 
-              key={index} 
-              style={{ 
-                padding: '4px',
-                borderBottom: '1px solid #eee',
-                fontSize: '12px',
-                backgroundColor: isColumnHighlighted ? '#e3f2fd' : 'transparent',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => handleColumnMouseEnter(e, col.id)}
-              onMouseLeave={handleColumnMouseLeave}
-            >
-              {col.key === 'PRI' && '🔑 '}
-              {col.key === 'MUL' && '🔗 '}
-              {col.name}
-            </div>
-          )
-        })}
+        {data.columns.map((col, index) => (
+          <EntityColumn
+            key={index}
+            column={col}
+            onMouseEnter={handleColumnMouseEnter}
+            onMouseLeave={handleColumnMouseLeave}
+          />
+        ))}
       </div>
     </div>
   )
 }
 
-export default EntityNode
+const MemoizedEntityNode = React.memo(EntityNode)
+export default MemoizedEntityNode

@@ -160,6 +160,10 @@ export interface components {
             x: number;
             /** Format: double */
             y: number;
+            /** Format: double */
+            width: number;
+            /** Format: double */
+            height: number;
             columns: components["schemas"]["Column"][];
             ddl: string;
         };
@@ -185,6 +189,7 @@ export interface components {
             showBuildInfoModal: boolean;
             showLayerPanel: boolean;
             showDatabaseConnectionModal: boolean;
+            layoutOptimization: components["schemas"]["LayoutOptimizationState"];
         };
         HoverTarget: {
             /** @enum {string} */
@@ -213,6 +218,12 @@ export interface components {
             texts: {
                 [key: string]: components["schemas"]["TextBox"];
             };
+        };
+        LayoutOptimizationState: {
+            isRunning: boolean;
+            /** Format: double */
+            progress: number;
+            currentStage: string | null;
         };
         Rectangle: {
             id: string;

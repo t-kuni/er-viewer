@@ -182,6 +182,8 @@ model EntityNodeViewModel {
   name: string;
   x: float64;
   y: float64;
+  width: float64;  // レンダリング後の実寸幅（px）、初期値: 0
+  height: float64; // レンダリング後の実寸高さ（px）、初期値: 0
   columns: Column[];
   ddl: string;
 }
@@ -254,12 +256,20 @@ model ERDiagramViewModel {
   loading: boolean; // リバースエンジニア処理中フラグ
 }
 
+// Layout optimization state
+model LayoutOptimizationState {
+  isRunning: boolean;         // 実行中フラグ
+  progress: float64;          // 進捗（0〜100）
+  currentStage: string | null; // 現在の処理段階名
+}
+
 // Global UI state
 model GlobalUIState {
   selectedItem: LayerItemRef | null; // 選択中のアイテム（矩形、テキスト、エンティティ）
   showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
   showLayerPanel: boolean; // レイヤーパネル表示フラグ
   showDatabaseConnectionModal: boolean; // データベース接続設定モーダル表示フラグ
+  layoutOptimization: LayoutOptimizationState; // 配置最適化の状態
 }
 
 // Build info cache state

@@ -1,21 +1,17 @@
-# リバースエンジニアリング実行時のデータベース接続情報UI入力機能の検討
+# ER図エンティティ配置最適化アルゴリズムの改善検討
 
 ## リサーチ要件
 
-以下について検討してほしい：
+エンティティノードの自動配置最適化機能（`spec/entity_layout_optimization.md`）について、現状の仕様・実装では以下の問題があるため対策を考える：
 
-* リバースエンジニアリング実行時に接続先をUI上から入力できるようにする
-* どういうUIが良いか？
-* 一旦、サポートするのはMySQLのみ。将来的にはPostgreSQLも対応する
-* 環境変数に以下の値が存在する場合はデフォルト値として扱う
-  * 開発時は頻繁に実行するので、それを簡略化するための仕組み
-  * `DB_HOST`
-  * `DB_PORT`
-  * `DB_USER`
-  * `DB_PASSWORD`
-  * `DB_NAME`
-* リバースエンジニアリングが成功した場合は接続情報をViewModel内に保持する。次回実行時にUIにはこの値が設定されている（環境変数より優先される）
-  * パスワードは状態に持たない方がいいかも
+* 関連のあるエンティティ同士が近くに配置されていない（そもそも大して最適化できてない）
+* 多くのエンティティ（矩形）が重なって表示されてしまっている
+    * 矩形の重なり解消時に、最適化が崩れている可能性もある
+* 名前が似ているエンティティも近くに配置したい（例えばpost_groups, post_scheduled, post_approval_historiesなど）
+    * つまり、リレーションの有無と名前の類似度でエンティティの近さを判断する必要がありそう
+    * 軽く試した感じ、名前の類似度は2-gram+Jaccard係数で算出できそう
+* 仕様書ではアルゴリズムが「など」のように曖昧に書かれているので明確にする
+* 使用するライブラリも明確にする
 
 ## プロジェクト概要
 
@@ -31,590 +27,354 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 
 ### 現状のフェーズ
 
-- アプリケーションを丸ごと作り直そうとしているので不要なコードが残っているケースあり
 - プロトタイピング段階でMVPを作成中
 - 実現可能性を検証したいのでパフォーマンスやセキュリティは考慮しない
 - 余計な機能も盛り込まない
-- 後方互換も考慮しない
-- 不要になったコードは捨てる
 - AIが作業するため学習コストは考慮不要
 
-## 現在のリバースエンジニアリング機能の実装
+## 現在の実装状況
 
-### 処理フロー
+### 配置最適化の仕様（`spec/entity_layout_optimization.md`）
 
-1. ユーザーが画面上の「リバースエンジニア」ボタンを押下
-2. フロントエンドが現在のViewModelを`POST /api/reverse-engineer`に送信
-3. バックエンドがデータベースに接続してスキーマ情報を取得
-4. エンティティとリレーションシップを抽出
-5. デフォルトレイアウトでER図を構築
-6. ViewModelのerDiagramを更新して返却
-7. フロントエンドがcanvas上にER図をレンダリング
+配置最適化は以下の多段階アプローチで実装されている：
 
-### フロントエンド実装
+**段階1: 準備**
+- ノードサイズの確定待ち（React Flowの`useNodesInitialized()`を使用）
+- 連結成分（connected components）の分割
 
-フロントエンドの実装は`public/src/commands/reverseEngineerCommand.ts`に存在する：
+**段階2: クラスタリング（各連結成分内）**
+- コミュニティ検出（Louvainアルゴリズムなど）でノードをクラスタ化
 
-```typescript
-export async function commandReverseEngineer(
-  dispatch: Store['dispatch'],
-  getState: Store['getState']
-): Promise<void> {
-  dispatch(actionSetLoading, true);
-  
-  try {
-    // 現在のViewModelを取得
-    const currentViewModel = getState() as ViewModel;
-    
-    // サーバーにViewModelを送信し、更新後のViewModelを取得
-    const updatedViewModel = await DefaultService.apiReverseEngineer(currentViewModel);
-    
-    // エラーレスポンスのチェック
-    if ('error' in updatedViewModel) {
-      throw new Error(updatedViewModel.error);
-    }
-    
-    // 更新後のViewModelをStoreに設定
-    dispatch(actionSetViewModel, updatedViewModel);
-  } catch (error) {
-    console.error('Failed to reverse engineer:', error);
-  } finally {
-    dispatch(actionSetLoading, false);
-  }
+**段階3: 粗レイアウト（クラスタ単位）**
+- Force-directed（d3-forceなど）またはELK Stressでクラスタ間の配置を決定
+
+**段階4: 詳細レイアウト（クラスタ内）**
+- Force-directed / Stressをクラスタ内で短時間実行
+
+**段階5: 重なり除去（rectangle overlap removal）**
+- 矩形の実寸を考慮した衝突解消
+
+**段階6: コンポーネントのパッキング（詰め配置）**
+- 連結成分の矩形を詰めて配置
+
+### 使用中のライブラリ（`public/package.json`）
+
+以下のライブラリが導入されている：
+
+```json
+{
+  "graphology": "^0.26.0",
+  "graphology-communities-louvain": "^2.0.2",
+  "graphology-components": "^1.5.4",
+  "graphology-layout-forceatlas2": "^0.10.1"
 }
 ```
 
-### バックエンド実装
+**注意**: `d3-force`は`public/src/utils/layoutOptimizer.ts`でインポートされているが、`package.json`には明示されていない（依存関係として追加されている可能性がある）。
 
-#### Usecase
+### 実装コード（`public/src/utils/layoutOptimizer.ts`）
 
-バックエンドのUsecaseは`lib/usecases/ReverseEngineerUsecase.ts`に実装されている：
+現在、以下のアルゴリズムが実装されている：
 
-```typescript
-export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
-  return async (viewModel: ViewModel): Promise<ViewModel> => {
-    const dbManager = deps.createDatabaseManager();
-    try {
-      await dbManager.connect();
-      
-      // データベースからER図を生成
-      const erData = await dbManager.generateERData();
-      
-      await dbManager.disconnect();
-      
-      // EntityNodeViewModelのRecordを生成
-      const nodes: Record<string, EntityNodeViewModel> = {};
-      erData.entities.forEach((entity: Entity, index: number) => {
-        const col = index % 4;
-        const row = Math.floor(index / 4);
-        
-        nodes[entity.id] = {
-          id: entity.id,
-          name: entity.name,
-          x: 50 + col * 300,
-          y: 50 + row * 200,
-          columns: entity.columns,
-          ddl: entity.ddl,
-        };
-      });
-      
-      // RelationshipEdgeViewModelのRecordを生成
-      const edges: Record<string, RelationshipEdgeViewModel> = {};
-      erData.relationships.forEach((relationship: Relationship) => {
-        edges[relationship.id] = {
-          id: relationship.id,
-          sourceEntityId: relationship.fromEntityId,
-          sourceColumnId: relationship.fromColumnId,
-          targetEntityId: relationship.toEntityId,
-          targetColumnId: relationship.toColumnId,
-          constraintName: relationship.constraintName,
-        };
-      });
-      
-      // ViewModelを更新して返却
-      return {
-        format: viewModel.format,
-        version: viewModel.version,
-        erDiagram: {
-          ...viewModel.erDiagram,
-          nodes,
-          edges,
-          loading: false,
-        },
-        ui: viewModel.ui,
-        buildInfo: viewModel.buildInfo,
-      };
-    } catch (error) {
-      await dbManager.disconnect();
-      throw error;
-    }
-  };
-}
-```
+1. **`SimpleForceDirectedLayout`**
+   - d3-forceを使用したForce-directedレイアウト
+   - `forceLink`: リンクの理想的な距離 = 150px
+   - `forceManyBody`: ノード間の反発力 = -300
+   - `forceCenter`: 中心に引き寄せる力
+   - `forceCollide`: 衝突半径 = `Math.max(width, height) / 2 + 20`
+   - 反復回数: 200〜500 tick（ノード数に応じて調整）
+   - 早期終了条件: `simulation.alpha() < 0.01`
 
-#### データベース接続
+2. **`SplitConnectedComponents`**
+   - graphologyを使用した連結成分分割
+   - 無向グラフとして扱う
 
-データベース接続は`lib/database.ts`の`DatabaseManager`クラスで管理されている：
+3. **`LouvainClustering`**
+   - graphology-communities-louvainを使用したクラスタリング
+   - クラスタIDをノードに付与
 
-```typescript
-class DatabaseManager {
-  private connection: mysql.Connection | null;
+4. **`CoarseLayout`**
+   - クラスタ間のForce-directedレイアウト
+   - `forceLink`: 距離 = 300px（クラスタ間を広く取る）
+   - `forceManyBody`: 反発力 = -500（強めの反発）
+   - 反復回数: 100 tick
 
-  async connect(): Promise<void> {
-    const config: DatabaseConfig = {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '3306'),
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'password',
-      database: process.env.DB_NAME || 'test',
-    };
+5. **`FineLayout`**
+   - クラスタ内のForce-directedレイアウト
+   - `forceLink`: 距離 = 150px
+   - `forceManyBody`: 反発力 = -200
+   - `forceCollide`: 衝突半径 = `Math.max(width, height) / 2 + 20`
+   - 反復回数: 200 tick
 
-    this.connection = await mysql.createConnection(config);
-  }
+6. **`RemoveOverlaps`**
+   - 空間ハッシュ（グリッド）を使用した重なり除去
+   - 押し出し方式で矩形の重なりを解消
+   - セルサイズ: 200px
+   - 最大反復回数: 10回
+   - 重なり判定: 矩形の幅・高さを考慮
+   - 押し出し方向: 重なりが小さい方向に押し出す（+5pxのマージン）
 
-  async disconnect(): Promise<void> {
-    if (this.connection) {
-      await this.connection.end();
-      this.connection = null;
-    }
-  }
+7. **`SpatialHash`**
+   - グリッドベースの空間分割で近傍ノードを高速検索
+   - セルサイズ: 200px
 
-  async generateERData(): Promise<ERData> {
-    // データベースからエンティティとリレーションシップを取得
-    // ...
-  }
-}
-```
+### 実行フロー（`public/src/workers/layoutWorker.ts`）
 
-現在の接続情報は環境変数からのみ取得しており、ハードコードされたデフォルト値がフォールバックとして使用されている。
+Web Workerで実行される配置最適化の実際のフローは以下の通り：
 
-### API定義
+1. 準備（0〜10%）
+2. 連結成分分割（10〜15%）
+3. クラスタリング（15〜25%）
+4. 粗レイアウト（25〜50%）
+5. 詳細レイアウト（50〜75%）
+6. 重なり除去（75〜100%）
 
-APIは`scheme/main.tsp`で定義されている：
+**注意**: 段階6（コンポーネントのパッキング）は実装されていない。
 
-```typescript
-@route("/api")
-namespace API {
-  // Reverse engineer database to generate ER diagram
-  @post
-  @route("/reverse-engineer")
-  op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
-}
-```
+## 問題の詳細分析
 
-現在は`ViewModel`のみを受け取り、接続情報は環境変数から取得している。
+### 問題1: 関連のあるエンティティ同士が近くに配置されていない
+
+現状の実装では以下の点が考えられる：
+
+- Force-directedの`forceLink`の距離（150px）が適切でない可能性
+- `forceManyBody`の反発力（-300）が強すぎる可能性
+- クラスタリングが適切に機能していない可能性
+- 粗レイアウトと詳細レイアウトの2段構成が最適化を妨げている可能性
+
+### 問題2: 多くのエンティティが重なって表示されている
+
+現状の重なり除去アルゴリズム（`RemoveOverlaps`）には以下の問題が考えられる：
+
+- 押し出し方式が最大10回の反復では不十分
+- 押し出しのマージン（+5px）が小さすぎる
+- 空間ハッシュのセルサイズ（200px）が不適切
+- 重なり除去が最適化の最後に実行されるため、Force-directedで整えられた配置が崩れる
+- 粗レイアウト・詳細レイアウトで`forceCollide`を使っているが、矩形の重なりが完全に解消されていない
+
+### 問題3: 名前が似ているエンティティを近くに配置したい
+
+現状の実装では名前の類似度は全く考慮されていない。以下の対応が必要：
+
+- エンティティ名の類似度を計算するロジックの追加
+  - 提案: 2-gram + Jaccard係数
+- 類似度に基づく仮想的なエッジの追加（Force-directedのリンクとして扱う）
+- または、類似度をForce-directedの距離に反映
+
+### 問題4: 仕様書のアルゴリズムが曖昧
+
+仕様書では「Louvainアルゴリズムなど」「d3-forceなど」「またはELK Stress」のように、具体的なアルゴリズムやパラメータが明確に定義されていない。
+
+### 問題5: 使用するライブラリが明確でない
+
+仕様書では複数の選択肢が提示されているが、実際に使うべきライブラリが明確でない：
+
+- d3-force vs ELK
+- graphology-layout-forceatlas2（導入済みだが未使用）
 
 ## ViewModelの構造
 
 すべての型は`scheme/main.tsp`で定義されている。
 
-### ViewModel（ルート型）
+### EntityNodeViewModel（エンティティノード）
 
 ```typescript
-model ViewModel {
-  format: string; // データフォーマット識別子（固定値: "er-viewer"）
-  version: int32; // データフォーマットのバージョン（現在は 1 固定）
-  erDiagram: ERDiagramViewModel; // ER図の状態
-  ui: GlobalUIState; // グローバルUI状態
-  buildInfo: BuildInfoState; // ビルド情報のキャッシュ
+model EntityNodeViewModel {
+  id: string; // UUID (エンティティID)
+  name: string;
+  x: float64;      // X座標（配置情報）
+  y: float64;      // Y座標（配置情報）
+  columns: Column[];
+  ddl: string;
 }
 ```
 
-### ERDiagramViewModel
+エンティティの`width`と`height`は明示的に保存されていない。React Flowでレンダリング後に`node.measured.width/height`で取得できる。
+
+### RelationshipEdgeViewModel（リレーション）
 
 ```typescript
-model ERDiagramViewModel {
-  nodes: Record<EntityNodeViewModel>;       // エンティティノード（テーブル）
-  edges: Record<RelationshipEdgeViewModel>; // リレーションシップ（外部キー）
-  rectangles: Record<Rectangle>;            // 矩形（グループ化・領域区別用）
-  texts: Record<TextBox>;                   // テキスト（注釈・説明用）
-  ui: ERDiagramUIState;                     // ER図のUI状態
-  loading: boolean;                         // リバースエンジニア処理中フラグ
+model RelationshipEdgeViewModel {
+  id: string; // UUID (リレーションシップID)
+  sourceEntityId: string; // エンティティID (UUID)
+  sourceColumnId: string; // カラムID (UUID)
+  targetEntityId: string; // エンティティID (UUID)
+  targetColumnId: string; // カラムID (UUID)
+  constraintName: string;
 }
 ```
 
-### GlobalUIState
+リレーションは`sourceEntityId`と`targetEntityId`でエンティティ同士をつないでいる。
+
+### LayoutOptimizationState（配置最適化の状態）
 
 ```typescript
-model GlobalUIState {
-  selectedItem: LayerItemRef | null; // 選択中のアイテム
-  showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
-  showLayerPanel: boolean; // レイヤーパネル表示フラグ
+model LayoutOptimizationState {
+  isRunning: boolean;         // 実行中フラグ
+  progress: float64;          // 進捗（0〜100）
+  currentStage: string | null; // 現在の処理段階名
 }
 ```
 
-## 現在の環境変数の使用状況
-
-バックエンドで使用されている環境変数：
-
-- `DB_HOST`: データベースホスト（デフォルト: `localhost`）
-- `DB_PORT`: データベースポート（デフォルト: `3306`）
-- `DB_USER`: データベースユーザー（デフォルト: `root`）
-- `DB_PASSWORD`: データベースパスワード（デフォルト: `password`）
-- `DB_NAME`: データベース名（デフォルト: `test`）
-
-これらは`DatabaseManager.connect()`メソッド内で使用されている。
-
-## 検討してほしい内容
-
-### 1. UIデザイン
-
-接続情報を入力するためのUIをどのように設計すべきか？
-
-#### 考慮すべき点
-
-- **表示タイミング**: 
-  - リバースエンジニアボタン押下時にモーダル/ダイアログを表示するか？
-  - 常に画面上に表示しておくか？
-  - 設定パネルとして表示するか？
-- **入力フィールド**:
-  - ホスト、ポート、ユーザー、パスワード、データベース名の5つのフィールド
-  - パスワードフィールドは目隠し表示（type="password"）
-  - デフォルト値の表示方法（環境変数やViewModel内の保存済み値）
-- **データベースタイプの選択**:
-  - 将来的にPostgreSQLも対応する予定だが、現時点ではMySQLのみ
-  - 将来の拡張性を考慮して、データベースタイプの選択UIを用意すべきか？
-  - 現時点では非表示にして、内部的にはMySQLのみサポートとするか？
-- **接続テスト機能**:
-  - 「接続テスト」ボタンで接続確認できるようにするか？
-  - MVP段階では不要か？
-- **保存機能**:
-  - 接続情報をViewModelに保存する場合、保存ボタンが必要か？
-  - リバースエンジニア実行時に自動で保存するか？
-
-#### UI例の提示
-
-以下のような選択肢が考えられるが、それぞれのメリット・デメリットを評価してほしい：
-
-**パターン1: モーダルダイアログ**
-- リバースエンジニアボタン押下時にモーダルを表示
-- 接続情報を入力して「実行」ボタンで実行
-- モーダル内に入力フォームと実行ボタンを配置
-
-**パターン2: サイドパネル**
-- 画面左右にサイドパネルとして常時表示
-- 接続情報を入力して「リバースエンジニア」ボタンで実行
-- レイヤーパネルのような折りたたみ可能なパネル
-
-**パターン3: インライン展開**
-- リバースエンジニアボタンの近くに展開/折りたたみ可能な入力エリア
-- 接続情報を表示/非表示切り替え可能
-
-**パターン4: 設定画面**
-- 専用の設定画面/設定モーダルで接続情報を管理
-- リバースエンジニアボタンは保存済みの接続情報を使用
-
-どのパターンが適切か、または他に良いパターンがあるか提案してほしい。
-
-### 2. データモデルの設計
-
-接続情報をViewModelに保持する場合、どのようなデータ構造にすべきか？
-
-#### 考慮すべき点
-
-- **配置場所**: ViewModelのどこに接続情報を配置するか？
-  - `ViewModel`のトップレベルに`databaseConnection`のようなフィールドを追加？
-  - `GlobalUIState`に追加？
-  - `ERDiagramViewModel`に追加？
-  - 別の新しいフィールド（例: `settings`）を追加？
-- **パスワードの扱い**:
-  - パスワードをViewModelに保存するべきか？
-  - セキュリティの観点からパスワードは保存しない方が良い可能性
-  - パスワード以外の接続情報のみ保存する選択肢
-  - 開発時の利便性とセキュリティのバランス
-- **データベースタイプのフィールド**:
-  - 将来のPostgreSQL対応を考慮して、`databaseType: "mysql" | "postgresql"`のようなフィールドを用意するか？
-- **任意性**:
-  - 接続情報が未設定の場合はどうするか？
-  - すべてのフィールドをoptional（`| null`）にするか？
-- **デフォルト値の優先順位**:
-  - ViewModel内の値 > 環境変数 > ハードコードされたデフォルト値
-  - この優先順位で良いか？
-
-#### データ構造例
-
-以下のような構造が考えられるが、メリット・デメリットを分析してほしい：
-
-**パターン1: ViewModelのトップレベルに配置**
-
-```typescript
-model DatabaseConnection {
-  host: string | null;
-  port: int32 | null;
-  user: string | null;
-  password: string | null; // または除外
-  database: string | null;
-  type: "mysql" | "postgresql"; // 将来の拡張用
-}
-
-model ViewModel {
-  format: string;
-  version: int32;
-  erDiagram: ERDiagramViewModel;
-  ui: GlobalUIState;
-  buildInfo: BuildInfoState;
-  databaseConnection: DatabaseConnection | null; // 追加
-}
-```
-
-**パターン2: GlobalUIStateに配置**
-
-```typescript
-model DatabaseConnection {
-  host: string | null;
-  port: int32 | null;
-  user: string | null;
-  // passwordは保存しない
-  database: string | null;
-}
-
-model GlobalUIState {
-  selectedItem: LayerItemRef | null;
-  showBuildInfoModal: boolean;
-  showLayerPanel: boolean;
-  databaseConnection: DatabaseConnection | null; // 追加
-}
-```
-
-**パターン3: 設定専用の新しいフィールド**
-
-```typescript
-model AppSettings {
-  database: {
-    host: string | null;
-    port: int32 | null;
-    user: string | null;
-    database: string | null;
-  } | null;
-}
-
-model ViewModel {
-  format: string;
-  version: int32;
-  erDiagram: ERDiagramViewModel;
-  ui: GlobalUIState;
-  buildInfo: BuildInfoState;
-  settings: AppSettings; // 追加
-}
-```
-
-どのパターンが適切か、または他に良い構造があるか提案してほしい。
-
-### 3. API設計
-
-接続情報をフロントエンドからバックエンドに渡す方法をどうするか？
-
-#### 考慮すべき点
-
-- **API変更の方法**:
-  - 現在の`POST /api/reverse-engineer`にパラメータを追加するか？
-  - 新しいAPIエンドポイントを作成するか？
-- **リクエストボディ**:
-  - ViewModelに接続情報を含めて送信するか？
-  - 接続情報を別途送信するか？
-- **環境変数との関係**:
-  - フロントエンドから送信された接続情報と環境変数のどちらを優先するか？
-  - 接続情報が未指定の場合は環境変数を使用するか？
-
-#### API設計例
-
-以下のような選択肢が考えられるが、メリット・デメリットを評価してほしい：
-
-**パターン1: ViewModelに接続情報を含める**
-
-```typescript
-// ViewModelに接続情報を追加
-@post
-@route("/reverse-engineer")
-op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
-```
-
-- ViewModelに`databaseConnection`フィールドを追加
-- バックエンドはViewModel内の接続情報を使用してデータベースに接続
-- 接続情報が未設定の場合は環境変数を使用
-
-**パターン2: 接続情報を別パラメータとして送信**
-
-```typescript
-model ReverseEngineerRequest {
-  viewModel: ViewModel;
-  databaseConnection: DatabaseConnection;
-}
-
-@post
-@route("/reverse-engineer")
-op reverseEngineer(@body request: ReverseEngineerRequest): ViewModel | ErrorResponse;
-```
-
-- リクエストボディに`viewModel`と`databaseConnection`を含める
-- ViewModelとは独立して接続情報を管理
-
-**パターン3: 新しいAPIエンドポイント**
-
-```typescript
-// 接続情報付きリバースエンジニア
-@post
-@route("/reverse-engineer-with-connection")
-op reverseEngineerWithConnection(
-  @body viewModel: ViewModel,
-  @body connection: DatabaseConnection
-): ViewModel | ErrorResponse;
-
-// 既存のAPIは環境変数を使用
-@post
-@route("/reverse-engineer")
-op reverseEngineer(@body viewModel: ViewModel): ViewModel | ErrorResponse;
-```
-
-- 接続情報を指定する場合と環境変数を使用する場合で別のエンドポイントを用意
-
-どのパターンが適切か、または他に良い設計があるか提案してほしい。
-
-### 4. パスワードの扱い
-
-パスワードをViewModelに保存することのセキュリティリスクと対処法を検討してほしい。
-
-#### 考慮すべき点
-
-- **保存の必要性**:
-  - MVPフェーズではパスワードを保存した方が開発効率が良い
-  - しかし、セキュリティリスクがある
-- **セキュリティリスク**:
-  - ViewModelはJSON形式でファイルに保存される（インポート・エクスポート機能）
-  - ブラウザのローカルストレージやファイルに平文パスワードが保存される
-  - 誤って第三者にファイルを共有してしまうリスク
-- **代替案**:
-  - パスワードは保存せず、毎回入力を求める
-  - パスワードのみブラウザのSessionStorageに一時保存
-  - パスワードは環境変数のみから取得し、UI入力は受け付けない
-- **MVP段階での許容範囲**:
-  - 開発用途であればパスワード保存を許容するか？
-  - セキュリティ警告を表示するか？
-
-どのような方針が適切か、メリット・デメリットを示してほしい。
-
-### 5. 実装への影響範囲
-
-この機能を実装する場合の影響範囲を分析してほしい。
-
-#### 考慮すべき点
-
-- **フロントエンド**:
-  - UI コンポーネントの追加（入力フォーム、モーダル、パネルなど）
-  - コマンド関数の変更（`commandReverseEngineer`）
-  - Action関数の追加（接続情報の更新など）
-  - ViewModelの型定義の変更
-- **バックエンド**:
-  - Usecaseの変更（`ReverseEngineerUsecase`）
-  - DatabaseManagerの変更（動的な接続情報の受け取り）
-  - API定義の変更（`scheme/main.tsp`）
-- **状態管理**:
-  - ViewModelに接続情報フィールドを追加
-  - 初期化処理の変更（デフォルト値の設定）
-- **インポート・エクスポート**:
-  - 接続情報が含まれるViewModelのインポート・エクスポート
-  - パスワードを含む場合のセキュリティ警告
-
-変更が必要なファイル・関数・型定義をリストアップし、実装工数を見積もってほしい。
-
-### 6. UXの考慮
-
-開発者がリバースエンジニアリングを頻繁に実行する際のUXを検討してほしい。
-
-#### 考慮すべき点
-
-- **頻繁な実行**:
-  - 開発時は同じデータベースに対して何度もリバースエンジニアリングを実行する
-  - 毎回接続情報を入力するのは煩雑
-- **デフォルト値の活用**:
-  - 環境変数のデフォルト値が設定されていれば、入力不要にする
-  - 前回の接続情報が保存されていれば、それを使用する
-- **ショートカット**:
-  - 「前回と同じ接続情報で実行」ボタンを用意する
-  - 接続情報の編集が必要な場合のみUIを表示する
-- **エラーハンドリング**:
-  - 接続失敗時のエラーメッセージ表示
-  - 接続情報の再入力を促す
-
-開発時の利便性を最大化するためのUX設計を提案してほしい。
-
-### 7. 将来の拡張性
-
-PostgreSQL対応など、将来の拡張を考慮した設計を検討してほしい。
-
-#### 考慮すべき点
-
-- **データベースタイプの管理**:
-  - MySQLとPostgreSQLでは接続パラメータが異なる可能性
-  - データベースタイプ選択UIの設計
-- **ポートのデフォルト値**:
-  - MySQL: 3306
-  - PostgreSQL: 5432
-  - データベースタイプに応じたデフォルト値の変更
-- **接続文字列**:
-  - PostgreSQLは接続文字列形式をサポート
-  - 将来的に接続文字列入力をサポートするか？
-- **追加パラメータ**:
-  - SSL接続の設定
-  - タイムアウトの設定
-  - その他のデータベース固有の設定
-
-現時点ではMySQLのみのサポートだが、将来の拡張を容易にする設計を提案してほしい。
-
-### 8. 推奨案
-
-最終的に、以下について推奨案を提示してほしい：
-
-1. **UIデザイン**: どのUIパターンを推奨するか（モーダル、サイドパネル、など）
-2. **データモデル**: ViewModelのどこに接続情報を配置するか
-3. **API設計**: どのようにAPIを設計するか
-4. **パスワードの扱い**: パスワードを保存するか、しないか
-5. **優先順位**: デフォルト値の優先順位（ViewModel > 環境変数 > ハードコード）
-6. **実装ステップ**: 段階的に実装する場合の順序
-
-それぞれの推奨案について、理由と根拠を示してほしい。
+## 制約条件
+
+- エンティティは多くて300個程度を想定
+- 実行時間は最大10秒程度に収める
+- フロントエンド（ブラウザ）で実装する
+- Web Workerで実行し、UIスレッドをブロックしない
+- 各段階の完了時に座標データを送信し、段階的に描画を更新する
 
 ## 期待する回答
 
-以下について、具体的な見解と理由を提示してほしい：
+以下について、具体的な見解と改善案を提示してほしい：
 
-1. **UIデザインの提案**
-   - 推奨するUIパターン（モーダル、サイドパネル、など）
-   - UI要素の配置とデザイン
-   - UXフローの説明（画面遷移、ユーザー操作）
+### 1. 現状の問題の根本原因の特定
 
-2. **データモデルの設計**
-   - TypeSpecでの型定義（具体的なコード例）
-   - ViewModelのどこに配置するか
-   - パスワード保存の有無とその理由
+現在の実装でエンティティが適切に配置されない・重なってしまう根本原因は何か？
 
-3. **API設計**
-   - 推奨するAPIの形式（リクエスト・レスポンスの構造）
-   - TypeSpecでの定義（具体的なコード例）
+考えられる原因：
+- Force-directedのパラメータ（距離、反発力）が不適切
+- 粗レイアウト・詳細レイアウトの2段構成が逆効果
+- 重なり除去のアルゴリズムが不十分
+- `forceCollide`の衝突半径の計算方法が矩形に適していない
+- その他
 
-4. **パスワード管理のベストプラクティス**
-   - パスワードを保存する場合の対策
-   - パスワードを保存しない場合の代替案
-   - MVPフェーズでの推奨方針
+### 2. Force-directedのパラメータチューニング
 
-5. **実装への影響範囲**
-   - 変更が必要なファイル・関数のリスト
-   - フロントエンド・バックエンドそれぞれの実装内容
-   - 実装工数の見積もり
+現在のパラメータ設定を改善するための具体的な推奨値：
 
-6. **UX設計**
-   - 開発時の効率を最大化するUXフロー
-   - デフォルト値の活用方法
-   - エラーハンドリングの方針
+- `forceLink`の距離（現状: 150px）
+- `forceManyBody`の反発力（現状: -300）
+- `forceCollide`の衝突半径（現状: `Math.max(width, height) / 2 + 20`）
+- 反復回数（現状: 200〜500 tick）
 
-7. **将来の拡張性**
-   - PostgreSQL対応時の変更範囲
-   - データベースタイプ選択UIの設計
-   - その他の拡張ポイント
+これらのパラメータをどう調整すべきか？
+また、エンティティのサイズ（width, height）を考慮したパラメータ設定はあるか？
 
-8. **実装の優先順位**
-   - MVP段階で必須の機能
-   - 後回しにできる機能
-   - 段階的な実装の推奨ステップ
+### 3. 重なり除去アルゴリズムの改善
 
-可能であれば、複数の実装案を比較し、それぞれのメリット・デメリットを示してほしい。
+現在の押し出し方式の重なり除去を改善する方法：
+
+- 反復回数を増やす（現状: 10回）べきか？
+- 押し出しのマージンを増やす（現状: +5px）べきか？
+- 押し出しの強さを調整すべきか？
+- 別のアルゴリズム（例: ELKのOverlap Removal）を使うべきか？
+- 重なり除去を最後に実行するのではなく、Force-directedと統合すべきか？
+
+### 4. 名前の類似度を考慮した配置の実装方法
+
+エンティティ名の類似度を配置に反映する具体的な実装方法：
+
+**パターンA: 仮想的なエッジの追加**
+- 名前の類似度が高いエンティティ間に仮想的なエッジを追加
+- Force-directedの`forceLink`で扱う
+- メリット・デメリット
+
+**パターンB: Force-directedのカスタム力の追加**
+- d3-forceに名前の類似度に基づく引力を追加
+- `simulation.force('similarity', customForce)`
+- メリット・デメリット
+
+**パターンC: クラスタリングに名前の類似度を反映**
+- Louvainクラスタリングの重み付けに名前の類似度を追加
+- メリット・デメリット
+
+どのパターンが適切か？または別の方法があるか？
+
+**名前の類似度の計算方法**：
+- 2-gram + Jaccard係数で実装する方針で問題ないか？
+- 他に適切な方法はあるか？
+- どの程度の類似度を「似ている」と判断すべきか？（閾値の設定）
+
+### 5. アルゴリズムの具体化と明確化
+
+仕様書で曖昧に書かれている部分を明確にする：
+
+**クラスタリング**：
+- Louvainを使う（現在実装済み）で確定して良いか？
+- 他のアルゴリズム（例: Community detection、Modularity-based clustering）との比較
+- Louvainのパラメータ設定
+
+**Force-directedレイアウト**：
+- d3-forceで確定して良いか？
+- graphology-layout-forceatlas2（導入済みだが未使用）を使うべきか？
+- ELKを導入すべきか？（バンドルサイズ約1.4MB）
+
+**重なり除去**：
+- 現在の押し出し方式で良いか？
+- ELKのOverlap Removalを使うべきか？
+
+**コンポーネントのパッキング**：
+- 仕様書では段階6として記載されているが未実装
+- 実装すべきか？実装する場合のアルゴリズムは？
+
+### 6. 多段階アプローチの見直し
+
+現在の多段階アプローチ（準備→クラスタリング→粗レイアウト→詳細レイアウト→重なり除去→パッキング）は適切か？
+
+代替案：
+- **パターンA**: 連結成分分割 → Force-directed（全体）→ 重なり除去
+- **パターンB**: クラスタリング → クラスタごとにForce-directed → 重なり除去 → クラスタのパッキング
+- **パターンC**: Force-directedと重なり除去を統合（`forceCollide`の改善）
+
+どのアプローチが最も効果的か？
+
+### 7. 使用ライブラリの決定
+
+以下のライブラリの使用を決定したい：
+
+**d3-force**：
+- 現在使用中
+- メリット: 軽量、自前制御しやすい、many-bodyがquadtree + Barnes–Hutで高速化
+- デメリット: 矩形衝突は追加実装が必要
+
+**graphology-layout-forceatlas2**：
+- 導入済みだが未使用
+- Force Atlas 2はCytoscapeやGephiで使われる高品質なレイアウトアルゴリズム
+- d3-forceと比較してどうか？
+
+**elkjs**：
+- 未導入
+- メリット: 高品質、Overlap Removalなど体系的な機能
+- デメリット: バンドルサイズが大きい（約1.4MB）
+- MVP段階で導入すべきか？
+
+**推奨**: どのライブラリを使うべきか、またはどのように組み合わせるべきか？
+
+### 8. パフォーマンスの検証
+
+300エンティティで10秒以内に収まるか？
+
+- 現在の実装での性能見積もり
+- ボトルネックはどこか？（連結成分分割、クラスタリング、Force-directed、重なり除去）
+- パフォーマンス改善のための具体的な施策
+
+### 9. 段階的な実装計画
+
+問題を解決するための段階的な実装計画を提案してほしい：
+
+**フェーズ1**: 最も効果が高い改善（すぐに実装すべき）
+**フェーズ2**: 中程度の改善（次に実装すべき）
+**フェーズ3**: 高度な最適化（将来的に実装）
+
+優先順位と実装順序を明確にしてほしい。
+
+## 参考情報
+
+### 関連仕様書
+
+- `spec/entity_layout_optimization.md`: エンティティ配置最適化機能仕様
+- `spec/frontend_state_management.md`: フロントエンド状態管理仕様
+- `spec/frontend_er_rendering.md`: ER図のレンダリング仕様
+- `scheme/main.tsp`: API型定義（TypeSpec）
+
+### リサーチ背景
+
+- `research/20260126_2247_entity_layout_optimization.md`: 配置最適化のアルゴリズム検討（初回リサーチ）
+
+### 関連する実装ファイル
+
+- `public/src/utils/layoutOptimizer.ts`: 配置最適化アルゴリズムの実装
+- `public/src/workers/layoutWorker.ts`: Web Workerでの実行ロジック
+- `public/src/commands/layoutOptimizeCommand.ts`: 配置最適化のコマンド
+- `public/src/components/ERCanvas.tsx`: ER図描画コンポーネント

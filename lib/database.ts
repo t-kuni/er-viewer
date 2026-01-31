@@ -10,7 +10,7 @@ type ERData = components['schemas']['ERData'];
 type LayoutData = components['schemas']['LayoutData'];
 type EntityLayoutItem = components['schemas']['EntityLayoutItem'];
 type Rectangle = components['schemas']['Rectangle'];
-type Text = components['schemas']['Text'];
+type TextBox = components['schemas']['TextBox'];
 
 interface DatabaseConfig {
   host: string;
@@ -257,5 +257,5 @@ export type {
   LayoutData,
   EntityLayoutItem,
   Rectangle,
-  Text,
+  TextBox,
 };

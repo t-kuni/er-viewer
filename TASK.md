@@ -42,158 +42,170 @@
 
 ## 概要
 
-`spec/frontend_er_rendering.md` と `spec/frontend_state_management.md` の仕様変更に対応する実装とテストの更新を行う。
+直前のコミットで以下の仕様更新が行われました：
+- `EntityNodeViewModel`に`width`と`height`フィールドを追加（TypeSpec: `scheme/main.tsp`）
+- エンティティレイアウト最適化の仕様更新（`spec/entity_layout_optimization.md`）
+- 増分リバースエンジニアの仕様更新（`spec/incremental_reverse_engineering.md`）
 
-**主な変更内容**:
-1. 非ハイライト要素の透明度表示を削除（`opacity: 0.2〜0.3`の削除）
-2. イベントハンドラーのメモ化（`useCallback`）を追加してReact.memoの効果を最大化
+主な変更点：
+1. エンティティノードのサイズ（width/height）をViewModelで管理するように仕様変更
+2. React Flowのレンダリング後にノードサイズを計測し、ViewModelに保存する処理の追加
+3. 配置最適化アルゴリズムで実寸サイズを利用する仕様の明確化
+4. リバースエンジニア時に既存エンティティのwidth/heightを0にリセットする仕様の追加
 
-## 参照仕様書
+本タスクではこれらの仕様変更に基づき実装を行います。
 
-- `/home/kuni/Documents/er-viewer/spec/frontend_er_rendering.md` - L238-289（ハイライト機能の仕様）、L349-381（実装時の注意事項）
-- `/home/kuni/Documents/er-viewer/spec/frontend_state_management.md` - L393-395（イベントハンドラーのメモ化）
+参照仕様書：
+- [spec/entity_layout_optimization.md](/spec/entity_layout_optimization.md)
+- [spec/incremental_reverse_engineering.md](/spec/incremental_reverse_engineering.md)
 
-## 実装タスク
+## フェーズ1: バックエンドの修正 ✅ 完了
 
-### EntityNodeコンポーネントの修正
+### 型生成とバックエンド修正
 
-**編集対象**: `/home/kuni/Documents/er-viewer/public/src/components/EntityNode.tsx`
+- [x] **型定義の生成**
+  - `npm run generate`を実行してTypeSpecから型を生成
+  - 生成されるファイル:
+    - `lib/generated/api-types.ts`
+    - `public/src/api/client/models/EntityNodeViewModel.ts`
+  - `EntityNodeViewModel`に`width`と`height`フィールドが追加されることを確認
 
-**変更内容**:
+- [x] **ReverseEngineerUsecaseの修正**
+  - ファイル: `lib/usecases/ReverseEngineerUsecase.ts`
+  - 修正内容:
+    - 新規作成モード（従来の処理）でエンティティノード生成時に`width: 0`と`height: 0`を追加
+      - 176-184行目付近の`nodes[entity.id]`オブジェクトに追加
+    - 増分更新モードで既存エンティティ更新時に`width: 0`と`height: 0`にリセット
+      - 105-112行目付近の`nodes[existing.id]`オブジェクトに追加
+    - 増分更新モードで新規エンティティ生成時に`width: 0`と`height: 0`を追加
+      - 120-131行目付近の`nodes[entity.id]`オブジェクトに追加
+  - 仕様: `spec/incremental_reverse_engineering.md`の「既存エンティティ（テーブル名が一致）」および「新規エンティティ」セクション参照
 
-1. **非ハイライト要素のopacity削除**
-   - 現在: `opacity: isDimmed ? 0.2 : 1` (L47)
-   - 修正後: `opacity: 1` を削除（デフォルト値のため指定不要）
-   - `isDimmed`変数の定義（L27）と使用箇所を削除
-   - `hasHover`の購読（L23）も不要になるため削除
+### バックエンドのテストコード修正
 
-2. **イベントハンドラーのメモ化**
-   - `handleColumnMouseEnter`と`handleColumnMouseLeave`を`useCallback`でメモ化
-   - 依存配列: `[dispatch]`
-   - 目的: EntityColumnコンポーネントのReact.memoを効かせるため（親の再レンダリング時に子への不要なprops変更を防ぐ）
+- [x] **ReverseEngineerUsecaseのテストコード修正**
+  - ファイル: `tests/usecases/ReverseEngineerUsecase.test.ts`
+  - 修正内容:
+    - `EntityNodeViewModel`の期待値に`width: 0`と`height: 0`を追加
+    - 新規作成モードのテストケースを修正
+    - 増分更新モードのテストケースを修正（既存エンティティ、新規エンティティ、削除されたエンティティ）
 
-**修正前**:
-```typescript
-const handleColumnMouseEnter = (e: React.MouseEvent, columnId: string) => {
-  e.stopPropagation()
-  dispatch(actionHoverColumn, columnId)
-}
+- [x] **GetInitialViewModelUsecaseのテストコード修正**
+  - ファイル: `tests/usecases/GetInitialViewModelUsecase.test.ts`
+  - 修正内容:
+    - 初期ViewModelの検証で`erDiagram.nodes`が空のRecordであることを確認（変更不要と判明）
 
-const handleColumnMouseLeave = (e: React.MouseEvent) => {
-  e.stopPropagation()
-  dispatch(actionClearHover)
-}
-```
+### バックエンドのビルドとテスト実行
 
-**修正後**:
-```typescript
-const handleColumnMouseEnter = useCallback((e: React.MouseEvent, columnId: string) => {
-  e.stopPropagation()
-  dispatch(actionHoverColumn, columnId)
-}, [dispatch])
+- [x] **バックエンドのビルド確認**
+  - `npm run generate`を実行（型生成）
+  - TypeScriptのコンパイルエラーがないことを確認
 
-const handleColumnMouseLeave = useCallback((e: React.MouseEvent) => {
-  e.stopPropagation()
-  dispatch(actionClearHover)
-}, [dispatch])
-```
+- [x] **バックエンドのテスト実行**
+  - `npm run test`を実行
+  - すべてのテストが成功することを確認（171テスト中171テストが成功）
 
-**必要なimport追加**:
-```typescript
-import React, { useCallback } from 'react'
-```
+## フェーズ2: フロントエンドの修正 ✅ 完了
 
-### RelationshipEdgeコンポーネントの修正
+### ノードサイズ更新Action実装
 
-**編集対象**: `/home/kuni/Documents/er-viewer/public/src/components/RelationshipEdge.tsx`
+- [x] **actionUpdateNodeSizesの実装**
+  - ファイル: `public/src/actions/dataActions.ts`
+  - 追加内容:
+    - 関数シグネチャ: `actionUpdateNodeSizes(viewModel: ViewModel, updates: Array<{ id: string; width: number; height: number }>): ViewModel`
+    - 機能: 指定されたノードの`width`と`height`を一括更新
+    - 実装規約:
+      - 純粋関数として実装（副作用なし）
+      - 変化がない場合は同一参照を返す
+      - 対象ノードの`EntityNodeViewModel.width`と`EntityNodeViewModel.height`を更新
+  - 仕様: `spec/entity_layout_optimization.md`の「ノードサイズ更新用Action」セクション参照
 
-**変更内容**:
+### ERCanvasコンポーネントの修正
 
-1. **非ハイライト要素のopacity削除**
-   - 現在: `opacity: isDimmed ? 0.2 : 1` (L53)
-   - 修正後: opacity指定を削除（デフォルト値1を使用）
-   - `isDimmed`変数の定義（L35）と使用箇所を削除
-   - `hasHover`の購読（L23）も不要になるため削除
+- [x] **ERCanvasでのノードサイズ計測・更新処理の実装**
+  - ファイル: `public/src/components/ERCanvas.tsx`
+  - 修正内容:
+    - `ERCanvasInner`コンポーネント内で`useNodesInitialized()`の変化を監視する`useEffect`を追加
+    - 初期化完了時（false → true）に一度だけ以下を実行:
+      1. `useReactFlow().getNodes()`でReact Flowのノード情報を取得
+      2. 各ノードの`measured.width`と`measured.height`を抽出
+      3. `actionUpdateNodeSizes`をdispatchして`EntityNodeViewModel`を更新
+    - 注意事項:
+      - 計測完了は初回レンダリング後の1回のみ（重複更新を防ぐ）
+      - `measured`が未定義の場合は更新をスキップ
+      - エンティティノード（`type === 'entityNode'`）のみを対象
+  - 仕様: `spec/entity_layout_optimization.md`の「ノードサイズの更新実装」セクション参照
 
-**修正箇所**:
-- L23の`hasHover`購読行を削除
-- L35の`isDimmed`変数定義を削除
-- L53の`opacity: isDimmed ? 0.2 : 1`を削除
+### 配置最適化でのサイズ利用実装
 
-### ERCanvasコンポーネントの確認
+- [x] **layoutOptimizerでのサイズ利用修正**
+  - ファイル: `public/src/utils/layoutOptimizer.ts`
+  - 修正内容:
+    - `LayoutNode`インターフェースは既に`width`と`height`を持っているので型定義は変更不要
+    - 配置最適化アルゴリズム（`SimpleForceDirectedLayout`, `RemoveOverlaps`など）では既にwidth/heightを利用しているので変更不要
+  - 確認事項:
+    - `LayoutNode`インターフェース（6-13行目）に`width`と`height`が定義されていることを確認
+    - 各アルゴリズムでwidth/heightが正しく利用されていることを確認
 
-**確認対象**: `/home/kuni/Documents/er-viewer/public/src/components/ERCanvas.tsx`
+- [x] **layoutWorkerでのサイズフォールバック実装**
+  - ファイル: `public/src/workers/layoutWorker.ts`
+  - 修正内容:
+    - `EntityNodeViewModel`から`LayoutNode`に変換する際、サイズが0の場合はフォールバック値を使用
+    - フォールバック値:
+      - 幅: 200px（デフォルト）
+      - 高さ: `40 + カラム数 * 28`（概算値）
+    - 実装箇所: Worker内のメッセージハンドラで`EntityNodeViewModel[]`を`LayoutNode[]`に変換する箇所
+  - 仕様: `spec/entity_layout_optimization.md`の「配置最適化でのサイズ利用」セクション参照
 
-**確認結果**:
+### 配置最適化ボタンの有効/無効判定修正
 
-以下のイベントハンドラーは既にuseCallbackでメモ化されているため、**修正不要**:
-- `handleRectangleMouseDown` (L294-310) - useCallback適用済み
-- `handleTextMouseDown` (L390-406) - useCallback適用済み
-- `handleResize` (L385-387) - useCallback適用済み
-- `handleTextResize` (L409-412) - useCallback適用済み
+- [x] **Appコンポーネントの配置最適化ボタン判定修正**
+  - ファイル: `public/src/components/App.tsx`
+  - 修正内容:
+    - `isLayoutOptimizeDisabled`の判定条件を修正（106-110行目付近）
+    - 追加条件: 少なくとも1つのノードで`width > 0`であること
+    - 実装:
+      ```typescript
+      const hasValidNodeSize = Object.values(erDiagram.nodes).some(node => node.width > 0)
+      const isLayoutOptimizeDisabled = 
+        erDiagram.loading || 
+        layoutOptimization.isRunning || 
+        Object.keys(erDiagram.nodes).length === 0 ||
+        !nodesInitialized ||
+        !hasValidNodeSize
+      ```
+  - 仕様: `spec/entity_layout_optimization.md`の「最適化の起動」セクション参照
 
-**変更内容**: なし（確認のみ）
+### インポート/エクスポート処理の確認
 
-## テストタスク
+- [x] **exportViewModel関数の確認**
+  - ファイル: `public/src/utils/exportViewModel.ts`
+  - 確認内容:
+    - `EntityNodeViewModel`の`width`と`height`が正しくエクスポートされることを確認
+    - 特に変更は不要（`viewModel.erDiagram.nodes`をそのままエクスポートしているため）
 
-### hoverActions.test.tsの確認
-
-**確認対象**: `/home/kuni/Documents/er-viewer/public/tests/actions/hoverActions.test.ts`
-
-**確認内容**:
-- 既存のテストが仕様変更（非ハイライト要素の透明度削除）に影響を受けないことを確認
-- hoverActionsはViewModel内のUI状態を変更するだけで、透明度の計算はコンポーネント側で行うため、テストコードの修正は不要のはず
-- 念のため全テストを実行して、パスすることを確認
-
-### コンポーネントテストの検討
-
-**検討内容**:
-- EntityNodeとRelationshipEdgeのReact.memoとuseCallbackの効果を検証するテストが必要か検討
-- 現状、コンポーネント単体テストは存在しないため、新規作成は今回の対応範囲外とする
-- パフォーマンス検証はReact DevTools Profilerを使った手動確認に委ねる
-
-## ビルド・動作確認タスク
-
-### コード生成の実行
-
-**実行コマンド**: `npm run generate`
-
-**確認内容**:
-- TypeSpecから生成される型定義が正しく生成されることを確認
+- [x] **importViewModel関数の確認**
+  - ファイル: `public/src/utils/importViewModel.ts`
+  - 確認内容:
+    - インポート時に`EntityNodeViewModel`の`width`と`height`が正しく復元されることを確認
+    - 旧フォーマット（width/heightなし）からのインポート時にエラーが発生しないことを確認
+    - 特に変更は不要（`importedViewModel.erDiagram?.nodes || {}`でインポートしているため）
+  - 注意: 旧フォーマットの場合、width/heightはundefinedとなるが、TypeScriptの型では必須となっているため、実行時にエラーが発生する可能性あり
 
 ### フロントエンドのビルド確認
 
-**実行コマンド**: `cd public && npm run build`
+- [x] **フロントエンドのビルド確認**
+  - `cd public && npm run build`を実行
+  - ビルドエラーがないことを確認（成功）
 
-**確認内容**:
-- TypeScriptのコンパイルエラーがないことを確認
-- ビルドが正常に完了することを確認
+## フェーズ3: 統合テストとデバッグ
 
-### テストの実行
+### 動作確認項目（参考情報）
 
-**実行コマンド**: `npm run test`
+以下は実際にアプリを起動して動作確認する項目です。本タスク一覧の対象外ですが、参考として記載します。
 
-**確認内容**:
-- 全てのテストがパスすることを確認（131テスト全てパス想定）
-- 特にhoverActions.test.tsのテストに注目
-
-## 指示者宛ての懸念事項（作業対象外）
-
-### CSS transitionについて
-
-**確認結果**: ホバーハイライト機能（EntityNode、RelationshipEdge、EntityColumn）にはCSS transitionは使用されていません。これらのコンポーネントはinline styleで直接スタイルを指定しているため、仕様書通り「CSS transitionを使用しない」が既に実現されています。
-
-※ 他のコンポーネント（App.tsx、LayerPanel.tsx）やstyle.cssにはtransitionが存在しますが、ホバーハイライト機能とは無関係です。
-
-### 非ハイライト要素の透明度削除によるUX影響
-
-非ハイライト要素の透明度表示を削除することで、視覚的な変化があります。これがUXに悪影響を与えないか、実際のアプリケーションで確認が必要です。
-
-**確認方法**:
-1. 大量のエンティティ（50件以上）を含むER図を読み込む
-2. ホバー時の視認性を確認（ハイライトされた要素が目立つか）
-3. 必要に応じて、ハイライト表示のスタイル（枠線の太さ、影の強さなど）を調整
-
-**代替案**:
-- 非ハイライト要素の透明度を0.2ではなく、0.5〜0.7程度に調整する
-- ハイライト要素の強調表示をより強くする（枠線をさらに太く、影をより強く）
+- リバースエンジニア実行後、ノードサイズが計測されてViewModelに保存されること
+- 配置最適化ボタンがノードサイズ計測完了後に有効化されること
+- 配置最適化が実行され、エンティティが重ならずに配置されること
+- エクスポート/インポートでノードサイズ情報が保存・復元されること
+- 増分リバースエンジニア時に既存エンティティのサイズが0にリセットされ、再計測されること

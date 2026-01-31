@@ -23,6 +23,8 @@ export interface Store {
  * 初期状態
  */
 const initialState: ViewModel = {
+  format: 'er-viewer',
+  version: 1,
   erDiagram: {
     nodes: {},
     edges: {},
@@ -41,6 +43,12 @@ const initialState: ViewModel = {
     selectedItem: null,
     showBuildInfoModal: false,
     showLayerPanel: false,
+    showDatabaseConnectionModal: false,
+    layoutOptimization: {
+      isRunning: false,
+      progress: 0,
+      currentStage: null,
+    },
   },
   buildInfo: {
     data: null,

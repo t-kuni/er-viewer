@@ -1,4 +1,5 @@
 import { BuildInfoState, ViewModel } from "../api/client";
+import { getInitialGlobalUIState } from "./getInitialViewModelValues";
 
 /**
  * JSONファイルからViewModelをインポートする
@@ -9,7 +10,7 @@ import { BuildInfoState, ViewModel } from "../api/client";
  * - version フィールドが >= 1 であること
  * 
  * インポート時に以下のフィールドを初期化/補完:
- * - ui → 初期状態のGlobalUIState
+ * - ui → 初期状態のGlobalUIState（getInitialGlobalUIState()を使用）
  * - buildInfo → 現在のbuildInfoを保持（引数から渡される）
  * - erDiagram.ui.hover → null
  * - erDiagram.ui.highlightedNodeIds → []
@@ -95,11 +96,7 @@ export function importViewModel(
             },
             loading: false,
           },
-          ui: {
-            selectedItem: null,
-            showBuildInfoModal: false,
-            showLayerPanel: false,
-          },
+          ui: getInitialGlobalUIState(),
           buildInfo: currentBuildInfo, // 現在のbuildInfoを保持
         };
 

@@ -1,17 +1,16 @@
-# ER図エンティティ配置最適化アルゴリズムの改善検討
+# ハイライト中のリレーション線がエンティティで隠れる問題の解決策検討
 
 ## リサーチ要件
 
-エンティティノードの自動配置最適化機能（`spec/entity_layout_optimization.md`）について、現状の仕様・実装では以下の問題があるため対策を考える：
+ER図上でリレーション（エッジ）をホバーしてハイライトした際に、そのリレーション線がエンティティ（ノード）に隠れて見えなくなる問題を解決したい。
 
-* 関連のあるエンティティ同士が近くに配置されていない（そもそも大して最適化できてない）
-* 多くのエンティティ（矩形）が重なって表示されてしまっている
-    * 矩形の重なり解消時に、最適化が崩れている可能性もある
-* 名前が似ているエンティティも近くに配置したい（例えばpost_groups, post_scheduled, post_approval_historiesなど）
-    * つまり、リレーションの有無と名前の類似度でエンティティの近さを判断する必要がありそう
-    * 軽く試した感じ、名前の類似度は2-gram+Jaccard係数で算出できそう
-* 仕様書ではアルゴリズムが「など」のように曖昧に書かれているので明確にする
-* 使用するライブラリも明確にする
+過去に「ハイライト対象外のエンティティを透明にする」実装（`opacity: 0.2`に設定）が存在したが、パフォーマンスの問題で削除された（コミット: `cd6367b6bc05ab5cda905cc15e6ad912da8148f8`）。もしパフォーマンスを落とさずに透明にする方法があればそれでも良い。
+
+**求める回答**: 以下のいずれか、または複数の組み合わせによる解決策を提案してほしい：
+
+1. **透明化のパフォーマンス改善**: ハイライト対象外のエンティティを透明にする実装で、過去の実装よりもパフォーマンスを向上させる方法
+2. **z-indexの制御強化**: React FlowのSVGエッジとHTMLノードのレイヤー構造を考慮した、より効果的なz-index制御方法
+3. **その他の視覚的な解決策**: 透明化やz-index以外の方法で、ハイライト中のリレーション線を見やすくする方法
 
 ## プロジェクト概要
 
@@ -32,349 +31,367 @@ ER Diagram Viewerは、MySQLデータベースからER図をリバースエン�
 - 余計な機能も盛り込まない
 - AIが作業するため学習コストは考慮不要
 
-## 現在の実装状況
+## 問題の詳細
 
-### 配置最適化の仕様（`spec/entity_layout_optimization.md`）
+### 現象
 
-配置最適化は以下の多段階アプローチで実装されている：
+1. ユーザーがリレーションエッジにマウスホバーすると、そのエッジと関連するエンティティがハイライトされる
+2. ハイライトされたエッジは太く青色になる（`strokeWidth: 4`、`stroke: #007bff`）
+3. しかし、エッジの経路上にエンティティが存在する場合、エッジがエンティティの下に隠れて見えなくなってしまう
 
-**段階1: 準備**
-- ノードサイズの確定待ち（React Flowの`useNodesInitialized()`を使用）
-- 連結成分（connected components）の分割
+### 原因
 
-**段階2: クラスタリング（各連結成分内）**
-- コミュニティ検出（Louvainアルゴリズムなど）でノードをクラスタ化
+React Flowの構造上、以下のレイヤー順序が存在する：
 
-**段階3: 粗レイアウト（クラスタ単位）**
-- Force-directed（d3-forceなど）またはELK Stressでクラスタ間の配置を決定
+1. **SVG Layer (下層)**: エッジ（リレーション線）が描画される
+2. **HTML Layer (上層)**: ノード（エンティティ）が描画される
 
-**段階4: 詳細レイアウト（クラスタ内）**
-- Force-directed / Stressをクラスタ内で短時間実行
+このため、CSS `z-index`を使ってもエッジをノードより上に表示することができない。SVGとHTMLは別のレイヤーとして扱われるため。
 
-**段階5: 重なり除去（rectangle overlap removal）**
-- 矩形の実寸を考慮した衝突解消
+### 現在の実装状況
 
-**段階6: コンポーネントのパッキング（詰め配置）**
-- 連結成分の矩形を詰めて配置
+#### ホバーインタラクション機能
 
-### 使用中のライブラリ（`public/package.json`）
+- エンティティ、エッジ、カラムのホバー時に関連要素をハイライトする機能が実装されている
+- 仕様書: `spec/frontend_er_rendering.md`（ホバーインタラクション仕様セクション）
+- 実装ファイル:
+  - `public/src/components/RelationshipEdge.tsx`: リレーションエッジコンポーネント
+  - `public/src/components/EntityNode.tsx`: エンティティノードコンポーネント
+  - `public/src/actions/hoverActions.ts`: ホバー時のアクション（ハイライト対象の計算）
 
-以下のライブラリが導入されている：
+#### 現在のハイライト実装
 
-```json
-{
-  "graphology": "^0.26.0",
-  "graphology-communities-louvain": "^2.0.2",
-  "graphology-components": "^1.5.4",
-  "graphology-layout-forceatlas2": "^0.10.1"
-}
-```
-
-**注意**: `d3-force`は`public/src/utils/layoutOptimizer.ts`でインポートされているが、`package.json`には明示されていない（依存関係として追加されている可能性がある）。
-
-### 実装コード（`public/src/utils/layoutOptimizer.ts`）
-
-現在、以下のアルゴリズムが実装されている：
-
-1. **`SimpleForceDirectedLayout`**
-   - d3-forceを使用したForce-directedレイアウト
-   - `forceLink`: リンクの理想的な距離 = 150px
-   - `forceManyBody`: ノード間の反発力 = -300
-   - `forceCenter`: 中心に引き寄せる力
-   - `forceCollide`: 衝突半径 = `Math.max(width, height) / 2 + 20`
-   - 反復回数: 200〜500 tick（ノード数に応じて調整）
-   - 早期終了条件: `simulation.alpha() < 0.01`
-
-2. **`SplitConnectedComponents`**
-   - graphologyを使用した連結成分分割
-   - 無向グラフとして扱う
-
-3. **`LouvainClustering`**
-   - graphology-communities-louvainを使用したクラスタリング
-   - クラスタIDをノードに付与
-
-4. **`CoarseLayout`**
-   - クラスタ間のForce-directedレイアウト
-   - `forceLink`: 距離 = 300px（クラスタ間を広く取る）
-   - `forceManyBody`: 反発力 = -500（強めの反発）
-   - 反復回数: 100 tick
-
-5. **`FineLayout`**
-   - クラスタ内のForce-directedレイアウト
-   - `forceLink`: 距離 = 150px
-   - `forceManyBody`: 反発力 = -200
-   - `forceCollide`: 衝突半径 = `Math.max(width, height) / 2 + 20`
-   - 反復回数: 200 tick
-
-6. **`RemoveOverlaps`**
-   - 空間ハッシュ（グリッド）を使用した重なり除去
-   - 押し出し方式で矩形の重なりを解消
-   - セルサイズ: 200px
-   - 最大反復回数: 10回
-   - 重なり判定: 矩形の幅・高さを考慮
-   - 押し出し方向: 重なりが小さい方向に押し出す（+5pxのマージン）
-
-7. **`SpatialHash`**
-   - グリッドベースの空間分割で近傍ノードを高速検索
-   - セルサイズ: 200px
-
-### 実行フロー（`public/src/workers/layoutWorker.ts`）
-
-Web Workerで実行される配置最適化の実際のフローは以下の通り：
-
-1. 準備（0〜10%）
-2. 連結成分分割（10〜15%）
-3. クラスタリング（15〜25%）
-4. 粗レイアウト（25〜50%）
-5. 詳細レイアウト（50〜75%）
-6. 重なり除去（75〜100%）
-
-**注意**: 段階6（コンポーネントのパッキング）は実装されていない。
-
-## 問題の詳細分析
-
-### 問題1: 関連のあるエンティティ同士が近くに配置されていない
-
-現状の実装では以下の点が考えられる：
-
-- Force-directedの`forceLink`の距離（150px）が適切でない可能性
-- `forceManyBody`の反発力（-300）が強すぎる可能性
-- クラスタリングが適切に機能していない可能性
-- 粗レイアウトと詳細レイアウトの2段構成が最適化を妨げている可能性
-
-### 問題2: 多くのエンティティが重なって表示されている
-
-現状の重なり除去アルゴリズム（`RemoveOverlaps`）には以下の問題が考えられる：
-
-- 押し出し方式が最大10回の反復では不十分
-- 押し出しのマージン（+5px）が小さすぎる
-- 空間ハッシュのセルサイズ（200px）が不適切
-- 重なり除去が最適化の最後に実行されるため、Force-directedで整えられた配置が崩れる
-- 粗レイアウト・詳細レイアウトで`forceCollide`を使っているが、矩形の重なりが完全に解消されていない
-
-### 問題3: 名前が似ているエンティティを近くに配置したい
-
-現状の実装では名前の類似度は全く考慮されていない。以下の対応が必要：
-
-- エンティティ名の類似度を計算するロジックの追加
-  - 提案: 2-gram + Jaccard係数
-- 類似度に基づく仮想的なエッジの追加（Force-directedのリンクとして扱う）
-- または、類似度をForce-directedの距離に反映
-
-### 問題4: 仕様書のアルゴリズムが曖昧
-
-仕様書では「Louvainアルゴリズムなど」「d3-forceなど」「またはELK Stress」のように、具体的なアルゴリズムやパラメータが明確に定義されていない。
-
-### 問題5: 使用するライブラリが明確でない
-
-仕様書では複数の選択肢が提示されているが、実際に使うべきライブラリが明確でない：
-
-- d3-force vs ELK
-- graphology-layout-forceatlas2（導入済みだが未使用）
-
-## ViewModelの構造
-
-すべての型は`scheme/main.tsp`で定義されている。
-
-### EntityNodeViewModel（エンティティノード）
+**RelationshipEdge.tsx**:
 
 ```typescript
-model EntityNodeViewModel {
-  id: string; // UUID (エンティティID)
-  name: string;
-  x: float64;      // X座標（配置情報）
-  y: float64;      // Y座標（配置情報）
-  columns: Column[];
-  ddl: string;
-}
+const isHighlighted = useViewModel(
+  (vm) => vm.erDiagram.ui.highlightedEdgeIds.includes(id),
+  (a, b) => a === b
+)
+
+return (
+  <g
+    onMouseEnter={() => dispatch(actionHoverEdge, id)}
+    onMouseLeave={() => dispatch(actionClearHover)}
+    style={{ 
+      cursor: 'pointer',
+      zIndex: isHighlighted ? 999 : 0,  // ← z-indexを設定しているが効果なし
+    }}
+  >
+    <path
+      id={id}
+      d={edgePath}
+      style={{
+        stroke: isHighlighted ? '#007bff' : '#333',
+        strokeWidth: isHighlighted ? 4 : 2,
+        fill: 'none',
+      }}
+    />
+  </g>
+)
 ```
 
-エンティティの`width`と`height`は明示的に保存されていない。React Flowでレンダリング後に`node.measured.width/height`で取得できる。
-
-### RelationshipEdgeViewModel（リレーション）
+**EntityNode.tsx**:
 
 ```typescript
-model RelationshipEdgeViewModel {
-  id: string; // UUID (リレーションシップID)
-  sourceEntityId: string; // エンティティID (UUID)
-  sourceColumnId: string; // カラムID (UUID)
-  targetEntityId: string; // エンティティID (UUID)
-  targetColumnId: string; // カラムID (UUID)
-  constraintName: string;
-}
+const isHighlighted = useViewModel(
+  (vm) => vm.erDiagram.ui.highlightedNodeIds.includes(data.id),
+  (a, b) => a === b
+)
+
+return (
+  <div 
+    style={{ 
+      border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
+      borderRadius: '4px', 
+      background: 'white',
+      minWidth: '200px',
+      boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
+      zIndex: isHighlighted ? 1000 : 1,
+      // opacity: isDimmed ? 0.2 : 1,  ← 過去の実装（削除済み）
+    }}
+    onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
+    onMouseLeave={() => dispatch(actionClearHover)}
+  >
+    {/* ... */}
+  </div>
+)
 ```
 
-リレーションは`sourceEntityId`と`targetEntityId`でエンティティ同士をつないでいる。
+### 過去の実装（削除済み）
 
-### LayoutOptimizationState（配置最適化の状態）
+コミット `cd6367b6bc05ab5cda905cc15e6ad912da8148f8` で削除された実装：
 
-```typescript
-model LayoutOptimizationState {
-  isRunning: boolean;         // 実行中フラグ
-  progress: float64;          // 進捗（0〜100）
-  currentStage: string | null; // 現在の処理段階名
-}
+**変更内容**:
+
+1. **EntityNode.tsx**:
+   - `hasHover`を購読し、ホバー中かつ非ハイライトの場合に`isDimmed`を`true`に設定
+   - `opacity: isDimmed ? 0.2 : 1`を適用してエンティティを透明化
+
+2. **RelationshipEdge.tsx**:
+   - 同様に`hasHover`を購読し、`isDimmed`を計算
+   - `opacity: isDimmed ? 0.2 : 1`を適用してエッジを透明化
+
+**削除理由**: 
+
+- パフォーマンスの問題
+- コミットメッセージに「パフォーマンス改善」とあり、削除によって改善されたことが示唆される
+
+**パフォーマンス問題の原因（推測）**:
+
+- `hasHover`の購読により、全てのエンティティノード・エッジが`hasHover`の変化（`null` ↔ `{type, id}`）に反応して再レンダリングされていた
+- 大量のエンティティ（数十〜数百）が存在する場合、ホバーする度に全ノード・全エッジが再レンダリングされるため、描画が重くなった
+
+### React Flowのレイヤー構造
+
+React Flowは内部で以下のDOM構造を持つ：
+
+```html
+<div class="react-flow">
+  <svg class="react-flow__edges">
+    <!-- エッジ（リレーション線）が描画される -->
+    <g class="react-flow__edge">
+      <!-- ... -->
+    </g>
+  </svg>
+  <div class="react-flow__nodes">
+    <!-- ノード（エンティティ）が描画される -->
+    <div class="react-flow__node">
+      <!-- ... -->
+    </div>
+  </div>
+</div>
 ```
+
+このため、SVG要素（エッジ）とHTML要素（ノード）は異なるレイヤーに属し、CSSの`z-index`ではエッジをノードの上に表示できない。
 
 ## 制約条件
 
 - エンティティは多くて300個程度を想定
-- 実行時間は最大10秒程度に収める
-- フロントエンド（ブラウザ）で実装する
-- Web Workerで実行し、UIスレッドをブロックしない
-- 各段階の完了時に座標データを送信し、段階的に描画を更新する
+- ホバーインタラクション時の応答性を損なわないこと（即座にハイライトが反映されること）
+- 既存の`React.memo`やselector最適化などのパフォーマンス最適化を維持すること
+- React Flow v12を使用（最新バージョン）
 
-## 期待する回答
+## 検討してほしい解決策
 
-以下について、具体的な見解と改善案を提示してほしい：
+### 1. 透明化のパフォーマンス改善
 
-### 1. 現状の問題の根本原因の特定
+過去の実装では`hasHover`の購読により全ノード・全エッジが再レンダリングされていたことがパフォーマンス問題の原因と考えられる。
 
-現在の実装でエンティティが適切に配置されない・重なってしまう根本原因は何か？
+**検討してほしい点**:
 
-考えられる原因：
-- Force-directedのパラメータ（距離、反発力）が不適切
-- 粗レイアウト・詳細レイアウトの2段構成が逆効果
-- 重なり除去のアルゴリズムが不十分
-- `forceCollide`の衝突半径の計算方法が矩形に適していない
-- その他
+- **Option A**: 各ノードが`highlightedNodeIds`配列に自分が含まれているかどうかだけを購読する（現在の`isHighlighted`の実装と同様）
+  - `useViewModel(vm => !vm.erDiagram.ui.highlightedNodeIds.includes(nodeId) && vm.erDiagram.ui.hover !== null, (a, b) => a === b)`
+  - この方法で、ハイライト対象外のノードのみが再レンダリングされるようにできるか？
+  - ただし、ホバー開始時（`hover: null → {type, id}`）と終了時（`hover: {type, id} → null`）に全ノードが再レンダリングされる懸念がある
 
-### 2. Force-directedのパラメータチューニング
+- **Option B**: `opacity`の変更をReactの再レンダリングではなく、直接DOMを操作することで実現する
+  - `useEffect`で`ref.current.style.opacity`を直接変更する
+  - React.memoやselectorの最適化を維持しつつ、視覚的な変化だけを適用できるか？
+  - 実装の複雑さとメンテナンス性のトレードオフ
 
-現在のパラメータ設定を改善するための具体的な推奨値：
+- **Option C**: CSSクラスを使って透明化を制御し、React側は最小限の状態更新のみを行う
+  - `hasHover`のような真偽値フラグをルートのReact Flowコンテナに設定し、CSSセレクタで制御
+  - 例: `.react-flow.has-hover .react-flow__node:not(.highlighted) { opacity: 0.2; }`
+  - Reactの再レンダリングを最小限にしつつ、CSSで一括制御できるか？
+  - React Flowの構造上、このアプローチが実現可能か？
 
-- `forceLink`の距離（現状: 150px）
-- `forceManyBody`の反発力（現状: -300）
-- `forceCollide`の衝突半径（現状: `Math.max(width, height) / 2 + 20`）
-- 反復回数（現状: 200〜500 tick）
+### 2. z-indexの制御強化
 
-これらのパラメータをどう調整すべきか？
-また、エンティティのサイズ（width, height）を考慮したパラメータ設定はあるか？
+SVGとHTMLのレイヤー分離問題を解決する方法を検討してほしい。
 
-### 3. 重なり除去アルゴリズムの改善
+**検討してほしい点**:
 
-現在の押し出し方式の重なり除去を改善する方法：
+- **React FlowのカスタムLayer機能**:
+  - React Flow v12には`<ViewportPortal>`というコンポーネントがあり、ノードレイヤーの上に描画できる
+  - エッジをSVGではなく、`<ViewportPortal>`内でHTML/CSS（`border`や`::before`など）を使って描画する方法は現実的か？
+  - メリット・デメリット（パフォーマンス、実装の複雑さ、エッジのルーティング精度など）
 
-- 反復回数を増やす（現状: 10回）べきか？
-- 押し出しのマージンを増やす（現状: +5px）べきか？
-- 押し出しの強さを調整すべきか？
-- 別のアルゴリズム（例: ELKのOverlap Removal）を使うべきか？
-- 重なり除去を最後に実行するのではなく、Force-directedと統合すべきか？
+- **SVGの`z-index`相当の制御**:
+  - SVG内では描画順序（DOM順序）がそのままレイヤー順序になる
+  - React Flowのエッジを動的に再配置（DOM順序を変更）してハイライト中のエッジを最後に描画する方法は可能か？
+  - React FlowのAPIでこれを制御できるか？
 
-### 4. 名前の類似度を考慮した配置の実装方法
+### 3. その他の視覚的な解決策
 
-エンティティ名の類似度を配置に反映する具体的な実装方法：
+透明化やz-index以外の方法で、ハイライト中のリレーション線を見やすくする方法を検討してほしい。
 
-**パターンA: 仮想的なエッジの追加**
-- 名前の類似度が高いエンティティ間に仮想的なエッジを追加
-- Force-directedの`forceLink`で扱う
-- メリット・デメリット
+**検討してほしい点**:
 
-**パターンB: Force-directedのカスタム力の追加**
-- d3-forceに名前の類似度に基づく引力を追加
-- `simulation.force('similarity', customForce)`
-- メリット・デメリット
+- **エッジの視覚強調**:
+  - ハイライト中のエッジに光彩効果（`filter: drop-shadow`）やアニメーションを追加して、エンティティの下に隠れていても存在感を出す
+  - エッジの太さをさらに太くする（現在は`strokeWidth: 4`だが、`8`や`10`にする）
+  - 点滅アニメーション（`@keyframes`）を使って視覚的に目立たせる
+  - これらの方法で実用的に「見やすくなる」か？UX的に許容できるか？
 
-**パターンC: クラスタリングに名前の類似度を反映**
-- Louvainクラスタリングの重み付けに名前の類似度を追加
-- メリット・デメリット
+- **エンティティの視覚変更**:
+  - ハイライト対象外のエンティティの背景色を変更する（`opacity`ではなく`background-color`を薄いグレーにする）
+  - エンティティに`filter: blur(2px)`を適用して焦点を外す
+  - これらの方法でエッジの視認性が向上するか？パフォーマンスへの影響は？
 
-どのパターンが適切か？または別の方法があるか？
+- **ポップオーバー/ツールチップ**:
+  - エッジホバー時に、エッジの詳細情報（接続元/接続先エンティティ名など）をポップオーバーで表示する
+  - エッジ自体が見えなくても、情報は伝わるようにする
+  - 根本的な解決ではないが、UX的に許容できる代替案になるか？
 
-**名前の類似度の計算方法**：
-- 2-gram + Jaccard係数で実装する方針で問題ないか？
-- 他に適切な方法はあるか？
-- どの程度の類似度を「似ている」と判断すべきか？（閾値の設定）
-
-### 5. アルゴリズムの具体化と明確化
-
-仕様書で曖昧に書かれている部分を明確にする：
-
-**クラスタリング**：
-- Louvainを使う（現在実装済み）で確定して良いか？
-- 他のアルゴリズム（例: Community detection、Modularity-based clustering）との比較
-- Louvainのパラメータ設定
-
-**Force-directedレイアウト**：
-- d3-forceで確定して良いか？
-- graphology-layout-forceatlas2（導入済みだが未使用）を使うべきか？
-- ELKを導入すべきか？（バンドルサイズ約1.4MB）
-
-**重なり除去**：
-- 現在の押し出し方式で良いか？
-- ELKのOverlap Removalを使うべきか？
-
-**コンポーネントのパッキング**：
-- 仕様書では段階6として記載されているが未実装
-- 実装すべきか？実装する場合のアルゴリズムは？
-
-### 6. 多段階アプローチの見直し
-
-現在の多段階アプローチ（準備→クラスタリング→粗レイアウト→詳細レイアウト→重なり除去→パッキング）は適切か？
-
-代替案：
-- **パターンA**: 連結成分分割 → Force-directed（全体）→ 重なり除去
-- **パターンB**: クラスタリング → クラスタごとにForce-directed → 重なり除去 → クラスタのパッキング
-- **パターンC**: Force-directedと重なり除去を統合（`forceCollide`の改善）
-
-どのアプローチが最も効果的か？
-
-### 7. 使用ライブラリの決定
-
-以下のライブラリの使用を決定したい：
-
-**d3-force**：
-- 現在使用中
-- メリット: 軽量、自前制御しやすい、many-bodyがquadtree + Barnes–Hutで高速化
-- デメリット: 矩形衝突は追加実装が必要
-
-**graphology-layout-forceatlas2**：
-- 導入済みだが未使用
-- Force Atlas 2はCytoscapeやGephiで使われる高品質なレイアウトアルゴリズム
-- d3-forceと比較してどうか？
-
-**elkjs**：
-- 未導入
-- メリット: 高品質、Overlap Removalなど体系的な機能
-- デメリット: バンドルサイズが大きい（約1.4MB）
-- MVP段階で導入すべきか？
-
-**推奨**: どのライブラリを使うべきか、またはどのように組み合わせるべきか？
-
-### 8. パフォーマンスの検証
-
-300エンティティで10秒以内に収まるか？
-
-- 現在の実装での性能見積もり
-- ボトルネックはどこか？（連結成分分割、クラスタリング、Force-directed、重なり除去）
-- パフォーマンス改善のための具体的な施策
-
-### 9. 段階的な実装計画
-
-問題を解決するための段階的な実装計画を提案してほしい：
-
-**フェーズ1**: 最も効果が高い改善（すぐに実装すべき）
-**フェーズ2**: 中程度の改善（次に実装すべき）
-**フェーズ3**: 高度な最適化（将来的に実装）
-
-優先順位と実装順序を明確にしてほしい。
+- **エンティティの配置最適化**:
+  - エンティティの自動配置アルゴリズムを改善し、エッジの交差やエンティティとの重なりを最小化する
+  - 現在、配置最適化機能（`spec/entity_layout_optimization.md`）が実装されているが、重なりの解消が不十分
+  - 配置最適化の改善で問題を根本的に軽減できるか？
 
 ## 参考情報
 
 ### 関連仕様書
 
-- `spec/entity_layout_optimization.md`: エンティティ配置最適化機能仕様
+- `spec/frontend_er_rendering.md`: フロントエンドER図レンダリング仕様（ホバーインタラクションセクション含む）
 - `spec/frontend_state_management.md`: フロントエンド状態管理仕様
-- `spec/frontend_er_rendering.md`: ER図のレンダリング仕様
-- `scheme/main.tsp`: API型定義（TypeSpec）
-
-### リサーチ背景
-
-- `research/20260126_2247_entity_layout_optimization.md`: 配置最適化のアルゴリズム検討（初回リサーチ）
+- `spec/entity_layout_optimization.md`: エンティティ配置最適化機能仕様
 
 ### 関連する実装ファイル
 
-- `public/src/utils/layoutOptimizer.ts`: 配置最適化アルゴリズムの実装
-- `public/src/workers/layoutWorker.ts`: Web Workerでの実行ロジック
-- `public/src/commands/layoutOptimizeCommand.ts`: 配置最適化のコマンド
-- `public/src/components/ERCanvas.tsx`: ER図描画コンポーネント
+- `public/src/components/RelationshipEdge.tsx`: リレーションエッジコンポーネント（56行）
+- `public/src/components/EntityNode.tsx`: エンティティノードコンポーネント（89行）
+- `public/src/components/ERCanvas.tsx`: ER図描画コンポーネント（React Flowのコンテナ）（820行）
+- `public/src/actions/hoverActions.ts`: ホバー時のアクション（ハイライト対象の計算ロジック）
+- `public/src/store/erDiagramStore.ts`: 状態管理ストア（Zustand）
+
+### 使用しているライブラリ
+
+- React Flow v12（`@xyflow/react`）
+- React 18
+- TypeScript
+- Zustand（状態管理）
+
+### ViewModelの構造
+
+すべての型は`scheme/main.tsp`で定義されている。
+
+**EntityNodeViewModel**:
+
+```typescript
+model EntityNodeViewModel {
+  id: string; // UUID
+  name: string;
+  x: float64;
+  y: float64;
+  columns: Column[];
+  ddl: string;
+}
+```
+
+**RelationshipEdgeViewModel**:
+
+```typescript
+model RelationshipEdgeViewModel {
+  id: string; // UUID
+  sourceEntityId: string;
+  sourceColumnId: string;
+  targetEntityId: string;
+  targetColumnId: string;
+  constraintName: string;
+}
+```
+
+**UI State (ハイライト関連)**:
+
+```typescript
+model ERDiagramUI {
+  hover: HoverState | null;
+  highlightedNodeIds: string[];  // ハイライト中のエンティティID
+  highlightedEdgeIds: string[];  // ハイライト中のエッジID
+  highlightedColumnIds: string[]; // ハイライト中のカラムID
+  isDraggingEntity: boolean;
+  // ...
+}
+
+model HoverState {
+  type: "entity" | "edge" | "column";
+  id: string;
+}
+```
+
+## 期待する回答
+
+以下について、具体的な見解と実装案を提示してほしい：
+
+### 1. 問題の根本原因の整理
+
+- React FlowのSVG/HTMLレイヤー分離問題の詳細
+- 過去の透明化実装でパフォーマンス問題が発生した正確な理由
+- z-indexが効かない理由の技術的な説明
+
+### 2. 透明化のパフォーマンス改善案
+
+**各Optionについて**:
+
+- **実現可能性**: 技術的に実装可能か？React Flowの制約に抵触しないか？
+- **パフォーマンス**: 300エンティティでも快適に動作するか？再レンダリングのコストは？
+- **実装の複雑さ**: 実装・メンテナンスの難易度は？
+- **推奨度**: どのOptionが最も効果的か？優先順位は？
+
+特に、**Option C（CSSクラスによる制御）**について詳しく知りたい：
+
+- React Flowの構造上、ルートコンテナにクラスを追加して全ノードのスタイルを制御できるか？
+- CSSセレクタで「ハイライト対象外」のノードを選択する方法（例: `:not(.highlighted)`）
+- Reactの再レンダリングを最小限にしつつ、視覚的な変化を実現できるか？
+- 実装の具体的なステップ
+
+### 3. z-index制御強化の実現可能性
+
+**React FlowのViewportPortalについて**:
+
+- `<ViewportPortal>`でエッジを描画する方法の詳細
+- HTML/CSSでエッジ（直角ポリライン）を描画する具体的な実装方法
+- パフォーマンスへの影響（SVG vs HTML/CSS）
+- エッジのルーティング計算（React Flowの`getSmoothStepPath`を使えるか？）
+
+**SVGのDOM順序制御について**:
+
+- React Flowのエッジの描画順序を動的に変更する方法はあるか？
+- React Flow APIでエッジのDOM順序を制御できるか？
+- 実装の複雑さとパフォーマンスへの影響
+
+### 4. その他の視覚的解決策の有効性
+
+各アプローチについて：
+
+- **視覚強調（光彩効果、アニメーションなど）**:
+  - 実用的にエッジの視認性が向上するか？
+  - UX的に許容できるか？（点滅アニメーションは煩わしくないか？）
+  - パフォーマンスへの影響（`filter: drop-shadow`など）
+
+- **エンティティの視覚変更（`filter: blur`など）**:
+  - `opacity`よりもパフォーマンスが良いか？
+  - 視覚的な効果は`opacity`と比べてどうか？
+
+- **ポップオーバー/ツールチップ**:
+  - UX的に代替案として機能するか？
+  - エッジ自体が見えないことの問題を軽減できるか？
+
+- **エンティティの配置最適化**:
+  - 配置最適化の改善で重なりを実用的なレベルまで減らせるか？
+  - 配置最適化だけで問題を解決できる可能性はあるか？
+
+### 5. 推奨する解決策と実装計画
+
+上記の検討を踏まえ、最も効果的な解決策を提案してほしい：
+
+- **推奨する解決策**: 単一の方法、または複数の方法の組み合わせ
+- **実装の優先順位**: フェーズ1（すぐに実装すべき）、フェーズ2（次に実装すべき）、フェーズ3（将来的に検討）
+- **具体的な実装ステップ**: コードの変更箇所、実装の流れ
+- **期待される効果**: 視覚的な改善、パフォーマンスへの影響
+
+### 6. 他のReact Flowプロジェクトでの事例
+
+React Flowを使った他のプロジェクト（オープンソース、商用）で、同様の問題がどのように解決されているか：
+
+- エッジとノードの重なり問題への対処方法
+- ハイライト時の視覚表現のベストプラクティス
+- React Flowの公式ドキュメントやサンプルでの推奨方法
+
+## 補足
+
+- 本プロジェクトはMVPフェーズであり、完璧な解決策よりも実用的な解決策を優先する
+- パフォーマンスは重要だが、セキュリティや後方互換性は考慮不要
+- 実装の学習コストは問題ない（AIが実装するため）
+- ユーザーがエッジをホバーした際に「関連するエンティティが分かりやすく、かつエッジが視認できる」状態を実現したい

@@ -59,12 +59,12 @@ app.get('/api/init', async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/reverse-engineer - ReverseEngineerRequestを受け取り、更新後のViewModelを返却
+// POST /api/reverse-engineer - ReverseEngineerRequestを受け取り、ReverseEngineerResponseを返却
 app.post('/api/reverse-engineer', async (req: Request, res: Response) => {
   try {
     const request = req.body; // ReverseEngineerRequest型
-    const updatedViewModel = await reverseEngineerUsecase(request);
-    res.json(updatedViewModel);
+    const response = await reverseEngineerUsecase(request);
+    res.json(response);
   } catch (error) {
     console.error('Error during reverse engineering:', error);
     res.status(500).json({ error: 'Failed to reverse engineer database' });

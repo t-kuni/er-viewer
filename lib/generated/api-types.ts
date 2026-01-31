@@ -145,14 +145,6 @@ export interface components {
             foreignKeys: components["schemas"]["ForeignKey"][];
             ddl: string;
         };
-        EntityLayoutItem: {
-            id: string;
-            name: string;
-            /** Format: double */
-            x: number;
-            /** Format: double */
-            y: number;
-        };
         EntityNodeViewModel: {
             id: string;
             name: string;
@@ -208,17 +200,6 @@ export interface components {
         };
         /** @enum {string} */
         LayerPosition: "background" | "foreground";
-        LayoutData: {
-            entities: {
-                [key: string]: components["schemas"]["EntityLayoutItem"];
-            };
-            rectangles: {
-                [key: string]: components["schemas"]["Rectangle"];
-            };
-            texts: {
-                [key: string]: components["schemas"]["TextBox"];
-            };
-        };
         LayoutOptimizationState: {
             isRunning: boolean;
             /** Format: double */
@@ -259,8 +240,17 @@ export interface components {
             constraintName: string;
         };
         ReverseEngineerRequest: {
-            viewModel: components["schemas"]["ViewModel"];
-            password?: string;
+            type: components["schemas"]["DatabaseType"];
+            host: string;
+            /** Format: int32 */
+            port: number;
+            user: string;
+            password: string;
+            database: string;
+        };
+        ReverseEngineerResponse: {
+            erData: components["schemas"]["ERData"];
+            connectionInfo: components["schemas"]["DatabaseConnectionState"];
         };
         /** @enum {string} */
         TextAlign: "left" | "center" | "right";
@@ -362,7 +352,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ViewModel"];
+                    "application/json": components["schemas"]["ReverseEngineerResponse"];
                 };
             };
             /** @description An unexpected error response. */

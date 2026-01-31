@@ -72,7 +72,7 @@
   - インデックスなし: エンティティホバー時にO(エッジ数)の線形探索が必要
   - インデックスあり: O(1)または O(接続数)で関連要素を取得可能
 - **更新タイミング**:
-  - リバースエンジニア実行時（バックエンドで計算してAPIレスポンスに含める）
+  - リバースエンジニア実行時（フロントエンドで`buildERDiagramIndex`関数を使用して計算）
   - データ変更時（将来的な機能：エンティティ/エッジの追加・削除）
   - インポート時（JSONファイルからViewModelを読み込む際に再計算）
 
@@ -160,7 +160,7 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 * `actionSetData(viewModel, nodes, edges)`: リバースエンジニア結果を設定
   - 既存のUI状態を保持したままデータ部分のみ更新
   - 注意: リバースエンジニアリング時に矩形データは返されない（矩形は手動で追加される）
-  - **逆引きインデックス（`index`）はバックエンドで計算済みのものがAPIレスポンスに含まれる**
+  - **注意: このactionは現在使用されていません。増分更新は`actionMergeERData`を使用してください**
   
 * `actionMergeERData(viewModel, erData, connectionInfo)`: ERDataを既存ViewModelとマージ
   - リバースエンジニアAPIのレスポンス（ERData）を既存ViewModelとマージ

@@ -7,10 +7,6 @@ type ForeignKey = components['schemas']['ForeignKey'];
 type Entity = components['schemas']['Entity'];
 type Relationship = components['schemas']['Relationship'];
 type ERData = components['schemas']['ERData'];
-type LayoutData = components['schemas']['LayoutData'];
-type EntityLayoutItem = components['schemas']['EntityLayoutItem'];
-type Rectangle = components['schemas']['Rectangle'];
-type TextBox = components['schemas']['TextBox'];
 
 interface DatabaseConfig {
   host: string;
@@ -223,27 +219,6 @@ class DatabaseManager {
 
     return erData;
   }
-
-  generateDefaultLayoutData(entities: Entity[]): LayoutData {
-    const layoutEntities: Record<string, EntityLayoutItem> = {};
-    
-    entities.forEach((entity, index) => {
-      const col = index % 4;
-      const row = Math.floor(index / 4);
-      layoutEntities[entity.id] = {
-        id: entity.id,
-        name: entity.name,
-        x: 50 + col * 300,
-        y: 50 + row * 200,
-      };
-    });
-    
-    return {
-      entities: layoutEntities,
-      rectangles: {},
-      texts: {},
-    };
-  }
 }
 
 export default DatabaseManager;
@@ -254,8 +229,4 @@ export type {
   Entity, 
   Relationship, 
   ERData,
-  LayoutData,
-  EntityLayoutItem,
-  Rectangle,
-  TextBox,
 };

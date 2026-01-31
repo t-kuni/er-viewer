@@ -1,6 +1,4 @@
-import type { components } from '../../../lib/generated/api-types';
-
-type ViewModel = components['schemas']['ViewModel'];
+import type { ViewModel } from '../api/client';
 
 /**
  * Action関数の型定義

@@ -338,9 +338,20 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 
 #### z-index制御
 
-* React Flowのデフォルトz-index（ノード: 1、エッジ: 0）
-* ハイライト時: ノード 1000、エッジ 999に設定
-* styleプロパティで動的に設定
+**基本設定**:
+* React Flowの`zIndexMode`を`"manual"`に設定し、自動z-index調整を無効化
+* React Flowの`edge.zIndex`プロパティを使用してエッジのスタッキング順序を制御
+  - SVG内の`<g style={{ zIndex }}>`は機能しないため使用しない
+
+**z-index値の割り当て**:
+* エンティティノード: `zIndex = 0`（固定）
+* 通常状態のエッジ: `zIndex = -100`（ノードより背後）
+* ハイライトされたエッジ: `zIndex = 100`（ノードより前面）
+
+**エッジzIndexの更新**:
+* `viewModel.erDiagram.ui.highlightedEdgeIds`の変化時に、React Flowに渡すエッジ配列を再構築
+* エッジのzIndexプロパティをハイライト状態に応じて動的に設定
+* React Flowはエッジオブジェクトの参照またはプロパティが変化した場合のみ再描画
 
 #### ビジュアルスタイル
 
@@ -348,6 +359,33 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 * エンティティノード: 枠線を太く、影を強調（青系）
 * リレーションエッジ: 線を太く、色を強調（青系）
 * カラム: 背景色を強調表示（薄い青）
+
+**非ハイライト要素の半透明化（Option C - CSS一括制御）**:
+
+ホバー状態をルート要素のクラスで表現し、CSSセレクタで非ハイライト要素を一括制御することで、パフォーマンスを最大化する。
+
+* **ルート要素のクラス制御**:
+  - `ERCanvas`コンポーネントが`viewModel.erDiagram.ui.hover !== null`を購読
+  - ホバー中は`er-canvas`のルート要素に`has-hover`クラスを付与
+  - ホバー開始・終了時に再レンダリングされるのは`ERCanvas`のルート要素のみ
+
+* **個別要素のクラス制御**:
+  - `EntityNode`: `viewModel.erDiagram.ui.highlightedNodeIds.includes(nodeId)`を購読し、ハイライト時に`is-highlighted`クラスを付与
+  - `RelationshipEdge`: `viewModel.erDiagram.ui.highlightedEdgeIds.includes(edgeId)`を購読し、ハイライト時に`is-highlighted`クラスを付与
+  - 真偽値の購読には`equalityFn: (a, b) => a === b`を指定し、値ベースの比較を行う
+
+* **CSSセレクタによる半透明化**:
+  - `.er-canvas.has-hover .entity-node:not(.is-highlighted)`: `opacity: 0.2`
+  - `.er-canvas.has-hover .rel-edge:not(.is-highlighted) path`: `opacity: 0.2`
+  - `.er-canvas:not(.has-hover)`: 通常の`opacity: 1.0`
+
+* **パフォーマンス効果**:
+  - ホバー開始・終了時に再レンダリングされるのはルート要素（1個）とハイライト対象（少数）のみ
+  - 非ハイライト要素（大多数）は再レンダリングされない（CSSのみで視覚効果が適用される）
+  - 全要素が`hover`オブジェクト全体を購読する場合と比較して、劇的にパフォーマンスが向上
+
+**背景となるリサーチ**:
+* [research/20260131_2143_highlighted_edge_visibility.md](../research/20260131_2143_highlighted_edge_visibility.md)でOption A/B/Cを評価し、Option Cを採用
 
 #### イベントハンドリング
 
@@ -379,6 +417,9 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
   - メモ化されていないイベントハンドラーは毎回新しい関数参照が作られ、`React.memo`が効かなくなる
 * カラムホバーも逆引きインデックスにより高速化されるため、実装の複雑さは軽減される
 * ドラッグ中のホバー無効化は、React Flowの`onNodeDragStart`/`onNodeDragStop`イベントを使用して制御する
+* React FlowのReactFlowコンポーネントに`zIndexMode="manual"`を指定し、自動z-index調整を無効化する
+* エッジのz-index制御には`edge.zIndex`プロパティを使用する（SVG内の`style.zIndex`は機能しない）
+* CSSクラス名は`entity-node`, `rel-edge`, `is-highlighted`, `has-hover`を使用する
 
 ## 懸念事項・確認事項
 

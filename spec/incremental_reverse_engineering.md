@@ -172,21 +172,24 @@ init.sqlの`erviewer`と`erviewer-2`スキーマの差分を参考にした主�
 
 ### フロントエンド実装
 
-**マージユーティリティ関数**：
-- `mergeERDataWithViewModel(erData: ERData, existingViewModel: ViewModel): ViewModel` のような関数を作成
+**マージAction**：
+- `actionMergeERData(viewModel, erData, connectionInfo)` をActionとして実装
+- ViewModelの更新操作なので、[フロントエンド状態管理仕様](./frontend_state_management.md)のAction層パターンに従う
 - エンティティのマッチングはテーブル名（name）による単純な文字列比較
 - カラムとリレーションシップは全件置き換えなので、複雑なマッチング処理は不要
 - 既存エンティティのIDと座標を保持するため、Mapなどでテーブル名をキーにした検索ができると効率的
 - 新規エンティティの配置は既存の最大座標を取得して計算
 - 逆引きインデックスの再計算（既存の`buildERDiagramIndex`関数を使用）
+- `settings.lastDatabaseConnection`を更新
 
 **テスト**：
-- マージロジックのユニットテストを作成
+- Actionのユニットテストを作成
+- 純粋関数なので、入力（viewModel + erData + connectionInfo）と出力（newViewModel）の検証が容易
 - 新規作成、増分更新、削除の各ケースをカバー
 
 **配置場所**：
-- `public/src/utils/mergeERData.ts` などにマージロジックを実装
-- `public/src/commands/reverseEngineerCommand.ts` から呼び出し
+- `public/src/actions/dataActions.ts` にマージロジックをActionとして実装
+- `public/src/commands/reverseEngineerCommand.ts` からActionをdispatch
 
 ## 関連仕様書
 

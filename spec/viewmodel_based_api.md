@@ -208,7 +208,7 @@ POST /api/reverse-engineer
 
 **マージロジックのテスト**
 - 増分更新のマッチングロジックはフロント側でテストが必要
-- 対処：ユーティリティ関数として実装し、ユニットテストでカバー
+- 対処：Actionとして実装し、純粋関数のユニットテストでカバー（[フロントエンド状態管理仕様](./frontend_state_management.md)のAction層パターンに準拠）
 
 **DDL情報の取得**
 - 削除される`GET /api/table/{tableName}/ddl`の代替方法は？

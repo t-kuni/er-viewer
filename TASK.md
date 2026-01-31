@@ -1,211 +1,317 @@
-# タスク一覧: ホバーハイライト機能の仕様変更対応
-
-## ✅ 作業完了 (2026-01-28)
-
-すべての実装タスクとビルド確認タスクが正常に完了しました。
-
-### 完了した作業
-
-1. **EntityNode.tsx の修正** ✅
-   - `useCallback`のimportを追加
-   - `hasHover`の購読を削除
-   - `isDimmed`変数の定義を削除
-   - `opacity`プロパティを削除
-   - `handleColumnMouseEnter`と`handleColumnMouseLeave`を`useCallback`でメモ化
-
-2. **RelationshipEdge.tsx の修正** ✅
-   - `hasHover`の購読を削除
-   - `isDimmed`変数の定義を削除
-   - `opacity`プロパティを削除
-
-3. **ERCanvas.tsx の確認** ✅
-   - イベントハンドラーは既にuseCallbackでメモ化済みのため修正不要を確認
-
-4. **テストの実行** ✅
-   - `hoverActions.test.ts`: 20テスト全て成功
-   - その他のテスト: 119テスト全て成功
-   - `ReverseEngineerUsecase.test.ts`: Docker Compose未起動のためスキップ（今回の修正とは無関係）
-
-5. **コード生成の実行** ✅
-   - `npm run generate`: 正常完了
-
-6. **フロントエンドのビルド確認** ✅
-   - `cd public && npm run build`: 正常完了
-   - TypeScriptのコンパイルエラーなし
-
-### 実装の影響範囲
-
-- **非ハイライト要素の透明度削除**: ホバー時に非ハイライト要素が薄暗く表示されなくなりました
-- **パフォーマンス向上**: イベントハンドラーのメモ化により、React.memoの効果が最大化されました
-
----
+# タスク一覧: リバースエンジニアリングAPI設計変更
 
 ## 概要
 
-直前のコミットで以下の仕様更新が行われました：
-- `EntityNodeViewModel`に`width`と`height`フィールドを追加（TypeSpec: `scheme/main.tsp`）
-- エンティティレイアウト最適化の仕様更新（`spec/entity_layout_optimization.md`）
-- 増分リバースエンジニアの仕様更新（`spec/incremental_reverse_engineering.md`）
+リバースエンジニアリングAPIの設計を変更し、バックエンドとフロントエンドの責務を明確に分離します。
 
-主な変更点：
-1. エンティティノードのサイズ（width/height）をViewModelで管理するように仕様変更
-2. React Flowのレンダリング後にノードサイズを計測し、ViewModelに保存する処理の追加
-3. 配置最適化アルゴリズムで実寸サイズを利用する仕様の明確化
-4. リバースエンジニア時に既存エンティティのwidth/heightを0にリセットする仕様の追加
+### 変更の概要
+- **バックエンド**: データベースからERDataを取得して返却するのみ（マージロジックを削除）
+- **フロントエンド**: 受け取ったERDataを既存ViewModelとマージ（マージロジックを追加）
 
-本タスクではこれらの仕様変更に基づき実装を行います。
+### 関連仕様書
+- [spec/database_connection_settings.md](./spec/database_connection_settings.md)
+- [spec/incremental_reverse_engineering.md](./spec/incremental_reverse_engineering.md)
+- [spec/reverse_engineering.md](./spec/reverse_engineering.md)
+- [spec/viewmodel_based_api.md](./spec/viewmodel_based_api.md)
 
-参照仕様書：
-- [spec/entity_layout_optimization.md](/spec/entity_layout_optimization.md)
-- [spec/incremental_reverse_engineering.md](/spec/incremental_reverse_engineering.md)
+## フェーズ1: バックエンドの修正
 
-## フェーズ1: バックエンドの修正 ✅ 完了
+### 1-1. APIスキーマの型生成
 
-### 型生成とバックエンド修正
+**目的**: TypeSpecで定義した新しいAPIスキーマから型を生成する
 
-- [x] **型定義の生成**
-  - `npm run generate`を実行してTypeSpecから型を生成
-  - 生成されるファイル:
-    - `lib/generated/api-types.ts`
-    - `public/src/api/client/models/EntityNodeViewModel.ts`
-  - `EntityNodeViewModel`に`width`と`height`フィールドが追加されることを確認
+**作業内容**:
+- `npm run generate` を実行
+- `lib/generated/api-types.ts` と `public/src/api/client/` が更新されることを確認
 
-- [x] **ReverseEngineerUsecaseの修正**
-  - ファイル: `lib/usecases/ReverseEngineerUsecase.ts`
-  - 修正内容:
-    - 新規作成モード（従来の処理）でエンティティノード生成時に`width: 0`と`height: 0`を追加
-      - 176-184行目付近の`nodes[entity.id]`オブジェクトに追加
-    - 増分更新モードで既存エンティティ更新時に`width: 0`と`height: 0`にリセット
-      - 105-112行目付近の`nodes[existing.id]`オブジェクトに追加
-    - 増分更新モードで新規エンティティ生成時に`width: 0`と`height: 0`を追加
-      - 120-131行目付近の`nodes[entity.id]`オブジェクトに追加
-  - 仕様: `spec/incremental_reverse_engineering.md`の「既存エンティティ（テーブル名が一致）」および「新規エンティティ」セクション参照
+**確認方法**:
+- 生成されたファイルを確認
+- `ReverseEngineerRequest` が接続情報フィールド（type, host, port, user, password, database）を持つこと
+- `ReverseEngineerResponse` が `erData` と `connectionInfo` を持つこと
+- `LayoutData` と `EntityLayoutItem` が削除されていること
 
-### バックエンドのテストコード修正
+**対象ファイル**:
+- `lib/generated/api-types.ts` (生成)
+- `public/src/api/client/models/` (生成)
 
-- [x] **ReverseEngineerUsecaseのテストコード修正**
-  - ファイル: `tests/usecases/ReverseEngineerUsecase.test.ts`
-  - 修正内容:
-    - `EntityNodeViewModel`の期待値に`width: 0`と`height: 0`を追加
-    - 新規作成モードのテストケースを修正
-    - 増分更新モードのテストケースを修正（既存エンティティ、新規エンティティ、削除されたエンティティ）
+---
 
-- [x] **GetInitialViewModelUsecaseのテストコード修正**
-  - ファイル: `tests/usecases/GetInitialViewModelUsecase.test.ts`
-  - 修正内容:
-    - 初期ViewModelの検証で`erDiagram.nodes`が空のRecordであることを確認（変更不要と判明）
+### 1-2. ReverseEngineerUsecaseの修正
 
-### バックエンドのビルドとテスト実行
+**目的**: バックエンドのUsecaseをシンプル化し、マージロジックを削除する
 
-- [x] **バックエンドのビルド確認**
-  - `npm run generate`を実行（型生成）
-  - TypeScriptのコンパイルエラーがないことを確認
+**作業内容**:
+1. `ReverseEngineerUsecase.ts` を修正:
+   - 引数を `(request: ReverseEngineerRequest)` に変更
+   - 戻り値を `Promise<ReverseEngineerResponse>` に変更
+   - リクエストから直接接続情報を取得（viewModel経由を削除）
+   - パスワードが空文字列の場合のみ環境変数フォールバック
+   - マージロジック（増分更新）をすべて削除
+   - ERDataを生成して返却
+   - `connectionInfo` を返却（パスワードを除く）
+2. 不要なインポートを削除:
+   - `EntityNodeViewModel`, `RelationshipEdgeViewModel`, `LayerItemRef` など
+   - `buildERDiagramIndex` のインポートも削除
 
-- [x] **バックエンドのテスト実行**
-  - `npm run test`を実行
-  - すべてのテストが成功することを確認（171テスト中171テストが成功）
+**確認方法**:
+- 型エラーがないこと
+- ビルドが成功すること
 
-## フェーズ2: フロントエンドの修正 ✅ 完了
+**対象ファイル**:
+- `lib/usecases/ReverseEngineerUsecase.ts`
 
-### ノードサイズ更新Action実装
+**実装のポイント**:
+- リクエストの接続情報をそのまま使用
+- パスワードが空文字列（`""`）の場合のみ `process.env.DB_PASSWORD` をフォールバック
+- 環境変数からの接続情報取得ロジックを削除
+- ViewModelの更新ロジックを削除
+- 増分更新のマッチングロジックを削除
 
-- [x] **actionUpdateNodeSizesの実装**
-  - ファイル: `public/src/actions/dataActions.ts`
-  - 追加内容:
-    - 関数シグネチャ: `actionUpdateNodeSizes(viewModel: ViewModel, updates: Array<{ id: string; width: number; height: number }>): ViewModel`
-    - 機能: 指定されたノードの`width`と`height`を一括更新
-    - 実装規約:
-      - 純粋関数として実装（副作用なし）
-      - 変化がない場合は同一参照を返す
-      - 対象ノードの`EntityNodeViewModel.width`と`EntityNodeViewModel.height`を更新
-  - 仕様: `spec/entity_layout_optimization.md`の「ノードサイズ更新用Action」セクション参照
+---
 
-### ERCanvasコンポーネントの修正
+### 1-3. DatabaseManagerの修正
 
-- [x] **ERCanvasでのノードサイズ計測・更新処理の実装**
-  - ファイル: `public/src/components/ERCanvas.tsx`
-  - 修正内容:
-    - `ERCanvasInner`コンポーネント内で`useNodesInitialized()`の変化を監視する`useEffect`を追加
-    - 初期化完了時（false → true）に一度だけ以下を実行:
-      1. `useReactFlow().getNodes()`でReact Flowのノード情報を取得
-      2. 各ノードの`measured.width`と`measured.height`を抽出
-      3. `actionUpdateNodeSizes`をdispatchして`EntityNodeViewModel`を更新
-    - 注意事項:
-      - 計測完了は初回レンダリング後の1回のみ（重複更新を防ぐ）
-      - `measured`が未定義の場合は更新をスキップ
-      - エンティティノード（`type === 'entityNode'`）のみを対象
-  - 仕様: `spec/entity_layout_optimization.md`の「ノードサイズの更新実装」セクション参照
+**目的**: 不要な型定義とメソッドを削除する
 
-### 配置最適化でのサイズ利用実装
+**作業内容**:
+1. `lib/database.ts` を修正:
+   - `generateDefaultLayoutData` メソッドを削除
+   - `LayoutData`, `EntityLayoutItem`, `Rectangle`, `TextBox` の型インポートを削除
+2. エクスポートから不要な型を削除
 
-- [x] **layoutOptimizerでのサイズ利用修正**
-  - ファイル: `public/src/utils/layoutOptimizer.ts`
-  - 修正内容:
-    - `LayoutNode`インターフェースは既に`width`と`height`を持っているので型定義は変更不要
-    - 配置最適化アルゴリズム（`SimpleForceDirectedLayout`, `RemoveOverlaps`など）では既にwidth/heightを利用しているので変更不要
-  - 確認事項:
-    - `LayoutNode`インターフェース（6-13行目）に`width`と`height`が定義されていることを確認
-    - 各アルゴリズムでwidth/heightが正しく利用されていることを確認
+**確認方法**:
+- 型エラーがないこと
+- ビルドが成功すること
 
-- [x] **layoutWorkerでのサイズフォールバック実装**
-  - ファイル: `public/src/workers/layoutWorker.ts`
-  - 修正内容:
-    - `EntityNodeViewModel`から`LayoutNode`に変換する際、サイズが0の場合はフォールバック値を使用
-    - フォールバック値:
-      - 幅: 200px（デフォルト）
-      - 高さ: `40 + カラム数 * 28`（概算値）
-    - 実装箇所: Worker内のメッセージハンドラで`EntityNodeViewModel[]`を`LayoutNode[]`に変換する箇所
-  - 仕様: `spec/entity_layout_optimization.md`の「配置最適化でのサイズ利用」セクション参照
+**対象ファイル**:
+- `lib/database.ts`
 
-### 配置最適化ボタンの有効/無効判定修正
+---
 
-- [x] **Appコンポーネントの配置最適化ボタン判定修正**
-  - ファイル: `public/src/components/App.tsx`
-  - 修正内容:
-    - `isLayoutOptimizeDisabled`の判定条件を修正（106-110行目付近）
-    - 追加条件: 少なくとも1つのノードで`width > 0`であること
-    - 実装:
-      ```typescript
-      const hasValidNodeSize = Object.values(erDiagram.nodes).some(node => node.width > 0)
-      const isLayoutOptimizeDisabled = 
-        erDiagram.loading || 
-        layoutOptimization.isRunning || 
-        Object.keys(erDiagram.nodes).length === 0 ||
-        !nodesInitialized ||
-        !hasValidNodeSize
-      ```
-  - 仕様: `spec/entity_layout_optimization.md`の「最適化の起動」セクション参照
+### 1-4. サーバーエンドポイントの確認
 
-### インポート/エクスポート処理の確認
+**目的**: サーバーのエンドポイントが新しいリクエスト/レスポンス型を正しく処理することを確認する
 
-- [x] **exportViewModel関数の確認**
-  - ファイル: `public/src/utils/exportViewModel.ts`
-  - 確認内容:
-    - `EntityNodeViewModel`の`width`と`height`が正しくエクスポートされることを確認
-    - 特に変更は不要（`viewModel.erDiagram.nodes`をそのままエクスポートしているため）
+**作業内容**:
+1. `server.ts` を確認:
+   - `/api/reverse-engineer` エンドポイントが `ReverseEngineerRequest` を受け取ること
+   - `ReverseEngineerResponse` を返却すること
+2. 必要に応じて型アノテーションを修正
 
-- [x] **importViewModel関数の確認**
-  - ファイル: `public/src/utils/importViewModel.ts`
-  - 確認内容:
-    - インポート時に`EntityNodeViewModel`の`width`と`height`が正しく復元されることを確認
-    - 旧フォーマット（width/heightなし）からのインポート時にエラーが発生しないことを確認
-    - 特に変更は不要（`importedViewModel.erDiagram?.nodes || {}`でインポートしているため）
-  - 注意: 旧フォーマットの場合、width/heightはundefinedとなるが、TypeScriptの型では必須となっているため、実行時にエラーが発生する可能性あり
+**確認方法**:
+- 型エラーがないこと
+- ビルドが成功すること
 
-### フロントエンドのビルド確認
+**対象ファイル**:
+- `server.ts`
 
-- [x] **フロントエンドのビルド確認**
-  - `cd public && npm run build`を実行
-  - ビルドエラーがないことを確認（成功）
+---
 
-## フェーズ3: 統合テストとデバッグ
+### 1-5. バックエンドのテストコード修正
 
-### 動作確認項目（参考情報）
+**目的**: ReverseEngineerUsecaseのテストを新しいAPI仕様に合わせて修正する
 
-以下は実際にアプリを起動して動作確認する項目です。本タスク一覧の対象外ですが、参考として記載します。
+**作業内容**:
+1. `tests/usecases/ReverseEngineerUsecase.test.ts` を修正:
+   - テストケースのリクエスト形式を変更（viewModelではなく接続情報）
+   - レスポンスの検証を変更（ViewModelではなくReverseEngineerResponse）
+   - 増分更新のテストケースをすべて削除（フロントエンドに移行するため）
+   - 環境変数フォールバックのテストケースを簡略化
+   - 接続情報の検証ロジックを修正
 
-- リバースエンジニア実行後、ノードサイズが計測されてViewModelに保存されること
-- 配置最適化ボタンがノードサイズ計測完了後に有効化されること
-- 配置最適化が実行され、エンティティが重ならずに配置されること
-- エクスポート/インポートでノードサイズ情報が保存・復元されること
-- 増分リバースエンジニア時に既存エンティティのサイズが0にリセットされ、再計測されること
+**テストケース**:
+- 基本的なリバースエンジニアリング（接続情報を直接指定）
+- パスワードの環境変数フォールバック
+- 接続情報不足時のエラー
+- 接続エラー時のエラー処理
+
+**削除するテストケース**:
+- 増分リバースエンジニアリングのテストケース（6つ）
+- `viewModel.settings.lastDatabaseConnection` からの接続情報取得テスト
+- UI状態の引き継ぎテスト
+- レイヤー順序の更新テスト
+
+**対象ファイル**:
+- `tests/usecases/ReverseEngineerUsecase.test.ts`
+
+---
+
+### 1-6. バックエンドのビルド確認
+
+**目的**: バックエンドのコードがエラーなくビルドできることを確認する
+
+**作業内容**:
+- `npm run build` を実行（またはバックエンドのビルドコマンド）
+
+**確認方法**:
+- ビルドが成功すること
+- エラーや警告が出ないこと
+
+---
+
+### 1-7. バックエンドのテスト実行
+
+**目的**: バックエンドのテストがすべて成功することを確認する
+
+**作業内容**:
+- `npm run test` を実行（またはバックエンドのテストコマンド）
+
+**確認方法**:
+- すべてのテストが成功すること
+- ReverseEngineerUsecaseのテストが正しく動作すること
+
+---
+
+## フェーズ2: フロントエンドの修正
+
+### 2-1. マージActionの実装
+
+**目的**: ERDataを既存ViewModelとマージするActionを実装する
+
+**作業内容**:
+1. `public/src/actions/dataActions.ts` に `actionMergeERData` を追加:
+   - `actionMergeERData(viewModel: ViewModel, erData: ERData, connectionInfo: DatabaseConnectionState): ViewModel` 関数を実装
+   - エンティティのマッチング処理（テーブル名で比較）
+   - 既存エンティティのID・座標維持
+   - 新規エンティティの配置計算
+   - カラム情報の全件置き換え
+   - リレーションシップの全件置き換え
+   - 削除されたエンティティのレイヤー順序からの削除
+   - UI状態のクリア（highlightedNodeIds等）
+   - 矩形・テキストの維持
+   - 逆引きインデックスの再計算
+   - `settings.lastDatabaseConnection`の更新
+
+**実装のポイント**:
+- 既存のマッチングロジックは `ReverseEngineerUsecase.ts` の増分更新部分を参考にする
+- `buildERDiagramIndex` を使用してインデックスを再計算
+- 新規エンティティの配置は既存エンティティの最大座標を基準にする
+- 純粋関数として実装（副作用なし、状態変更なしの場合は同一参照を返す）
+
+**対象ファイル**:
+- `public/src/actions/dataActions.ts`
+
+---
+
+### 2-2. reverseEngineerCommandの修正
+
+**目的**: フロントエンドのコマンドを新しいAPI仕様に合わせて修正する
+
+**作業内容**:
+1. `public/src/commands/reverseEngineerCommand.ts` を修正:
+   - リクエストの作成を変更（ViewModelではなく接続情報のみ）
+   - レスポンスで受け取った `erData` と `connectionInfo` を `actionMergeERData` でマージ
+   - `dispatch(actionMergeERData, response.erData, response.connectionInfo)` を実行
+
+**実装のポイント**:
+- `actionMergeERData` をインポートして使用
+- パスワードが空の場合は空文字列として送信
+- モーダルから取得した接続情報をそのままリクエストに使用
+- マージ処理はActionに委譲（コマンドはAPI呼び出しとActionのdispatchのみ）
+
+**対象ファイル**:
+- `public/src/commands/reverseEngineerCommand.ts`
+
+---
+
+### 2-3. マージActionのテスト作成
+
+**目的**: マージActionが正しく動作することを確認するテストを作成する
+
+**作業内容**:
+1. `public/tests/actions/dataActions.test.ts` に `actionMergeERData` のテストを追加（または専用ファイル作成）:
+   - 新規作成モード（既存ノードが空）のテスト
+   - 増分更新モード（既存エンティティの座標維持）のテスト
+   - 新規エンティティの追加テスト
+   - 削除エンティティの除外テスト
+   - カラム変更の反映テスト
+   - リレーションシップの全件置き換えテスト
+   - UI状態のクリアテスト
+   - レイヤー順序の更新テスト
+   - 矩形・テキストの維持テスト
+   - 逆引きインデックスの再計算テスト
+   - `settings.lastDatabaseConnection`の更新テスト
+
+**参考**:
+- `tests/usecases/ReverseEngineerUsecase.test.ts` の増分更新テストケースを参考にする
+- 純粋関数なので、入力（viewModel + erData + connectionInfo）と出力（newViewModel）の検証のみ
+
+**対象ファイル**:
+- `public/tests/actions/dataActions.test.ts` または `public/tests/actions/mergeERData.test.ts` (新規作成)
+
+---
+
+### 2-4. フロントエンドのビルド確認
+
+**目的**: フロントエンドのコードがエラーなくビルドできることを確認する
+
+**作業内容**:
+- `cd public && npm run build` を実行
+
+**確認方法**:
+- ビルドが成功すること
+- エラーや警告が出ないこと
+
+---
+
+### 2-5. フロントエンドのテスト実行
+
+**目的**: フロントエンドのテストがすべて成功することを確認する
+
+**作業内容**:
+- `cd public && npm run test` を実行
+
+**確認方法**:
+- すべてのテストが成功すること
+- マージユーティリティのテストが正しく動作すること
+
+---
+
+## 完了条件
+
+- [ ] フェーズ1のすべてのタスクが完了
+  - [ ] バックエンドのビルドが成功
+  - [ ] バックエンドのテストが成功
+- [ ] フェーズ2のすべてのタスクが完了
+  - [ ] フロントエンドのビルドが成功
+  - [ ] フロントエンドのテストが成功
+- [ ] 仕様書の内容と実装が一致していること
+
+## 備考
+
+### 主な変更点の整理
+
+**APIスキーマ（scheme/main.tsp）**:
+- `ReverseEngineerRequest`: `viewModel`と`password`の代わりに、接続情報フィールド（type, host, port, user, password, database）を追加
+- `ReverseEngineerResponse`: 新規追加（`erData`と`connectionInfo`）
+- `LayoutData`と`EntityLayoutItem`: 削除
+
+**バックエンド**:
+- 接続情報の解決ロジックを簡略化（リクエストから直接取得）
+- マージロジックをすべて削除
+- ERDataを生成して返却するだけ
+
+**フロントエンド**:
+- マージロジックをActionとして新規実装（`actionMergeERData`）
+- 逆引きインデックスの再計算を実装
+- `settings.lastDatabaseConnection`の更新を実装
+- フロントエンド状態管理仕様のAction層パターンに準拠
+
+### 注意点
+
+1. **パスワードのフォールバック**:
+   - フロントエンドから空文字列が送信された場合のみ、バックエンドで環境変数をフォールバック
+   - それ以外のフィールドは環境変数フォールバックなし
+
+2. **増分更新ロジック**:
+   - バックエンドから完全に削除
+   - フロントエンドで`actionMergeERData`として実装
+   - Action層の設計パターンに準拠（純粋関数、テスト容易）
+
+3. **逆引きインデックス**:
+   - バックエンドでは計算しない
+   - フロントエンドでマージ後に再計算
+
+4. **テストの移行**:
+   - バックエンドの増分更新テストは削除
+   - フロントエンドのActionテストとして再実装

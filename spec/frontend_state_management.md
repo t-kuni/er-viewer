@@ -162,6 +162,16 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
   - 注意: リバースエンジニアリング時に矩形データは返されない（矩形は手動で追加される）
   - **逆引きインデックス（`index`）はバックエンドで計算済みのものがAPIレスポンスに含まれる**
   
+* `actionMergeERData(viewModel, erData, connectionInfo)`: ERDataを既存ViewModelとマージ
+  - リバースエンジニアAPIのレスポンス（ERData）を既存ViewModelとマージ
+  - 既存エンティティの座標とIDを維持しながら、データベースの最新情報を反映（増分更新）
+  - 新規エンティティは既存の最大座標の右側・下側に配置
+  - 削除されたエンティティはレイヤー順序から除外
+  - UI状態（highlightedNodeIds等）をクリア
+  - 逆引きインデックスを再計算（`buildERDiagramIndex`を使用）
+  - `settings.lastDatabaseConnection`を更新
+  - 詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照
+  
 * `actionUpdateNodePositions(viewModel, nodePositions)`: ノードドラッグ確定時の位置更新
   - `nodePositions`: `Array<{ id: string, x: number, y: number }>`
   - ノードの位置のみ更新するため、インデックスの再計算は不要

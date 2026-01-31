@@ -147,6 +147,10 @@ export interface components {
             x: number;
             /** Format: double */
             y: number;
+            /** Format: double */
+            width: number;
+            /** Format: double */
+            height: number;
             columns: components["schemas"]["Column"][];
             ddl: string;
         };

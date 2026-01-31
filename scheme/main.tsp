@@ -182,6 +182,8 @@ model EntityNodeViewModel {
   name: string;
   x: float64;
   y: float64;
+  width: float64;  // レンダリング後の実寸幅（px）、初期値: 0
+  height: float64; // レンダリング後の実寸高さ（px）、初期値: 0
   columns: Column[];
   ddl: string;
 }

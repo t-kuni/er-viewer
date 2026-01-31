@@ -21,7 +21,7 @@
 * フロントエンド（ブラウザ）で実装する
 * 実行時間は最大10秒程度に収める
 * 視覚的フィードバックとして進捗バーを表示し、各最適化段階の結果を段階的に描画する
-* エンティティの実寸（`node.measured`）を利用して矩形の重なりを正確に除去する
+* エンティティの実寸（`EntityNodeViewModel.width/height`）を利用して矩形の重なりを正確に除去する
 * React Flowの既存描画・操作との整合性を保つ
 
 ## 最適化アルゴリズム
@@ -62,7 +62,7 @@
 
 **優先度1: 重なり除去**
 - エンティティノード同士が重ならないように配置
-- 矩形の実寸（`measured.width`と`measured.height`）を考慮
+- 矩形の実寸（`EntityNodeViewModel.width`と`EntityNodeViewModel.height`）を考慮
 
 **優先度2: 距離最適化**
 - **リレーションで結ばれたエンティティを近づける**（強い制約）
@@ -213,6 +213,31 @@ Shelf-packingアルゴリズムの簡易実装：
 - 各成分内のノード座標を一括でオフセット
 - 成分の左上が指定位置に来るように調整
 
+## ノードサイズの管理
+
+### サイズの取得と保存
+
+* **初期値**: `EntityNodeViewModel.width`と`EntityNodeViewModel.height`は0で初期化される
+* **計測タイミング**: React Flowがエンティティノードをレンダリングした直後に実寸を計測
+  - React Flowの`useNodesInitialized()`フックで計測完了を検知
+  - `useReactFlow().getNodes()`で各ノードの`measured.width`と`measured.height`を取得
+* **永続化**: 計測されたサイズを`EntityNodeViewModel`に保存
+  - 配置最適化で正確なサイズを利用可能
+  - エクスポート/インポートでサイズ情報も保存される
+  - エッジの接続点計算などでも利用可能
+
+### サイズ更新のライフサイクル
+
+1. **リバースエンジニア実行時**
+   - 新規エンティティは`width: 0, height: 0`で生成
+   - React Flowがレンダリング後に自動計測
+   - 計測完了時に`EntityNodeViewModel`を更新
+
+2. **インポート時**
+   - エクスポートされたファイルにサイズ情報が含まれている場合はそれを使用
+   - サイズ情報がない場合（旧フォーマット）は`width: 0, height: 0`
+   - React Flowのレンダリング後に再計測・更新
+
 ## 機能要件
 
 ### 最適化の起動
@@ -221,7 +246,7 @@ Shelf-packingアルゴリズムの簡易実装：
 * ボタンクリックで最適化処理を開始する
 * ボタンの有効/無効条件：
   - `loading`中（リバースエンジニア処理中）は無効
-  - ノード未計測（`useNodesInitialized() === false`）は無効
+  - ノードサイズ未計測（`useNodesInitialized() === false`または`width === 0`）は無効
   - ノード数が0の場合は無効
 
 ### 最適化の実行
@@ -272,6 +297,8 @@ Shelf-packingアルゴリズムの簡易実装：
 
 ## Action設計
 
+### 配置最適化用Action
+
 配置最適化用のActionを`public/src/actions/layoutActions.ts`に実装：
 
 **最適化ライフサイクル**
@@ -306,6 +333,15 @@ Shelf-packingアルゴリズムの簡易実装：
 * `actionUpdateNodePositions(vm, updates)`をdispatch
   - `updates: Array<{ id: string, x: number, y: number }>`
 
+### ノードサイズ更新用Action
+
+ノードサイズ更新用のActionを`public/src/actions/dataActions.ts`に実装：
+
+* `actionUpdateNodeSizes(vm, updates)`: ノードサイズの一括更新
+  - React Flowの計測完了後に呼び出される
+  - `updates: Array<{ id: string, width: number, height: number }>`
+  - 対象ノードの`EntityNodeViewModel.width`と`EntityNodeViewModel.height`を更新
+
 **実装規約**
 
 * すべてのActionは純粋関数で実装
@@ -314,21 +350,30 @@ Shelf-packingアルゴリズムの簡易実装：
 
 ## TypeSpec型定義
 
-`scheme/main.tsp`の`GlobalUIState`に最適化状態を追加：
+`scheme/main.tsp`で定義されている関連型：
+
+**EntityNodeViewModel**（ノードサイズフィールドを含む）
+
+```typescript
+model EntityNodeViewModel {
+  id: string;
+  name: string;
+  x: float64;
+  y: float64;
+  width: float64;  // レンダリング後の実寸幅（px）、初期値: 0
+  height: float64; // レンダリング後の実寸高さ（px）、初期値: 0
+  columns: Column[];
+  ddl: string;
+}
+```
+
+**LayoutOptimizationState**（配置最適化の進捗管理）
 
 ```typescript
 model LayoutOptimizationState {
   isRunning: boolean;         // 実行中フラグ
   progress: float64;          // 進捗（0〜100）
   currentStage: string | null; // 現在の処理段階名
-}
-
-model GlobalUIState {
-  selectedItem: LayerItemRef | null;
-  showBuildInfoModal: boolean;
-  showLayerPanel: boolean;
-  showDatabaseConnectionModal: boolean;
-  layoutOptimization: LayoutOptimizationState; // 追加
 }
 ```
 
@@ -370,7 +415,7 @@ npm install d3-force graphology
 
 ### 型定義の生成
 
-TypeSpecの型定義を更新した後、`npm run generate`でフロントエンドとバックエンドの型を再生成する（ただし、今回の変更ではTypeSpec更新は不要）
+TypeSpecの型定義（`scheme/main.tsp`）を更新した後、`npm run generate`でフロントエンドとバックエンドの型を再生成する
 
 ### Web Worker実装
 
@@ -383,11 +428,27 @@ TypeSpecの型定義を更新した後、`npm run generate`でフロントエン
 * メインスレッドでActionをdispatchする
   - `actionUpdateNodePositions`を使用
 
-### ノードサイズの取得
+### ノードサイズの更新実装
 
-* React Flowの`useNodesInitialized()`で計測完了を待つ
-* ノードの`measured.width`と`measured.height`を使用
-  - 未計測の場合は最適化を実行しない
+* `ERCanvas`コンポーネントで`useNodesInitialized()`の変化を監視
+* 初期化完了時（false → true）に一度だけ以下を実行：
+  1. `useReactFlow().getNodes()`でReact Flowのノード情報を取得
+  2. 各ノードの`measured.width`と`measured.height`を抽出
+  3. `actionUpdateNodeSizes`をdispatchして`EntityNodeViewModel`を更新
+* 注意事項：
+  - 計測完了は初回レンダリング後の1回のみ（重複更新を防ぐ）
+  - `measured`が未定義の場合は更新をスキップ
+
+### 配置最適化でのサイズ利用
+
+* `EntityNodeViewModel.width`と`EntityNodeViewModel.height`を使用
+* サイズが0の場合はフォールバック値を使用：
+  - 幅: 200px（デフォルト）
+  - 高さ: `40 + カラム数 * 28`（概算値）
+* 最適化実行前の検証：
+  - ノード数が0でないこと
+  - `useNodesInitialized() === true`であること
+  - 少なくとも1つのノードで`width > 0`であること
 
 ### 名前類似度の実装
 

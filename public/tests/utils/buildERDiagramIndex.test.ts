@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildERDiagramIndex } from '../../lib/utils/buildERDiagramIndex';
-import type { EntityNodeViewModel, RelationshipEdgeViewModel } from '../../lib/utils/buildERDiagramIndex';
+import { buildERDiagramIndex } from '../../src/utils/buildERDiagramIndex';
+import type { EntityNodeViewModel, RelationshipEdgeViewModel } from '../../src/api/client';
 
 describe('buildERDiagramIndex', () => {
   it('空のnodes/edgesで空のインデックスを返すこと', () => {

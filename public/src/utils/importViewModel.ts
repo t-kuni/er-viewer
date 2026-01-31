@@ -1,6 +1,6 @@
 import { BuildInfoState, ViewModel } from "../api/client";
 import { getInitialGlobalUIState } from "./getInitialViewModelValues";
-import { buildERDiagramIndex } from "../../../lib/utils/buildERDiagramIndex.js";
+import { buildERDiagramIndex } from "./buildERDiagramIndex";
 
 /**
  * JSONファイルからViewModelをインポートする

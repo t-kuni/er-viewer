@@ -15,17 +15,17 @@
 
 ## タスク一覧
 
-### フェーズ1: 重複コードの整理
+### フェーズ1: 重複コードの整理 ✅ 完了
 
 #### バックエンド側ファイルの削除
 
-- [ ] `lib/utils/buildERDiagramIndex.ts` を削除
+- [x] `lib/utils/buildERDiagramIndex.ts` を削除
   - バックエンドのUsecaseで使用されていないため不要
   - フロントエンド側の実装のみを残す
 
 #### テストファイルの移動
 
-- [ ] `tests/utils/buildERDiagramIndex.test.ts` を `public/tests/utils/buildERDiagramIndex.test.ts` に移動
+- [x] `tests/utils/buildERDiagramIndex.test.ts` を `public/tests/utils/buildERDiagramIndex.test.ts` に移動
   - テスト内容をフロントエンド側のコードに合わせて修正
   - import文を修正：
     ```typescript
@@ -41,7 +41,7 @@
 
 #### フロントエンド側のimport文修正
 
-- [ ] `public/src/utils/importViewModel.ts` のimport文を修正
+- [x] `public/src/utils/importViewModel.ts` のimport文を修正
   - 現在の状態：
     ```typescript
     import { buildERDiagramIndex } from "../../../lib/utils/buildERDiagramIndex.js";
@@ -54,7 +54,7 @@
 
 #### ビルド確認
 
-- [ ] TypeScriptのビルドが成功することを確認
+- [x] TypeScriptのビルドが成功することを確認
   ```bash
   npm run generate
   ```
@@ -62,7 +62,7 @@
 
 #### テスト実行
 
-- [ ] 移動したテストが正常に動作することを確認
+- [x] 移動したテストが正常に動作することを確認
   ```bash
   npm run test
   ```
@@ -121,10 +121,10 @@ export function actionRebuildIndex(viewModel: ViewModel): ViewModel {
 
 ## 完了条件
 
-- [ ] フェーズ1のすべてのタスクが完了している
-- [ ] ビルドが成功する
-- [ ] すべてのテストがパスする
-- [ ] バックエンド側に `buildERDiagramIndex` への参照が残っていない
+- [x] フェーズ1のすべてのタスクが完了している
+- [x] ビルドが成功する
+- [x] すべてのテストがパスする
+- [x] バックエンド側に `buildERDiagramIndex` への参照が残っていない
 
 ## 参考情報
 

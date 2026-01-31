@@ -8,7 +8,7 @@
 
 ## フェーズ1: 名前類似度計算とd3-forceパラメータ改善
 
-### □ 名前類似度計算の実装
+### ✅ 名前類似度計算の実装
 
 **対象ファイル:** `public/src/utils/layoutOptimizer.ts`
 
@@ -53,7 +53,7 @@
 - `LayoutNode`インタフェースに`name`フィールドを追加する必要がある
 - パフォーマンス確認：300ノードで約45,000ペアの計算となるが、数十ms程度で完了することを確認
 
-### □ d3-forceパラメータの改善
+### ✅ d3-forceパラメータの改善
 
 **対象ファイル:** `public/src/utils/layoutOptimizer.ts`
 
@@ -99,7 +99,7 @@ export async function SimpleForceDirectedLayout(
 ): Promise<LayoutResult>
 ```
 
-### □ LayoutNodeインタフェースの拡張
+### ✅ LayoutNodeインタフェースの拡張
 
 **対象ファイル:** `public/src/utils/layoutOptimizer.ts`
 
@@ -117,7 +117,7 @@ export interface LayoutNode {
 }
 ```
 
-### □ 連結成分パッキングの実装
+### ✅ 連結成分パッキングの実装
 
 **対象ファイル:** `public/src/utils/layoutOptimizer.ts`
 
@@ -158,7 +158,7 @@ export async function packConnectedComponents(
 ): Promise<LayoutResult>
 ```
 
-### □ Web Workerの更新（アルゴリズム変更）
+### ✅ Web Workerの更新（アルゴリズム変更）
 
 **対象ファイル:** `public/src/workers/layoutWorker.ts`
 
@@ -188,7 +188,7 @@ export async function packConnectedComponents(
 
 4. 進捗報告は各段階の完了時に実行
 
-### □ コマンドの更新（ノード名の追加）
+### ✅ コマンドの更新（ノード名の追加）
 
 **対象ファイル:** `public/src/commands/layoutOptimizeCommand.ts`
 
@@ -212,7 +212,7 @@ const nodes: LayoutNode[] = entityNodes.map(node => {
 });
 ```
 
-### □ 配置最適化テストの更新
+### ✅ 配置最適化テストの更新
 
 **対象ファイル:** `public/tests/utils/layoutOptimizer.test.ts`
 
@@ -258,7 +258,7 @@ const nodes: LayoutNode[] = entityNodes.map(node => {
    - `LayoutNode`に`name`フィールドを追加
    - `LouvainClustering`, `CoarseLayout`, `FineLayout`のテストは残す（将来使用する可能性があるため）
 
-### □ ビルドの確認
+### ✅ ビルドの確認
 
 **実行コマンド:**
 ```bash
@@ -268,7 +268,7 @@ npm run build
 
 ビルドエラーが発生した場合は修正する。
 
-### □ テストの実行
+### ✅ テストの実行
 
 **実行コマンド:**
 ```bash

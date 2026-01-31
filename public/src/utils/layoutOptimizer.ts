@@ -5,6 +5,7 @@ import louvain from 'graphology-communities-louvain';
 
 export interface LayoutNode {
   id: string;
+  name: string;
   x: number;
   y: number;
   width: number;
@@ -29,7 +30,162 @@ export interface ClusteredNode extends LayoutNode {
   clusterId: number;
 }
 
+export interface BoundingBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+}
+
+interface NameSimilarity {
+  sourceId: string;
+  targetId: string;
+  score: number;
+}
+
 export type ProgressCallback = (progress: number, stage: string) => void;
+
+/**
+ * テーブル名を正規化する
+ * @param name テーブル名
+ * @returns 正規化された名前
+ */
+export function normalizeName(name: string): string {
+  let normalized = name.toLowerCase();
+  // 連続する_を1つに整理
+  normalized = normalized.replace(/_+/g, '_');
+  // 既知のprefixを除去（オプション）
+  normalized = normalized.replace(/^(tbl_|table_|t_)/, '');
+  // 語尾のsを除去
+  normalized = normalized.replace(/s$/, '');
+  return normalized;
+}
+
+/**
+ * トークンベースのJaccard係数を計算
+ * @param name1 名前1
+ * @param name2 名前2
+ * @returns Jaccard係数 (0.0〜1.0)
+ */
+export function calculateTokenJaccard(name1: string, name2: string): number {
+  const tokens1 = new Set(name1.split('_').filter(t => t.length > 0));
+  const tokens2 = new Set(name2.split('_').filter(t => t.length > 0));
+  
+  if (tokens1.size === 0 && tokens2.size === 0) {
+    return 0;
+  }
+  
+  const intersection = new Set([...tokens1].filter(t => tokens2.has(t)));
+  const union = new Set([...tokens1, ...tokens2]);
+  
+  if (union.size === 0) {
+    return 0;
+  }
+  
+  return intersection.size / union.size;
+}
+
+/**
+ * バイグラムベースのJaccard係数を計算
+ * @param name1 名前1
+ * @param name2 名前2
+ * @returns Jaccard係数 (0.0〜1.0)
+ */
+export function calculateBigramJaccard(name1: string, name2: string): number {
+  const getBigrams = (str: string): Set<string> => {
+    const bigrams = new Set<string>();
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+  
+  const bigrams1 = getBigrams(name1);
+  const bigrams2 = getBigrams(name2);
+  
+  if (bigrams1.size === 0 && bigrams2.size === 0) {
+    return 0;
+  }
+  
+  const intersection = new Set([...bigrams1].filter(b => bigrams2.has(b)));
+  const union = new Set([...bigrams1, ...bigrams2]);
+  
+  if (union.size === 0) {
+    return 0;
+  }
+  
+  return intersection.size / union.size;
+}
+
+/**
+ * 名前類似度を計算
+ * @param name1 名前1
+ * @param name2 名前2
+ * @returns 類似度スコア (0.0〜1.0)
+ */
+export function calculateNameSimilarity(name1: string, name2: string): number {
+  const normalized1 = normalizeName(name1);
+  const normalized2 = normalizeName(name2);
+  
+  const tokenJaccard = calculateTokenJaccard(normalized1, normalized2);
+  const bigramJaccard = calculateBigramJaccard(normalized1, normalized2);
+  
+  return 0.6 * tokenJaccard + 0.4 * bigramJaccard;
+}
+
+/**
+ * 名前類似度に基づくエッジを計算
+ * @param nodes ノードの配列
+ * @param k 各ノードから抽出する上位k件
+ * @param threshold 類似度の閾値
+ * @returns 類似エッジの配列
+ */
+export function calculateSimilarityEdges(
+  nodes: LayoutNode[],
+  k: number = 3,
+  threshold: number = 0.35
+): LayoutEdge[] {
+  const similarities: NameSimilarity[] = [];
+  
+  // 全ノードペアの類似度を計算
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const score = calculateNameSimilarity(nodes[i].name, nodes[j].name);
+      if (score >= threshold) {
+        similarities.push({
+          sourceId: nodes[i].id,
+          targetId: nodes[j].id,
+          score
+        });
+      }
+    }
+  }
+  
+  // 類似度の降順でソート
+  similarities.sort((a, b) => b.score - a.score);
+  
+  // 各ノードにつき上位k件を抽出
+  const nodeEdgeCount = new Map<string, number>();
+  const edges: LayoutEdge[] = [];
+  
+  for (const sim of similarities) {
+    const sourceCount = nodeEdgeCount.get(sim.sourceId) || 0;
+    const targetCount = nodeEdgeCount.get(sim.targetId) || 0;
+    
+    if (sourceCount < k || targetCount < k) {
+      edges.push({
+        source: sim.sourceId,
+        target: sim.targetId
+      });
+      nodeEdgeCount.set(sim.sourceId, sourceCount + 1);
+      nodeEdgeCount.set(sim.targetId, targetCount + 1);
+    }
+  }
+  
+  return edges;
+}
 
 /**
  * Force-directedレイアウトアルゴリズム
@@ -45,31 +201,81 @@ export async function SimpleForceDirectedLayout(
     return { nodes: [] };
   }
 
-  // ノード数に応じて反復回数を調整（最大500tick、最小200tick）
-  const maxTicks = Math.max(200, Math.min(500, nodes.length * 2));
+  // 最大tick数
+  const maxTicks = 400;
   
   // d3-force用のノードとリンクを準備
-  type D3Node = { id: string; x: number; y: number; width: number; height: number };
+  type D3Node = { id: string; x: number; y: number; width: number; height: number; radius: number };
   type D3Link = { source: string | D3Node; target: string | D3Node };
   
-  const d3Nodes: D3Node[] = nodes.map(n => ({ ...n }));
-  const d3Links: D3Link[] = edges.map(e => ({
+  // 衝突半径を事前計算
+  const d3Nodes: D3Node[] = nodes.map(n => {
+    const radius = 0.5 * Math.sqrt(n.width ** 2 + n.height ** 2) + 15;
+    return { id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, radius };
+  });
+  
+  // ノードIDから半径を取得するマップ
+  const nodeRadiusMap = new Map<string, number>();
+  d3Nodes.forEach(n => nodeRadiusMap.set(n.id, n.radius));
+  
+  // 名前類似エッジを計算
+  const similarityEdges = calculateSimilarityEdges(nodes, 3, 0.35);
+  
+  // 実リレーションのエッジ
+  const relationshipLinks: D3Link[] = edges.map(e => ({
     source: e.source,
     target: e.target
   }));
-
+  
+  // 類似エッジ
+  const similarityLinks: D3Link[] = similarityEdges.map(e => ({
+    source: e.source,
+    target: e.target
+  }));
+  
+  // リンク距離の計算関数
+  const calculateLinkDistance = (link: any): number => {
+    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    const r1 = nodeRadiusMap.get(sourceId) || 0;
+    const r2 = nodeRadiusMap.get(targetId) || 0;
+    return r1 + r2 + 30; // gap: 30px
+  };
+  
+  // 実リレーションのリンク距離の平均を計算
+  const linkDistances = relationshipLinks.map(link => calculateLinkDistance(link));
+  const meanLinkDistance = linkDistances.length > 0
+    ? linkDistances.reduce((sum, d) => sum + d, 0) / linkDistances.length
+    : 200; // デフォルト値
+  
   // シミュレーションの設定
   const simulation = d3.forceSimulation(d3Nodes)
-    .force('link', d3.forceLink(d3Links)
+    .alphaMin(0.02)
+    .force('relationship-link', d3.forceLink(relationshipLinks)
       .id((d: any) => d.id)
-      .distance(150) // リンクの理想的な距離
+      .distance(calculateLinkDistance)
+      .strength(0.7)
+      .iterations(2)
+    )
+    .force('similarity-link', d3.forceLink(similarityLinks)
+      .id((d: any) => d.id)
+      .distance((link: any) => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        const r1 = nodeRadiusMap.get(sourceId) || 0;
+        const r2 = nodeRadiusMap.get(targetId) || 0;
+        // 類似度を取得（簡略化のため固定値0.5を使用）
+        const similarity = 0.5;
+        return r1 + r2 + (80 - 60 * similarity);
+      })
+      .strength(0.15)
+      .iterations(2)
     )
     .force('charge', d3.forceManyBody()
-      .strength(-300) // ノード間の反発力
+      .strength(-(meanLinkDistance * 1.5))
     )
-    .force('center', d3.forceCenter(0, 0))
     .force('collision', d3.forceCollide()
-      .radius((d: any) => Math.max(d.width, d.height) / 2 + 20) // 衝突半径
+      .radius((d: any) => d.radius)
     )
     .stop(); // 自動実行を停止
 
@@ -88,7 +294,7 @@ export async function SimpleForceDirectedLayout(
     }
 
     // 早期終了条件: エネルギーが閾値以下になったら終了
-    if (simulation.alpha() < 0.01) {
+    if (simulation.alpha() < simulation.alphaMin()) {
       break;
     }
   }
@@ -576,4 +782,117 @@ export async function RemoveOverlaps(
       y: n.y
     }))
   };
+}
+
+/**
+ * ノードのバウンディングボックスを計算
+ * @param nodes ノードの配列
+ * @returns バウンディングボックス
+ */
+export function calculateBoundingBox(nodes: LayoutNode[]): BoundingBox {
+  if (nodes.length === 0) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
+  }
+  
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  
+  for (const node of nodes) {
+    const nodeMinX = node.x - node.width / 2;
+    const nodeMinY = node.y - node.height / 2;
+    const nodeMaxX = node.x + node.width / 2;
+    const nodeMaxY = node.y + node.height / 2;
+    
+    minX = Math.min(minX, nodeMinX);
+    minY = Math.min(minY, nodeMinY);
+    maxX = Math.max(maxX, nodeMaxX);
+    maxY = Math.max(maxY, nodeMaxY);
+  }
+  
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY
+  };
+}
+
+/**
+ * 連結成分をパッキング
+ * Shelf-packingアルゴリズムで連結成分を配置
+ * @param components 連結成分の配列
+ * @param margin 成分間のマージン
+ * @returns レイアウト結果
+ */
+export async function packConnectedComponents(
+  components: ConnectedComponent[],
+  margin: number = 50
+): Promise<LayoutResult> {
+  if (components.length === 0) {
+    return { nodes: [] };
+  }
+  
+  // 各成分のバウンディングボックスを計算
+  interface ComponentInfo {
+    component: ConnectedComponent;
+    bbox: BoundingBox;
+    area: number;
+  }
+  
+  const componentInfos: ComponentInfo[] = components.map(component => {
+    const bbox = calculateBoundingBox(component.nodes);
+    return {
+      component,
+      bbox,
+      area: bbox.width * bbox.height
+    };
+  });
+  
+  // 面積の降順でソート
+  componentInfos.sort((a, b) => b.area - a.area);
+  
+  // Shelf-packingで配置
+  const shelfWidth = 2000;
+  let currentX = 0;
+  let currentY = 0;
+  let rowHeight = 0;
+  
+  const result: Array<{ id: string; x: number; y: number }> = [];
+  
+  for (const info of componentInfos) {
+    const { component, bbox } = info;
+    
+    // 現在の行に収まらない場合は改行
+    if (currentX > 0 && currentX + bbox.width > shelfWidth) {
+      currentX = 0;
+      currentY += rowHeight + margin;
+      rowHeight = 0;
+    }
+    
+    // 配置先の左上座標
+    const targetX = currentX;
+    const targetY = currentY;
+    
+    // 成分内のノード座標をオフセット
+    const offsetX = targetX - bbox.minX;
+    const offsetY = targetY - bbox.minY;
+    
+    for (const node of component.nodes) {
+      result.push({
+        id: node.id,
+        x: node.x + offsetX,
+        y: node.y + offsetY
+      });
+    }
+    
+    // 次の配置位置を更新
+    currentX += bbox.width + margin;
+    rowHeight = Math.max(rowHeight, bbox.height);
+  }
+  
+  return { nodes: result };
 }

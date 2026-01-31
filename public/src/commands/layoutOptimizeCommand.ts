@@ -48,6 +48,7 @@ export async function commandLayoutOptimize(
       const estimatedHeight = 40 + (node.columns.length * 28); // ヘッダー40px + カラムごとに約28px
       return {
         id: node.id,
+        name: node.name,
         x: node.x,
         y: node.y,
         width: 200, // デフォルト幅

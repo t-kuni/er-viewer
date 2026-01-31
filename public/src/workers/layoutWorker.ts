@@ -1,14 +1,12 @@
 import {
   SimpleForceDirectedLayout,
-  RemoveOverlaps,
   SplitConnectedComponents,
-  LouvainClustering,
-  CoarseLayout,
-  FineLayout,
+  packConnectedComponents,
+  calculateSimilarityEdges,
   type LayoutNode,
   type LayoutEdge,
   type LayoutResult,
-  type ClusteredNode
+  type ConnectedComponent
 } from '../utils/layoutOptimizer';
 
 interface StartMessage {
@@ -58,86 +56,70 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     try {
       const { nodes, edges } = message;
 
-      // 段階1: 準備（0〜10%）
-      postProgress(5, '準備中...');
-      if (cancelFlag) return;
-
-      // 段階2: 連結成分分割（10〜15%）
-      postProgress(10, '連結成分を分割中...');
+      // 段階1: 準備・連結成分分割（0〜10%）
+      postProgress(5, '連結成分分割');
       const components = SplitConnectedComponents(nodes, edges);
       if (cancelFlag) return;
+      postProgress(10, '連結成分分割');
 
-      // 段階3: クラスタリング（15〜25%）
-      postProgress(15, 'クラスタリング中...');
-      const clusteredNodes = LouvainClustering(nodes, edges);
+      // 段階2: 名前類似度計算（10〜20%）
+      postProgress(15, '名前類似度計算');
+      // 全成分のノードをマージして類似エッジを計算（内部でcalculateSimilarityEdgesが使用される）
+      if (cancelFlag) return;
+      postProgress(20, '名前類似度計算');
+
+      // 段階3: 成分内配置最適化（20〜80%）
+      const optimizedComponents: ConnectedComponent[] = [];
+      const componentProgressStep = components.length > 0 ? 60 / components.length : 60;
+      
+      for (let i = 0; i < components.length; i++) {
+        if (cancelFlag) return;
+        
+        const component = components[i];
+        const baseProgress = 20 + (i * componentProgressStep);
+        
+        postProgress(baseProgress, `成分${i + 1}配置最適化`);
+        
+        // SimpleForceDirectedLayoutを実行（名前類似エッジは内部で計算される）
+        const layoutResult = await SimpleForceDirectedLayout(
+          component.nodes,
+          component.edges,
+          (progress, stage) => {
+            const mappedProgress = baseProgress + (progress / 100) * componentProgressStep;
+            postProgress(mappedProgress, stage);
+          },
+          () => cancelFlag
+        );
+        
+        if (cancelFlag) return;
+        
+        // 結果をノードに反映
+        const updatedNodes = component.nodes.map(node => {
+          const resultNode = layoutResult.nodes.find(n => n.id === node.id);
+          if (resultNode) {
+            return {
+              ...node,
+              x: resultNode.x,
+              y: resultNode.y
+            };
+          }
+          return node;
+        });
+        
+        optimizedComponents.push({
+          nodes: updatedNodes,
+          edges: component.edges
+        });
+      }
+
       if (cancelFlag) return;
 
-      // 段階4: 粗レイアウト（25〜50%）
-      postProgress(25, '粗レイアウト実行中...');
-      const coarseResult = await CoarseLayout(
-        clusteredNodes,
-        edges,
-        (progress, stage) => {
-          const mappedProgress = 25 + (progress / 100) * 25;
-          postProgress(mappedProgress, stage);
-        },
-        () => cancelFlag
-      );
-
+      // 段階4: 連結成分パッキング（80〜100%）
+      postProgress(80, 'パッキング');
+      const finalResult = await packConnectedComponents(optimizedComponents, 50);
+      
       if (cancelFlag) return;
-
-      // 粗レイアウトの結果をノードに反映
-      const coarseUpdatedNodes: ClusteredNode[] = clusteredNodes.map(node => {
-        const resultNode = coarseResult.nodes.find(n => n.id === node.id);
-        if (resultNode) {
-          return {
-            ...node,
-            x: resultNode.x,
-            y: resultNode.y
-          };
-        }
-        return node;
-      });
-
-      // 段階5: 詳細レイアウト（50〜75%）
-      postProgress(50, '詳細レイアウト実行中...');
-      const fineResult = await FineLayout(
-        coarseUpdatedNodes,
-        edges,
-        (progress, stage) => {
-          const mappedProgress = 50 + (progress / 100) * 25;
-          postProgress(mappedProgress, stage);
-        },
-        () => cancelFlag
-      );
-
-      if (cancelFlag) return;
-
-      // 詳細レイアウトの結果をノードに反映
-      const fineUpdatedNodes = nodes.map(node => {
-        const resultNode = fineResult.nodes.find(n => n.id === node.id);
-        if (resultNode) {
-          return {
-            ...node,
-            x: resultNode.x,
-            y: resultNode.y
-          };
-        }
-        return node;
-      });
-
-      // 段階6: 重なり除去（75〜100%）
-      postProgress(75, '重なり除去中...');
-      const finalResult = await RemoveOverlaps(
-        fineUpdatedNodes,
-        (progress, stage) => {
-          const mappedProgress = 75 + (progress / 100) * 25;
-          postProgress(mappedProgress, stage);
-        },
-        () => cancelFlag
-      );
-
-      if (cancelFlag) return;
+      postProgress(100, 'パッキング');
 
       // 完了メッセージを送信
       const completeMessage: CompleteMessage = {

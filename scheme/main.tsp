@@ -150,27 +150,11 @@ model BuildInfo {
   arch: string;
 }
 
-// Internal implementation models (used by lib/database.ts)
-// These models are not used in API endpoints but are needed for internal data processing
-
 // ER Data model (used by DatabaseManager.generateERData())
+// This model is used by reverse engineer API response
 model ERData {
   entities: Entity[];
   relationships: Relationship[];
-}
-
-// Layout models (used by DatabaseManager.generateDefaultLayoutData())
-model EntityLayoutItem {
-  id: string; // UUID (エンティティIDと同じ)
-  name: string;
-  x: float64;
-  y: float64;
-}
-
-model LayoutData {
-  entities: Record<EntityLayoutItem>;
-  rectangles: Record<Rectangle>;
-  texts: Record<TextBox>;
 }
 
 // ViewModel for ER diagram rendering
@@ -313,8 +297,18 @@ model ViewModel {
 
 // Reverse engineer request
 model ReverseEngineerRequest {
-  viewModel: ViewModel;
-  password?: string; // データベース接続用パスワード
+  type: DatabaseType;
+  host: string;
+  port: int32;
+  user: string;
+  password: string;
+  database: string;
+}
+
+// Reverse engineer response
+model ReverseEngineerResponse {
+  erData: ERData;
+  connectionInfo: DatabaseConnectionState; // パスワード除く接続情報
 }
 
 // API Routes
@@ -328,8 +322,8 @@ namespace API {
   op initialize(): ViewModel | ErrorResponse;
 
   // Reverse engineer database to generate ER diagram
-  // Accepts current ViewModel and password, returns updated ViewModel with ER diagram data
+  // Accepts database connection info, returns ER data for client-side merge
   @post
   @route("/reverse-engineer")
-  op reverseEngineer(@body request: ReverseEngineerRequest): ViewModel | ErrorResponse;
+  op reverseEngineer(@body request: ReverseEngineerRequest): ReverseEngineerResponse | ErrorResponse;
 }

@@ -87,44 +87,49 @@
 API定義は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
 
 - `ReverseEngineerRequest`: リクエストモデル
-  - `viewModel`: 現在のViewModel
-  - `password`: データベース接続用パスワード
+  - `type`: データベース種別
+  - `host`: データベースホスト
+  - `port`: データベースポート
+  - `user`: データベースユーザー
+  - `password`: データベースパスワード
+  - `database`: データベース名
 - `POST /api/reverse-engineer`: リバースエンジニアリングエンドポイント
   - リクエスト: `ReverseEngineerRequest`
-  - レスポンス: `ViewModel | ErrorResponse`
+  - レスポンス: `ReverseEngineerResponse | ErrorResponse`
 
-### バックエンドでの接続情報解決
+### 接続情報の解決
 
-バックエンドは以下の優先順位で接続情報を解決：
+**初期化時（バックエンド）**:
+- `GET /api/init`の実行時に、環境変数（`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`）が存在する場合、`settings.lastDatabaseConnection`に設定
+- パスワード（`DB_PASSWORD`）は含めない（セキュリティのため）
 
-**host, port, user, database**:
-1. **`request.viewModel.settings.lastDatabaseConnection`**（前回成功時の接続情報）
-   - フロントエンドから送信された `viewModel` に含まれる
-2. **上記がない場合**: サーバー環境変数（`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`）
-3. **環境変数もない場合**: エラー（接続情報不足）
+**モーダル表示時（フロントエンド）**:
+- `settings.lastDatabaseConnection`が存在する場合、その値をモーダルの初期値として表示
+- 存在しない場合は空（placeholderが表示される）
+- ユーザーが値を編集可能
 
-**password**:
-1. **`request.password`**（フロントエンドから送信されたパスワード）
-2. **上記が空または未指定の場合**: サーバー環境変数（`DB_PASSWORD`）
-3. **環境変数もない場合**: エラー（パスワード不足）
+**リバースエンジニア実行時（フロントエンド）**:
+- モーダルで入力された接続情報を`ReverseEngineerRequest`として送信
+- すべてのフィールドは必須（フロントエンドで`settings.lastDatabaseConnection`があればそれをデフォルト値として使用）
+- パスワード欄が空の場合は空文字列を送信
 
-**備考**:
-- フロントエンドは、モーダルで入力された値で `viewModel.settings.lastDatabaseConnection` を更新してから送信
-- パスワードのみ別パラメータ `request.password` で送信
-- バックエンドは受信した接続情報で接続を試行し、成功時にそのまま `lastDatabaseConnection` として確定
-- 開発時は環境変数を設定しておくことで、パスワード入力を省略可能
+**バックエンドでの処理**:
+- リクエストの接続情報をそのまま使用
+- パスワードが空文字列の場合のみ、環境変数`DB_PASSWORD`をフォールバックとして使用
+- それ以外のフィールドは環境変数フォールバックを行わない（初期化時に既に設定済みのため）
 
 ### レスポンス仕様
 
 成功時：
-- 更新された `ViewModel` を返却
-- `ViewModel.settings.lastDatabaseConnection` には今回の接続に成功した情報（passwordを除く）が設定される
-- 次回のモーダル表示時、この値が初期値として使用される
+- `ReverseEngineerResponse` を返却
+  - `erData`: データベースから抽出したER図データ
+  - `connectionInfo`: 接続に成功した接続情報（passwordを除く）
+- フロントエンド側で`connectionInfo`を`settings.lastDatabaseConnection`に保存
 
 失敗時：
 - `ErrorResponse` を返却
 - エラーメッセージには具体的な失敗理由を含める（認証エラー、接続エラー、DB不存在など）
-- `lastDatabaseConnection` は更新されない
+- フロントエンド側で`lastDatabaseConnection`は更新されない
 
 ## UXフロー
 
@@ -133,19 +138,27 @@ API定義は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
 1. ユーザーが「リバースエンジニア」ボタンを押下
 2. **接続設定モーダルが表示される**
    - 前回成功した接続情報が初期値として表示（`lastDatabaseConnection`）
-   - 上記がない場合は空（placeholderが表示される）
+   - 上記がない場合、環境変数から初期化された値が表示（初期化時に設定済み）
+   - 値がない項目は空（placeholderが表示される）
    - パスワード欄は常に空（セキュリティのため）
 3. ユーザーが必要に応じて接続情報を編集・確認
    - パスワードを入力しなくても、環境変数 `DB_PASSWORD` があればバックエンドで自動使用される
 4. ユーザーが「実行」ボタンを押下
 5. フロントエンドが `ReverseEngineerRequest` を送信
-   - `viewModel`: 現在のViewModel
-   - `password`: ユーザーが入力したパスワード（空の場合もあり）
+   - `type`: モーダルで選択されたデータベース種別
+   - `host`: モーダルで入力されたホスト
+   - `port`: モーダルで入力されたポート
+   - `user`: モーダルで入力されたユーザー
+   - `password`: ユーザーが入力したパスワード（空の場合は空文字列）
+   - `database`: モーダルで入力されたデータベース名
 6. バックエンドがリバースエンジニアリングを実行
-   - パスワードが空の場合は環境変数 `DB_PASSWORD` を使用
-7. 成功したViewModelを受け取り、ストアを更新
-8. モーダルを閉じる
-9. ER図を表示
+   - パスワードが空文字列の場合のみ環境変数 `DB_PASSWORD` を使用
+7. 成功したレスポンス（ERDataと接続情報）を受け取る
+8. フロントエンド側でERDataを既存ViewModelとマージ
+9. `settings.lastDatabaseConnection`を更新
+10. ストアを更新
+11. モーダルを閉じる
+12. ER図を表示
 
 ### エラーフロー
 
@@ -178,37 +191,36 @@ API定義は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
 ### コマンド変更
 
 `public/src/commands/reverseEngineerCommand.ts`:
-1. モーダルから接続情報（host, port, user, database）とパスワードを取得
-2. 現在のViewModelをコピーし、`settings.lastDatabaseConnection` を更新
-   - type: `DatabaseType.mysql`
-   - host, port, user, database: モーダルで入力された値
-3. `ReverseEngineerRequest` 形式でリクエストを送信
-   - `viewModel`: 更新後のViewModel
-   - `password`: モーダルで入力されたパスワード（空の場合もあり）
+1. モーダルから接続情報（type, host, port, user, database）とパスワードを取得
+2. `ReverseEngineerRequest` 形式でリクエストを送信
+   - `type`: モーダルで選択されたデータベース種別
+   - `host`: モーダルで入力されたホスト
+   - `port`: モーダルで入力されたポート
+   - `user`: モーダルで入力されたユーザー
+   - `password`: モーダルで入力されたパスワード（空の場合は空文字列）
+   - `database`: モーダルで入力されたデータベース名
+3. レスポンスで受け取った`erData`を既存ViewModelとマージ（マージロジックの詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照）
+4. `settings.lastDatabaseConnection`に`response.connectionInfo`を設定
+5. 更新されたViewModelをストアに反映
 
 ## バックエンド実装概要
 
 ### Usecase 変更
 
 `lib/usecases/ReverseEngineerUsecase.ts`:
-- 引数を `(viewModel: ViewModel)` から `(request: ReverseEngineerRequest)` に変更
-- 接続情報を以下の優先順位で解決：
-  1. `request.viewModel.settings.lastDatabaseConnection`
-  2. 環境変数（`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`）
-  3. なければエラー
-- パスワードを以下の優先順位で解決：
-  1. `request.password`
-  2. 環境変数（`DB_PASSWORD`）
-  3. なければエラー
-- 解決した接続情報でデータベースに接続
-- 成功時、使用した接続情報で `viewModel.settings.lastDatabaseConnection` を確定して返却
+- 引数: `(request: ReverseEngineerRequest)`
+- リクエストの接続情報をそのまま使用してデータベースに接続
+- パスワードが空文字列の場合のみ、環境変数（`DB_PASSWORD`）をフォールバック
+- データベースからERDataを生成
+- レスポンスとして`ReverseEngineerResponse`を返却：
+  - `erData`: 生成されたER図データ
+  - `connectionInfo`: 接続に成功した接続情報（passwordを除く）
 
 ### DatabaseManager 変更
 
 `lib/database.ts`:
-- `connect()` メソッドに外部設定を受け取れるよう変更
-- `connect(config?: Partial<DatabaseConfig>)` のようにオプションで上書き可能に
-- 接続解決ロジックを実装
+- `connect()` メソッドは既に外部設定を受け取れる実装になっている
+- 特に変更不要
 
 ## 将来の拡張性
 

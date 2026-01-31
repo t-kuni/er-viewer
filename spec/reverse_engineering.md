@@ -10,30 +10,45 @@
 
 ### リバースエンジニアリング処理
 
+**バックエンド**：
 - データベースに接続してスキーマ情報を取得
 - テーブル情報（Entity）とリレーション情報（Relationship）を抽出
-- エンティティの配置情報を含むER図データをViewModelに構築
-- リクエストで受け取ったViewModelを更新して返却
+- ERDataとして返却
+
+**フロントエンド**：
+- 受け取ったERDataを既存ViewModelとマージ（詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照）
+- エンティティの配置情報を計算
+- 逆引きインデックスを再計算
+- ViewModelを更新
 
 ### 画面操作フロー
 
 1. ユーザーが画面上の「リバースエンジニア」ボタンを押下
 2. データベース接続設定モーダルが表示される（詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
 3. ユーザーが接続情報を入力して「実行」ボタンを押下
-4. フロントエンドが現在のViewModelと接続情報を`POST /api/reverse-engineer`に送信
-5. バックエンドが更新後のViewModelを返却
-6. フロントエンドがcanvas上にER図をレンダリング
+4. フロントエンドが接続情報を`POST /api/reverse-engineer`に送信
+5. バックエンドがERDataを返却
+6. フロントエンドが受け取ったERDataを既存ViewModelとマージ
+7. フロントエンドがcanvas上にER図をレンダリング
 
 ## バックエンド処理仕様
 
 ### 処理フロー
 
-1. データベースに接続
+**バックエンド**：
+1. リクエストの接続情報でデータベースに接続
 2. スキーマ情報からエンティティとリレーションシップを抽出
-3. デフォルトレイアウトでER図を構築
-4. ViewModelのerDiagramを更新
-5. 更新後のViewModelを返却
-6. データベースから切断
+3. ERDataを構築
+4. 接続情報（パスワード除く）とERDataを返却
+5. データベースから切断
+
+**フロントエンド**：
+1. 受け取ったERDataを既存ViewModelとマージ
+2. 新規エンティティにはデフォルトレイアウトで座標を割り当て
+3. 逆引きインデックスを再計算
+4. `settings.lastDatabaseConnection`を更新
+5. ViewModelをストアに反映
+6. React Flowで再レンダリング
 
 ### デフォルトレイアウト仕様
 
@@ -64,10 +79,12 @@
 ### 処理フロー
 
 1. 「リバースエンジニア」ボタン押下
-2. 現在のViewModelを`POST /api/reverse-engineer`に送信
-3. レスポンスで受け取ったViewModelでストアを更新
-4. ViewModelをReact Flowのnodesとedgesにマッピングしてレンダリング
-5. エラー時はエラーメッセージを表示
+2. データベース接続設定モーダルで接続情報を入力
+3. 接続情報を`POST /api/reverse-engineer`に送信
+4. レスポンスで受け取ったERDataを既存ViewModelとマージ
+5. マージ後のViewModelでストアを更新
+6. ViewModelをReact Flowのnodesとedgesにマッピングしてレンダリング
+7. エラー時はエラーメッセージを表示
 
 ## 増分リバースエンジニアリング
 

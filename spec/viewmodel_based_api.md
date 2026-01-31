@@ -61,7 +61,7 @@ GET /api/init
 
 ### POST /api/reverse-engineer
 
-データベースをリバースエンジニアリングしてER図を生成し、ViewModelを返却する。
+データベースをリバースエンジニアリングしてER図データを生成する。フロントエンド側で既存ViewModelとマージする。
 
 **エンドポイント**
 ```
@@ -70,25 +70,30 @@ POST /api/reverse-engineer
 
 **リクエスト**
 - ボディ: `ReverseEngineerRequest`
-  - `viewModel`: 現在のViewModel
-  - `password`: データベース接続用パスワード（オプション）
+  - `type`: データベース種別（`mysql`など）
+  - `host`: データベースホスト
+  - `port`: データベースポート
+  - `user`: データベースユーザー
+  - `password`: データベースパスワード
+  - `database`: データベース名
 
 **レスポンス**
-- 成功時: `ViewModel`（更新後の状態）
+- 成功時: `ReverseEngineerResponse`
+  - `erData`: ER図データ（Entity[]とRelationship[]）
+  - `connectionInfo`: 接続成功した接続情報（パスワード除く）
 - エラー時: `ErrorResponse`
 
 **処理内容**
-- データベース接続情報を解決（詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照）
-- データベースに接続してスキーマ情報を取得
-- エンティティとリレーションシップを抽出
-- デフォルトのレイアウトでER図を構築（詳細は[リバースエンジニアリング機能仕様](./reverse_engineering.md)の「デフォルトレイアウト仕様」を参照）
-- **逆引きインデックス（`index`）を計算** - ホバーインタラクションのパフォーマンス最適化のため
-  - `entityToEdges`: 各エンティティに接続されているエッジのリストを生成
-  - `columnToEntity`: 各カラムが所属するエンティティを特定
-  - `columnToEdges`: 各カラムに接続されているエッジのリストを生成
-- リクエストで受け取ったViewModelのerDiagramを更新して返却
-- `settings.lastDatabaseConnection`を更新（パスワードを除く）
-- ui状態とbuildInfo状態はリクエストから引き継ぐ
+- リクエストの接続情報でデータベースに接続
+- スキーマ情報を取得
+- エンティティとリレーションシップを抽出してERDataを構築
+- ERDataと接続情報（パスワード除く）を返却
+
+**フロントエンド側の処理**
+- レスポンスで受け取ったERDataを既存ViewModelとマージ（詳細は[増分リバース・エンジニアリング機能仕様](./incremental_reverse_engineering.md)を参照）
+- 逆引きインデックス（`index`）を再計算
+- `settings.lastDatabaseConnection`を更新
+- ViewModelをストアに反映
 
 ## 削除されるAPI
 
@@ -104,12 +109,10 @@ POST /api/reverse-engineer
 
 以下のデータ構造は使用されなくなるため、scheme/main.tspから削除される：
 
-- `LayoutData` - ViewModelのERDiagramViewModelに統合されるため不要
-- `EntityLayoutItem` - ViewModelのEntityNodeViewModelに統合されるため不要
+- `LayoutData` - 使用されていないため削除
+- `EntityLayoutItem` - 使用されていないため削除
 - `DDLResponse` - 対応するAPIが削除されるため不要
 - `SuccessResponse` - 使用されていないため削除
-- `ReverseEngineerResponse` - ViewModelを直接返却するため不要
-- `ERData` - ViewModelのERDiagramViewModelに統合されるため不要
 
 ## ViewModelの構造
 
@@ -143,15 +146,19 @@ POST /api/reverse-engineer
 ### リバースエンジニアリングフロー
 
 1. ユーザーが「リバースエンジニア」ボタンを押下
-2. 現在のViewModelを`POST /api/reverse-engineer`に送信
-3. 返却されたViewModelでReduxストアを更新
-4. ViewModelをReact Flowのデータ構造に変換して再描画
+2. データベース接続設定モーダルで接続情報を入力
+3. 接続情報を`POST /api/reverse-engineer`に送信
+4. 返却されたERDataを現在のViewModelとマージ
+5. 逆引きインデックスを再計算
+6. `settings.lastDatabaseConnection`を更新
+7. 更新されたViewModelでReduxストアを更新
+8. ViewModelをReact Flowのデータ構造に変換して再描画
 
 ### 状態管理
 
 - Reduxストアの状態はViewModel型と完全に一致
-- APIレスポンスをそのままストアにセット可能
-- API呼び出し時は現在のストア状態をそのまま送信
+- 初期化API: レスポンスをそのままストアにセット可能
+- リバースエンジニアAPI: レスポンスのERDataを既存ViewModelとマージしてストアに反映
 
 ## バックエンドの実装への影響
 
@@ -165,14 +172,10 @@ POST /api/reverse-engineer
 - これらを組み合わせてViewModelを返却
 
 **ReverseEngineerUsecase**
-- リクエストのViewModelを受け取る
-- データベースからER図を生成
-- **逆引きインデックスを計算**
-  - `nodes`と`edges`から`index`を生成
-  - 計算ロジックはユーティリティ関数として実装
-- ViewModelのerDiagramを更新（nodes, edges, indexを含む）
-- format/version、ui状態、buildInfo状態は維持
-- 更新後のViewModelを返却
+- リクエストの接続情報を受け取る
+- データベースに接続してERDataを生成
+- ERDataと接続情報（パスワード除く）を返却
+- 増分更新やインデックス計算はフロントエンド側で実行
 
 ## 実現可能性の検証
 
@@ -199,13 +202,13 @@ POST /api/reverse-engineer
 
 ### 懸念事項
 
-**ViewModelのサイズ**
-- ER図が大きい場合、ViewModelのJSONサイズが大きくなる可能性
-- 対処：MVP段階では許容、パフォーマンス問題が発生したら部分更新APIを検討
+**フロントエンドの複雑化**
+- 増分更新ロジックがフロントエンドに移るため、フロントのコードが複雑になる
+- 対処：MVP段階では許容、テストコードで品質を担保
 
-**状態の同期**
-- フロントとバックでViewModelを往復させる際、状態の同期ずれが発生する可能性
-- 対処：ViewModelを常にサーバーが正とし、レスポンスで完全に上書きする設計
+**マージロジックのテスト**
+- 増分更新のマッチングロジックはフロント側でテストが必要
+- 対処：ユーティリティ関数として実装し、ユニットテストでカバー
 
 **DDL情報の取得**
 - 削除される`GET /api/table/{tableName}/ddl`の代替方法は？

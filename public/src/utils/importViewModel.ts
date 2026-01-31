@@ -1,5 +1,6 @@
 import { BuildInfoState, ViewModel } from "../api/client";
 import { getInitialGlobalUIState } from "./getInitialViewModelValues";
+import { buildERDiagramIndex } from "../../../lib/utils/buildERDiagramIndex.js";
 
 /**
  * JSONファイルからViewModelをインポートする
@@ -74,15 +75,23 @@ export function importViewModel(
         // ViewModelとして扱う（型アサーション）
         const importedViewModel = parsedData as ViewModel;
 
+        // ノードとエッジを取得
+        const nodes = importedViewModel.erDiagram?.nodes || {};
+        const edges = importedViewModel.erDiagram?.edges || {};
+
+        // インデックスを再構築
+        const index = buildERDiagramIndex(nodes, edges);
+
         // 一時UI状態とキャッシュを補完したViewModelを作成
         const viewModel: ViewModel = {
           format: importedViewModel.format,
           version: importedViewModel.version,
           erDiagram: {
-            nodes: importedViewModel.erDiagram?.nodes || {},
-            edges: importedViewModel.erDiagram?.edges || {},
+            nodes,
+            edges,
             rectangles: importedViewModel.erDiagram?.rectangles || {},
             texts: importedViewModel.erDiagram?.texts || {},
+            index,
             ui: {
               hover: null,
               highlightedNodeIds: [],
@@ -93,6 +102,7 @@ export function importViewModel(
                   backgroundItems: [],
                   foregroundItems: [],
                 },
+              isDraggingEntity: false,
             },
             loading: false,
           },

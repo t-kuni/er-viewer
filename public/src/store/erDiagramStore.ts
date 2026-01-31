@@ -30,12 +30,18 @@ const initialState: ViewModel = {
     edges: {},
     rectangles: {},
     texts: {},
+    index: {
+      entityToEdges: {},
+      columnToEntity: {},
+      columnToEdges: {},
+    },
     ui: {
       hover: null,
       highlightedNodeIds: [],
       highlightedEdgeIds: [],
       highlightedColumnIds: [],
       layerOrder: { backgroundItems: [], foregroundItems: [] },
+      isDraggingEntity: false,
     },
     loading: false,
   },

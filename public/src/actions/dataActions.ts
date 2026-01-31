@@ -99,3 +99,42 @@ export function actionSetLoading(
     },
   };
 }
+
+/**
+ * ノードサイズを更新するAction
+ * @param viewModel 現在の状態
+ * @param updates 更新するノードサイズの配列
+ * @returns 新しい状態（変化がない場合は同一参照）
+ */
+export function actionUpdateNodeSizes(
+  viewModel: ViewModel,
+  updates: Array<{ id: string; width: number; height: number }>
+): ViewModel {
+  let hasChanges = false;
+  const newNodes = { ...viewModel.erDiagram.nodes };
+
+  for (const update of updates) {
+    const node = newNodes[update.id];
+    if (node && (node.width !== update.width || node.height !== update.height)) {
+      newNodes[update.id] = {
+        ...node,
+        width: update.width,
+        height: update.height,
+      };
+      hasChanges = true;
+    }
+  }
+
+  // 変化がない場合は同一参照を返す
+  if (!hasChanges) {
+    return viewModel;
+  }
+
+  return {
+    ...viewModel,
+    erDiagram: {
+      ...viewModel.erDiagram,
+      nodes: newNodes,
+    },
+  };
+}

@@ -54,7 +54,24 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     cancelFlag = false;
 
     try {
-      const { nodes, edges } = message;
+      let { nodes, edges } = message;
+      
+      // サイズが0の場合はフォールバック値を使用
+      nodes = nodes.map(node => {
+        if (node.width > 0 && node.height > 0) {
+          return node;
+        }
+        // フォールバック値を計算
+        const columnCount = 0; // 簡易実装：ノード情報にカラム数がないため0とする
+        const fallbackWidth = 200;
+        const fallbackHeight = 40 + columnCount * 28;
+        
+        return {
+          ...node,
+          width: node.width > 0 ? node.width : fallbackWidth,
+          height: node.height > 0 ? node.height : fallbackHeight,
+        };
+      });
 
       // 段階1: 準備・連結成分分割（0〜10%）
       postProgress(5, '連結成分分割');

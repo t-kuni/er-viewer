@@ -101,12 +101,14 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
           const existing = existingEntitiesByName.get(entity.name);
           
           if (existing) {
-            // 既存エンティティ: id、x、yを維持し、カラム情報とddlを更新
+            // 既存エンティティ: id、x、yを維持し、カラム情報とddlを更新（width/heightは0にリセット）
             nodes[existing.id] = {
               id: existing.id,
               name: entity.name,
               x: existing.x,
               y: existing.y,
+              width: 0,
+              height: 0,
               columns: entity.columns,
               ddl: entity.ddl,
             };
@@ -122,6 +124,8 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
               name: entity.name,
               x: maxX + 300 + col * 300, // 既存エンティティの右側から配置
               y: maxY + row * 200, // 既存エンティティの最大Y座標から配置
+              width: 0,
+              height: 0,
               columns: entity.columns,
               ddl: entity.ddl,
             };
@@ -179,6 +183,8 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
             name: entity.name,
             x: 50 + col * 300,
             y: 50 + row * 200,
+            width: 0,
+            height: 0,
             columns: entity.columns,
             ddl: entity.ddl,
           };

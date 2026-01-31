@@ -23,7 +23,7 @@ import RelationshipEdge from './RelationshipEdge'
 import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
-import { actionUpdateNodePositions } from '../actions/dataActions'
+import { actionUpdateNodePositions, actionUpdateNodeSizes } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
 import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
@@ -182,6 +182,29 @@ function ERCanvasInner({
       onNodesInitialized(nodesInitialized)
     }
   }, [nodesInitialized, onNodesInitialized])
+  
+  // ノードサイズ計測・更新処理
+  const [hasMeasuredSizes, setHasMeasuredSizes] = useState(false)
+  
+  useEffect(() => {
+    // 初期化完了時（false → true）に一度だけ計測
+    if (nodesInitialized && !hasMeasuredSizes) {
+      const currentNodes = getNodes()
+      const updates = currentNodes
+        .filter(node => node.type === 'entityNode' && node.measured)
+        .map(node => ({
+          id: node.id,
+          width: node.measured!.width || 0,
+          height: node.measured!.height || 0,
+        }))
+        .filter(update => update.width > 0 && update.height > 0)
+      
+      if (updates.length > 0) {
+        dispatch(actionUpdateNodeSizes, updates)
+        setHasMeasuredSizes(true)
+      }
+    }
+  }, [nodesInitialized, hasMeasuredSizes, getNodes, dispatch])
   
   // Store購読
   const layerOrder = useViewModel((vm) => vm.erDiagram.ui.layerOrder)

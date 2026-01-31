@@ -103,11 +103,13 @@ function App() {
   }
   
   // 配置最適化ボタンの有効/無効判定
+  const hasValidNodeSize = Object.values(erDiagram.nodes).some(node => node.width > 0)
   const isLayoutOptimizeDisabled = 
     erDiagram.loading || 
     layoutOptimization.isRunning || 
     Object.keys(erDiagram.nodes).length === 0 ||
-    !nodesInitialized
+    !nodesInitialized ||
+    !hasValidNodeSize
   
   return (
     <div className="app">

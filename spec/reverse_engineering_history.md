@@ -141,17 +141,17 @@
    - `viewModel.erDiagram.nodes`が空なら初回
    - 空でなければ増分
 
-2. 差分検出（増分の場合のみ）
-   - 別関数`detectSchemaChanges(prevViewModel, erData)`を呼び出し
-   - 変更サマリーと変更詳細を取得
+2. 増分の場合、マージ処理と並行して差分情報を収集
+   - 既存のマッピング処理（`existingNodesByName`等）を活用
+   - テーブル・カラム・リレーションの追加・削除・変更を記録
 
-3. 既存のマージ処理を実行
+3. 履歴エントリを作成して配列に追記
 
-4. 履歴エントリを作成して配列に追記
+4. マージ結果と履歴を含む新しいViewModelを返却
 
 ### 差分検出アルゴリズム
 
-差分検出は純粋関数`detectSchemaChanges(prevViewModel, erData)`として実装する。
+差分検出は`actionMergeERData`内に組み込んで実装する。既存のマージ処理で計算済みの情報を再利用することで効率化を図る。
 
 **テーブルの差分**
 - 前回のテーブル名集合: `prevTables = Set(prevViewModel.erDiagram.nodes[*].name)`

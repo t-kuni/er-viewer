@@ -1,109 +1,184 @@
-# タスク一覧
+# リバースエンジニアリング履歴機能 実装タスク
 
 ## 概要
 
-直前のコミットで更新された仕様書に基づき、エンティティのグリッドレイアウトアルゴリズムを修正する。
+リバースエンジニアリングの履歴を記録し、UI上で確認できる機能を実装する。
 
-**仕様変更内容**:
-- 1行あたりのエンティティ数を固定値（4個）から動的計算（`ceil(sqrt(エンティティ総数))`）に変更
-- これにより、エンティティが正方形に近い形で配置される
+参照仕様書: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md)
 
-**関連仕様書**:
-- [リバースエンジニアリング機能仕様](spec/reverse_engineering.md)
-- [増分リバース・エンジニアリング機能仕様](spec/incremental_reverse_engineering.md)
+## フェーズ1: バックエンド・フロントエンドコア実装
 
-## タスク
+### 概要
+- バックエンド: 初期値対応（1ファイル更新 + テスト更新）
+- フロントエンド: マージアクション更新、UI状態アクション追加、エクスポート/インポート対応（4ファイル更新 + テスト更新）
+- 合計: 約5ファイル更新 + テストファイル更新
 
-### フロントエンド実装の修正
+### バックエンド
 
-- [x] `public/src/actions/dataActions.ts` の `actionMergeERData` 関数を修正
-  - **修正内容**:
-    - 固定値 `ENTITIES_PER_ROW = 4` を削除
-    - 通常モード（新規作成）の場合: `Math.ceil(Math.sqrt(erData.entities.length))` で列数を計算
-    - 増分モード（既存エンティティあり）の場合: 新規エンティティの数から `Math.ceil(Math.sqrt(新規エンティティ数))` で列数を計算
-    - 計算された列数を使用してグリッド配置を行う
-  - **注意事項**:
-    - 新規エンティティ数が0の場合の処理を考慮する（ゼロ除算の防止）
-    - 既存エンティティの座標は変更しない
-  - **参照**: [仕様書 reverse_engineering.md の座標計算セクション](spec/reverse_engineering.md#デフォルトレイアウト仕様)
-  - **実施内容**:
-    - 固定値 `ENTITIES_PER_ROW = 4` を削除
-    - 増分モード時に新規エンティティ数をカウントするロジックを追加
-    - `entitiesPerRow` を動的に計算するロジックを追加
-      - 通常モード: `Math.ceil(Math.sqrt(erData.entities.length))`
-      - 増分モード: `Math.ceil(Math.sqrt(newEntityCount))`（0の場合は1）
-    - グリッド配置ロジックで動的に計算した `entitiesPerRow` を使用
+#### 初期値対応
 
-### テストコードの修正
+- [ ] `lib/usecases/GetInitialViewModelUsecase.ts` を更新
+  - `ERDiagramViewModel` に `history` フィールドを追加（空配列 `[]`）
+  - 仕様: [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md) の「GET /api/init」を参照
+  - 初期値は `history: []`
 
-- [x] `public/tests/actions/dataActions.test.ts` のテストケースを修正
-  - **修正内容**:
-    - 通常モードのテストケース「空のViewModelに対してERDataをマージする」を修正
-      - 現在は2エンティティで `x: 50, y: 50` と `x: 350, y: 50` を期待（1列4個の配置）
-      - 修正後は2エンティティで `x: 50, y: 50` と `x: 350, y: 50` を期待（`ceil(sqrt(2)) = 2` なので2列配置）
-      - **期待値は変わらない**が、計算ロジックが変更されたことを確認する
-    - 増分モードのテストケースを修正（必要に応じて）
-      - 現在のテストは新規エンティティが1個なので影響なし（`ceil(sqrt(1)) = 1`）
-      - 追加のテストケースを検討:
-        - 新規エンティティが4個の場合（2列 × 2行）
-        - 新規エンティティが9個の場合（3列 × 3行）
-        - 新規エンティティが10個の場合（4列 × 3行）
-  - **参照**: 既存のテストケースの構造を参考にする
-  - **実施内容**:
-    - 既存のテストケースは修正不要（期待値が変わらないため）
-    - すべてのテストが正常に実行されることを確認
+- [ ] バックエンドのビルド確認
+  - `npm run generate` を実行して型生成
+  - `npm run build` を実行してビルド成功を確認
 
-### ビルドの確認
+- [ ] バックエンドのテストコード作成
+  - `tests/usecases/GetInitialViewModelUsecase.test.ts` を更新
+  - `history` フィールドが空配列であることを確認するテストを追加
 
-- [x] TypeScript のビルドエラーがないことを確認
-  - **コマンド**: `npm run generate && cd public && npm run build`
-  - **期待結果**: エラーなくビルドが完了する
-  - **結果**: ✅ ビルド成功
+- [ ] バックエンドのテスト実行
+  - `npm run test` を実行してテストが通ることを確認
 
-### テストの実行
+### フロントエンド - マージアクション更新（差分検出統合）
 
-- [x] ユニットテストが正常に通ることを確認
-  - **コマンド**: `npm run test`
-  - **期待結果**: すべてのテストが成功する
-  - **対象テスト**: 
-    - `public/tests/actions/dataActions.test.ts` の `actionMergeERData` 関連のテスト
-    - 他のテストにも影響がないことを確認
-  - **結果**: ✅ 13ファイル、198テストすべて成功
+#### アクション更新
 
-## 補足
+- [ ] `public/src/actions/dataActions.ts` の `actionMergeERData` を更新
+  - 初回/増分の判定処理（既に実装済み: `isIncrementalMode`）
+  - **増分リバースの場合、マージ処理と並行して差分情報を収集**:
+    - テーブルの差分:
+      - 追加: `erData.entities` で `existingNodesByName.get(entity.name)` が `undefined` のもの（既に判定済み）
+      - 削除: `deletedNodeIds` に含まれるテーブル名（既に計算済み）
+    - カラムの差分:
+      - マッチしたテーブル（`existingNode` がある場合）について:
+        - 既存カラムと新規カラムの名前の集合を比較（Set演算）
+        - 追加カラム: 新規にあって既存にないもの
+        - 削除カラム: 既存にあって新規にないもの
+        - 変更カラム: 両方に存在し、スナップショット（type, nullable, key, default, extra, isForeignKey）が異なるもの
+    - リレーションの差分:
+      - 既存リレーション（`viewModel.erDiagram.edges`）と新規リレーション（`erData.relationships`）を比較
+      - キー生成: `constraintName` または `${fromTable}.${fromColumn}->${toTable}.${toColumn}`
+      - 追加リレーション: 新規にあって既存にないもの
+      - 削除リレーション: 既存にあって新規にないもの
+  - 履歴エントリ（`ReverseEngineeringHistoryEntry`）を作成:
+    - `timestamp`: `Date.now()`
+    - `type`: `"initial"` または `"incremental"`
+    - `summary`: サマリー情報（追加・削除・変更の件数）
+    - `changes`: 変更詳細（増分の場合のみ、初回の場合は `undefined`）
+  - 既存の `viewModel.erDiagram.history` 配列に履歴エントリを追記（存在しない場合は空配列として扱う）
+  - 更新後の `ViewModel` に履歴配列を含める
+  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「処理の流れ」を参照
+  - **実装方針**: 既存のマージ処理ループ内で差分情報を収集することで、データの1回走査で効率的に実装する
 
-### 配置例（仕様書より）
+#### グローバルUIアクション追加
 
-- 4エンティティの場合: 2列 × 2行（正方形）
-  - 列数 = `ceil(sqrt(4))` = 2
-- 9エンティティの場合: 3列 × 3行（正方形）
-  - 列数 = `ceil(sqrt(9))` = 3
-- 10エンティティの場合: 4列 × 3行（ほぼ正方形）
-  - 列数 = `ceil(sqrt(10))` = 4
-- 16エンティティの場合: 4列 × 4行（正方形）
-  - 列数 = `ceil(sqrt(16))` = 4
-- 100エンティティの場合: 10列 × 10行（正方形）
-  - 列数 = `ceil(sqrt(100))` = 10
+- [ ] `public/src/actions/globalUIActions.ts` にアクションを追加
+  - `actionToggleHistoryPanel(viewModel: ViewModel): ViewModel`
+    - `viewModel.ui.showHistoryPanel` をトグル
+    - 変化がない場合は同一参照を返す（既存のアクションと同じパターン）
+  - 仕様: [フロントエンド状態管理仕様](/spec/frontend_state_management.md) を参照
 
-### 増分モードにおける新規エンティティ数の計算
+#### 初期値対応
 
-増分モードでは、既存エンティティと新規エンティティを区別する必要がある。新規エンティティ数は以下のように計算される:
+- [ ] `public/src/utils/getInitialViewModelValues.ts` を更新
+  - `getInitialGlobalUIState()` に `showHistoryPanel: false` を追加
 
-```typescript
-// 新規エンティティ数のカウント
-let newEntityCount = 0;
-erData.entities.forEach((entity: Entity) => {
-  const existingNode = existingNodesByName.get(entity.name);
-  if (!existingNode) {
-    newEntityCount++;
-  }
-});
+#### エクスポート対応
 
-// 列数の計算
-const entitiesPerRow = Math.ceil(Math.sqrt(newEntityCount));
-```
+- [ ] `public/src/utils/exportViewModel.ts` を更新
+  - `erDiagram.history` を保持する（既存のnodesやedgesと同様に、そのままエクスポート対象に含める）
+  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「保存とインポート・エクスポート」を参照
 
-### エッジケース
+#### インポート対応
 
-- **エンティティ数が0の場合**: 列数は1とする（ただし配置するエンティティがないのでループは実行されない）
-- **エンティティ数が1の場合**: 列数は1（1列 × 1行）
+- [ ] `public/src/utils/importViewModel.ts` を更新
+  - `erDiagram.history` 配列をインポート
+  - 配列でない場合や存在しない場合は空配列として扱う
+  - 各エントリの型チェック（`timestamp` と `type` の存在確認）
+  - 不正なエントリは無視してインポート継続
+  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「保存とインポート・エクスポート」を参照
+
+### フロントエンド - テストコード
+
+- [ ] `public/tests/actions/dataActions.test.ts` を更新
+  - `actionMergeERData` の履歴記録機能のテストを追加
+  - 初回リバース時に `type: "initial"` の履歴エントリが作成されることを確認
+  - 増分リバース時に `type: "incremental"` の履歴エントリが作成されることを確認
+  - 変更がない場合でも履歴エントリが作成されることを確認
+  - サマリー情報が正しく記録されることを確認
+
+- [ ] `public/tests/actions/globalUIActions.test.ts` を更新
+  - `actionToggleHistoryPanel` のテストを追加
+
+- [ ] `public/tests/utils/exportViewModel.test.ts` を新規作成または更新
+  - `history` 配列がエクスポート対象に含まれることを確認
+
+- [ ] `public/tests/utils/importViewModel.test.ts` を新規作成または更新
+  - `history` 配列が正しくインポートされることを確認
+  - `history` が存在しない場合に空配列として扱われることを確認
+  - 不正なエントリが無視されることを確認
+
+### ビルド・テスト確認
+
+- [ ] フロントエンドのビルド確認
+  - `cd public && npm run build` を実行してビルド成功を確認
+
+- [ ] フロントエンドのテスト実行
+  - `cd public && npm run test` を実行してテストが通ることを確認
+
+## フェーズ2: UI実装
+
+### 概要
+- 履歴パネルコンポーネント新規作成（1ファイル新規）
+- App.tsx更新（1ファイル更新）
+- 合計: 1ファイル新規作成 + 1ファイル更新 + テストファイル追加
+
+### コンポーネント実装
+
+- [ ] `public/src/components/HistoryPanel.tsx` を新規作成
+  - 履歴パネルコンポーネントを実装
+  - 履歴エントリを新しい順に表示（`timestamp` でソート）
+  - 各エントリの表示内容:
+    - 日時（`timestamp` を `new Date(timestamp).toLocaleString('ja-JP')` でフォーマット）
+    - リバース種別（初回 / 増分）
+    - サマリー（例: `+3テーブル, -1テーブル, +5カラム, ~2カラム`）
+  - 各エントリは `<details>`/`<summary>` 要素で折りたたみ可能
+  - 展開時の表示内容:
+    - 追加されたテーブル名のリスト
+    - 削除されたテーブル名のリスト
+    - 追加されたカラム（`テーブル名.カラム名` 形式）
+    - 削除されたカラム（`テーブル名.カラム名` 形式）
+    - 変更されたカラム（`テーブル名.カラム名` と `before`/`after` の差分）
+    - 追加されたリレーション（`constraintName` またはエンドポイント）
+    - 削除されたリレーション（`constraintName` またはエンドポイント）
+  - スタイリング: 既存のパネル（LayerPanel、RectanglePropertyPanel等）と統一感のあるデザイン
+  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「UI仕様」を参照
+
+#### App.tsx 更新
+
+- [ ] `public/src/components/App.tsx` を更新
+  - `HistoryPanel` コンポーネントをインポート
+  - `showHistoryPanel` を `useViewModel` で取得
+  - ヘッダーに「履歴」ボタンを追加
+    - ボタンクリック時に `actionToggleHistoryPanel` をdispatch
+    - ボタンの配置順序: レイヤー / エクスポート / インポート / 履歴 / ビルド情報
+    - スタイル: 既存のボタンと統一（`showHistoryPanel` が `true` の場合は背景色を `#777` に）
+  - `showHistoryPanel` が `true` の場合に `HistoryPanel` を右サイドバーに表示
+    - 配置: 右サイドバー（LayerPanel や RectanglePropertyPanel と同様の位置）
+  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「UI仕様」を参照
+
+### テストコード
+
+- [ ] `public/tests/components/HistoryPanel.test.tsx` を新規作成
+  - 履歴エントリが新しい順に表示されることを確認
+  - 初回リバースと増分リバースの表示が正しいことを確認
+  - サマリー情報が正しく表示されることを確認
+  - 折りたたみが動作することを確認（省略可能）
+
+### ビルド確認
+
+- [ ] フロントエンドのビルド確認
+  - `cd public && npm run build` を実行してビルド成功を確認
+
+- [ ] フロントエンドのテスト実行
+  - `cd public && npm run test` を実行してテストが通ることを確認
+
+## 備考
+
+- 型定義（`scheme/main.tsp` および `lib/generated/api-types.ts`、`public/src/api/client/`）は既にコミット済み
+- 各フェーズの最後にビルド・テストを実行して動作確認を行う
+- MVP段階のため、パフォーマンスやエラーハンドリングの最適化は不要

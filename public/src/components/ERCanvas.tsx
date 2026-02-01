@@ -28,7 +28,7 @@ import { actionUpdateNodePositions, actionUpdateNodeSizes } from '../actions/dat
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
 import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
-import { actionStartEntityDrag, actionStopEntityDrag } from '../actions/hoverActions'
+import { actionStartEntityDrag, actionStopEntityDrag, actionClearHover } from '../actions/hoverActions'
 import type { Rectangle, TextBox, LayerItemRef } from '../api/client'
 
 const nodeTypes = {
@@ -223,13 +223,28 @@ function ERCanvasInner({
     }
   }, [escPressed, dispatch])
   
+  // テキスト編集状態管理（スペースキー処理で使用するため、先に宣言）
+  const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  const [draftContent, setDraftContent] = useState<string>('')
+  
+  // スペースキー押下状態の管理（パンスクロール機能用）
+  const spacePressed = useKeyPress('Space')
+  // テキスト編集中のスペースキー無効化
+  const effectiveSpacePressed = spacePressed && editingTextId === null
+  
+  // パン中状態の管理（カーソル制御用）
+  const [isPanning, setIsPanning] = useState(false)
+  
+  // スペースキー押下時にホバー状態をクリア
+  useEffect(() => {
+    if (effectiveSpacePressed) {
+      dispatch(actionClearHover)
+    }
+  }, [effectiveSpacePressed, dispatch])
+  
   // ドラッグ状態管理
   const [draggingRect, setDraggingRect] = useState<{ id: string; startX: number; startY: number; rectStartX: number; rectStartY: number } | null>(null)
   const [draggingText, setDraggingText] = useState<{ id: string; startX: number; startY: number; textStartX: number; textStartY: number } | null>(null)
-  
-  // テキスト編集状態管理
-  const [editingTextId, setEditingTextId] = useState<string | null>(null)
-  const [draftContent, setDraftContent] = useState<string>('')
   
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -628,88 +643,108 @@ function ERCanvasInner({
     }
   }, [editingTextId, draftContent, texts, dispatch])
   
+  // パン開始・終了イベントハンドラー（カーソル制御用）
+  const handleMoveStart = useCallback(() => {
+    if (effectiveSpacePressed) {
+      setIsPanning(true)
+    }
+  }, [effectiveSpacePressed])
+  
+  const handleMoveEnd = useCallback(() => {
+    setIsPanning(false)
+  }, [])
+  
+  // カーソルスタイルの決定
+  const cursorStyle = effectiveSpacePressed ? (isPanning ? 'grabbing' : 'grab') : undefined
+  
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeDragStart={onNodeDragStart}
-      onNodeDragStop={onNodeDragStop}
-      onSelectionChange={handleSelectionChange}
-      onPaneClick={handlePaneClick}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      elevateNodesOnSelect={false}
-      elevateEdgesOnSelect={false}
-      zIndexMode="manual"
-      fitView
-    >
-      {/* 背面レイヤー */}
-      <ViewportPortal>
-        {renderRectangles(layerOrder.backgroundItems)}
-        {renderTexts(layerOrder.backgroundItems)}
-      </ViewportPortal>
-      
-      {/* 前面レイヤー */}
-      <ViewportPortal>
-        {renderRectangles(layerOrder.foregroundItems)}
-        {renderTexts(layerOrder.foregroundItems)}
-      </ViewportPortal>
-      
-      {/* テキスト編集UI */}
-      {editingTextId && texts[editingTextId] && (
+    <div style={{ width: '100%', height: '100%', cursor: cursorStyle }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionChange={handleSelectionChange}
+        onPaneClick={handlePaneClick}
+        onMoveStart={handleMoveStart}
+        onMoveEnd={handleMoveEnd}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        elevateNodesOnSelect={false}
+        elevateEdgesOnSelect={false}
+        zIndexMode="manual"
+        panOnDrag={true}
+        nodesDraggable={!effectiveSpacePressed}
+        fitView
+      >
+        {/* 背面レイヤー */}
         <ViewportPortal>
-          {(() => {
-            const text = texts[editingTextId]
-            const boxShadow = text.shadow.enabled
-              ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
-              : 'none'
-            
-            return (
-              <textarea
-                autoFocus
-                value={draftContent}
-                onChange={(e) => setDraftContent(e.target.value)}
-                onBlur={handleEditConfirm}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setEditingTextId(null)
-                    setDraftContent('')
-                  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    handleEditConfirm()
-                  }
-                }}
-                style={{
-                  position: 'absolute',
-                  left: text.x,
-                  top: text.y,
-                  width: text.width,
-                  height: text.height,
-                  padding: `${text.paddingY}px ${text.paddingX}px`,
-                  fontSize: `${text.fontSize}px`,
-                  lineHeight: `${text.lineHeight}px`,
-                  color: text.textColor,
-                  textAlign: text.textAlign,
-                  outline: '2px solid #3b82f6',
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  resize: 'none',
-                  overflow: 'auto',
-                  boxSizing: 'border-box',
-                  zIndex: 10000,
-                  border: 'none',
-                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
-                  boxShadow,
-                }}
-              />
-            )
-          })()}
+          {renderRectangles(layerOrder.backgroundItems)}
+          {renderTexts(layerOrder.backgroundItems)}
         </ViewportPortal>
-      )}
-      
-      <Controls />
-      <Background />
-    </ReactFlow>
+        
+        {/* 前面レイヤー */}
+        <ViewportPortal>
+          {renderRectangles(layerOrder.foregroundItems)}
+          {renderTexts(layerOrder.foregroundItems)}
+        </ViewportPortal>
+        
+        {/* テキスト編集UI */}
+        {editingTextId && texts[editingTextId] && (
+          <ViewportPortal>
+            {(() => {
+              const text = texts[editingTextId]
+              const boxShadow = text.shadow.enabled
+                ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
+                : 'none'
+              
+              return (
+                <textarea
+                  autoFocus
+                  value={draftContent}
+                  onChange={(e) => setDraftContent(e.target.value)}
+                  onBlur={handleEditConfirm}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setEditingTextId(null)
+                      setDraftContent('')
+                    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      handleEditConfirm()
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: text.x,
+                    top: text.y,
+                    width: text.width,
+                    height: text.height,
+                    padding: `${text.paddingY}px ${text.paddingX}px`,
+                    fontSize: `${text.fontSize}px`,
+                    lineHeight: `${text.lineHeight}px`,
+                    color: text.textColor,
+                    textAlign: text.textAlign,
+                    outline: '2px solid #3b82f6',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    resize: 'none',
+                    overflow: 'auto',
+                    boxSizing: 'border-box',
+                    zIndex: 10000,
+                    border: 'none',
+                    fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+                    boxShadow,
+                  }}
+                />
+              )
+            })()}
+          </ViewportPortal>
+        )}
+        
+        <Controls />
+        <Background />
+      </ReactFlow>
+    </div>
   )
 }
 

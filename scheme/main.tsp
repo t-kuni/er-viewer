@@ -230,6 +230,96 @@ model ERDiagramUIState {
   isDraggingEntity: boolean; // エンティティドラッグ中フラグ（true: ドラッグ中、false: 通常状態）
 }
 
+// Reverse engineering history models
+// Records the history of reverse engineering operations
+
+// Column snapshot for tracking changes
+model ColumnSnapshot {
+  type: string;
+  nullable: boolean;
+  key: string;
+  default: string | null;
+  extra: string;
+  isForeignKey: boolean;
+}
+
+// Reference to a specific column
+model ColumnRef {
+  tableName: string;
+  columnName: string;
+}
+
+// Column modification record (before/after)
+model ColumnModification {
+  tableName: string;
+  columnName: string;
+  before: ColumnSnapshot;
+  after: ColumnSnapshot;
+}
+
+// Reference to a specific relationship
+model RelationshipRef {
+  constraintName?: string;
+  fromTable: string;
+  fromColumn: string;
+  toTable: string;
+  toColumn: string;
+}
+
+// Changes to tables
+model TableChanges {
+  added?: string[];   // Added table names
+  removed?: string[]; // Removed table names
+}
+
+// Changes to columns
+model ColumnChanges {
+  added?: ColumnRef[];           // Added columns
+  removed?: ColumnRef[];         // Removed columns
+  modified?: ColumnModification[]; // Modified columns
+}
+
+// Changes to relationships
+model RelationshipChanges {
+  added?: RelationshipRef[];   // Added relationships
+  removed?: RelationshipRef[]; // Removed relationships
+}
+
+// All changes in a reverse engineering operation
+model ReverseEngineeringChanges {
+  tables?: TableChanges;
+  columns?: ColumnChanges;
+  relationships?: RelationshipChanges;
+}
+
+// Summary of changes (counts)
+model ReverseEngineeringSummary {
+  addedTables: int32;
+  removedTables: int32;
+  addedColumns: int32;
+  removedColumns: int32;
+  modifiedColumns: int32;
+  addedRelationships: int32;
+  removedRelationships: int32;
+  
+  // For initial reverse engineering (optional)
+  totalTables?: int32;
+  totalColumns?: int32;
+  totalRelationships?: int32;
+}
+
+// Single history entry for reverse engineering
+model ReverseEngineeringHistoryEntry {
+  timestamp: int64; // Unix timestamp in milliseconds
+  type: "initial" | "incremental";
+  
+  // Summary for UI display (used for both initial and incremental)
+  summary?: ReverseEngineeringSummary;
+  
+  // Detailed changes (only for incremental, optional for initial)
+  changes?: ReverseEngineeringChanges;
+}
+
 // Complete ER diagram view model
 model ERDiagramViewModel {
   nodes: Record<EntityNodeViewModel>;
@@ -239,6 +329,7 @@ model ERDiagramViewModel {
   index: ERDiagramIndex; // 逆引きインデックス（パフォーマンス最適化用）
   ui: ERDiagramUIState;
   loading: boolean; // リバースエンジニア処理中フラグ
+  history?: ReverseEngineeringHistoryEntry[]; // リバースエンジニアリング履歴
 }
 
 // Layout optimization state
@@ -254,6 +345,7 @@ model GlobalUIState {
   showBuildInfoModal: boolean; // ビルド情報モーダル表示フラグ
   showLayerPanel: boolean; // レイヤーパネル表示フラグ
   showDatabaseConnectionModal: boolean; // データベース接続設定モーダル表示フラグ
+  showHistoryPanel: boolean; // 履歴パネル表示フラグ
   layoutOptimization: LayoutOptimizationState; // 配置最適化の状態
 }
 

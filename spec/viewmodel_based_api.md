@@ -48,11 +48,13 @@ GET /api/init
   - `ui.layerOrder.backgroundItems`: `[]`
   - `ui.layerOrder.foregroundItems`: `[]`
   - `loading`: `false`
+  - `history`: `[]`（空配列）
 - `ui`: 初期のグローバルUI状態
   - `selectedItem`: `null`
   - `showBuildInfoModal`: `false`
   - `showLayerPanel`: `false`
   - `showDatabaseConnectionModal`: `false`
+  - `showHistoryPanel`: `false`
 - `buildInfo`: ビルド情報の完全なデータ
   - `data`: BuildInfo型のビルド情報
   - `loading`: `false`

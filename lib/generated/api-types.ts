@@ -75,6 +75,29 @@ export interface components {
             extra: string;
             isForeignKey: boolean;
         };
+        ColumnChanges: {
+            added?: components["schemas"]["ColumnRef"][];
+            removed?: components["schemas"]["ColumnRef"][];
+            modified?: components["schemas"]["ColumnModification"][];
+        };
+        ColumnModification: {
+            tableName: string;
+            columnName: string;
+            before: components["schemas"]["ColumnSnapshot"];
+            after: components["schemas"]["ColumnSnapshot"];
+        };
+        ColumnRef: {
+            tableName: string;
+            columnName: string;
+        };
+        ColumnSnapshot: {
+            type: string;
+            nullable: boolean;
+            key: string;
+            default: string | null;
+            extra: string;
+            isForeignKey: boolean;
+        };
         DatabaseConnectionState: {
             type: components["schemas"]["DatabaseType"];
             host: string;
@@ -138,6 +161,7 @@ export interface components {
             index: components["schemas"]["ERDiagramIndex"];
             ui: components["schemas"]["ERDiagramUIState"];
             loading: boolean;
+            history?: components["schemas"]["ReverseEngineeringHistoryEntry"][];
         };
         Entity: {
             id: string;
@@ -182,6 +206,7 @@ export interface components {
             showBuildInfoModal: boolean;
             showLayerPanel: boolean;
             showDatabaseConnectionModal: boolean;
+            showHistoryPanel: boolean;
             layoutOptimization: components["schemas"]["LayoutOptimizationState"];
         };
         HoverTarget: {
@@ -232,6 +257,10 @@ export interface components {
             toColumnId: string;
             constraintName: string;
         };
+        RelationshipChanges: {
+            added?: components["schemas"]["RelationshipRef"][];
+            removed?: components["schemas"]["RelationshipRef"][];
+        };
         RelationshipEdgeViewModel: {
             id: string;
             sourceEntityId: string;
@@ -239,6 +268,13 @@ export interface components {
             targetEntityId: string;
             targetColumnId: string;
             constraintName: string;
+        };
+        RelationshipRef: {
+            constraintName?: string;
+            fromTable: string;
+            fromColumn: string;
+            toTable: string;
+            toColumn: string;
         };
         ReverseEngineerRequest: {
             type: components["schemas"]["DatabaseType"];
@@ -252,6 +288,45 @@ export interface components {
         ReverseEngineerResponse: {
             erData: components["schemas"]["ERData"];
             connectionInfo: components["schemas"]["DatabaseConnectionState"];
+        };
+        ReverseEngineeringChanges: {
+            tables?: components["schemas"]["TableChanges"];
+            columns?: components["schemas"]["ColumnChanges"];
+            relationships?: components["schemas"]["RelationshipChanges"];
+        };
+        ReverseEngineeringHistoryEntry: {
+            /** Format: int64 */
+            timestamp: number;
+            /** @enum {string} */
+            type: "initial" | "incremental";
+            summary?: components["schemas"]["ReverseEngineeringSummary"];
+            changes?: components["schemas"]["ReverseEngineeringChanges"];
+        };
+        ReverseEngineeringSummary: {
+            /** Format: int32 */
+            addedTables: number;
+            /** Format: int32 */
+            removedTables: number;
+            /** Format: int32 */
+            addedColumns: number;
+            /** Format: int32 */
+            removedColumns: number;
+            /** Format: int32 */
+            modifiedColumns: number;
+            /** Format: int32 */
+            addedRelationships: number;
+            /** Format: int32 */
+            removedRelationships: number;
+            /** Format: int32 */
+            totalTables?: number;
+            /** Format: int32 */
+            totalColumns?: number;
+            /** Format: int32 */
+            totalRelationships?: number;
+        };
+        TableChanges: {
+            added?: string[];
+            removed?: string[];
         };
         /** @enum {string} */
         TextAlign: "left" | "center" | "right";

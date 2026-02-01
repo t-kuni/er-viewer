@@ -210,7 +210,11 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 * `actionToggleLayerPanel(viewModel)`: レイヤーパネルの表示/非表示を切り替え
   - `viewModel.ui.showLayerPanel` をトグル
 
+* `actionToggleHistoryPanel(viewModel)`: 履歴パネルの表示/非表示を切り替え
+  - `viewModel.ui.showHistoryPanel` をトグル
+
 レイヤー管理関連のActionは[layer_management.md](./layer_management.md)を参照。
+履歴パネルの詳細は[reverse_engineering_history.md](./reverse_engineering_history.md)を参照。
 
 #### ViewModel全体を更新するAction
 

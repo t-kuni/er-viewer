@@ -21,7 +21,6 @@
 - エッジ生成時にハイライト状態を判定し、zIndexを動的に設定
   - ハイライトされたエッジ: `zIndex: 100`
   - 通常のエッジ: `zIndex: -100`（既存の値）
-- エッジオブジェクトに`className: 'rel-edge'`を追加（CSS制御用）
 
 **インタフェース**:
 ```typescript
@@ -44,12 +43,16 @@ export function convertToReactFlowEdges(
 
 1. **highlightedEdgeIdsの購読追加**:
    - `useViewModel`で`vm.erDiagram.ui.highlightedEdgeIds`を購読
-   - エンティティノード・エッジ更新のuseEffectの依存配列に追加
 
-2. **convertToReactFlowEdges呼び出しの修正**:
+2. **useEffectの分離**:
+   - ノード更新のuseEffect: `viewModelNodes`の変化時のみ実行
+   - エッジ更新のuseEffect: `viewModelEdges`, `viewModelNodes`, `highlightedEdgeIds`の変化時に実行
+   - highlightedEdgeIds変更時にノードが再構築されないようにする（ちらつき防止）
+
+3. **convertToReactFlowEdges呼び出しの修正**:
    - 第3引数として`highlightedEdgeIds`を渡す
 
-3. **ReactFlowコンポーネントにzIndexMode設定追加**:
+4. **ReactFlowコンポーネントにzIndexMode設定追加**:
    - `zIndexMode="manual"`を追加（自動z-index調整を無効化）
 
 **参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」「エッジzIndexの更新」セクション

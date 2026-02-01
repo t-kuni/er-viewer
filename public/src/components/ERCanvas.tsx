@@ -724,14 +724,17 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
     (a, b) => a === b
   )
   
-  // エンティティとエッジを更新
+  // エンティティノードを更新
   useEffect(() => {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
-    const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes, highlightedEdgeIds)
-    
     setNodes(entityNodes)
+  }, [viewModelNodes])
+  
+  // エッジを更新（highlightedEdgeIds変更時も再構築）
+  useEffect(() => {
+    const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes, highlightedEdgeIds)
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges, highlightedEdgeIds])
+  }, [viewModelEdges, viewModelNodes, highlightedEdgeIds])
   
   const handleAddRectangle = () => {
     const newRectangle: Rectangle = {

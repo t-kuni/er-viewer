@@ -127,7 +127,6 @@ export function convertToReactFlowEdges(
         sourceHandle,
         targetHandle,
         zIndex, // ハイライト時は前面、通常時は背後
-        className: 'rel-edge', // CSS制御用
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },

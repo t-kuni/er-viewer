@@ -352,6 +352,7 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 * `viewModel.erDiagram.ui.highlightedEdgeIds`の変化時に、React Flowに渡すエッジ配列を再構築
 * エッジのzIndexプロパティをハイライト状態に応じて動的に設定
 * React Flowはエッジオブジェクトの参照またはプロパティが変化した場合のみ再描画
+* ノードの更新とエッジの更新は別々のuseEffectで実施し、highlightedEdgeIds変更時にノードが再構築されないようにする
 
 #### ビジュアルスタイル
 
@@ -419,6 +420,7 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
 * ドラッグ中のホバー無効化は、React Flowの`onNodeDragStart`/`onNodeDragStop`イベントを使用して制御する
 * React FlowのReactFlowコンポーネントに`zIndexMode="manual"`を指定し、自動z-index調整を無効化する
 * エッジのz-index制御には`edge.zIndex`プロパティを使用する（SVG内の`style.zIndex`は機能しない）
+* エッジオブジェクトには`className`を設定しない（RelationshipEdgeコンポーネント内の`<g>`要素のみにクラスを設定）
 * CSSクラス名は`entity-node`, `rel-edge`, `is-highlighted`, `has-hover`を使用する
 
 ## 懸念事項・確認事項

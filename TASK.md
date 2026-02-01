@@ -1,184 +1,142 @@
-# リバースエンジニアリング履歴機能 実装タスク
+# パンスクロール操作機能 実装タスク
 
 ## 概要
 
-リバースエンジニアリングの履歴を記録し、UI上で確認できる機能を実装する。
+スペースキー+ドラッグでER図キャンバス全体をパンスクロールできる機能を実装する。
+スペースキー押下中は、エンティティやリレーションへのインタラクション（ホバー、ドラッグ）を無効化し、純粋なビューポート移動のみを実現する。
 
-参照仕様書: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md)
+参照仕様書: [フロントエンドER図レンダリング仕様](/spec/frontend_er_rendering.md) の「パンスクロール操作仕様」セクション
 
-## フェーズ1: バックエンド・フロントエンドコア実装
+## タスク
 
-### 概要
-- バックエンド: 初期値対応（1ファイル更新 + テスト更新）
-- フロントエンド: マージアクション更新、UI状態アクション追加、エクスポート/インポート対応（4ファイル更新 + テスト更新）
-- 合計: 約5ファイル更新 + テストファイル更新
+### ViewModelの型定義更新
 
-### バックエンド
+- [ ] `scheme/main.tsp` を更新
+  - `ERDiagramUIState` に `isPanMode: boolean` フィールドを追加
+  - スペースキー押下状態をViewModelに含めるかどうか検討：
+    - **推奨**: Reactコンポーネントのローカル状態で管理（ViewModelには含めない）
+    - 理由: スペースキーの押下状態はUI一時的な状態であり、保存・復元する必要がない
+  - 仕様書に「スペースキー押下状態: Reactコンポーネントのローカル状態で管理（ViewModelには含めない）」と記載されているため、**ViewModelへの追加は不要**
+  - このタスクは**実施不要**
 
-#### 初期値対応
+### ホバーアクションの更新
 
-- [x] `lib/usecases/GetInitialViewModelUsecase.ts` を更新
-  - `ERDiagramViewModel` に `history` フィールドを追加（空配列 `[]`）
-  - 仕様: [ViewModelベースAPI仕様](/spec/viewmodel_based_api.md) の「GET /api/init」を参照
-  - 初期値は `history: []`
+- [ ] `public/src/actions/hoverActions.ts` を更新
+  - `actionHoverEntity`, `actionHoverEdge`, `actionHoverColumn` に以下を追加:
+    - スペースキー押下中（`isPanMode`）はホバーイベントを無視する判定を追加
+    - 既存の `isDraggingEntity` の判定と同様の実装パターン
+  - ただし、スペースキー押下状態はViewModelに含めないため、**この判定は不要**
+  - スペースキー押下中はコンポーネント側でホバーイベントのdispatchをスキップする実装とする
+  - このタスクは**実施不要**（コンポーネント側で対応）
 
-- [x] バックエンドのビルド確認
-  - `npm run generate` を実行して型生成
-  - `npm run build` を実行してビルド成功を確認
+### ERCanvas コンポーネントの更新
 
-- [x] バックエンドのテストコード作成
-  - `tests/usecases/GetInitialViewModelUsecase.test.ts` を更新
-  - `history` フィールドが空配列であることを確認するテストを追加
+- [ ] `public/src/components/ERCanvas.tsx` を更新
+  - **スペースキー押下状態の管理**:
+    - `useKeyPress('Space')` でスペースキーの押下状態を監視（React Flow提供）
+    - スペース押下状態をローカルステート（`const spacePressed = useKeyPress('Space')`）で管理
+    - **テキスト編集中のスペースキー無効化**:
+      - `editingTextId !== null` の場合は `spacePressed` を `false` として扱う
+      - 実装例: `const effectiveSpacePressed = spacePressed && editingTextId === null`
+  - **React Flow設定の動的切り替え**:
+    - `panOnDrag`: スペース押下状態に応じて動的に切り替え
+      - スペース押下中: `true`（ドラッグでパン可能）
+      - 通常時: `false`（ノードのドラッグを優先）
+    - `nodesDraggable`: スペース押下状態に応じて動的に切り替え
+      - スペース押下中: `false`（エンティティのドラッグを無効化）
+      - 通常時: `true`（エンティティのドラッグを有効化）
+  - **カーソル制御**:
+    - ルート要素（`<div className={...}>`）に `style` を動的に適用
+    - スペース押下中: `cursor: 'grab'`
+    - スペース押下+ドラッグ中: `cursor: 'grabbing'`
+    - ドラッグ中の判定: React Flowの `onMoveStart`/`onMoveEnd` イベントで検出
+    - ローカルステート `isPanning` を追加して管理
+  - **ホバー状態のクリア**:
+    - スペースキー押下時（`useEffect` で `spacePressed` を監視）に `actionClearHover` をdispatch
+  - **ホバーイベントの無効化**:
+    - EntityNode、RelationshipEdge のホバーイベントハンドラーは変更不要
+    - スペース押下中はパンモードになり、React Flowが自動的にノード/エッジへのマウスイベントを無視する
+    - ただし、念のため EntityNode のホバーイベントをスキップする実装を検討（任意）
+  - 仕様: [フロントエンドER図レンダリング仕様](/spec/frontend_er_rendering.md) の「パンスクロール操作仕様」セクション
 
-- [x] バックエンドのテスト実行
-  - `npm run test` を実行してテストが通ることを確認
+### EntityNode コンポーネントの更新（任意）
 
-### フロントエンド - マージアクション更新（差分検出統合）
+- [ ] `public/src/components/EntityNode.tsx` を更新（任意タスク）
+  - スペースキー押下状態を `useKeyPress('Space')` で取得
+  - `onMouseEnter`/`onMouseLeave` 内でスペース押下状態をチェックし、押下中はActionをdispatchしない
+  - ただし、React Flowの `panOnDrag=true` 時は自動的にノードへのイベントが抑制されるため、**この実装は任意**
+  - パフォーマンステストを実施し、必要に応じて実装
 
-#### アクション更新
+### RelationshipEdge コンポーネントの更新（任意）
 
-- [x] `public/src/actions/dataActions.ts` の `actionMergeERData` を更新
-  - 初回/増分の判定処理（既に実装済み: `isIncrementalMode`）
-  - **増分リバースの場合、マージ処理と並行して差分情報を収集**:
-    - テーブルの差分:
-      - 追加: `erData.entities` で `existingNodesByName.get(entity.name)` が `undefined` のもの（既に判定済み）
-      - 削除: `deletedNodeIds` に含まれるテーブル名（既に計算済み）
-    - カラムの差分:
-      - マッチしたテーブル（`existingNode` がある場合）について:
-        - 既存カラムと新規カラムの名前の集合を比較（Set演算）
-        - 追加カラム: 新規にあって既存にないもの
-        - 削除カラム: 既存にあって新規にないもの
-        - 変更カラム: 両方に存在し、スナップショット（type, nullable, key, default, extra, isForeignKey）が異なるもの
-    - リレーションの差分:
-      - 既存リレーション（`viewModel.erDiagram.edges`）と新規リレーション（`erData.relationships`）を比較
-      - キー生成: `constraintName` または `${fromTable}.${fromColumn}->${toTable}.${toColumn}`
-      - 追加リレーション: 新規にあって既存にないもの
-      - 削除リレーション: 既存にあって新規にないもの
-  - 履歴エントリ（`ReverseEngineeringHistoryEntry`）を作成:
-    - `timestamp`: `Date.now()`
-    - `type`: `"initial"` または `"incremental"`
-    - `summary`: サマリー情報（追加・削除・変更の件数）
-    - `changes`: 変更詳細（増分の場合のみ、初回の場合は `undefined`）
-  - 既存の `viewModel.erDiagram.history` 配列に履歴エントリを追記（存在しない場合は空配列として扱う）
-  - 更新後の `ViewModel` に履歴配列を含める
-  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「処理の流れ」を参照
-  - **実装方針**: 既存のマージ処理ループ内で差分情報を収集することで、データの1回走査で効率的に実装する
-
-#### グローバルUIアクション追加
-
-- [x] `public/src/actions/globalUIActions.ts` にアクションを追加
-  - `actionToggleHistoryPanel(viewModel: ViewModel): ViewModel`
-    - `viewModel.ui.showHistoryPanel` をトグル
-    - 変化がない場合は同一参照を返す（既存のアクションと同じパターン）
-  - 仕様: [フロントエンド状態管理仕様](/spec/frontend_state_management.md) を参照
-
-#### 初期値対応
-
-- [x] `public/src/utils/getInitialViewModelValues.ts` を更新
-  - `getInitialGlobalUIState()` に `showHistoryPanel: false` を追加
-
-#### エクスポート対応
-
-- [x] `public/src/utils/exportViewModel.ts` を更新
-  - `erDiagram.history` を保持する（既存のnodesやedgesと同様に、そのままエクスポート対象に含める）
-  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「保存とインポート・エクスポート」を参照
-
-#### インポート対応
-
-- [x] `public/src/utils/importViewModel.ts` を更新
-  - `erDiagram.history` 配列をインポート
-  - 配列でない場合や存在しない場合は空配列として扱う
-  - 各エントリの型チェック（`timestamp` と `type` の存在確認）
-  - 不正なエントリは無視してインポート継続
-  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「保存とインポート・エクスポート」を参照
-
-### フロントエンド - テストコード
-
-- [x] `public/tests/actions/dataActions.test.ts` を更新
-  - `actionMergeERData` の履歴記録機能のテストを追加
-  - 初回リバース時に `type: "initial"` の履歴エントリが作成されることを確認
-  - 増分リバース時に `type: "incremental"` の履歴エントリが作成されることを確認
-  - 変更がない場合でも履歴エントリが作成されることを確認
-  - サマリー情報が正しく記録されることを確認
-
-- [x] `public/tests/actions/globalUIActions.test.ts` を更新
-  - `actionToggleHistoryPanel` のテストを追加
-
-- [x] `public/tests/utils/exportViewModel.test.ts` を新規作成または更新（MVP段階のためブラウザAPIを使うテストは省略）
-  - `history` 配列がエクスポート対象に含まれることを確認（実装で対応済み）
-
-- [x] `public/tests/utils/importViewModel.test.ts` を新規作成または更新（MVP段階のためブラウザAPIを使うテストは省略）
-  - `history` 配列が正しくインポートされることを確認（実装で対応済み）
-  - `history` が存在しない場合に空配列として扱われることを確認（実装で対応済み）
-  - 不正なエントリが無視されることを確認（実装で対応済み）
+- [ ] `public/src/components/RelationshipEdge.tsx` を更新（任意タスク）
+  - EntityNode と同様、スペースキー押下中のホバーイベントをスキップ
+  - ただし、React Flowの `panOnDrag=true` 時は自動的にエッジへのイベントが抑制されるため、**この実装は任意**
+  - パフォーマンステストを実施し、必要に応じて実装
 
 ### ビルド・テスト確認
-
-- [x] フロントエンドのビルド確認
-  - `cd public && npm run build` を実行してビルド成功を確認
-
-- [x] フロントエンドのテスト実行
-  - `npm run test` を実行してテストが通ることを確認（フロントエンドのテストはルートで実行）
-
-## フェーズ2: UI実装
-
-### 概要
-- 履歴パネルコンポーネント新規作成（1ファイル新規）
-- App.tsx更新（1ファイル更新）
-- 合計: 1ファイル新規作成 + 1ファイル更新 + テストファイル追加
-
-### コンポーネント実装
-
-- [ ] `public/src/components/HistoryPanel.tsx` を新規作成
-  - 履歴パネルコンポーネントを実装
-  - 履歴エントリを新しい順に表示（`timestamp` でソート）
-  - 各エントリの表示内容:
-    - 日時（`timestamp` を `new Date(timestamp).toLocaleString('ja-JP')` でフォーマット）
-    - リバース種別（初回 / 増分）
-    - サマリー（例: `+3テーブル, -1テーブル, +5カラム, ~2カラム`）
-  - 各エントリは `<details>`/`<summary>` 要素で折りたたみ可能
-  - 展開時の表示内容:
-    - 追加されたテーブル名のリスト
-    - 削除されたテーブル名のリスト
-    - 追加されたカラム（`テーブル名.カラム名` 形式）
-    - 削除されたカラム（`テーブル名.カラム名` 形式）
-    - 変更されたカラム（`テーブル名.カラム名` と `before`/`after` の差分）
-    - 追加されたリレーション（`constraintName` またはエンドポイント）
-    - 削除されたリレーション（`constraintName` またはエンドポイント）
-  - スタイリング: 既存のパネル（LayerPanel、RectanglePropertyPanel等）と統一感のあるデザイン
-  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「UI仕様」を参照
-
-#### App.tsx 更新
-
-- [ ] `public/src/components/App.tsx` を更新
-  - `HistoryPanel` コンポーネントをインポート
-  - `showHistoryPanel` を `useViewModel` で取得
-  - ヘッダーに「履歴」ボタンを追加
-    - ボタンクリック時に `actionToggleHistoryPanel` をdispatch
-    - ボタンの配置順序: レイヤー / エクスポート / インポート / 履歴 / ビルド情報
-    - スタイル: 既存のボタンと統一（`showHistoryPanel` が `true` の場合は背景色を `#777` に）
-  - `showHistoryPanel` が `true` の場合に `HistoryPanel` を右サイドバーに表示
-    - 配置: 右サイドバー（LayerPanel や RectanglePropertyPanel と同様の位置）
-  - 仕様: [リバースエンジニアリング履歴機能仕様](/spec/reverse_engineering_history.md) の「UI仕様」を参照
-
-### テストコード
-
-- [ ] `public/tests/components/HistoryPanel.test.tsx` を新規作成
-  - 履歴エントリが新しい順に表示されることを確認
-  - 初回リバースと増分リバースの表示が正しいことを確認
-  - サマリー情報が正しく表示されることを確認
-  - 折りたたみが動作することを確認（省略可能）
-
-### ビルド確認
 
 - [ ] フロントエンドのビルド確認
   - `cd public && npm run build` を実行してビルド成功を確認
 
 - [ ] フロントエンドのテスト実行
-  - `cd public && npm run test` を実行してテストが通ることを確認
+  - `npm run test` を実行してテストが通ることを確認（フロントエンドのテストはルートで実行）
+
+## 実装時の注意事項
+
+### ViewModelへの影響
+
+- スペースキー押下状態はViewModelに含めない（仕様書で明記）
+- Reactコンポーネントのローカル状態で管理
+- `actionClearHover` のみをdispatchし、ViewModelのホバー状態をクリア
+
+### テキスト編集中のスペースキー無効化
+
+- テキスト編集中（`editingTextId !== null`）はスペースキーの押下を無視する
+- `useKeyPress('Space')`の結果を`editingTextId`の状態でフィルタリング
+- 実装例: `const effectiveSpacePressed = spacePressed && editingTextId === null`
+- これにより、テキスト入力中のスペースキーが誤ってパンモードをトリガーしない
+
+### React Flowの動作
+
+- `panOnDrag` が `true` の場合、React Flowは自動的にノード/エッジへのドラッグイベントを無効化する
+- `nodesDraggable` が `false` の場合、ノードのドラッグが無効化される
+- この2つのプロパティを動的に切り替えることで、スペースキー押下中のパンモードを実現
+
+### パフォーマンス
+
+- スペースキー押下状態の変化時に `panOnDrag` と `nodesDraggable` が即座に反映される
+- React Flowの内部最適化により、プロパティ変更時のオーバーヘッドは最小限
+- ホバー状態のクリアは1回のActionディスパッチのみで実行される
+
+### カーソル制御の実装
+
+- `cursor: 'grab'` はスペースキー押下中に適用
+- `cursor: 'grabbing'` はスペースキー押下+ドラッグ中（パン中）に適用
+- ドラッグ中の判定: React Flowの `onMoveStart`/`onMoveEnd` イベントで検出
+- ローカルステート `isPanning` を追加して管理
+
+### エンティティドラッグ中にスペースキーが押された場合
+
+- 仕様書に「エンティティドラッグ中にスペースキーが押された場合は無視する（特別な処理は不要）」と記載
+- React Flowが自動的にドラッグとパンの優先順位を制御するため、特別な実装は不要
+
+## 懸念事項（作業対象外）
+
+### ブラウザのデフォルト動作
+
+- スペースキーはブラウザのデフォルト動作（スクロール）を持つ
+- React Flowは自動的に `preventDefault()` を呼び出すため、通常は問題ない
+- ただし、一部のブラウザで意図しない動作が発生する可能性がある
+
+### モバイル対応
+
+- スペースキーはデスクトップのみの機能
+- モバイルでは別のパンスクロール操作（2本指ドラッグ等）が必要
+- MVP段階ではデスクトップのみをサポート
 
 ## 備考
 
-- 型定義（`scheme/main.tsp` および `lib/generated/api-types.ts`、`public/src/api/client/`）は既にコミット済み
-- 各フェーズの最後にビルド・テストを実行して動作確認を行う
-- MVP段階のため、パフォーマンスやエラーハンドリングの最適化は不要
+- 型定義（`scheme/main.tsp`）の更新は不要（スペースキー押下状態はViewModelに含めない）
+- 既存の `isDraggingEntity` と同様のパターンだが、ViewModelではなくローカル状態で管理
+- テキスト編集中のスペースキー無効化を仕様書に追記済み

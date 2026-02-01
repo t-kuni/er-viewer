@@ -1,150 +1,243 @@
-# buildERDiagramIndex 重複コード整理タスク
+# タスク一覧
+
+仕様書 `spec/frontend_er_rendering.md` の更新に基づき、ハイライト機能のパフォーマンス改善を実装します。
 
 ## 背景
 
-`buildERDiagramIndex` 関数が以下の2箇所に重複して実装されていることが判明しました：
-- `lib/utils/buildERDiagramIndex.ts` (バックエンド側)
-- `public/src/utils/buildERDiagramIndex.ts` (フロントエンド側)
+リサーチ [research/20260131_2143_highlighted_edge_visibility.md](research/20260131_2143_highlighted_edge_visibility.md) に基づき、以下2つの問題を解決します：
 
-調査の結果、以下のことが明らかになりました：
-1. **バックエンドのUsecaseでは全く使用されていない**
-2. 逆引きインデックスはフロントエンド専用の機能（ホバーハイライト処理に使用）
-3. 仕様書に矛盾した記述があり、これが重複実装を生む原因となっていた
+1. **ハイライトされたエッジがノードに隠れる問題**: React Flowの`edge.zIndex`プロパティを使用してハイライト時に前面表示
+2. **ホバー時の全要素再レンダリング問題**: CSSクラスによる一括制御でパフォーマンス向上
 
-仕様書は修正済みです（[spec/frontend_state_management.md](/spec/frontend_state_management.md)）。
+## 実装タスク
 
-## タスク一覧
+### □ `public/src/utils/reactFlowConverter.ts`の修正 - エッジzIndexの動的制御
 
-### フェーズ1: 重複コードの整理 ✅ 完了
+**目的**: エッジのzIndexをハイライト状態に応じて動的に設定する
 
-#### バックエンド側ファイルの削除
+**変更内容**:
+- `convertToReactFlowEdges`関数のシグネチャを変更
+  - 第3引数として`highlightedEdgeIds: string[]`を追加
+- エッジ生成時にハイライト状態を判定し、zIndexを動的に設定
+  - ハイライトされたエッジ: `zIndex: 100`
+  - 通常のエッジ: `zIndex: -100`（既存の値）
+- エッジオブジェクトに`className: 'rel-edge'`を追加（CSS制御用）
 
-- [x] `lib/utils/buildERDiagramIndex.ts` を削除
-  - バックエンドのUsecaseで使用されていないため不要
-  - フロントエンド側の実装のみを残す
-
-#### テストファイルの移動
-
-- [x] `tests/utils/buildERDiagramIndex.test.ts` を `public/tests/utils/buildERDiagramIndex.test.ts` に移動
-  - テスト内容をフロントエンド側のコードに合わせて修正
-  - import文を修正：
-    ```typescript
-    // 修正前
-    import { buildERDiagramIndex } from '../../lib/utils/buildERDiagramIndex';
-    import type { EntityNodeViewModel, RelationshipEdgeViewModel } from '../../lib/utils/buildERDiagramIndex';
-    
-    // 修正後
-    import { buildERDiagramIndex } from '../../src/utils/buildERDiagramIndex';
-    import type { EntityNodeViewModel, RelationshipEdgeViewModel } from '../../src/api/client';
-    ```
-  - 型のimportを `api/client` から行うように変更
-
-#### フロントエンド側のimport文修正
-
-- [x] `public/src/utils/importViewModel.ts` のimport文を修正
-  - 現在の状態：
-    ```typescript
-    import { buildERDiagramIndex } from "../../../lib/utils/buildERDiagramIndex.js";
-    ```
-  - 修正後：
-    ```typescript
-    import { buildERDiagramIndex } from "./buildERDiagramIndex";
-    ```
-  - バックエンド側への参照を削除し、フロントエンド側のコードを参照するように変更
-
-#### ビルド確認
-
-- [x] TypeScriptのビルドが成功することを確認
-  ```bash
-  npm run generate
-  ```
-  - エラーが出ないことを確認
-
-#### テスト実行
-
-- [x] 移動したテストが正常に動作することを確認
-  ```bash
-  npm run test
-  ```
-  - `public/tests/utils/buildERDiagramIndex.test.ts` のテストがすべてパスすることを確認
-  - 他のテストにも影響がないことを確認
-
-### フェーズ2: 検討事項（オプション）
-
-以下は、今回のタスクには含めませんが、将来的な改善案として記録します。
-
-#### actionRebuildIndex の実装検討
-
-**背景：**
-現在、`buildERDiagramIndex` は以下の箇所で呼ばれています：
-- `actionMergeERData` 内で直接呼び出し
-- `importViewModel` 内で直接呼び出し
-
-インデックス再構築ロジックをaction層に統一することで、以下のメリットがあります：
-- インデックス構築ロジックがaction層にカプセル化される
-- 状態更新パターンが統一される
-- テストがしやすくなる
-
-**実装案：**
-
-`public/src/actions/dataActions.ts` に以下のactionを追加：
-
+**インタフェース**:
 ```typescript
-/**
- * ViewModelのnodesとedgesから逆引きインデックスを再構築するAction
- * 
- * @param viewModel 現在の状態
- * @returns インデックスが再構築された新しい状態
- */
-export function actionRebuildIndex(viewModel: ViewModel): ViewModel {
-  const newIndex = buildERDiagramIndex(
-    viewModel.erDiagram.nodes,
-    viewModel.erDiagram.edges
-  );
+export function convertToReactFlowEdges(
+  edges: { [key: string]: RelationshipEdgeViewModel },
+  nodes: { [key: string]: EntityNodeViewModel },
+  highlightedEdgeIds: string[]  // 追加
+): Edge[]
+```
+
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」セクション
+
+---
+
+### □ `public/src/components/ERCanvas.tsx`の修正 - React Flow設定とエッジ再構築
+
+**目的**: React FlowのzIndexMode設定と、ハイライト状態に応じたエッジ配列の再構築
+
+**変更内容**:
+
+1. **highlightedEdgeIdsの購読追加**:
+   - `useViewModel`で`vm.erDiagram.ui.highlightedEdgeIds`を購読
+   - エンティティノード・エッジ更新のuseEffectの依存配列に追加
+
+2. **convertToReactFlowEdges呼び出しの修正**:
+   - 第3引数として`highlightedEdgeIds`を渡す
+
+3. **ReactFlowコンポーネントにzIndexMode設定追加**:
+   - `zIndexMode="manual"`を追加（自動z-index調整を無効化）
+
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」「エッジzIndexの更新」セクション
+
+---
+
+### □ `public/src/components/RelationshipEdge.tsx`の修正 - SVG内zIndex削除とクラス追加
+
+**目的**: SVG内の無効なzIndex指定を削除し、CSS制御用のクラスを追加
+
+**変更内容**:
+
+1. **SVG内のstyle.zIndex削除**:
+   - `<g>`要素の`style={{ cursor: 'pointer', zIndex: ... }}`から`zIndex`を削除
+   - `cursor: 'pointer'`のみ残す
+
+2. **CSSクラスの追加**:
+   - `<g>`要素に`className`を追加
+   - ハイライト時: `rel-edge is-highlighted`
+   - 非ハイライト時: `rel-edge`
+
+**実装例**:
+```typescript
+<g
+  onMouseEnter={() => dispatch(actionHoverEdge, id)}
+  onMouseLeave={() => dispatch(actionClearHover)}
+  className={isHighlighted ? 'rel-edge is-highlighted' : 'rel-edge'}
+  style={{ cursor: 'pointer' }}
+>
+```
+
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」「実装上の注意点」セクション
+
+---
+
+### □ `public/src/components/EntityNode.tsx`の修正 - CSSクラス追加
+
+**目的**: CSS一括制御用のクラスを追加
+
+**変更内容**:
+- ルートの`<div>`要素に`className`を追加
+- ハイライト時: `entity-node is-highlighted`
+- 非ハイライト時: `entity-node`
+
+**実装例**:
+```typescript
+<div 
+  className={isHighlighted ? 'entity-node is-highlighted' : 'entity-node'}
+  style={{ 
+    border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
+    // ... 既存のスタイル
+  }}
+  onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
+  onMouseLeave={() => dispatch(actionClearHover)}
+>
+```
+
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
+
+---
+
+### □ `public/src/components/ERCanvas.tsx`の修正 - ルート要素のhas-hoverクラス制御
+
+**目的**: ホバー状態をルート要素のクラスで表現し、CSSで一括制御
+
+**変更内容**:
+
+1. **ホバー状態の購読追加**:
+   - `ERCanvas`コンポーネントで`useViewModel`により`vm.erDiagram.ui.hover !== null`を購読
+   - `equalityFn: (a, b) => a === b`を指定して真偽値ベースで比較
+
+2. **ルート要素のクラス制御**:
+   - `<div style={{ width: '100%', height: '100%', position: 'relative' }}>`に`className`を追加
+   - ホバー中: `er-canvas has-hover`
+   - 非ホバー中: `er-canvas`
+
+**実装例**:
+```typescript
+function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {}) {
+  const dispatch = useDispatch()
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
   
-  return {
-    ...viewModel,
-    erDiagram: {
-      ...viewModel.erDiagram,
-      index: newIndex,
-    },
-  };
+  // ホバー状態を購読（真偽値のみ）
+  const hasHover = useViewModel(
+    (vm) => vm.erDiagram.ui.hover !== null,
+    (a, b) => a === b
+  )
+  
+  // ... 既存の処理 ...
+  
+  return (
+    <div className={hasHover ? 'er-canvas has-hover' : 'er-canvas'} style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* ... 既存の内容 ... */}
+    </div>
+  )
 }
 ```
 
-**使用箇所の修正案：**
-- `actionMergeERData` の最後で `buildERDiagramIndex` を直接呼ぶのではなく、返却前に `actionRebuildIndex` を適用する形に変更
-- `importViewModel` でも同様に、ViewModelを構築後に `actionRebuildIndex` を適用
+**パフォーマンスのポイント**:
+- ホバー開始・終了時に再レンダリングされるのは`ERCanvas`のルート要素（1個）とハイライト対象（少数）のみ
+- 非ハイライト要素（大多数）は再レンダリングされない（CSSのみで視覚効果が適用される）
 
-**注意：**
-この変更は、既存の実装が正常に動作している状態で行うべきリファクタリングです。優先度は低いため、MVPフェーズでは実施不要です。
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
 
-## 完了条件
+---
 
-- [x] フェーズ1のすべてのタスクが完了している
-- [x] ビルドが成功する
-- [x] すべてのテストがパスする
-- [x] バックエンド側に `buildERDiagramIndex` への参照が残っていない
+### □ `public/style.css`の修正 - 半透明化CSSルール追加
 
-## 参考情報
+**目的**: ホバー時に非ハイライト要素を半透明化するCSSルールを追加
 
-### 関連仕様書
-- [spec/frontend_state_management.md](/spec/frontend_state_management.md) - フロントエンド状態管理（逆引きインデックスの説明を含む）
-- [spec/incremental_reverse_engineering.md](/spec/incremental_reverse_engineering.md) - 増分リバースエンジニアリング（インデックス再計算の説明）
-- [spec/import_export_feature.md](/spec/import_export_feature.md) - インポート時のインデックス再計算の説明
+**変更内容**:
+- ファイル末尾に以下のCSSルールを追加
 
-### 逆引きインデックスの目的
-- エンティティやカラムへのホバー時に関連する要素を高速に検索するため
-- O(1)またはO(接続数)で関連要素を取得可能
-- フロントエンド専用の機能（バックエンドでは不要）
+```css
+/* ER図ハイライト機能のCSS一括制御 */
+/* ホバー中の非ハイライト要素を半透明化 */
+.er-canvas.has-hover .entity-node:not(.is-highlighted) {
+  opacity: 0.2;
+}
 
-### 重複が発生した原因
-1. 仕様書に「バックエンドで計算する」という誤った記述があった
-2. 実装時に仕様書を参照し、バックエンド側にも実装してしまった
-3. この問題は2度目の発生であり、仕様書の矛盾が根本原因
+.er-canvas.has-hover .rel-edge:not(.is-highlighted) path {
+  opacity: 0.2;
+}
 
-### 仕様書の修正内容
-`spec/frontend_state_management.md` を修正し、以下の点を明確化：
-- 逆引きインデックスはフロントエンドで計算する
-- `buildERDiagramIndex` 関数を使用する
-- バックエンドでは計算しない
+/* 非ホバー時は通常の透明度 */
+.er-canvas:not(.has-hover) .entity-node {
+  opacity: 1.0;
+}
+
+.er-canvas:not(.has-hover) .rel-edge path {
+  opacity: 1.0;
+}
+```
+
+**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
+
+---
+
+### □ ビルドの確認
+
+**目的**: 実装後の型エラーやビルドエラーがないことを確認
+
+**手順**:
+```bash
+cd /home/kuni/Documents/er-viewer
+npm run generate  # 型生成
+cd public
+npm run build     # フロントエンドビルド
+```
+
+---
+
+### □ テストの実行
+
+**目的**: 既存のテストが通ることを確認
+
+**手順**:
+```bash
+cd /home/kuni/Documents/er-viewer
+npm run test      # バックエンドテスト実行（あれば）
+cd public
+npm run test      # フロントエンドテスト実行（あれば）
+```
+
+## 実装の流れ
+
+1. `reactFlowConverter.ts`を修正（エッジzIndexの動的制御）
+2. `RelationshipEdge.tsx`を修正（SVG内zIndex削除、クラス追加）
+3. `EntityNode.tsx`を修正（クラス追加）
+4. `ERCanvas.tsx`を修正（zIndexMode設定、エッジ再構築、ルート要素クラス制御）
+5. `style.css`を修正（半透明化CSSルール追加）
+6. ビルドの確認
+7. テストの実行
+
+## 期待される効果
+
+**z-index制御**:
+- ハイライトされたエッジがノードより前面に表示される
+- React Flowの`edge.zIndex`プロパティにより、確実にレイヤー順序が制御される
+
+**パフォーマンス改善**:
+- ホバー開始・終了時に再レンダリングされるコンポーネント数が激減
+  - 従来: 全ノード + 全エッジ（数百個）
+  - 改善後: ルート要素（1個）+ ハイライト対象（数個）
+- 非ハイライト要素はCSSのみで半透明化されるため、再レンダリング不要
+
+## 参照ドキュメント
+
+- 仕様書: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md)
+- リサーチ: [research/20260131_2143_highlighted_edge_visibility.md](research/20260131_2143_highlighted_edge_visibility.md)

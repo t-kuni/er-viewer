@@ -1,115 +1,165 @@
-# パンスクロール操作機能 実装完了
+# タスク一覧: 自己参照リレーションのレンダリング機能実装
 
 ## 概要
 
-スペースキー+ドラッグでER図キャンバス全体をパンスクロールできる機能を実装しました。
-スペースキー押下中は、エンティティやリレーションへのインタラクション（ホバー、ドラッグ）を無効化し、純粋なビューポート移動のみを実現します。
+`spec/self_referencing_relation_rendering.md`の仕様に基づき、同一エンティティ内のリレーション（自己参照リレーション）を外周ループとして視覚的に表現する機能を実装する。
 
-参照仕様書: [フロントエンドER図レンダリング仕様](/spec/frontend_er_rendering.md) の「パンスクロール操作仕様」セクション
+**参照仕様書**:
+- [spec/self_referencing_relation_rendering.md](./spec/self_referencing_relation_rendering.md) - 自己参照リレーションのレンダリング仕様（メイン）
+- [spec/frontend_er_rendering.md](./spec/frontend_er_rendering.md) - フロントエンドER図レンダリング仕様（ホバーインタラクション、エッジ設計など）
+- [spec/frontend_state_management.md](./spec/frontend_state_management.md) - フロントエンド状態管理仕様
 
-## 実装内容
+**背景リサーチ**:
+- [research/20260201_1835_self_referencing_relation_ui.md](./research/20260201_1835_self_referencing_relation_ui.md)
 
-### ERCanvas コンポーネントの更新（完了）
+## 実装タスク
 
-- [x] `public/src/components/ERCanvas.tsx` を更新
-  - **スペースキー押下状態の管理**:
-    - `useKeyPress('Space')` でスペースキーの押下状態を監視
-    - スペース押下状態をローカルステート（`const spacePressed = useKeyPress('Space')`）で管理
-    - **テキスト編集中のスペースキー無効化**:
-      - `editingTextId !== null` の場合は `spacePressed` を `false` として扱う
-      - 実装: `const effectiveSpacePressed = spacePressed && editingTextId === null`
-  - **React Flow設定の動的切り替え**:
-    - `panOnDrag`: スペース押下状態に応じて動的に切り替え
-      - スペース押下中: `true`（ドラッグでパン可能）
-      - 通常時: `false`（ノードのドラッグを優先）
-    - `nodesDraggable`: スペース押下状態に応じて動的に切り替え
-      - スペース押下中: `false`（エンティティのドラッグを無効化）
-      - 通常時: `true`（エンティティのドラッグを有効化）
-  - **カーソル制御**:
-    - ReactFlowを囲むルート要素に `style` を動的に適用
-    - スペース押下中: `cursor: 'grab'`
-    - スペース押下+ドラッグ中: `cursor: 'grabbing'`
-    - ドラッグ中の判定: React Flowの `onMoveStart`/`onMoveEnd` イベントで検出
-    - ローカルステート `isPanning` を追加して管理
-  - **ホバー状態のクリア**:
-    - スペースキー押下時（`useEffect` で `effectiveSpacePressed` を監視）に `actionClearHover` をdispatch
-  - **ホバーイベントの無効化**:
-    - React Flowが自動的にノード/エッジへのマウスイベントを無視するため、追加実装は不要
+### 自己参照リレーション用エッジコンポーネントの作成
 
-### ビルド・テスト確認（完了）
+- [ ] `public/src/components/SelfRelationshipEdge.tsx` を新規作成
+  - React Flowの`EdgeProps`を受け取るコンポーネント
+  - `BaseEdge`を使用してSVGパスを描画する（`BaseEdge`が不可視の当たり判定パスも自動処理）
+  - **パス形状**: cubic-bezier曲線でC字/U字型の外周ループを生成
+    - エンティティノードの右側に固定配置
+    - ハンドル位置: `self-out`（top: 35%）と`self-in`（top: 65%）から接続
+    - ループの張り出し幅は適切に調整（例: ノード幅の60%程度）
+  - **ラベル表示**: `EdgeLabelRenderer`を使用してループの外側中央に↺シンボルを表示
+    - フォントサイズ: 10px
+    - 透明度: ハイライト時 1.0、通常時 0.6
+    - `pointer-events: none`（クリックイベントを透過）
+    - ラベル位置は`transform: translate()`で指定
+  - **ハイライト対応**: 
+    - `useViewModel`で`vm.erDiagram.ui.highlightedEdgeIds`を購読
+    - ハイライト時は線の色を`#007bff`、太さを4pxに変更
+    - 通常時は線の色を`#333`、太さを2pxに設定
+  - **ホバーインタラクション**: 
+    - `onMouseEnter`で`actionHoverEdge`をdispatch
+    - `onMouseLeave`で`actionClearHover`をdispatch
+  - **マーカー（矢印）**: 
+    - React Flowの`MarkerType.ArrowClosed`を使用
+    - エッジの終点（`self-in`ハンドル側）に自動配置される
+  - **最適化**: `React.memo`でメモ化
 
-- [x] フロントエンドのビルド確認
-  - `cd public && npm run build` を実行してビルド成功を確認
-  - 結果: ✓ ビルド成功
+### エンティティノードへの自己参照用ハンドル追加
 
-- [x] フロントエンドのテスト実行
-  - `npm run test` を実行してテストが通ることを確認
-  - 結果: ✓ 全テスト成功（203 passed）
+- [ ] `public/src/components/EntityNode.tsx` を修正
+  - 自己参照リレーション用のハンドルを追加
+    - ハンドルID: `self-out` (type: source)、`self-in` (type: target)
+    - 配置位置: 両方とも`Position.Right`
+    - スタイル: `top: '35%'`（self-out）、`top: '65%'`（self-in）、`width: 8, height: 8, opacity: 0`
+    - `isConnectable: false` - MVPでは手動接続を許可しない
+  - 注意事項: `opacity: 0`で非表示にする（`display: none`は使用しない）
+    - React Flow公式トラブルシュートで`display: none`による接続エラーが報告されている
 
-## スキップしたタスク
+### エッジ変換ロジックの修正
 
-以下のタスクは仕様書に「実施不要」と記載されているため、スキップしました：
+- [ ] `public/src/utils/reactFlowConverter.ts` の`convertToReactFlowEdges`関数を修正
+  - 自己参照リレーションの判定ロジックを追加
+    - 条件: `edge.sourceEntityId === edge.targetEntityId`
+  - 自己参照リレーションの場合:
+    - `type = 'selfRelationshipEdge'`
+    - `sourceHandle = 'self-out'`
+    - `targetHandle = 'self-in'`
+  - 通常のリレーションの場合:
+    - `type = 'relationshipEdge'`
+    - 既存のハンドル計算ロジック（`computeOptimalHandles`）を使用
+  - エッジデータ構造は既存と同じ（`sourceColumnId`, `targetColumnId`, `constraintName`）
+  - zIndexの設定は既存ロジックと同じ（ハイライト時は100、通常時は-100）
 
-- ViewModelの型定義更新（スペースキー押下状態はViewModelに含めない）
-- ホバーアクションの更新（コンポーネント側で対応）
-- EntityNode コンポーネントの更新（React Flowが自動的に処理）
-- RelationshipEdge コンポーネントの更新（React Flowが自動的に処理）
+### React Flow設定の更新
+
+- [ ] `public/src/components/ERCanvas.tsx` を修正
+  - `edgeTypes`定数に`selfRelationshipEdge`を追加
+    - `import SelfRelationshipEdge from './SelfRelationshipEdge'`を追加
+    - `edgeTypes`オブジェクトに`selfRelationshipEdge: SelfRelationshipEdge`を追加
+
+### テストの作成
+
+- [ ] `public/tests/utils/reactFlowConverter.test.ts` を新規作成
+  - `convertToReactFlowEdges`関数のテスト
+    - **通常のリレーションのテスト**: 
+      - 異なるエンティティ間のエッジが`relationshipEdge`タイプになること
+      - `computeOptimalHandles`が呼ばれること
+    - **自己参照リレーションのテスト**:
+      - `sourceEntityId === targetEntityId`の場合、`selfRelationshipEdge`タイプになること
+      - `sourceHandle = 'self-out'`, `targetHandle = 'self-in'`が設定されること
+      - エッジデータ（`sourceColumnId`, `targetColumnId`, `constraintName`）が正しく引き継がれること
+    - **ハイライト状態のテスト**:
+      - `highlightedEdgeIds`に含まれるエッジのzIndexが100になること
+      - 含まれないエッジのzIndexが-100になること
+    - **存在しないノードのテスト**:
+      - sourceまたはtargetノードが存在しない場合、エッジが除外されること
+  - テスト構造は既存の`public/tests/actions/*.test.ts`を参考にする
+
+### ビルド確認
+
+- [ ] 型生成とビルドの実行
+  ```bash
+  cd /home/kuni/Documents/er-viewer
+  npm run generate
+  cd public
+  npm run build
+  ```
+  - エラーが出ないことを確認する
+
+### テストの実行
+
+- [ ] フロントエンドのテスト実行
+  ```bash
+  cd /home/kuni/Documents/er-viewer/public
+  npm run test
+  ```
+  - すべてのテストがpassすることを確認する
 
 ## 実装時の注意事項
 
-### ViewModelへの影響
+### cubic-bezier曲線の計算方法
 
-- スペースキー押下状態はViewModelに含めない（仕様書で明記）
-- Reactコンポーネントのローカル状態で管理
-- `actionClearHover` のみをdispatchし、ViewModelのホバー状態をクリア
+SelfRelationshipEdgeコンポーネントで外周ループを描画する際、以下のような方法でcubic-bezier曲線のパスを生成する:
 
-### テキスト編集中のスペースキー無効化
+1. **制御点の計算**:
+   - 開始点: `self-out`ハンドルの位置（`sourceX`, `sourceY`）
+   - 終了点: `self-in`ハンドルの位置（`targetX`, `targetY`）
+   - 制御点1: 開始点から右側に張り出す（例: `sourceX + offset`, `sourceY - offset/2`）
+   - 制御点2: 終了点から右側に張り出す（例: `targetX + offset`, `targetY + offset/2`）
+   - offsetはノード幅の60%程度が適切
 
-- テキスト編集中（`editingTextId !== null`）はスペースキーの押下を無視する
-- `useKeyPress('Space')`の結果を`editingTextId`の状態でフィルタリング
-- 実装例: `const effectiveSpacePressed = spacePressed && editingTextId === null`
-- これにより、テキスト入力中のスペースキーが誤ってパンモードをトリガーしない
+2. **SVGパス生成**:
+   - `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`
 
-### React Flowの動作
+3. **`BaseEdge`の使用**:
+   - React Flowの`BaseEdge`コンポーネントに`path`プロパティとしてSVGパス文字列を渡す
+   - `BaseEdge`が不可視の当たり判定パスも自動的に処理する
 
-- `panOnDrag` が `true` の場合、React Flowは自動的にノード/エッジへのドラッグイベントを無効化する
-- `nodesDraggable` が `false` の場合、ノードのドラッグが無効化される
-- この2つのプロパティを動的に切り替えることで、スペースキー押下中のパンモードを実現
+### ホバーインタラクションについて
 
-### パフォーマンス
+自己参照リレーションのホバーインタラクションは、既存のホバーアクション（`actionHoverEdge`, `actionClearHover`）をそのまま使用する。
 
-- スペースキー押下状態の変化時に `panOnDrag` と `nodesDraggable` が即座に反映される
-- React Flowの内部最適化により、プロパティ変更時のオーバーヘッドは最小限
-- ホバー状態のクリアは1回のActionディスパッチのみで実行される
+**仕様上の特性** (spec/self_referencing_relation_rendering.mdより):
+- エッジへのホバー: 接続先/接続元のエンティティは同一なので、ノード強調は1回だけ
+- カラムへのホバー: 反対側カラム（同一エンティティ内）も強調
 
-### カーソル制御の実装
+これらの挙動は既存のホバーアクションとインデックスで自動的に処理される（追加実装不要）。
 
-- `cursor: 'grab'` はスペースキー押下中に適用
-- `cursor: 'grabbing'` はスペースキー押下+ドラッグ中（パン中）に適用
-- ドラッグ中の判定: React Flowの `onMoveStart`/`onMoveEnd` イベントで検出
-- ローカルステート `isPanning` を追加して管理
+### z-index制御について
 
-### エンティティドラッグ中にスペースキーが押された場合
+自己参照リレーションのz-index制御は、通常のリレーションと同じロジックを使用する:
+- ハイライト時: `zIndex: 100`（前面表示）
+- 通常時: `zIndex: -100`（背後表示）
 
-- 仕様書に「エンティティドラッグ中にスペースキーが押された場合は無視する（特別な処理は不要）」と記載
-- React Flowが自動的にドラッグとパンの優先順位を制御するため、特別な実装は不要
+詳細は`spec/frontend_er_rendering.md`の「z-index制御」セクションを参照。
 
-## 懸念事項（作業対象外）
+### 矢印（マーカー）について
 
-### ブラウザのデフォルト動作
+矢印の表示はReact Flowの`markerEnd`プロパティで自動的に処理される。自己参照リレーションでも通常のリレーションと同様に`MarkerType.ArrowClosed`を使用する。
 
-- スペースキーはブラウザのデフォルト動作（スクロール）を持つ
-- React Flowは自動的に `preventDefault()` を呼び出すため、通常は問題ない
-- ただし、一部のブラウザで意図しない動作が発生する可能性がある
+矢印の定義は`spec/frontend_er_rendering.md`の「リレーションエッジ」セクションに記載されている通り、SVG `<defs>`内で定義される。
 
-### モバイル対応
+## MVP範囲外（今回は実装しない）
 
-- スペースキーはデスクトップのみの機能
-- モバイルでは別のパンスクロール操作（2本指ドラッグ等）が必要
-- MVP段階ではデスクトップのみをサポート
+以下の機能はMVP範囲外とし、将来的に実装を検討する（spec/self_referencing_relation_rendering.mdより）:
 
-## 備考
-
-- 型定義（`scheme/main.tsp`）の更新は不要（スペースキー押下状態はViewModelに含めない）
-- 既存の `isDraggingEntity` と同様のパターンだが、ViewModelではなくローカル状態で管理
-- テキスト編集中のスペースキー無効化を仕様書に追記済み
+- 複数の自己参照リレーションのオフセット配置
+- 左右振り分け
+- 役割名（role）の表示
+- インタラクティブな接続（ユーザーが手動で自己参照リレーションを作成する機能）

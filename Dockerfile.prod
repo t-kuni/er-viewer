@@ -1,24 +1,55 @@
-FROM node:20-alpine
+# ============================================
+# Stage 1: Dependencies installation
+# ============================================
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+
+# Copy package files for both backend and frontend
+COPY package*.json ./
+COPY public/package*.json ./public/
+
+# Install all dependencies (including devDependencies for build)
+RUN npm ci
+RUN cd public && npm ci
+
+# ============================================
+# Stage 2: Build stage
+# ============================================
+FROM node:20-alpine AS builder
 
 # Install git for build info generation
 RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/public/node_modules ./public/node_modules
 
-# Install dependencies
-RUN npm install
-
-# Copy source code
+# Copy all source files needed for build
 COPY . .
-
-# Install frontend dependencies
-RUN cd public && npm install
 
 # Build the application
 RUN npm run build
+
+# ============================================
+# Stage 3: Production runner
+# ============================================
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies (skip scripts like husky)
+RUN npm ci --omit=dev --ignore-scripts
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public/dist ./public/dist
+COPY --from=builder /app/build-info.json ./build-info.json
 
 # Set production environment
 ENV NODE_ENV=production

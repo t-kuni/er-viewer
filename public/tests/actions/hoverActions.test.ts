@@ -330,4 +330,48 @@ describe('hoverActions', () => {
       expect(result).toBe(viewModel);
     });
   });
+
+  describe('エンティティ選択中のホバー無効化', () => {
+    it('エンティティ選択中は他のエンティティにホバーしてもハイライトされない', () => {
+      const vm = createMockViewModel();
+      const withEntitySelected = {
+        ...vm,
+        ui: {
+          ...vm.ui,
+          selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+        },
+      };
+      const next = actionHoverEntity(withEntitySelected, 'entity-2');
+      
+      expect(next).toBe(withEntitySelected); // 同一参照を返す
+    });
+
+    it('エンティティ選択中はエッジにホバーしてもハイライトされない', () => {
+      const vm = createMockViewModel();
+      const withEntitySelected = {
+        ...vm,
+        ui: {
+          ...vm.ui,
+          selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+        },
+      };
+      const next = actionHoverEdge(withEntitySelected, 'edge-1');
+      
+      expect(next).toBe(withEntitySelected); // 同一参照を返す
+    });
+
+    it('エンティティ選択中はカラムにホバーしてもハイライトされない', () => {
+      const vm = createMockViewModel();
+      const withEntitySelected = {
+        ...vm,
+        ui: {
+          ...vm.ui,
+          selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+        },
+      };
+      const next = actionHoverColumn(withEntitySelected, 'col-4');
+      
+      expect(next).toBe(withEntitySelected); // 同一参照を返す
+    });
+  });
 });

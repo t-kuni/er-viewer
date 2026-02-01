@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react'
 import type { Column } from '../api/client'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionHoverEntity, actionHoverColumn, actionClearHover } from '../actions/hoverActions'
+import { actionSelectItem } from '../actions/layerActions'
 import EntityColumn from './EntityColumn'
 
 interface EntityNodeData {
@@ -22,6 +23,18 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
   )
   const isDraggingEntity = useViewModel((vm) => vm.erDiagram.ui.isDraggingEntity)
   
+  // 選択状態の購読
+  const isSelected = useViewModel(
+    (vm) => vm.ui.selectedItem?.kind === 'entity' && vm.ui.selectedItem.id === data.id,
+    (a, b) => a === b
+  )
+  
+  // クリックイベントハンドラー
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    dispatch(actionSelectItem, { kind: 'entity', id: data.id })
+  }, [dispatch, data.id])
+  
   // カラムホバーハンドラー
   const handleColumnMouseEnter = useCallback((e: React.MouseEvent, columnId: string) => {
     e.stopPropagation()
@@ -35,17 +48,18 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
   
   return (
     <div 
-      className={isHighlighted ? 'entity-node is-highlighted' : 'entity-node'}
+      className={(isHighlighted || isSelected) ? 'entity-node is-highlighted' : 'entity-node'}
       style={{ 
-        border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
+        border: (isHighlighted || isSelected) ? '3px solid #007bff' : '1px solid #333', 
         borderRadius: '4px', 
         background: 'white',
         minWidth: '200px',
-        boxShadow: isHighlighted ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
-        zIndex: isHighlighted ? 1000 : 1,
+        boxShadow: (isHighlighted || isSelected) ? '0 4px 12px rgba(0, 123, 255, 0.4)' : 'none',
+        zIndex: (isHighlighted || isSelected) ? 1000 : 1,
       }}
       onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
       onMouseLeave={() => dispatch(actionClearHover)}
+      onClick={handleClick}
     >
       {/* Target handles (4 directions) */}
       <Handle type="target" id="t-top" position={Position.Top} style={{ width: 8, height: 8, opacity: 0 }} />

@@ -35,6 +35,11 @@ export function actionHoverEntity(
     return viewModel;
   }
 
+  // エンティティ選択中はホバーイベントを無視
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
+    return viewModel;
+  }
+
   // ハイライト対象の収集
   const highlightedNodeIds = new Set<string>([entityId]);
   const highlightedEdgeIds = new Set<string>();
@@ -109,6 +114,11 @@ export function actionHoverEdge(
     return viewModel;
   }
 
+  // エンティティ選択中はホバーイベントを無視
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
+    return viewModel;
+  }
+
   const edge = viewModel.erDiagram.edges[edgeId];
   
   if (!edge) {
@@ -165,6 +175,11 @@ export function actionHoverColumn(
 ): ViewModel {
   // ドラッグ中はホバーイベントを無視
   if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
+  // エンティティ選択中はホバーイベントを無視
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
     return viewModel;
   }
 

@@ -17,6 +17,11 @@ const createInitialViewModel = (): ViewModel => ({
     nodes: {},
     edges: {},
     rectangles: {},
+    index: {
+      entityToEdges: {},
+      columnToEntity: {},
+      columnToEdges: {},
+    },
     ui: {
       hover: null,
       highlightedNodeIds: [],
@@ -233,6 +238,116 @@ describe('actionSelectItem', () => {
     const result = actionSelectItem(vm, itemRef);
 
     expect(result).toBe(vm);
+  });
+
+  it('エンティティを選択する', () => {
+    const vm = createInitialViewModel();
+    const next = actionSelectItem(vm, { kind: 'entity', id: 'entity-1' });
+    
+    expect(next.ui.selectedItem).toEqual({ kind: 'entity', id: 'entity-1' });
+    // エンティティ選択時は、そのエンティティ自体がハイライトされる
+    expect(next.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
+  });
+
+  it('矩形選択中にエンティティを選択すると矩形の選択が解除される', () => {
+    const vm = createInitialViewModel();
+    const withRectSelected = actionSelectItem(vm, { kind: 'rectangle', id: 'rect-1' });
+    const next = actionSelectItem(withRectSelected, { kind: 'entity', id: 'entity-1' });
+    
+    expect(next.ui.selectedItem).toEqual({ kind: 'entity', id: 'entity-1' });
+  });
+
+  it('エンティティ選択時、関連エンティティとエッジもハイライトされる', () => {
+    const vm = createInitialViewModel();
+    // エンティティとエッジの関連を設定
+    vm.erDiagram.nodes = {
+      'entity-1': {
+        id: 'entity-1',
+        name: 'Entity1',
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 100,
+        columns: [],
+        ddl: '',
+      },
+      'entity-2': {
+        id: 'entity-2',
+        name: 'Entity2',
+        x: 300,
+        y: 0,
+        width: 200,
+        height: 100,
+        columns: [],
+        ddl: '',
+      },
+    };
+    vm.erDiagram.edges = {
+      'edge-1': {
+        id: 'edge-1',
+        sourceEntityId: 'entity-1',
+        targetEntityId: 'entity-2',
+        sourceColumnId: 'col-1',
+        targetColumnId: 'col-2',
+        relationType: '1:N',
+      },
+    };
+    vm.erDiagram.index = {
+      entityToEdges: {
+        'entity-1': ['edge-1'],
+        'entity-2': ['edge-1'],
+      },
+      columnToEntity: {
+        'col-1': 'entity-1',
+        'col-2': 'entity-2',
+      },
+      columnToEdges: {
+        'col-1': ['edge-1'],
+        'col-2': ['edge-1'],
+      },
+    };
+
+    const next = actionSelectItem(vm, { kind: 'entity', id: 'entity-1' });
+    
+    // 選択されたエンティティと関連エンティティがハイライトされる
+    expect(next.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
+    expect(next.erDiagram.ui.highlightedNodeIds).toContain('entity-2');
+    // 接続エッジもハイライトされる
+    expect(next.erDiagram.ui.highlightedEdgeIds).toContain('edge-1');
+    // 関連カラムもハイライトされる
+    expect(next.erDiagram.ui.highlightedColumnIds).toContain('col-1');
+    expect(next.erDiagram.ui.highlightedColumnIds).toContain('col-2');
+  });
+
+  it('選択解除時はハイライトがクリアされる', () => {
+    const vm = createInitialViewModel();
+    // 初期状態でエンティティを選択
+    const withEntitySelected = actionSelectItem(vm, { kind: 'entity', id: 'entity-1' });
+    
+    // 選択解除
+    const next = actionSelectItem(withEntitySelected, null);
+    
+    expect(next.ui.selectedItem).toBeNull();
+    // ハイライトがクリアされる
+    expect(next.erDiagram.ui.highlightedNodeIds).toEqual([]);
+    expect(next.erDiagram.ui.highlightedEdgeIds).toEqual([]);
+    expect(next.erDiagram.ui.highlightedColumnIds).toEqual([]);
+  });
+
+  it('矩形選択時はハイライトがクリアされる', () => {
+    const vm = createInitialViewModel();
+    // 初期状態でエンティティを選択（ハイライト状態あり）
+    const withEntitySelected = actionSelectItem(vm, { kind: 'entity', id: 'entity-1' });
+    expect(withEntitySelected.erDiagram.ui.highlightedNodeIds).toContain('entity-1');
+    
+    // 矩形を選択
+    const next = actionSelectItem(withEntitySelected, { kind: 'rectangle', id: 'rect-1' });
+    
+    expect(next.ui.selectedItem).toEqual({ kind: 'rectangle', id: 'rect-1' });
+    // ハイライトがクリアされる
+    expect(next.erDiagram.ui.highlightedNodeIds).toEqual([]);
+    expect(next.erDiagram.ui.highlightedEdgeIds).toEqual([]);
+    expect(next.erDiagram.ui.highlightedColumnIds).toEqual([]);
   });
 });
 

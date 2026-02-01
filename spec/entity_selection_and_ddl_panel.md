@@ -112,12 +112,22 @@
 
 ## Action設計
 
-### 新規Action
+### actionSelectItemの拡張
 
-DDLパネル機能のために新しいActionは不要。以下の既存Actionを使用：
+`actionSelectItem(vm, itemRef)`を拡張して、エンティティ選択時にハイライト状態を設定する：
 
-* `actionSelectItem(vm, itemRef)`: エンティティを選択（既存）
-* `actionSelectItem(vm, null)`: 選択解除（既存）
+* **エンティティ選択時** (`itemRef.kind === 'entity'`):
+  - `selectedItem`を更新
+  - `actionHoverEntity`と同じロジックで、関連エンティティ・エッジ・カラムをハイライト
+  - `highlightedNodeIds`, `highlightedEdgeIds`, `highlightedColumnIds`を設定
+* **エンティティ以外の選択時** (矩形・テキスト):
+  - `selectedItem`を更新
+  - ハイライト状態をクリア（空配列に設定）
+* **選択解除時** (`itemRef === null`):
+  - `selectedItem`を`null`に設定
+  - ハイライト状態をクリア（空配列に設定）
+
+この実装により、エンティティ選択中も関連エンティティとエッジが常にハイライトされた状態が維持される。
 
 ### ホバーActionの修正
 
@@ -129,6 +139,8 @@ DDLパネル機能のために新しいActionは不要。以下の既存Action�
   - `vm.ui.selectedItem?.kind === 'entity'`の場合は早期リターン
 * `actionHoverColumn(vm, columnId)`: 先頭に選択チェックを追加
   - `vm.ui.selectedItem?.kind === 'entity'`の場合は早期リターン
+
+**重要**: ホバーイベントを無効化するだけでは不十分。エンティティ選択時に`actionSelectItem`内でハイライト状態を設定する必要がある。
 
 ## コンポーネント設計
 
@@ -149,6 +161,7 @@ DDLパネル機能のために新しいActionは不要。以下の既存Action�
 * **使用するライブラリ**: `react-syntax-highlighter`
 * **データ取得**: `vm.erDiagram.nodes[selectedItem.id].ddl`からDDLテキストを取得
 * **閉じるボタン**: クリックで`actionSelectItem(null)`をdispatch
+* **Hookの使用**: すべての`useViewModel`などのReact Hookは、条件分岐やreturn文の前に呼び出す必要がある（Reactのhookルールに従う）
 
 ## 実装時の注意事項
 
@@ -178,6 +191,12 @@ DDLパネル機能のために新しいActionは不要。以下の既存Action�
 
 * DDLパネル表示時、キャンバスが縮小されてもReact Flowのviewportは自動調整される
 * DDLパネル内のクリックが`onPaneClick`を発火しないように、パネル内で`stopPropagation()`を使用
+
+### Reactのhookルールの遵守
+
+* DDLPanelコンポーネント内で`useViewModel`などのhookを使用する場合、条件分岐（if文）やreturn文の前に必ず呼び出す
+* hookは常にコンポーネントの最上位で、同じ順序で呼び出す必要がある
+* 条件チェックは、すべてのhook呼び出しの後に行う
 
 ## 実現可能性
 

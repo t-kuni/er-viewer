@@ -16,6 +16,7 @@ import {
   useViewport,
   NodeTypes,
   useNodesInitialized,
+  useKeyPress,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
@@ -212,6 +213,15 @@ function ERCanvasInner({
   const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
   const texts = useViewModel((vm) => vm.erDiagram.texts)
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+  
+  // ESCキーで選択解除
+  const escPressed = useKeyPress('Escape')
+  
+  useEffect(() => {
+    if (escPressed) {
+      dispatch(actionSelectItem, null)
+    }
+  }, [escPressed, dispatch])
   
   // ドラッグ状態管理
   const [draggingRect, setDraggingRect] = useState<{ id: string; startX: number; startY: number; rectStartX: number; rectStartY: number } | null>(null)

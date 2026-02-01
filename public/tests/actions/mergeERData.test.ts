@@ -208,9 +208,9 @@ describe('actionMergeERData', () => {
       // DDLは更新される
       expect(usersNode.ddl).toBe('CREATE TABLE users...');
       
-      // 幅と高さは0にリセットされる
-      expect(usersNode.width).toBe(0);
-      expect(usersNode.height).toBe(0);
+      // 幅と高さは維持される
+      expect(usersNode.width).toBe(200);
+      expect(usersNode.height).toBe(300);
       
       // 新規エンティティは既存の右側に配置される
       const postsNode = Object.values(result.erDiagram.nodes).find(n => n.name === 'posts');

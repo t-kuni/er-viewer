@@ -7,6 +7,7 @@ import LayoutProgressBar from './LayoutProgressBar'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
 import { TextPropertyPanel } from './TextPropertyPanel'
 import { LayerPanel } from './LayerPanel'
+import DDLPanel from './DDLPanel'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionShowBuildInfoModal, actionHideBuildInfoModal, actionShowDatabaseConnectionModal, actionHideDatabaseConnectionModal } from '../actions/globalUIActions'
 import { actionSelectItem, actionToggleLayerPanel } from '../actions/layerActions'
@@ -236,7 +237,9 @@ function App() {
         {selectedItem && (
           <div 
             style={{ 
-              width: '300px', 
+              width: selectedItem.kind === 'entity' ? '420px' : '300px', 
+              minWidth: selectedItem.kind === 'entity' ? '360px' : '300px',
+              maxWidth: selectedItem.kind === 'entity' ? '50vw' : '300px',
               background: '#ffffff', 
               borderLeft: '1px solid #ddd', 
               overflowY: 'auto' 
@@ -251,6 +254,9 @@ function App() {
             )}
             {selectedItem.kind === 'text' && (
               <TextPropertyPanel textId={selectedItem.id} />
+            )}
+            {selectedItem.kind === 'entity' && (
+              <DDLPanel />
             )}
           </div>
         )}

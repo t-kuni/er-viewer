@@ -81,3 +81,18 @@ export function actionHideDatabaseConnectionModal(
     },
   };
 }
+
+/**
+ * 履歴パネルの表示をトグルする
+ */
+export function actionToggleHistoryPanel(
+  viewModel: ViewModel
+): ViewModel {
+  return {
+    ...viewModel,
+    ui: {
+      ...viewModel.ui,
+      showHistoryPanel: !viewModel.ui.showHistoryPanel,
+    },
+  };
+}

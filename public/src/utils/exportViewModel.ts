@@ -11,7 +11,10 @@ import { ViewModel } from "../api/client";
  * - erDiagram.ui.highlightedEdgeIds → []
  * - erDiagram.ui.highlightedColumnIds → []
  * - erDiagram.ui.layerOrder → 維持する（エクスポート対象）
+ * - erDiagram.ui.isDraggingEntity → false
  * - erDiagram.loading → false
+ * - erDiagram.history → 維持する（エクスポート対象）
+ * - settings → 維持する（エクスポート対象）
  * 
  * @param viewModel エクスポートするViewModel
  */
@@ -26,12 +29,15 @@ export function exportViewModel(viewModel: ViewModel): void {
         edges: viewModel.erDiagram.edges,
         rectangles: viewModel.erDiagram.rectangles,
         texts: viewModel.erDiagram.texts,
+        index: viewModel.erDiagram.index,
+        history: viewModel.erDiagram.history, // 履歴を維持する
         ui: {
           hover: null,
           highlightedNodeIds: [],
           highlightedEdgeIds: [],
           highlightedColumnIds: [],
           layerOrder: viewModel.erDiagram.ui.layerOrder, // 維持する
+          isDraggingEntity: false,
         },
         loading: false,
       },
@@ -39,12 +45,20 @@ export function exportViewModel(viewModel: ViewModel): void {
         selectedItem: null,
         showBuildInfoModal: false,
         showLayerPanel: false,
+        showDatabaseConnectionModal: false,
+        showHistoryPanel: false,
+        layoutOptimization: {
+          isRunning: false,
+          progress: 0,
+          currentStage: null,
+        },
       },
       buildInfo: {
         data: null,
         loading: false,
         error: null,
       },
+      settings: viewModel.settings, // 設定を維持する
     };
 
     // JSON文字列にシリアライズ（インデント: 2スペース）

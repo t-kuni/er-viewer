@@ -311,6 +311,7 @@ describe('dataActions', () => {
               key: 'PRI',
               default: null,
               extra: 'auto_increment',
+              isForeignKey: false,
             },
             {
               id: 'db-col-2',
@@ -320,6 +321,7 @@ describe('dataActions', () => {
               key: '',
               default: null,
               extra: '',
+              isForeignKey: false,
             },
           ],
           foreignKeys: [],
@@ -337,6 +339,7 @@ describe('dataActions', () => {
               key: 'PRI',
               default: null,
               extra: 'auto_increment',
+              isForeignKey: false,
             },
             {
               id: 'db-col-4',
@@ -346,6 +349,7 @@ describe('dataActions', () => {
               key: 'MUL',
               default: null,
               extra: '',
+              isForeignKey: false,
             },
           ],
           foreignKeys: [],
@@ -649,6 +653,193 @@ describe('dataActions', () => {
         // 矩形とテキストが維持される
         expect(result.erDiagram.rectangles).toEqual(viewModel.erDiagram.rectangles);
         expect(result.erDiagram.texts).toEqual(viewModel.erDiagram.texts);
+      });
+    });
+
+    describe('履歴記録機能', () => {
+      it('初回リバース時にtype: "initial"の履歴エントリが作成される', () => {
+        const viewModel: ViewModel = {
+          ...createMockViewModel(),
+          erDiagram: {
+            ...createMockViewModel().erDiagram,
+            nodes: {}, // 空のノード（初回）
+            history: [],
+          },
+        };
+        
+        const erData = createMockERData();
+        const connectionInfo = createConnectionInfo();
+        
+        const result = actionMergeERData(viewModel, erData, connectionInfo);
+
+        // 履歴エントリが1件作成される
+        expect(result.erDiagram.history).toHaveLength(1);
+        
+        const historyEntry = result.erDiagram.history![0];
+        expect(historyEntry.type).toBe('initial');
+        expect(historyEntry.timestamp).toBeGreaterThan(0);
+        
+        // サマリー情報が含まれる
+        expect(historyEntry.summary).toBeDefined();
+        expect(historyEntry.summary!.addedTables).toBe(0);
+        expect(historyEntry.summary!.removedTables).toBe(0);
+        expect(historyEntry.summary!.totalTables).toBe(2);
+        expect(historyEntry.summary!.totalColumns).toBe(4); // users: 2, posts: 2
+        expect(historyEntry.summary!.totalRelationships).toBe(1);
+      });
+
+      it('増分リバース時にtype: "incremental"の履歴エントリが作成される', () => {
+        const viewModel: ViewModel = {
+          ...createMockViewModel(),
+          erDiagram: {
+            ...createMockViewModel().erDiagram,
+            nodes: {
+              'existing-entity-1': {
+                id: 'existing-entity-1',
+                name: 'users',
+                x: 100,
+                y: 100,
+                width: 0,
+                height: 0,
+                columns: [{
+                  id: 'col-1',
+                  name: 'id',
+                  type: 'INT',
+                  nullable: false,
+                  key: 'PRI',
+                  default: null,
+                  extra: 'auto_increment',
+                  isForeignKey: false,
+                }],
+                ddl: 'old ddl',
+              },
+            },
+            history: [],
+          },
+        };
+        
+        const erData = createMockERData();
+        const connectionInfo = createConnectionInfo();
+        
+        const result = actionMergeERData(viewModel, erData, connectionInfo);
+
+        // 履歴エントリが1件追加される
+        expect(result.erDiagram.history).toHaveLength(1);
+        
+        const historyEntry = result.erDiagram.history![0];
+        expect(historyEntry.type).toBe('incremental');
+        expect(historyEntry.timestamp).toBeGreaterThan(0);
+        
+        // サマリー情報が含まれる
+        expect(historyEntry.summary).toBeDefined();
+        expect(historyEntry.summary!.addedTables).toBe(1); // posts
+        expect(historyEntry.summary!.removedTables).toBe(0);
+        expect(historyEntry.summary!.addedColumns).toBe(1); // users.name
+        expect(historyEntry.summary!.addedRelationships).toBe(1);
+      });
+
+      it('変更がない場合でも履歴エントリが作成される', () => {
+        const viewModel: ViewModel = {
+          ...createMockViewModel(),
+          erDiagram: {
+            ...createMockViewModel().erDiagram,
+            nodes: {
+              'entity-1': {
+                id: 'entity-1',
+                name: 'users',
+                x: 100,
+                y: 100,
+                width: 0,
+                height: 0,
+                columns: [
+                  {
+                    id: 'col-1',
+                    name: 'id',
+                    type: 'INT',
+                    nullable: false,
+                    key: 'PRI',
+                    default: null,
+                    extra: 'auto_increment',
+                    isForeignKey: false,
+                  },
+                  {
+                    id: 'col-2',
+                    name: 'name',
+                    type: 'VARCHAR(255)',
+                    nullable: false,
+                    key: '',
+                    default: null,
+                    extra: '',
+                    isForeignKey: false,
+                  },
+                ],
+                ddl: 'CREATE TABLE users...',
+              },
+              'entity-2': {
+                id: 'entity-2',
+                name: 'posts',
+                x: 300,
+                y: 100,
+                width: 0,
+                height: 0,
+                columns: [
+                  {
+                    id: 'col-3',
+                    name: 'id',
+                    type: 'INT',
+                    nullable: false,
+                    key: 'PRI',
+                    default: null,
+                    extra: 'auto_increment',
+                    isForeignKey: false,
+                  },
+                  {
+                    id: 'col-4',
+                    name: 'user_id',
+                    type: 'INT',
+                    nullable: false,
+                    key: 'MUL',
+                    default: null,
+                    extra: '',
+                    isForeignKey: false,
+                  },
+                ],
+                ddl: 'CREATE TABLE posts...',
+              },
+            },
+            edges: {
+              'edge-1': {
+                id: 'edge-1',
+                sourceEntityId: 'entity-2',
+                sourceColumnId: 'col-4',
+                targetEntityId: 'entity-1',
+                targetColumnId: 'col-1',
+                constraintName: 'fk_posts_user_id',
+              },
+            },
+            history: [],
+          },
+        };
+        
+        const erData = createMockERData();
+        const connectionInfo = createConnectionInfo();
+        
+        const result = actionMergeERData(viewModel, erData, connectionInfo);
+
+        // 履歴エントリが1件作成される
+        expect(result.erDiagram.history).toHaveLength(1);
+        
+        const historyEntry = result.erDiagram.history![0];
+        expect(historyEntry.type).toBe('incremental');
+        
+        // サマリーがすべて0
+        expect(historyEntry.summary!.addedTables).toBe(0);
+        expect(historyEntry.summary!.removedTables).toBe(0);
+        expect(historyEntry.summary!.addedColumns).toBe(0);
+        expect(historyEntry.summary!.removedColumns).toBe(0);
+        expect(historyEntry.summary!.modifiedColumns).toBe(0);
+        expect(historyEntry.summary!.addedRelationships).toBe(0);
+        expect(historyEntry.summary!.removedRelationships).toBe(0);
       });
     });
   });

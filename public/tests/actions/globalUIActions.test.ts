@@ -4,6 +4,7 @@ import {
   actionHideBuildInfoModal,
   actionShowDatabaseConnectionModal,
   actionHideDatabaseConnectionModal,
+  actionToggleHistoryPanel,
 } from '../../src/actions/globalUIActions';
 import type { components } from '../../../lib/generated/api-types';
 
@@ -16,6 +17,12 @@ describe('globalUIActions', () => {
       nodes: {},
       edges: {},
       rectangles: {},
+      texts: {},
+      index: {
+        entityToEdges: {},
+        columnToEntity: {},
+        columnToEdges: {},
+      },
       ui: {
         hover: null,
         highlightedNodeIds: [],
@@ -25,14 +32,22 @@ describe('globalUIActions', () => {
           backgroundItems: [],
           foregroundItems: [],
         },
+        isDraggingEntity: false,
       },
       loading: false,
+      history: [],
     },
     ui: {
       selectedItem: null,
       showBuildInfoModal: false,
       showLayerPanel: false,
       showDatabaseConnectionModal: false,
+      showHistoryPanel: false,
+      layoutOptimization: {
+        isRunning: false,
+        progress: 0,
+        currentStage: null,
+      },
     },
     buildInfo: {
       data: null,
@@ -54,10 +69,8 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedItem: null,
+          ...createMockViewModel().ui,
           showBuildInfoModal: true,
-          showLayerPanel: false,
-          showDatabaseConnectionModal: false,
         },
       };
       
@@ -72,10 +85,8 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedItem: null,
+          ...createMockViewModel().ui,
           showBuildInfoModal: true,
-          showLayerPanel: false,
-          showDatabaseConnectionModal: false,
         },
       };
       
@@ -106,9 +117,7 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedItem: null,
-          showBuildInfoModal: false,
-          showLayerPanel: false,
+          ...createMockViewModel().ui,
           showDatabaseConnectionModal: true,
         },
       };
@@ -124,9 +133,7 @@ describe('globalUIActions', () => {
       const viewModel: ViewModel = {
         ...createMockViewModel(),
         ui: {
-          selectedItem: null,
-          showBuildInfoModal: false,
-          showLayerPanel: false,
+          ...createMockViewModel().ui,
           showDatabaseConnectionModal: true,
         },
       };
@@ -142,6 +149,30 @@ describe('globalUIActions', () => {
       const result = actionHideDatabaseConnectionModal(viewModel);
 
       expect(result).toBe(viewModel);
+    });
+  });
+
+  describe('actionToggleHistoryPanel', () => {
+    it('履歴パネルの表示がfalseからtrueに切り替わる', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionToggleHistoryPanel(viewModel);
+
+      expect(result.ui.showHistoryPanel).toBe(true);
+    });
+
+    it('履歴パネルの表示がtrueからfalseに切り替わる', () => {
+      const viewModel: ViewModel = {
+        ...createMockViewModel(),
+        ui: {
+          ...createMockViewModel().ui,
+          showHistoryPanel: true,
+        },
+      };
+      
+      const result = actionToggleHistoryPanel(viewModel);
+
+      expect(result.ui.showHistoryPanel).toBe(false);
     });
   });
 });

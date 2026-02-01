@@ -45,6 +45,7 @@ describe('GetInitialViewModelUsecase', () => {
       columnToEdges: {},
     });
     expect(viewModel.erDiagram.loading).toBe(false);
+    expect(viewModel.erDiagram.history).toEqual([]);
     expect(viewModel.erDiagram.ui.hover).toBeNull();
     expect(viewModel.erDiagram.ui.highlightedNodeIds).toEqual([]);
     expect(viewModel.erDiagram.ui.highlightedEdgeIds).toEqual([]);

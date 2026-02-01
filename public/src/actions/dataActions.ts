@@ -7,7 +7,18 @@ import type {
   DatabaseConnectionState,
   Entity,
   Relationship,
-  LayerItemRef
+  LayerItemRef,
+  ReverseEngineeringHistoryEntry,
+  ReverseEngineeringSummary,
+  ReverseEngineeringChanges,
+  TableChanges,
+  ColumnChanges,
+  RelationshipChanges,
+  ColumnRef,
+  ColumnModification,
+  RelationshipRef,
+  ColumnSnapshot,
+  Column
 } from '../api/client';
 import { buildERDiagramIndex } from '../utils/buildERDiagramIndex';
 
@@ -168,6 +179,15 @@ export function actionMergeERData(
   const START_X = 50;
   const START_Y = 50;
   
+  // 差分情報収集用の変数（履歴記録用）
+  const addedTables: string[] = [];
+  const removedTables: string[] = [];
+  const addedColumns: ColumnRef[] = [];
+  const removedColumns: ColumnRef[] = [];
+  const modifiedColumns: ColumnModification[] = [];
+  const addedRelationships: RelationshipRef[] = [];
+  const removedRelationships: RelationshipRef[] = [];
+  
   // テーブル名をキーにした既存ノードのマップを作成（増分モードのみ）
   const existingNodesByName = new Map<string, EntityNodeViewModel>();
   if (isIncrementalMode) {
@@ -227,25 +247,89 @@ export function actionMergeERData(
       // 既存エンティティ: 座標とIDを維持
       x = existingNode.x;
       y = existingNode.y;
-    } else if (isIncrementalMode) {
-      // 増分モード: 新規エンティティは既存の右側・下側に配置
-      if (newEntityIndex > 0 && newEntityIndex % entitiesPerRow === 0) {
-        // 次の行へ
-        currentX = maxX + HORIZONTAL_SPACING;
-        currentY += VERTICAL_SPACING;
+      
+      // カラムの差分を検出（増分モードの場合）
+      if (isIncrementalMode) {
+        const existingColumnNames = new Set(existingNode.columns.map((col: Column) => col.name));
+        const newColumnNames = new Set(entity.columns.map((col: Column) => col.name));
+        
+        // 追加されたカラム
+        for (const col of entity.columns) {
+          if (!existingColumnNames.has(col.name)) {
+            addedColumns.push({ tableName: entity.name, columnName: col.name });
+          }
+        }
+        
+        // 削除されたカラム
+        for (const col of existingNode.columns) {
+          if (!newColumnNames.has(col.name)) {
+            removedColumns.push({ tableName: entity.name, columnName: col.name });
+          }
+        }
+        
+        // 変更されたカラム
+        for (const newCol of entity.columns) {
+          const existingCol = existingNode.columns.find((c: Column) => c.name === newCol.name);
+          if (existingCol) {
+            // スナップショット比較
+            const hasChanges = 
+              existingCol.type !== newCol.type ||
+              existingCol.nullable !== newCol.nullable ||
+              existingCol.key !== newCol.key ||
+              existingCol.default !== newCol.default ||
+              existingCol.extra !== newCol.extra ||
+              existingCol.isForeignKey !== newCol.isForeignKey;
+            
+            if (hasChanges) {
+              modifiedColumns.push({
+                tableName: entity.name,
+                columnName: newCol.name,
+                before: {
+                  type: existingCol.type,
+                  nullable: existingCol.nullable,
+                  key: existingCol.key,
+                  default: existingCol.default,
+                  extra: existingCol.extra,
+                  isForeignKey: existingCol.isForeignKey,
+                },
+                after: {
+                  type: newCol.type,
+                  nullable: newCol.nullable,
+                  key: newCol.key,
+                  default: newCol.default,
+                  extra: newCol.extra,
+                  isForeignKey: newCol.isForeignKey,
+                },
+              });
+            }
+          }
+        }
       }
-      
-      x = currentX;
-      y = currentY;
-      
-      currentX += HORIZONTAL_SPACING;
-      newEntityIndex++;
     } else {
-      // 通常モード: グリッドレイアウト
-      const col = index % entitiesPerRow;
-      const row = Math.floor(index / entitiesPerRow);
-      x = START_X + (col * HORIZONTAL_SPACING);
-      y = START_Y + (row * VERTICAL_SPACING);
+      // 新規エンティティ
+      if (isIncrementalMode) {
+        // 増分モードの場合は追加テーブルとして記録
+        addedTables.push(entity.name);
+        
+        // 増分モード: 新規エンティティは既存の右側・下側に配置
+        if (newEntityIndex > 0 && newEntityIndex % entitiesPerRow === 0) {
+          // 次の行へ
+          currentX = maxX + HORIZONTAL_SPACING;
+          currentY += VERTICAL_SPACING;
+        }
+        
+        x = currentX;
+        y = currentY;
+        
+        currentX += HORIZONTAL_SPACING;
+        newEntityIndex++;
+      } else {
+        // 通常モード: グリッドレイアウト
+        const col = index % entitiesPerRow;
+        const row = Math.floor(index / entitiesPerRow);
+        x = START_X + (col * HORIZONTAL_SPACING);
+        y = START_Y + (row * VERTICAL_SPACING);
+      }
     }
     
     // エンティティノードを作成
@@ -300,6 +384,87 @@ export function actionMergeERData(
     Object.keys(existingNodes).filter(id => !newNodeIds.has(id))
   );
   
+  // 削除されたテーブルを記録（増分モードの場合）
+  if (isIncrementalMode) {
+    for (const deletedId of deletedNodeIds) {
+      const deletedNode = existingNodes[deletedId];
+      if (deletedNode) {
+        removedTables.push(deletedNode.name);
+      }
+    }
+  }
+  
+  // リレーションの差分を検出（増分モードの場合）
+  if (isIncrementalMode) {
+    // リレーションキー生成のヘルパー関数
+    const makeRelationshipKey = (edge: RelationshipEdgeViewModel): string => {
+      if (edge.constraintName) {
+        return edge.constraintName;
+      }
+      const sourceNode = newNodes[edge.sourceEntityId] || existingNodes[edge.sourceEntityId];
+      const targetNode = newNodes[edge.targetEntityId] || existingNodes[edge.targetEntityId];
+      const sourceColumn = sourceNode?.columns.find((c: Column) => c.id === edge.sourceColumnId);
+      const targetColumn = targetNode?.columns.find((c: Column) => c.id === edge.targetColumnId);
+      return `${sourceNode?.name}.${sourceColumn?.name}->${targetNode?.name}.${targetColumn?.name}`;
+    };
+    
+    // 既存リレーションのキーセット
+    const existingRelKeys = new Set<string>();
+    const existingRelByKey = new Map<string, RelationshipEdgeViewModel>();
+    Object.values(viewModel.erDiagram.edges).forEach((edge: RelationshipEdgeViewModel) => {
+      const key = makeRelationshipKey(edge);
+      existingRelKeys.add(key);
+      existingRelByKey.set(key, edge);
+    });
+    
+    // 新規リレーションのキーセット
+    const newRelKeys = new Set<string>();
+    const newRelByKey = new Map<string, RelationshipEdgeViewModel>();
+    Object.values(newEdges).forEach((edge: RelationshipEdgeViewModel) => {
+      const key = makeRelationshipKey(edge);
+      newRelKeys.add(key);
+      newRelByKey.set(key, edge);
+    });
+    
+    // 追加されたリレーション
+    for (const key of newRelKeys) {
+      if (!existingRelKeys.has(key)) {
+        const edge = newRelByKey.get(key)!;
+        const sourceNode = newNodes[edge.sourceEntityId];
+        const targetNode = newNodes[edge.targetEntityId];
+        const sourceColumn = sourceNode?.columns.find((c: Column) => c.id === edge.sourceColumnId);
+        const targetColumn = targetNode?.columns.find((c: Column) => c.id === edge.targetColumnId);
+        
+        addedRelationships.push({
+          constraintName: edge.constraintName || undefined,
+          fromTable: sourceNode?.name || '',
+          fromColumn: sourceColumn?.name || '',
+          toTable: targetNode?.name || '',
+          toColumn: targetColumn?.name || '',
+        });
+      }
+    }
+    
+    // 削除されたリレーション
+    for (const key of existingRelKeys) {
+      if (!newRelKeys.has(key)) {
+        const edge = existingRelByKey.get(key)!;
+        const sourceNode = existingNodes[edge.sourceEntityId];
+        const targetNode = existingNodes[edge.targetEntityId];
+        const sourceColumn = sourceNode?.columns.find((c: Column) => c.id === edge.sourceColumnId);
+        const targetColumn = targetNode?.columns.find((c: Column) => c.id === edge.targetColumnId);
+        
+        removedRelationships.push({
+          constraintName: edge.constraintName || undefined,
+          fromTable: sourceNode?.name || '',
+          fromColumn: sourceColumn?.name || '',
+          toTable: targetNode?.name || '',
+          toColumn: targetColumn?.name || '',
+        });
+      }
+    }
+  }
+  
   // レイヤー順序から削除されたエンティティを除外
   const newLayerOrder = {
     backgroundItems: viewModel.erDiagram.ui.layerOrder.backgroundItems.filter((item: LayerItemRef) => {
@@ -319,6 +484,72 @@ export function actionMergeERData(
   // 逆引きインデックスを再計算
   const newIndex = buildERDiagramIndex(newNodes, newEdges);
   
+  // 履歴エントリを作成
+  const timestamp = Date.now();
+  const historyEntry: ReverseEngineeringHistoryEntry = {
+    timestamp,
+    type: isIncrementalMode ? 'incremental' : 'initial',
+  };
+  
+  // サマリー情報を作成
+  const summary: ReverseEngineeringSummary = {
+    addedTables: addedTables.length,
+    removedTables: removedTables.length,
+    addedColumns: addedColumns.length,
+    removedColumns: removedColumns.length,
+    modifiedColumns: modifiedColumns.length,
+    addedRelationships: addedRelationships.length,
+    removedRelationships: removedRelationships.length,
+  };
+  
+  // 初回の場合は総件数も追加
+  if (!isIncrementalMode) {
+    summary.totalTables = erData.entities.length;
+    summary.totalColumns = erData.entities.reduce((sum: number, entity: Entity) => sum + entity.columns.length, 0);
+    summary.totalRelationships = erData.relationships.length;
+  }
+  
+  historyEntry.summary = summary;
+  
+  // 増分の場合は詳細な変更情報も追加
+  if (isIncrementalMode) {
+    const changes: ReverseEngineeringChanges = {};
+    
+    // テーブルの変更
+    if (addedTables.length > 0 || removedTables.length > 0) {
+      const tableChanges: TableChanges = {};
+      if (addedTables.length > 0) tableChanges.added = addedTables;
+      if (removedTables.length > 0) tableChanges.removed = removedTables;
+      changes.tables = tableChanges;
+    }
+    
+    // カラムの変更
+    if (addedColumns.length > 0 || removedColumns.length > 0 || modifiedColumns.length > 0) {
+      const columnChanges: ColumnChanges = {};
+      if (addedColumns.length > 0) columnChanges.added = addedColumns;
+      if (removedColumns.length > 0) columnChanges.removed = removedColumns;
+      if (modifiedColumns.length > 0) columnChanges.modified = modifiedColumns;
+      changes.columns = columnChanges;
+    }
+    
+    // リレーションの変更
+    if (addedRelationships.length > 0 || removedRelationships.length > 0) {
+      const relationshipChanges: RelationshipChanges = {};
+      if (addedRelationships.length > 0) relationshipChanges.added = addedRelationships;
+      if (removedRelationships.length > 0) relationshipChanges.removed = removedRelationships;
+      changes.relationships = relationshipChanges;
+    }
+    
+    // 変更がある場合のみchangesを設定
+    if (Object.keys(changes).length > 0) {
+      historyEntry.changes = changes;
+    }
+  }
+  
+  // 既存の履歴配列に新しいエントリを追加
+  const existingHistory = viewModel.erDiagram.history || [];
+  const newHistory = [...existingHistory, historyEntry];
+  
   // 新しいViewModelを構築
   return {
     ...viewModel,
@@ -330,6 +561,7 @@ export function actionMergeERData(
       rectangles: viewModel.erDiagram.rectangles,
       texts: viewModel.erDiagram.texts,
       index: newIndex,
+      history: newHistory,
       ui: {
         ...viewModel.erDiagram.ui,
         // UI状態をクリア

@@ -51,6 +51,7 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
       },
       ui: erDiagramUIState,
       loading: false,
+      history: [],
     };
 
     // 初期のGlobalUIStateを生成

@@ -1,4 +1,4 @@
-import { BuildInfoState, ViewModel } from "../api/client";
+import { BuildInfoState, ViewModel, ReverseEngineeringHistoryEntry } from "../api/client";
 import { getInitialGlobalUIState } from "./getInitialViewModelValues";
 import { buildERDiagramIndex } from "./buildERDiagramIndex";
 
@@ -17,7 +17,10 @@ import { buildERDiagramIndex } from "./buildERDiagramIndex";
  * - erDiagram.ui.highlightedNodeIds → []
  * - erDiagram.ui.highlightedEdgeIds → []
  * - erDiagram.ui.highlightedColumnIds → []
+ * - erDiagram.ui.isDraggingEntity → false
  * - erDiagram.loading → false
+ * - erDiagram.history → インポート（型チェック付き、不正なエントリは無視）
+ * - settings → インポート（そのまま保持）
  * 
  * @param file インポートするJSONファイル
  * @param currentBuildInfo 現在のBuildInfoState（インポート後も保持される）
@@ -82,6 +85,24 @@ export function importViewModel(
         // インデックスを再構築
         const index = buildERDiagramIndex(nodes, edges);
 
+        // 履歴配列をインポート（型チェック付き）
+        let history: ReverseEngineeringHistoryEntry[] = [];
+        const importedHistory = importedViewModel.erDiagram?.history;
+        if (Array.isArray(importedHistory)) {
+          // 各エントリの型チェック
+          history = importedHistory.filter((entry: unknown) => {
+            if (typeof entry !== 'object' || entry === null) {
+              return false;
+            }
+            const entryObj = entry as Record<string, unknown>;
+            // timestamp と type の存在確認
+            return (
+              typeof entryObj.timestamp === 'number' &&
+              (entryObj.type === 'initial' || entryObj.type === 'incremental')
+            );
+          }) as ReverseEngineeringHistoryEntry[];
+        }
+
         // 一時UI状態とキャッシュを補完したViewModelを作成
         const viewModel: ViewModel = {
           format: importedViewModel.format,
@@ -92,6 +113,7 @@ export function importViewModel(
             rectangles: importedViewModel.erDiagram?.rectangles || {},
             texts: importedViewModel.erDiagram?.texts || {},
             index,
+            history,
             ui: {
               hover: null,
               highlightedNodeIds: [],
@@ -108,6 +130,7 @@ export function importViewModel(
           },
           ui: getInitialGlobalUIState(),
           buildInfo: currentBuildInfo, // 現在のbuildInfoを保持
+          settings: importedViewModel.settings, // 設定を保持
         };
 
         resolve(viewModel);

@@ -7,9 +7,10 @@ import LayoutProgressBar from './LayoutProgressBar'
 import { RectanglePropertyPanel } from './RectanglePropertyPanel'
 import { TextPropertyPanel } from './TextPropertyPanel'
 import { LayerPanel } from './LayerPanel'
+import { HistoryPanel } from './HistoryPanel'
 import DDLPanel from './DDLPanel'
 import { useViewModel, useDispatch } from '../store/hooks'
-import { actionShowBuildInfoModal, actionHideBuildInfoModal, actionShowDatabaseConnectionModal, actionHideDatabaseConnectionModal } from '../actions/globalUIActions'
+import { actionShowBuildInfoModal, actionHideBuildInfoModal, actionShowDatabaseConnectionModal, actionHideDatabaseConnectionModal, actionToggleHistoryPanel } from '../actions/globalUIActions'
 import { actionSelectItem, actionToggleLayerPanel } from '../actions/layerActions'
 import { actionSetViewModel } from '../actions/dataActions'
 import { commandInitialize } from '../commands/initializeCommand'
@@ -35,6 +36,7 @@ function App() {
   const showBuildInfo = useViewModel((vm) => vm.ui.showBuildInfoModal)
   const showDatabaseConnectionModal = useViewModel((vm) => vm.ui.showDatabaseConnectionModal)
   const showLayerPanel = useViewModel((vm) => vm.ui.showLayerPanel)
+  const showHistoryPanel = useViewModel((vm) => vm.ui.showHistoryPanel)
   const viewModel = useViewModel((vm) => vm)
   const buildInfo = useViewModel((vm) => vm.buildInfo)
   const lastDatabaseConnection = useViewModel((vm) => vm.settings?.lastDatabaseConnection)
@@ -197,6 +199,19 @@ function App() {
             インポート
           </button>
           <button 
+            onClick={() => dispatch(actionToggleHistoryPanel)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: showHistoryPanel ? '#777' : '#555',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            履歴
+          </button>
+          <button 
             onClick={() => dispatch(actionShowBuildInfoModal)}
             style={{
               padding: '0.5rem 1rem',
@@ -234,6 +249,16 @@ function App() {
             onNodesInitialized={setNodesInitialized}
           />
         </div>
+        {showHistoryPanel && (
+          <div style={{ 
+            width: '350px', 
+            background: '#f5f5f5', 
+            borderLeft: '1px solid #ddd', 
+            overflowY: 'auto' 
+          }}>
+            <HistoryPanel />
+          </div>
+        )}
         {selectedItem && (
           <div 
             style={{ 

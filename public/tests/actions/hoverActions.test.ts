@@ -22,8 +22,8 @@ describe('hoverActions', () => {
           x: 0,
           y: 0,
           columns: [
-            { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
-            { id: 'col-2', name: 'name', type: 'varchar', nullable: false, key: '', default: null, extra: '' },
+            { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '', isForeignKey: false },
+            { id: 'col-2', name: 'name', type: 'varchar', nullable: false, key: '', default: null, extra: '', isForeignKey: false },
           ],
           ddl: 'CREATE TABLE users...',
         },
@@ -33,8 +33,8 @@ describe('hoverActions', () => {
           x: 300,
           y: 0,
           columns: [
-            { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '' },
-            { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+            { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: '', isForeignKey: false },
+            { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
           ],
           ddl: 'CREATE TABLE posts...',
         },

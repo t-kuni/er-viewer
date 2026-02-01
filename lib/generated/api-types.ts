@@ -73,6 +73,7 @@ export interface components {
             key: string;
             default: string | null;
             extra: string;
+            isForeignKey: boolean;
         };
         DatabaseConnectionState: {
             type: components["schemas"]["DatabaseType"];

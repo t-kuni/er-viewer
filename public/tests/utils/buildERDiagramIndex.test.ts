@@ -24,8 +24,8 @@ describe('buildERDiagramIndex', () => {
         x: 100,
         y: 100,
         columns: [
-          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
-          { id: 'col-2', name: 'name', type: 'varchar(255)', nullable: false, key: '', default: null, extra: '' },
+          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
+          { id: 'col-2', name: 'name', type: 'varchar(255)', nullable: false, key: '', default: null, extra: '', isForeignKey: false },
         ],
         ddl: 'CREATE TABLE users...',
       },
@@ -35,8 +35,8 @@ describe('buildERDiagramIndex', () => {
         x: 400,
         y: 100,
         columns: [
-          { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
-          { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-3', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
+          { id: 'col-4', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE posts...',
       },
@@ -75,7 +75,7 @@ describe('buildERDiagramIndex', () => {
         x: 100,
         y: 100,
         columns: [
-          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
+          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
         ],
         ddl: 'CREATE TABLE users...',
       },
@@ -85,8 +85,8 @@ describe('buildERDiagramIndex', () => {
         x: 400,
         y: 100,
         columns: [
-          { id: 'col-2', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
-          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-2', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
+          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE posts...',
       },
@@ -96,9 +96,9 @@ describe('buildERDiagramIndex', () => {
         x: 700,
         y: 100,
         columns: [
-          { id: 'col-4', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
-          { id: 'col-5', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
-          { id: 'col-6', name: 'post_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-4', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
+          { id: 'col-5', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
+          { id: 'col-6', name: 'post_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE comments...',
       },
@@ -170,7 +170,7 @@ describe('buildERDiagramIndex', () => {
         x: 100,
         y: 100,
         columns: [
-          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
+          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
         ],
         ddl: 'CREATE TABLE users...',
       },
@@ -180,7 +180,7 @@ describe('buildERDiagramIndex', () => {
         x: 400,
         y: 100,
         columns: [
-          { id: 'col-2', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-2', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE posts...',
       },
@@ -190,7 +190,7 @@ describe('buildERDiagramIndex', () => {
         x: 700,
         y: 100,
         columns: [
-          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE comments...',
       },
@@ -231,7 +231,7 @@ describe('buildERDiagramIndex', () => {
         x: 100,
         y: 100,
         columns: [
-          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment' },
+          { id: 'col-1', name: 'id', type: 'int', nullable: false, key: 'PRI', default: null, extra: 'auto_increment', isForeignKey: false },
         ],
         ddl: 'CREATE TABLE users...',
       },
@@ -241,7 +241,7 @@ describe('buildERDiagramIndex', () => {
         x: 400,
         y: 100,
         columns: [
-          { id: 'col-2', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-2', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE posts...',
       },
@@ -251,7 +251,7 @@ describe('buildERDiagramIndex', () => {
         x: 700,
         y: 100,
         columns: [
-          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '' },
+          { id: 'col-3', name: 'user_id', type: 'int', nullable: false, key: 'MUL', default: null, extra: '', isForeignKey: true },
         ],
         ddl: 'CREATE TABLE comments...',
       },

@@ -28,7 +28,7 @@ function EntityColumn({ column, onMouseEnter, onMouseLeave }: EntityColumnProps)
       onMouseLeave={onMouseLeave}
     >
       {column.key === 'PRI' && '🔑 '}
-      {column.key === 'MUL' && '🔗 '}
+      {column.isForeignKey && '🔗 '}
       {column.name}
     </div>
   )

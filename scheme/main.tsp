@@ -32,6 +32,7 @@ model Column {
   key: string;
   default: string | null;
   extra: string;
+  isForeignKey: boolean; // 外部キーカラムかどうか
 }
 
 // Foreign key model

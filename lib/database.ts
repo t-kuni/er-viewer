@@ -70,7 +70,31 @@ class DatabaseManager {
       throw new Error('Database not connected');
     }
 
-    const [rows] = await this.connection.execute(`SHOW COLUMNS FROM \`${tableName.replace(/`/g, '``')}\``);
+    // カラム情報と外部キー情報を1回のクエリで取得
+    const [rows] = await this.connection.execute(
+      `
+      SELECT 
+        c.COLUMN_NAME as Field,
+        c.COLUMN_TYPE as Type,
+        c.IS_NULLABLE as \`Null\`,
+        c.COLUMN_KEY as \`Key\`,
+        c.COLUMN_DEFAULT as \`Default\`,
+        c.EXTRA as Extra,
+        MAX(CASE WHEN kcu.REFERENCED_TABLE_NAME IS NOT NULL THEN 1 ELSE 0 END) as IsForeignKey
+      FROM INFORMATION_SCHEMA.COLUMNS c
+      LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu 
+        ON c.TABLE_SCHEMA = kcu.TABLE_SCHEMA 
+        AND c.TABLE_NAME = kcu.TABLE_NAME 
+        AND c.COLUMN_NAME = kcu.COLUMN_NAME
+        AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+      WHERE c.TABLE_SCHEMA = DATABASE() 
+        AND c.TABLE_NAME = ?
+      GROUP BY c.COLUMN_NAME, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_KEY, c.COLUMN_DEFAULT, c.EXTRA, c.ORDINAL_POSITION
+      ORDER BY c.ORDINAL_POSITION
+      `,
+      [tableName]
+    );
+    
     return (rows as any[]).map((row) => ({
       id: crypto.randomUUID(),
       name: row.Field,
@@ -79,6 +103,7 @@ class DatabaseManager {
       key: row.Key,
       default: row.Default,
       extra: row.Extra,
+      isForeignKey: row.IsForeignKey === 1,
     }));
   }
 

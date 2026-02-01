@@ -194,8 +194,9 @@ Actionは `ViewModel` 全体を受け取り、新しい `ViewModel` を返す。
 
 #### グローバルUI関連のAction
 
-* `actionSelectItem(viewModel, itemRef)`: アイテム（矩形・テキスト）を選択
+* `actionSelectItem(viewModel, itemRef)`: アイテム（矩形・テキスト・エンティティ）を選択
   - `viewModel.ui.selectedItem` を更新
+  - エンティティ選択の詳細は[entity_selection_and_ddl_panel.md](./entity_selection_and_ddl_panel.md)を参照
   
 * `actionDeselectItem(viewModel)`: アイテムの選択を解除
   - `viewModel.ui.selectedItem` を null に設定

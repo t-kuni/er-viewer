@@ -113,12 +113,14 @@
 エンティティ（Entity）およびリレーション（Relation）は、レイヤーパネル上では選択対象外。
 レイヤーパネル上では全て「ER Diagram」という1つの固定要素として扱う。
 
+**注**: エンティティはキャンバス上では選択可能。エンティティ選択の詳細は[entity_selection_and_ddl_panel.md](./entity_selection_and_ddl_panel.md)を参照。
+
 ### 選択状態の管理
 
-* `GlobalUIState.selectedItem`で一元管理
+* `GlobalUIState.selectedItem`で一元管理（矩形・テキスト・エンティティ）
 * レイヤーパネルでアイテム（矩形・テキスト）をクリック → `actionSelectItem`をdispatch
-* キャンバスでアイテム（矩形・テキスト）をクリック → クリックハンドラで`actionSelectItem`をdispatch
-* ER図要素（エンティティ・リレーション）のクリックは選択状態に影響しない
+* キャンバスでアイテム（矩形・テキスト・エンティティ）をクリック → クリックハンドラで`actionSelectItem`をdispatch
+* エンティティ選択の詳細は[entity_selection_and_ddl_panel.md](./entity_selection_and_ddl_panel.md)を参照
 
 ### React Flowとの同期
 
@@ -229,6 +231,7 @@
 * プロパティパネル（右サイドバー）は`selectedItem`の種類に応じて表示
   - `kind === 'rectangle'`: 矩形プロパティパネルを表示
   - `kind === 'text'`: テキストプロパティパネルを表示
+  - `kind === 'entity'`: DDLパネルを表示（[entity_selection_and_ddl_panel.md](./entity_selection_and_ddl_panel.md)を参照）
 * レイヤーパネル（左サイドバー）は`showLayerPanel === true`の場合に表示
 * アイテム削除時に`actionRemoveLayerItem`も呼び出す
 * アイテム追加時に`actionAddLayerItem`も呼び出す

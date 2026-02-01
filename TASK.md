@@ -1,246 +1,385 @@
-# タスク一覧
+# エンティティ選択とDDLパネル機能　実装タスク
 
-仕様書 `spec/frontend_er_rendering.md` の更新に基づき、ハイライト機能のパフォーマンス改善を実装します。
+## 概要
 
-## 背景
+エンティティの選択機能と、選択中のエンティティのDDLを表示する右サイドバー（DDLパネル）を実装する。
 
-リサーチ [research/20260131_2143_highlighted_edge_visibility.md](research/20260131_2143_highlighted_edge_visibility.md) に基づき、以下2つの問題を解決します：
-
-1. **ハイライトされたエッジがノードに隠れる問題**: React Flowの`edge.zIndex`プロパティを使用してハイライト時に前面表示
-2. **ホバー時の全要素再レンダリング問題**: CSSクラスによる一括制御でパフォーマンス向上
-
-## 実装タスク
-
-### □ `public/src/utils/reactFlowConverter.ts`の修正 - エッジzIndexの動的制御
-
-**目的**: エッジのzIndexをハイライト状態に応じて動的に設定する
-
-**変更内容**:
-- `convertToReactFlowEdges`関数のシグネチャを変更
-  - 第3引数として`highlightedEdgeIds: string[]`を追加
-- エッジ生成時にハイライト状態を判定し、zIndexを動的に設定
-  - ハイライトされたエッジ: `zIndex: 100`
-  - 通常のエッジ: `zIndex: -100`（既存の値）
-
-**インタフェース**:
-```typescript
-export function convertToReactFlowEdges(
-  edges: { [key: string]: RelationshipEdgeViewModel },
-  nodes: { [key: string]: EntityNodeViewModel },
-  highlightedEdgeIds: string[]  // 追加
-): Edge[]
-```
-
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」セクション
+関連仕様書:
+- [spec/entity_selection_and_ddl_panel.md](./spec/entity_selection_and_ddl_panel.md)
+- [spec/frontend_state_management.md](./spec/frontend_state_management.md)
+- [spec/layer_management.md](./spec/layer_management.md)
 
 ---
 
-### □ `public/src/components/ERCanvas.tsx`の修正 - React Flow設定とエッジ再構築
+## フェーズ1: エンティティ選択の導入
 
-**目的**: React FlowのzIndexMode設定と、ハイライト状態に応じたエッジ配列の再構築
+### - ホバーActionの修正（選択中のホバー無効化）
+
+**編集対象**: `public/src/actions/hoverActions.ts`
 
 **変更内容**:
+- `actionHoverEntity`, `actionHoverEdge`, `actionHoverColumn` の3つの関数の先頭に選択状態チェックを追加
+- ドラッグ中チェック（`if (viewModel.erDiagram.ui.isDraggingEntity)`）の直後に以下のチェックを追加:
+  ```typescript
+  // エンティティ選択中はホバーイベントを無視
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
+    return viewModel;
+  }
+  ```
+- 既存の最適化（同一参照返却、配列最適化）は維持
 
-1. **highlightedEdgeIdsの購読追加**:
-   - `useViewModel`で`vm.erDiagram.ui.highlightedEdgeIds`を購読
-
-2. **useEffectの分離**:
-   - ノード更新のuseEffect: `viewModelNodes`の変化時のみ実行
-   - エッジ更新のuseEffect: `viewModelEdges`, `viewModelNodes`, `highlightedEdgeIds`の変化時に実行
-   - highlightedEdgeIds変更時にノードが再構築されないようにする（ちらつき防止）
-
-3. **convertToReactFlowEdges呼び出しの修正**:
-   - 第3引数として`highlightedEdgeIds`を渡す
-
-4. **ReactFlowコンポーネントにzIndexMode設定追加**:
-   - `zIndexMode="manual"`を追加（自動z-index調整を無効化）
-
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」「エッジzIndexの更新」セクション
+**注意事項**:
+- 仕様書では「`vm.ui.selectedItem?.kind === 'entity'`の場合は早期リターン」と記載されているが、実装では`viewModel.ui.selectedItem?.kind === 'entity'`とする（変数名の統一）
 
 ---
 
-### □ `public/src/components/RelationshipEdge.tsx`の修正 - SVG内zIndex削除とクラス追加
+### - EntityNodeコンポーネントの修正（クリックイベントとスタイル）
 
-**目的**: SVG内の無効なzIndex指定を削除し、CSS制御用のクラスを追加
+**編集対象**: `public/src/components/EntityNode.tsx`
 
 **変更内容**:
 
-1. **SVG内のstyle.zIndex削除**:
-   - `<g>`要素の`style={{ cursor: 'pointer', zIndex: ... }}`から`zIndex`を削除
-   - `cursor: 'pointer'`のみ残す
+1. **必要なimportの追加**:
+   ```typescript
+   import { actionSelectItem } from '../actions/layerActions'
+   ```
 
-2. **CSSクラスの追加**:
-   - `<g>`要素に`className`を追加
-   - ハイライト時: `rel-edge is-highlighted`
-   - 非ハイライト時: `rel-edge`
+2. **選択状態の購読**:
+   - 既存の`isHighlighted`購読の後に、選択状態の購読を追加:
+   ```typescript
+   const isSelected = useViewModel(
+     (vm) => vm.ui.selectedItem?.kind === 'entity' && vm.ui.selectedItem.id === data.id,
+     (a, b) => a === b
+   )
+   ```
 
-**実装例**:
-```typescript
-<g
-  onMouseEnter={() => dispatch(actionHoverEdge, id)}
-  onMouseLeave={() => dispatch(actionClearHover)}
-  className={isHighlighted ? 'rel-edge is-highlighted' : 'rel-edge'}
-  style={{ cursor: 'pointer' }}
->
-```
+3. **クリックイベントハンドラーの追加**:
+   - `useCallback`でメモ化したクリックハンドラーを追加:
+   ```typescript
+   const handleClick = useCallback((e: React.MouseEvent) => {
+     e.stopPropagation()
+     dispatch(actionSelectItem, { kind: 'entity', id: data.id })
+   }, [dispatch, data.id])
+   ```
 
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「z-index制御」「実装上の注意点」セクション
+4. **onClickイベントの追加**:
+   - ルートの`<div>`要素に`onClick={handleClick}`を追加
+
+5. **選択時のスタイルの追加**:
+   - ハイライト判定を`isHighlighted || isSelected`に変更
+   - または、選択時とホバー時で異なるスタイルを適用する場合は、classNameを`isSelected ? 'entity-node is-selected' : (isHighlighted ? 'entity-node is-highlighted' : 'entity-node')`のように変更
+
+**注意事項**:
+- 選択時のスタイルは、ホバー時と同じスタイルを使用する（仕様書の「選択中のエンティティ: ホバー時と同じハイライトスタイルを維持」に従う）
+- `e.stopPropagation()`を追加することで、クリックイベントが`onPaneClick`に伝播しないようにする
 
 ---
 
-### □ `public/src/components/EntityNode.tsx`の修正 - CSSクラス追加
+### - ERCanvasコンポーネントの修正（空白クリックとESCキー）
 
-**目的**: CSS一括制御用のクラスを追加
+**編集対象**: `public/src/components/ERCanvas.tsx`
 
 **変更内容**:
-- ルートの`<div>`要素に`className`を追加
-- ハイライト時: `entity-node is-highlighted`
-- 非ハイライト時: `entity-node`
 
-**実装例**:
-```typescript
-<div 
-  className={isHighlighted ? 'entity-node is-highlighted' : 'entity-node'}
-  style={{ 
-    border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
-    // ... 既存のスタイル
-  }}
-  onMouseEnter={() => dispatch(actionHoverEntity, data.id)}
-  onMouseLeave={() => dispatch(actionClearHover)}
->
-```
+1. **必要なimportの追加**:
+   - React Flowの`useKeyPress`をimport:
+   ```typescript
+   import { ..., useKeyPress } from '@xyflow/react'
+   ```
 
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
+2. **ERCanvasInner内にESCキー処理を追加**:
+   - `useKeyPress('Escape')`フックを使用してESCキーを検出:
+   ```typescript
+   const escPressed = useKeyPress('Escape')
+   
+   useEffect(() => {
+     if (escPressed) {
+       dispatch(actionSelectItem, null)
+     }
+   }, [escPressed, dispatch])
+   ```
+
+3. **handlePaneClickの動作確認**:
+   - 既存の`handlePaneClick`が既に`dispatch(actionSelectItem, null)`を実行しているため、そのまま使用可能
+   - ただし、Entity選択時にも選択解除が動作することを確認
+
+**注意事項**:
+- `useKeyPress`の戻り値は真偽値なので、前回の値を保持して連続発火を防ぐため、`useEffect`の依存配列に`escPressed`を含める
+- ESCキーは選択解除のみを行い、他のモーダルを閉じる動作は既存の実装に任せる
 
 ---
 
-### □ `public/src/components/ERCanvas.tsx`の修正 - ルート要素のhas-hoverクラス制御
+### - エンティティ選択のテスト追加
 
-**目的**: ホバー状態をルート要素のクラスで表現し、CSSで一括制御
+**編集対象**: `public/tests/actions/layerActions.test.ts`（既存ファイルに追加）
 
 **変更内容**:
+- `actionSelectItem`のテストケースにエンティティ選択のテストを追加:
+  - エンティティを選択した場合、`selectedItem`が`{ kind: 'entity', id: entityId }`になることを確認
+  - 矩形が選択されている状態でエンティティを選択した場合、矩形の選択が解除されエンティティが選択されることを確認
+  - `actionSelectItem(vm, null)`で選択が解除されることを確認
 
-1. **ホバー状態の購読追加**:
-   - `ERCanvas`コンポーネントで`useViewModel`により`vm.erDiagram.ui.hover !== null`を購読
-   - `equalityFn: (a, b) => a === b`を指定して真偽値ベースで比較
-
-2. **ルート要素のクラス制御**:
-   - `<div style={{ width: '100%', height: '100%', position: 'relative' }}>`に`className`を追加
-   - ホバー中: `er-canvas has-hover`
-   - 非ホバー中: `er-canvas`
-
-**実装例**:
+**テストケース例**:
 ```typescript
-function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {}) {
-  const dispatch = useDispatch()
-  const [nodes, setNodes] = useState<Node[]>([])
-  const [edges, setEdges] = useState<Edge[]>([])
+it('エンティティを選択する', () => {
+  const vm = createMockViewModel()
+  const next = actionSelectItem(vm, { kind: 'entity', id: 'entity-1' })
   
-  // ホバー状態を購読（真偽値のみ）
-  const hasHover = useViewModel(
-    (vm) => vm.erDiagram.ui.hover !== null,
-    (a, b) => a === b
-  )
+  expect(next.ui.selectedItem).toEqual({ kind: 'entity', id: 'entity-1' })
+})
+
+it('矩形選択中にエンティティを選択すると矩形の選択が解除される', () => {
+  const vm = createMockViewModel()
+  const withRectSelected = actionSelectItem(vm, { kind: 'rectangle', id: 'rect-1' })
+  const next = actionSelectItem(withRectSelected, { kind: 'entity', id: 'entity-1' })
   
-  // ... 既存の処理 ...
-  
-  return (
-    <div className={hasHover ? 'er-canvas has-hover' : 'er-canvas'} style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* ... 既存の内容 ... */}
-    </div>
-  )
-}
+  expect(next.ui.selectedItem).toEqual({ kind: 'entity', id: 'entity-1' })
+})
 ```
-
-**パフォーマンスのポイント**:
-- ホバー開始・終了時に再レンダリングされるのは`ERCanvas`のルート要素（1個）とハイライト対象（少数）のみ
-- 非ハイライト要素（大多数）は再レンダリングされない（CSSのみで視覚効果が適用される）
-
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
 
 ---
 
-### □ `public/style.css`の修正 - 半透明化CSSルール追加
+### - ホバーAction修正のテスト追加
 
-**目的**: ホバー時に非ハイライト要素を半透明化するCSSルールを追加
+**編集対象**: `public/tests/actions/hoverActions.test.ts`（既存ファイルに追加）
 
 **変更内容**:
-- ファイル末尾に以下のCSSルールを追加
+- 選択中のホバー無効化のテストを追加:
+  - エンティティ選択中に別のエンティティにホバーしても、ハイライトが更新されないことを確認
+  - エンティティ選択中にエッジにホバーしても、ハイライトが更新されないことを確認
+  - エンティティ選択中にカラムにホバーしても、ハイライトが更新されないことを確認
 
-```css
-/* ER図ハイライト機能のCSS一括制御 */
-/* ホバー中の非ハイライト要素を半透明化 */
-.er-canvas.has-hover .entity-node:not(.is-highlighted) {
-  opacity: 0.2;
-}
-
-.er-canvas.has-hover .rel-edge:not(.is-highlighted) path {
-  opacity: 0.2;
-}
-
-/* 非ホバー時は通常の透明度 */
-.er-canvas:not(.has-hover) .entity-node {
-  opacity: 1.0;
-}
-
-.er-canvas:not(.has-hover) .rel-edge path {
-  opacity: 1.0;
-}
+**テストケース例**:
+```typescript
+it('エンティティ選択中は他のエンティティにホバーしてもハイライトされない', () => {
+  const vm = createMockViewModel()
+  const withEntitySelected = {
+    ...vm,
+    ui: {
+      ...vm.ui,
+      selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+    },
+  }
+  const next = actionHoverEntity(withEntitySelected, 'entity-2')
+  
+  expect(next).toBe(withEntitySelected) // 同一参照を返す
+})
 ```
-
-**参照仕様**: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md) の「非ハイライト要素の半透明化（Option C - CSS一括制御）」セクション
 
 ---
 
-### □ ビルドの確認
+### - ビルドとテスト実行
 
-**目的**: 実装後の型エラーやビルドエラーがないことを確認
-
-**手順**:
+**実行コマンド**:
 ```bash
-cd /home/kuni/Documents/er-viewer
-npm run generate  # 型生成
-cd public
-npm run build     # フロントエンドビルド
+npm run generate
+npm run test
 ```
+
+**確認内容**:
+- 型生成が正常に完了すること
+- すべてのテストがパスすること
+- エンティティ選択関連のテストがパスすること
+- ホバーAction修正のテストがパスすること
 
 ---
 
-### □ テストの実行
+## フェーズ2: DDLパネルの実装
 
-**目的**: 既存のテストが通ることを確認
+### - ライブラリのインストール
 
-**手順**:
+**実行コマンド**:
 ```bash
-cd /home/kuni/Documents/er-viewer
-npm run test      # バックエンドテスト実行（あれば）
 cd public
-npm run test      # フロントエンドテスト実行（あれば）
+npm i react-syntax-highlighter
+npm i -D @types/react-syntax-highlighter
+cd ..
 ```
 
-## 実装の流れ
+**確認内容**:
+- `react-syntax-highlighter`と型定義がインストールされること
+- `package.json`に追加されること
 
-1. `reactFlowConverter.ts`を修正（エッジzIndexの動的制御）
-2. `RelationshipEdge.tsx`を修正（SVG内zIndex削除、クラス追加）
-3. `EntityNode.tsx`を修正（クラス追加）
-4. `ERCanvas.tsx`を修正（zIndexMode設定、エッジ再構築、ルート要素クラス制御）
-5. `style.css`を修正（半透明化CSSルール追加）
-6. ビルドの確認
-7. テストの実行
+---
 
-## 期待される効果
+### - DDLPanelコンポーネントの作成
 
-**z-index制御**:
-- ハイライトされたエッジがノードより前面に表示される
-- React Flowの`edge.zIndex`プロパティにより、確実にレイヤー順序が制御される
+**新規作成**: `public/src/components/DDLPanel.tsx`
 
-**パフォーマンス改善**:
-- ホバー開始・終了時に再レンダリングされるコンポーネント数が激減
-  - 従来: 全ノード + 全エッジ（数百個）
-  - 改善後: ルート要素（1個）+ ハイライト対象（数個）
-- 非ハイライト要素はCSSのみで半透明化されるため、再レンダリング不要
+**実装内容**:
 
-## 参照ドキュメント
+1. **必要なimportと型定義**:
+   ```typescript
+   import React from 'react'
+   import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+   import { prism } from 'react-syntax-highlighter/dist/esm/styles/prism'
+   import { useViewModel, useDispatch } from '../store/hooks'
+   import { actionSelectItem } from '../actions/layerActions'
+   ```
 
-- 仕様書: [spec/frontend_er_rendering.md](spec/frontend_er_rendering.md)
-- リサーチ: [research/20260131_2143_highlighted_edge_visibility.md](research/20260131_2143_highlighted_edge_visibility.md)
+2. **コンポーネントの実装**:
+   - Props: なし（Storeから選択中のエンティティを取得）
+   - 選択中のエンティティIDを取得: `useViewModel((vm) => vm.ui.selectedItem)`
+   - エンティティIDからノードを取得: `useViewModel((vm) => vm.erDiagram.nodes[selectedItem.id])`
+   - 閉じるボタン: `dispatch(actionSelectItem, null)`
+
+3. **レイアウト**:
+   - 固定幅: `420px`（基準）
+   - `min-width: 360px; max-width: 50vw;`
+   - ヘッダー: エンティティ名と閉じるボタン
+   - コンテンツ: `<SyntaxHighlighter>`でDDLを表示
+
+4. **スタイル**:
+   - 左レイヤーパネルと同じパネルスタイルを使用（枠/影/ヘッダ/閉じるボタン）
+   - 既存の`LayerPanel`コンポーネントのスタイルを参考にする
+
+5. **Syntax Highlighterの設定**:
+   ```typescript
+   <SyntaxHighlighter
+     language="sql"
+     style={prism}
+     wrapLongLines={true}
+     customStyle={{
+       margin: 0,
+       borderRadius: 0,
+       fontSize: '14px',
+       lineHeight: '1.5',
+     }}
+   >
+     {ddl}
+   </SyntaxHighlighter>
+   ```
+
+**注意事項**:
+- `@types/react-syntax-highlighter`の型定義が古い場合、サブパスimportに型が追いつかない可能性がある
+- その場合は、ファイル先頭に以下の`declare module`を追加:
+  ```typescript
+  declare module 'react-syntax-highlighter/dist/esm/styles/prism' {
+    const prism: any
+    export { prism }
+  }
+  ```
+- DDLパネル内のクリックが`onPaneClick`を発火しないように、パネル内で`onClick={(e) => e.stopPropagation()}`を使用
+
+---
+
+### - App.tsxの修正（DDLパネルの統合）
+
+**編集対象**: `public/src/components/App.tsx`
+
+**変更内容**:
+
+1. **DDLPanelのimport**:
+   ```typescript
+   import DDLPanel from './DDLPanel'
+   ```
+
+2. **右サイドバーの条件分岐を修正**:
+   - 既存の`{selectedItem && (...) }`ブロック内で、選択対象に応じて表示を切り替え:
+   ```typescript
+   {selectedItem && (
+     <div 
+       style={{ 
+         width: selectedItem.kind === 'entity' ? '420px' : '300px', 
+         minWidth: selectedItem.kind === 'entity' ? '360px' : '300px',
+         maxWidth: selectedItem.kind === 'entity' ? '50vw' : '300px',
+         background: '#ffffff', 
+         borderLeft: '1px solid #ddd', 
+         overflowY: 'auto' 
+       }}
+       onMouseDown={(e) => e.stopPropagation()}
+       onPointerDown={(e) => e.stopPropagation()}
+       onClick={(e) => e.stopPropagation()}
+       onTouchStart={(e) => e.stopPropagation()}
+     >
+       {selectedItem.kind === 'rectangle' && (
+         <RectanglePropertyPanel rectangleId={selectedItem.id} />
+       )}
+       {selectedItem.kind === 'text' && (
+         <TextPropertyPanel textId={selectedItem.id} />
+       )}
+       {selectedItem.kind === 'entity' && (
+         <DDLPanel />
+       )}
+     </div>
+   )}
+   ```
+
+**注意事項**:
+- DDLパネルは幅が異なるため、`selectedItem.kind`に応じて幅を動的に変更する
+- `stopPropagation()`は既存の実装と同じように適用
+
+---
+
+### - ビルドとテスト実行
+
+**実行コマンド**:
+```bash
+npm run generate
+npm run test
+```
+
+**確認内容**:
+- 型生成が正常に完了すること
+- すべてのテストがパスすること
+- DDLPanelコンポーネントが作成されていること
+- App.tsxにDDLPanelが統合されていること
+
+---
+
+## フェーズ3: 統合テストと動作確認
+
+### - Lintエラーの確認
+
+**実行コマンド**:
+```bash
+npm run test
+```
+
+**確認内容**:
+- すべてのテストがパスすること
+- Lintエラーがないこと
+- 型エラーがないこと
+
+---
+
+### - ビルドの確認
+
+**実行コマンド**:
+```bash
+cd public
+npm run build
+cd ..
+```
+
+**確認内容**:
+- フロントエンドのビルドが成功すること
+- ビルドエラーがないこと
+
+---
+
+## 備考
+
+### 仕様上の確認事項
+
+- `GlobalUIState.selectedItem`は既に矩形・テキストの選択を管理しており、`LayerItemKind`に`entity`が含まれているため、型の拡張は不要
+- `actionSelectItem`は既にレイヤー管理機能で実装されているため、新規Actionの追加は不要
+- エンティティ選択時のハイライト表示は、既存のホバーロジックを流用（`isHighlighted || isSelected`で判定）
+- React Flowの`useKeyPress`はReact Flow v11系以降で利用可能（プロジェクトの`@xyflow/react`のバージョンを確認）
+
+### 段階的な実装アプローチ
+
+仕様書では5つのフェーズに分けられているが、タスク洗い出しでは以下のようにまとめている:
+- フェーズ1: エンティティ選択の導入、選択中のホバー無効化、ESCキー対応を統合
+- フェーズ2: DDLパネルの枠組みとSyntax Highlightを統合
+- フェーズ3: 統合テストと動作確認
+
+この順序により、ビルド・テスト可能な単位でフェーズ分けしている。
+
+### スコープ外の機能
+
+以下の機能は本タスクの対象外:
+- DDLの編集機能（読み取り専用表示のみ）
+- DDLのコピー機能
+- 複数エンティティの同時選択
+- レイヤーパネル上でのエンティティ選択

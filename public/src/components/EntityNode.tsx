@@ -73,6 +73,10 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
       <Handle type="source" id="s-bottom" position={Position.Bottom} style={{ width: 8, height: 8, opacity: 0 }} />
       <Handle type="source" id="s-left" position={Position.Left} style={{ width: 8, height: 8, opacity: 0 }} />
 
+      {/* Self-referencing handles */}
+      <Handle type="source" id="self-out" position={Position.Right} style={{ width: 8, height: 8, top: '35%', opacity: 0 }} isConnectable={false} />
+      <Handle type="target" id="self-in" position={Position.Right} style={{ width: 8, height: 8, top: '65%', opacity: 0 }} isConnectable={false} />
+
       <div style={{ 
         background: '#333', 
         color: 'white', 

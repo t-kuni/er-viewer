@@ -16,7 +16,7 @@
 
 ### 自己参照リレーション用エッジコンポーネントの作成
 
-- [ ] `public/src/components/SelfRelationshipEdge.tsx` を新規作成
+- [x] `public/src/components/SelfRelationshipEdge.tsx` を新規作成
   - React Flowの`EdgeProps`を受け取るコンポーネント
   - `BaseEdge`を使用してSVGパスを描画する（`BaseEdge`が不可視の当たり判定パスも自動処理）
   - **パス形状**: cubic-bezier曲線でC字/U字型の外周ループを生成
@@ -42,7 +42,7 @@
 
 ### エンティティノードへの自己参照用ハンドル追加
 
-- [ ] `public/src/components/EntityNode.tsx` を修正
+- [x] `public/src/components/EntityNode.tsx` を修正
   - 自己参照リレーション用のハンドルを追加
     - ハンドルID: `self-out` (type: source)、`self-in` (type: target)
     - 配置位置: 両方とも`Position.Right`
@@ -53,7 +53,7 @@
 
 ### エッジ変換ロジックの修正
 
-- [ ] `public/src/utils/reactFlowConverter.ts` の`convertToReactFlowEdges`関数を修正
+- [x] `public/src/utils/reactFlowConverter.ts` の`convertToReactFlowEdges`関数を修正
   - 自己参照リレーションの判定ロジックを追加
     - 条件: `edge.sourceEntityId === edge.targetEntityId`
   - 自己参照リレーションの場合:
@@ -68,14 +68,14 @@
 
 ### React Flow設定の更新
 
-- [ ] `public/src/components/ERCanvas.tsx` を修正
+- [x] `public/src/components/ERCanvas.tsx` を修正
   - `edgeTypes`定数に`selfRelationshipEdge`を追加
     - `import SelfRelationshipEdge from './SelfRelationshipEdge'`を追加
     - `edgeTypes`オブジェクトに`selfRelationshipEdge: SelfRelationshipEdge`を追加
 
 ### テストの作成
 
-- [ ] `public/tests/utils/reactFlowConverter.test.ts` を新規作成
+- [x] `public/tests/utils/reactFlowConverter.test.ts` を新規作成
   - `convertToReactFlowEdges`関数のテスト
     - **通常のリレーションのテスト**: 
       - 異なるエンティティ間のエッジが`relationshipEdge`タイプになること
@@ -93,7 +93,7 @@
 
 ### ビルド確認
 
-- [ ] 型生成とビルドの実行
+- [x] 型生成とビルドの実行
   ```bash
   cd /home/kuni/Documents/er-viewer
   npm run generate
@@ -104,12 +104,12 @@
 
 ### テストの実行
 
-- [ ] フロントエンドのテスト実行
+- [x] テストの実行（ルートディレクトリから）
   ```bash
-  cd /home/kuni/Documents/er-viewer/public
+  cd /home/kuni/Documents/er-viewer
   npm run test
   ```
-  - すべてのテストがpassすることを確認する
+  - すべてのテストがpassすることを確認する（219テスト中219テストが成功）
 
 ## 実装時の注意事項
 

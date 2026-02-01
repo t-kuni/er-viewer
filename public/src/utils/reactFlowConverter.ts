@@ -99,6 +99,33 @@ export function convertToReactFlowEdges(
       const sourceNode = nodes[edge.sourceEntityId];
       const targetNode = nodes[edge.targetEntityId];
 
+      // ハイライト状態に応じてzIndexを設定
+      const isHighlighted = highlightedEdgeIds.includes(edge.id);
+      const zIndex = isHighlighted ? 100 : -100;
+
+      // 自己参照リレーションの判定
+      if (edge.sourceEntityId === edge.targetEntityId) {
+        // 自己参照リレーション
+        return {
+          id: edge.id,
+          type: 'selfRelationshipEdge',
+          source: edge.sourceEntityId,
+          target: edge.targetEntityId,
+          sourceHandle: 'self-out',
+          targetHandle: 'self-in',
+          zIndex,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+          data: {
+            sourceColumnId: edge.sourceColumnId,
+            targetColumnId: edge.targetColumnId,
+            constraintName: edge.constraintName,
+          },
+        };
+      }
+
+      // 通常のリレーション
       // デフォルトサイズ（width: 200, height: 100）
       const defaultWidth = 200;
       const defaultHeight = 100;
@@ -114,10 +141,6 @@ export function convertToReactFlowEdges(
 
       // 最適なハンドルを計算
       const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter);
-
-      // ハイライト状態に応じてzIndexを設定
-      const isHighlighted = highlightedEdgeIds.includes(edge.id);
-      const zIndex = isHighlighted ? 100 : -100;
 
       return {
         id: edge.id,

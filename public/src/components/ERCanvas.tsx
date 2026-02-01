@@ -21,6 +21,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import EntityNode from './EntityNode'
 import RelationshipEdge from './RelationshipEdge'
+import SelfRelationshipEdge from './SelfRelationshipEdge'
 import { convertToReactFlowNodes, convertToReactFlowEdges, computeOptimalHandles } from '../utils/reactFlowConverter'
 import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
@@ -37,6 +38,7 @@ const nodeTypes = {
 
 const edgeTypes = {
   relationshipEdge: RelationshipEdge,
+  selfRelationshipEdge: SelfRelationshipEdge,
 }
 
 // リサイズハンドルコンポーネント

@@ -81,7 +81,12 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 app.listen(port, async () => {
-  console.log(`ER Viewer server running on port ${port}`);
+  console.log(`🚀 ER Viewer server running on port ${port}`);
+  console.log('');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🌐 Open your browser and navigate to:`);
+  console.log(`👉 http://localhost:${port}`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // Setup livereload in development mode
   if (process.env.NODE_ENV === 'development') {

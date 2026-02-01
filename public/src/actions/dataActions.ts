@@ -165,7 +165,6 @@ export function actionMergeERData(
   // デフォルトレイアウト定数
   const HORIZONTAL_SPACING = 300;
   const VERTICAL_SPACING = 200;
-  const ENTITIES_PER_ROW = 4;
   const START_X = 50;
   const START_Y = 50;
   
@@ -175,6 +174,27 @@ export function actionMergeERData(
     Object.values(existingNodes).forEach((node: EntityNodeViewModel) => {
       existingNodesByName.set(node.name, node);
     });
+  }
+  
+  // 新規エンティティ数をカウント
+  let newEntityCount = 0;
+  if (isIncrementalMode) {
+    erData.entities.forEach((entity: Entity) => {
+      const existingNode = existingNodesByName.get(entity.name);
+      if (!existingNode) {
+        newEntityCount++;
+      }
+    });
+  }
+  
+  // 列数を動的に計算
+  let entitiesPerRow: number;
+  if (isIncrementalMode) {
+    // 増分モード: 新規エンティティ数から計算（0の場合は1）
+    entitiesPerRow = newEntityCount > 0 ? Math.ceil(Math.sqrt(newEntityCount)) : 1;
+  } else {
+    // 通常モード: 全エンティティ数から計算
+    entitiesPerRow = Math.ceil(Math.sqrt(erData.entities.length));
   }
   
   // 新しいノード・エッジを構築
@@ -209,7 +229,7 @@ export function actionMergeERData(
       y = existingNode.y;
     } else if (isIncrementalMode) {
       // 増分モード: 新規エンティティは既存の右側・下側に配置
-      if (newEntityIndex > 0 && newEntityIndex % ENTITIES_PER_ROW === 0) {
+      if (newEntityIndex > 0 && newEntityIndex % entitiesPerRow === 0) {
         // 次の行へ
         currentX = maxX + HORIZONTAL_SPACING;
         currentY += VERTICAL_SPACING;
@@ -222,8 +242,8 @@ export function actionMergeERData(
       newEntityIndex++;
     } else {
       // 通常モード: グリッドレイアウト
-      const col = index % ENTITIES_PER_ROW;
-      const row = Math.floor(index / ENTITIES_PER_ROW);
+      const col = index % entitiesPerRow;
+      const row = Math.floor(index / entitiesPerRow);
       x = START_X + (col * HORIZONTAL_SPACING);
       y = START_Y + (row * VERTICAL_SPACING);
     }

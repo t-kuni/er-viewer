@@ -86,6 +86,10 @@ React Flowはノード・エッジベースの図エディタに必要な機能�
   * ノード移動時（ドラッグ完了時）に接続ポイントを動的に再計算
   * 実装詳細は[research/20260120_2312_dynamic_edge_connection_optimization.md](../research/20260120_2312_dynamic_edge_connection_optimization.md)を参照
 
+* **自己参照リレーション**
+  * 同一エンティティ内のリレーション（自己参照）は専用の視覚表現を使用
+  * 詳細は[self_referencing_relation_rendering.md](./self_referencing_relation_rendering.md)を参照
+
 ## ERD要件への対応
 
 [rearchitecture_overview.md](./rearchitecture_overview.md)で定義された機能要件への対応方針：
@@ -347,6 +351,10 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
   - カラム: 背景色を強調表示
 * z-indexを上げて最前面に表示
 
+**自己参照リレーションの特性**:
+* 自己参照リレーション（同一エンティティ内のリレーション）の場合、source/targetが同一のため、ノードは1回だけ強調される
+* 詳細は[self_referencing_relation_rendering.md](./self_referencing_relation_rendering.md)を参照
+
 #### 3. カラムへのホバー
 
 **トリガー**: エンティティノード内の個別カラムにマウスホバー
@@ -365,6 +373,10 @@ ER図の理解を助けるため、エンティティ・リレーション・カ
   - エッジ: 線を太く、色を強調
   - ノード: 枠線を太く、影を強調
 * z-indexを上げて最前面に表示
+
+**自己参照リレーションの特性**:
+* 自己参照リレーションの場合、反対側カラムも同一エンティティ内にあるため、両方のカラムが強調される
+* 詳細は[self_referencing_relation_rendering.md](./self_referencing_relation_rendering.md)を参照
 
 #### 4. ドラッグ中の動作
 

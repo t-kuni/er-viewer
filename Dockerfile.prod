@@ -20,6 +20,9 @@ RUN cd public && npm install
 # Build the application
 RUN npm run build
 
+# Set production environment
+ENV NODE_ENV=production
+
 # Expose the application port
 EXPOSE 30033
 

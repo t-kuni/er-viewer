@@ -39,19 +39,33 @@ MySQL データベースからER図をリバースエンジニアリングし、
 
 ## 使用方法
 
+### Linux の場合
+
 ```bash
-docker run \
-  --rm \
-  -p 30033:3000 \
-  -e DB_HOST=host.docker.internal \
-  -e DB_PORT=3306 \
-  -e DB_USER=root \
-  -e DB_PASSWORD=password \
-  -e DB_NAME=test \
-  tkuni83/er-viewer
+docker run --rm --network host tkuni83/er-viewer
 ```
 
-[http://localhost:30033](http://localhost:30033) に接続する
+[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
+
+**ホストOS上のMySQLに接続する場合**:
+- Host: `localhost`
+- Port: `3306`（MySQLの待ち受けポート）
+- User/Password/Database: 接続先DBの情報を入力
+
+### macOS / Windows（Docker Desktop）の場合
+
+```bash
+docker run --rm -p 30033:30033 tkuni83/er-viewer
+```
+
+[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
+
+**ホストOS上のMySQLに接続する場合**:
+- Host: `host.docker.internal`
+- Port: `3306`（MySQLの待ち受けポート）
+- User/Password/Database: 接続先DBの情報を入力
+
+> **注意**: macOS/Windows では `--network host` は使用できません（Docker DesktopがVM上で動作するため）
 
 ## 開発環境設定
 
@@ -100,8 +114,8 @@ claude --max-turns 1000 --dangerously-skip-permissions --mcp-config mcp-servers.
 
 ### コンテナイメージ更新
 
-```
-docker build -t tkuni83/er-viewer .
+```bash
+docker build -f Dockerfile.prod -t tkuni83/er-viewer .
 docker push tkuni83/er-viewer
 ```
 

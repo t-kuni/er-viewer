@@ -147,18 +147,52 @@ npm run dev
 
 ### エンドユーザーでの実行
 
+#### Linux の場合
+
+ホストOSと同じネットワークで動作させる場合（推奨）：
+
 ```bash
 docker run -d --name er-viewer \
-  -e DB_URL="mysql://user:pass@host:3306/db" \
-  -p 30033:30033 yourrepo/er-viewer:tag
+  --network host \
+  tkuni83/er-viewer:latest
 ```
+
+ポート公開する場合：
+
+```bash
+docker run -d --name er-viewer \
+  -p 30033:30033 \
+  tkuni83/er-viewer:latest
+```
+
+#### macOS / Windows（Docker Desktop）の場合
+
+```bash
+docker run -d --name er-viewer \
+  -p 30033:30033 \
+  tkuni83/er-viewer:latest
+```
+
+ブラウザで http://localhost:30033 にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力します。
+
+#### ホストOSのMySQLに接続する場合の設定
+
+**Linux（`--network host` 使用時）**:
+- Host: `localhost`
+- Port/User/Password/Database を適切に設定
+
+**Linux（ポート公開時）** / **macOS / Windows**:
+- Host: `host.docker.internal`
+- Port/User/Password/Database を適切に設定
 
 ### データベース接続
 
 * 本番用コンテナにはDBを含めない
-* 環境変数`DB_URL`で任意のMySQLサーバーに接続可能
+* 画面上からDB接続情報を入力する方式（環境変数不要）
+* 「リバースエンジニア」ボタン押下時にモーダルで接続情報を入力
 * PostgreSQL等の他のDBにも対応可能な設計
 * アプリケーションデータは管理せず、接続先DBのスキーマ情報のみを読み取り
+* 詳細は[データベース接続設定仕様](./database_connection_settings.md)を参照
 
 ## 機能要件
 

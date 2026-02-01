@@ -142,6 +142,19 @@
 
 **重要**: ホバーイベントを無効化するだけでは不十分。エンティティ選択時に`actionSelectItem`内でハイライト状態を設定する必要がある。
 
+### actionClearHoverの修正
+
+エンティティ選択中のハイライトを維持するため、`actionClearHover(vm)`に以下の処理を追加：
+
+* **エンティティ選択中** (`vm.ui.selectedItem?.kind === 'entity'`の場合):
+  - `hover`のみを`null`にクリア
+  - `highlightedNodeIds`, `highlightedEdgeIds`, `highlightedColumnIds`は**維持する**（クリアしない）
+  - 理由: 選択によって設定されたハイライト状態を保持するため
+* **エンティティ未選択時**:
+  - 既存の動作を維持（`hover`と全ハイライト配列をクリア）
+
+この実装により、エンティティ選択中にカーソルがエンティティから離れても、選択によるハイライトが維持される。
+
 ## コンポーネント設計
 
 ### EntityNode（既存の修正）

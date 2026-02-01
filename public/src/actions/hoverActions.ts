@@ -21,25 +21,19 @@ function optimizeArray(newArray: string[], existingArray: string[]): string[] {
 }
 
 /**
- * エンティティにホバーした時のAction
+ * エンティティのハイライト対象を計算する
  * @param viewModel 現在の状態
- * @param entityId ホバーしたエンティティのID
- * @returns 新しい状態（変化がない場合は同一参照）
+ * @param entityId 対象のエンティティID
+ * @returns ハイライト対象のID配列
  */
-export function actionHoverEntity(
+export function calculateEntityHighlights(
   viewModel: ViewModel,
   entityId: string
-): ViewModel {
-  // ドラッグ中はホバーイベントを無視
-  if (viewModel.erDiagram.ui.isDraggingEntity) {
-    return viewModel;
-  }
-
-  // エンティティ選択中はホバーイベントを無視
-  if (viewModel.ui.selectedItem?.kind === 'entity') {
-    return viewModel;
-  }
-
+): {
+  highlightedNodeIds: string[];
+  highlightedEdgeIds: string[];
+  highlightedColumnIds: string[];
+} {
   // ハイライト対象の収集
   const highlightedNodeIds = new Set<string>([entityId]);
   const highlightedEdgeIds = new Set<string>();
@@ -62,14 +56,40 @@ export function actionHoverEntity(
   }
 
   // 配列に変換
-  const newHighlightedNodeIds = Array.from(highlightedNodeIds);
-  const newHighlightedEdgeIds = Array.from(highlightedEdgeIds);
-  const newHighlightedColumnIds = Array.from(highlightedColumnIds);
+  return {
+    highlightedNodeIds: Array.from(highlightedNodeIds),
+    highlightedEdgeIds: Array.from(highlightedEdgeIds),
+    highlightedColumnIds: Array.from(highlightedColumnIds),
+  };
+}
+
+/**
+ * エンティティにホバーした時のAction
+ * @param viewModel 現在の状態
+ * @param entityId ホバーしたエンティティのID
+ * @returns 新しい状態（変化がない場合は同一参照）
+ */
+export function actionHoverEntity(
+  viewModel: ViewModel,
+  entityId: string
+): ViewModel {
+  // ドラッグ中はホバーイベントを無視
+  if (viewModel.erDiagram.ui.isDraggingEntity) {
+    return viewModel;
+  }
+
+  // エンティティ選択中はホバーイベントを無視
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
+    return viewModel;
+  }
+
+  // ハイライト対象を計算（共通ロジック）
+  const highlights = calculateEntityHighlights(viewModel, entityId);
 
   // 既存の配列と内容が同じ場合は既存の参照を再利用（再レンダリング最適化）
-  const optimizedNodeIds = optimizeArray(newHighlightedNodeIds, viewModel.erDiagram.ui.highlightedNodeIds);
-  const optimizedEdgeIds = optimizeArray(newHighlightedEdgeIds, viewModel.erDiagram.ui.highlightedEdgeIds);
-  const optimizedColumnIds = optimizeArray(newHighlightedColumnIds, viewModel.erDiagram.ui.highlightedColumnIds);
+  const optimizedNodeIds = optimizeArray(highlights.highlightedNodeIds, viewModel.erDiagram.ui.highlightedNodeIds);
+  const optimizedEdgeIds = optimizeArray(highlights.highlightedEdgeIds, viewModel.erDiagram.ui.highlightedEdgeIds);
+  const optimizedColumnIds = optimizeArray(highlights.highlightedColumnIds, viewModel.erDiagram.ui.highlightedColumnIds);
 
   // すべての配列が既存と同じ参照で、hoverも同じ場合は全体として同一参照を返す
   const currentHover = viewModel.erDiagram.ui.hover;
@@ -258,6 +278,29 @@ export function actionHoverColumn(
 export function actionClearHover(
   viewModel: ViewModel
 ): ViewModel {
+  // エンティティ選択中は、ハイライト状態を維持してhoverのみをクリア
+  if (viewModel.ui.selectedItem?.kind === 'entity') {
+    // hoverが既にnullなら同一参照を返す
+    if (viewModel.erDiagram.ui.hover === null) {
+      return viewModel;
+    }
+
+    const newUi = {
+      ...viewModel.erDiagram.ui,
+      hover: null,
+      // highlightedNodeIds, highlightedEdgeIds, highlightedColumnIds は維持
+    };
+
+    return {
+      ...viewModel,
+      erDiagram: {
+        ...viewModel.erDiagram,
+        ui: newUi,
+      },
+    };
+  }
+
+  // エンティティ未選択時は、ハイライト状態もクリア
   // すでにクリアされている場合は同一参照を返す
   if (
     viewModel.erDiagram.ui.hover === null &&

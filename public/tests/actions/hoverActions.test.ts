@@ -269,6 +269,67 @@ describe('hoverActions', () => {
         foregroundItems: [],
       });
     });
+
+    it('エンティティ選択中はハイライト状態を維持してhoverのみクリア', () => {
+      const viewModel = createMockViewModel();
+      
+      // エンティティを選択（ハイライトが設定される）
+      const withEntitySelected = {
+        ...viewModel,
+        ui: {
+          ...viewModel.ui,
+          selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+        },
+        erDiagram: {
+          ...viewModel.erDiagram,
+          ui: {
+            ...viewModel.erDiagram.ui,
+            hover: { type: 'entity' as const, id: 'entity-1' },
+            highlightedNodeIds: ['entity-1', 'entity-2'],
+            highlightedEdgeIds: ['edge-1'],
+            highlightedColumnIds: ['col-1', 'col-4'],
+          },
+        },
+      };
+
+      // ホバーをクリア
+      const result = actionClearHover(withEntitySelected);
+
+      // hoverはクリアされる
+      expect(result.erDiagram.ui.hover).toBeNull();
+      
+      // ハイライト状態は維持される
+      expect(result.erDiagram.ui.highlightedNodeIds).toEqual(['entity-1', 'entity-2']);
+      expect(result.erDiagram.ui.highlightedEdgeIds).toEqual(['edge-1']);
+      expect(result.erDiagram.ui.highlightedColumnIds).toEqual(['col-1', 'col-4']);
+    });
+
+    it('エンティティ選択中でhoverが既にnullの場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      
+      const withEntitySelected = {
+        ...viewModel,
+        ui: {
+          ...viewModel.ui,
+          selectedItem: { kind: 'entity' as const, id: 'entity-1' },
+        },
+        erDiagram: {
+          ...viewModel.erDiagram,
+          ui: {
+            ...viewModel.erDiagram.ui,
+            hover: null, // 既にnull
+            highlightedNodeIds: ['entity-1', 'entity-2'],
+            highlightedEdgeIds: ['edge-1'],
+            highlightedColumnIds: ['col-1', 'col-4'],
+          },
+        },
+      };
+
+      const result = actionClearHover(withEntitySelected);
+
+      // 同一参照を返す（最適化）
+      expect(result).toBe(withEntitySelected);
+    });
   });
 
   describe('actionStartEntityDrag', () => {

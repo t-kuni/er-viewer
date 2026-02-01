@@ -1,4 +1,5 @@
 import type { components } from '../../../lib/generated/api-types';
+import { calculateEntityHighlights } from './hoverActions';
 
 type ViewModel = components['schemas']['ViewModel'];
 type LayerItemRef = components['schemas']['LayerItemRef'];
@@ -188,39 +189,14 @@ export function actionSelectItem(
   let newErDiagramUi = vm.erDiagram.ui;
   
   if (itemRef?.kind === 'entity') {
-    const entityId = itemRef.id;
-    
-    // ハイライト対象の収集（actionHoverEntityと同じロジック）
-    const highlightedNodeIds = new Set<string>([entityId]);
-    const highlightedEdgeIds = new Set<string>();
-    const highlightedColumnIds = new Set<string>();
-
-    // インデックスを使って接続エッジを高速検索（O(1)）
-    const connectedEdgeIds = vm.erDiagram.index.entityToEdges[entityId] || [];
-    
-    for (const edgeId of connectedEdgeIds) {
-      const edge = vm.erDiagram.edges[edgeId];
-      if (!edge) continue;
-      
-      highlightedEdgeIds.add(edgeId);
-      // 接続先のノードもハイライト
-      highlightedNodeIds.add(edge.sourceEntityId);
-      highlightedNodeIds.add(edge.targetEntityId);
-      // エッジに関連するカラムもハイライト
-      highlightedColumnIds.add(edge.sourceColumnId);
-      highlightedColumnIds.add(edge.targetColumnId);
-    }
-
-    // 配列に変換
-    const newHighlightedNodeIds = Array.from(highlightedNodeIds);
-    const newHighlightedEdgeIds = Array.from(highlightedEdgeIds);
-    const newHighlightedColumnIds = Array.from(highlightedColumnIds);
+    // ハイライト対象を計算（hoverActions.tsの共通ロジックを利用）
+    const highlights = calculateEntityHighlights(vm, itemRef.id);
 
     newErDiagramUi = {
       ...vm.erDiagram.ui,
-      highlightedNodeIds: newHighlightedNodeIds,
-      highlightedEdgeIds: newHighlightedEdgeIds,
-      highlightedColumnIds: newHighlightedColumnIds,
+      highlightedNodeIds: highlights.highlightedNodeIds,
+      highlightedEdgeIds: highlights.highlightedEdgeIds,
+      highlightedColumnIds: highlights.highlightedColumnIds,
     };
   } else {
     // エンティティ以外の選択、または選択解除の場合はハイライトをクリア

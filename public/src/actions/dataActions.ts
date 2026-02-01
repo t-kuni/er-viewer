@@ -236,8 +236,8 @@ export function actionMergeERData(
       ddl: entity.ddl,
       x,
       y,
-      width: 0,  // 幅は0にリセット（レンダリング後に再計測）
-      height: 0, // 高さは0にリセット（レンダリング後に再計測）
+      width: existingNode?.width || 0,   // 既存ノードのサイズを保持、新規ノードは0
+      height: existingNode?.height || 0, // 既存ノードのサイズを保持、新規ノードは0
     };
     
     newNodes[node.id] = node;

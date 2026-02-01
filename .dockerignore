@@ -1,0 +1,68 @@
+# Environment variables - 本番では画面上からDB接続情報を入力する方式のため不要
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Node modules - Dockerfile内でインストールするため不要
+node_modules/
+public/node_modules/
+
+# Build outputs - Dockerfile内でビルドするため不要
+dist/
+public/dist/
+build/
+*.log
+
+# Development and testing files
+*.test.ts
+*.test.js
+tests/
+public/tests/
+coverage/
+.nyc_output/
+
+# Documentation and research
+README.md
+spec/
+research/
+RESEARCH_PROMPT.md
+TASK.md
+*.md
+!package*.json
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.cursor/
+
+# Docker files - 本番イメージには不要
+docker-compose.yml
+Dockerfile*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Other development files
+tsconfig.*.json
+!tsconfig.base.json
+vitest.config.ts

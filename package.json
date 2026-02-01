@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "concurrently \"tsx watch --clear-screen=false server.ts\" \"npm run --prefix public dev\"",
+    "dev": "concurrently \"NODE_ENV=development tsx watch --clear-screen=false server.ts\" \"npm run --prefix public dev\"",
     "build": "tsup server.ts --format esm,cjs && npm run --prefix public build",
     "prebuild": "mkdir -p scripts",
     "build:ts": "tsc",

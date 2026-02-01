@@ -96,6 +96,31 @@ npm run dev
   * **エントリーポイント**: `public/src/app.ts`
 * **バックエンド**: シンプルなAPIエンドポイント群を`server.ts`に直接実装（分割不要）
 
+### 開発時と本番時のパス解決
+
+開発時と本番時で実行ファイルの位置が異なるため、プロジェクトルート（`rootDir`）を環境に応じて計算する必要がある。
+
+**開発時（`npm run dev`）:**
+- 実行ファイル: `server.ts` （プロジェクトルート）
+- `__dirname` = `/app` （プロジェクトルート）
+- `rootDir` = `__dirname` = `/app`
+- フロントエンドビルド済みファイル: `public/dist/`
+- ビルド情報ファイル: `build-info.json`
+
+**本番時（Docker）:**
+- 実行ファイル: `dist/server.js` （ビルド後）
+- `__dirname` = `/app/dist`
+- `rootDir` = `path.join(__dirname, '..')` = `/app`
+- フロントエンドビルド済みファイル: `public/dist/`
+- ビルド情報ファイル: `build-info.json`
+
+**パス解決の実装方針:**
+- `NODE_ENV=production` の場合、`rootDir = path.join(__dirname, '..')`
+- `NODE_ENV=development` またはの場合、`rootDir = __dirname`
+- 静的ファイル配信: `path.join(rootDir, 'public/dist')`
+- ビルド情報ファイル: `path.join(rootDir, 'build-info.json')`
+- フロントエンドHTML: `path.join(rootDir, 'public/dist/index.html')`
+
 ### API仕様管理
 
 * TypeSpecファイル（`scheme/main.tsp`）でAPI仕様と型を包括的に定義

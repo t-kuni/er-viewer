@@ -15,16 +15,19 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 本番環境では dist/ 配下から実行されるため、一つ上のディレクトリがプロジェクトルート
+const rootDir = process.env.NODE_ENV === 'production'
+  ? path.join(__dirname, '..') // /app/dist -> /app
+  : __dirname;                  // /app
+
 const app = express();
 const port: number = parseInt(process.env.PORT || '30033', 10);
 
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from dist/public for TypeScript compiled files
-app.use('/js', express.static(path.join(__dirname, 'dist/public/js')));
-// Serve other static files from public directory
-app.use(express.static('public'));
+// フロントエンドのビルド済み静的ファイルを配信
+app.use(express.static(path.join(rootDir, 'public/dist')));
 
 const dbManager = new DatabaseManager();
 
@@ -32,7 +35,7 @@ const dbManager = new DatabaseManager();
 const getBuildInfoUsecase = createGetBuildInfoUsecase({
   existsSync: fs.existsSync,
   readFileSync: (path: string, encoding: BufferEncoding) => fs.readFileSync(path, encoding),
-  rootDir: __dirname,
+  rootDir: rootDir,
   processVersion: process.version,
   processPlatform: process.platform,
   processArch: process.arch,
@@ -74,7 +77,7 @@ app.post('/api/reverse-engineer', async (req: Request, res: Response) => {
 
 
 app.get('/', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(rootDir, 'public/dist/index.html'));
 });
 
 app.listen(port, async () => {
@@ -94,10 +97,10 @@ app.listen(port, async () => {
       });
 
       // Watch public directory for changes
-      liveReloadServer.watch(path.join(__dirname, 'public'));
+      liveReloadServer.watch(path.join(rootDir, 'public'));
 
       // Watch lib directory for server-side changes
-      const watcher = chokidar.watch([path.join(__dirname, 'lib'), path.join(__dirname, 'public')], {
+      const watcher = chokidar.watch([path.join(rootDir, 'lib'), path.join(rootDir, 'public')], {
         ignored: /node_modules/,
         persistent: true,
       });

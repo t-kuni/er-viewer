@@ -35,6 +35,7 @@ function EntityNode({ data }: NodeProps<EntityNodeData>) {
   
   return (
     <div 
+      className={isHighlighted ? 'entity-node is-highlighted' : 'entity-node'}
       style={{ 
         border: isHighlighted ? '3px solid #007bff' : '1px solid #333', 
         borderRadius: '4px', 

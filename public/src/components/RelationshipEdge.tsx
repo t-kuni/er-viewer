@@ -34,9 +34,9 @@ function RelationshipEdge({
     <g
       onMouseEnter={() => dispatch(actionHoverEdge, id)}
       onMouseLeave={() => dispatch(actionClearHover)}
+      className={isHighlighted ? 'rel-edge is-highlighted' : 'rel-edge'}
       style={{ 
         cursor: 'pointer',
-        zIndex: isHighlighted ? 999 : 0,
       }}
     >
       <path

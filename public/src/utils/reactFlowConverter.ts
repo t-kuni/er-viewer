@@ -73,11 +73,13 @@ export function convertToReactFlowNodes(
  * ERDiagramViewModelのedgesをReact Flow形式に変換する
  * @param edges RelationshipEdgeViewModelのRecord
  * @param nodes EntityNodeViewModelのRecord
+ * @param highlightedEdgeIds ハイライトされたエッジのID配列
  * @returns React Flowのエッジ配列
  */
 export function convertToReactFlowEdges(
   edges: { [key: string]: RelationshipEdgeViewModel },
-  nodes: { [key: string]: EntityNodeViewModel }
+  nodes: { [key: string]: EntityNodeViewModel },
+  highlightedEdgeIds: string[]
 ): Edge[] {
   return Object.values(edges)
     .filter((edge) => {
@@ -113,6 +115,10 @@ export function convertToReactFlowEdges(
       // 最適なハンドルを計算
       const { sourceHandle, targetHandle } = computeOptimalHandles(sourceCenter, targetCenter);
 
+      // ハイライト状態に応じてzIndexを設定
+      const isHighlighted = highlightedEdgeIds.includes(edge.id);
+      const zIndex = isHighlighted ? 100 : -100;
+
       return {
         id: edge.id,
         type: 'relationshipEdge',
@@ -120,7 +126,8 @@ export function convertToReactFlowEdges(
         target: edge.targetEntityId,
         sourceHandle,
         targetHandle,
-        zIndex: -100, // エッジは背後に配置
+        zIndex, // ハイライト時は前面、通常時は背後
+        className: 'rel-edge', // CSS制御用
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },

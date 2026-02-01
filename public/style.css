@@ -1208,3 +1208,22 @@ svg:has(.highlighted) .relationship:not(.highlighted) {
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
+
+/* ER図ハイライト機能のCSS一括制御 */
+/* ホバー中の非ハイライト要素を半透明化 */
+.er-canvas.has-hover .entity-node:not(.is-highlighted) {
+  opacity: 0.2;
+}
+
+.er-canvas.has-hover .rel-edge:not(.is-highlighted) path {
+  opacity: 0.2;
+}
+
+/* 非ホバー時は通常の透明度 */
+.er-canvas:not(.has-hover) .entity-node {
+  opacity: 1.0;
+}
+
+.er-canvas:not(.has-hover) .rel-edge path {
+  opacity: 1.0;
+}

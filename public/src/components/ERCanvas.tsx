@@ -632,6 +632,7 @@ function ERCanvasInner({
       edgeTypes={edgeTypes}
       elevateNodesOnSelect={false}
       elevateEdgesOnSelect={false}
+      zIndexMode="manual"
       fitView
     >
       {/* 背面レイヤー */}
@@ -715,15 +716,22 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
   // Storeから状態を購読
   const viewModelNodes = useViewModel((vm) => vm.erDiagram.nodes)
   const viewModelEdges = useViewModel((vm) => vm.erDiagram.edges)
+  const highlightedEdgeIds = useViewModel((vm) => vm.erDiagram.ui.highlightedEdgeIds)
+  
+  // ホバー状態を購読（真偽値のみ）
+  const hasHover = useViewModel(
+    (vm) => vm.erDiagram.ui.hover !== null,
+    (a, b) => a === b
+  )
   
   // エンティティとエッジを更新
   useEffect(() => {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
-    const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes)
+    const newEdges = convertToReactFlowEdges(viewModelEdges, viewModelNodes, highlightedEdgeIds)
     
     setNodes(entityNodes)
     setEdges(newEdges)
-  }, [viewModelNodes, viewModelEdges])
+  }, [viewModelNodes, viewModelEdges, highlightedEdgeIds])
   
   const handleAddRectangle = () => {
     const newRectangle: Rectangle = {
@@ -772,7 +780,7 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
   }
   
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div className={hasHover ? 'er-canvas has-hover' : 'er-canvas'} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: '0.5rem' }}>
         <button 
           onClick={handleAddRectangle}

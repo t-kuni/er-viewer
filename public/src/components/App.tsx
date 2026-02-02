@@ -67,7 +67,7 @@ function App() {
     accept: {
       'application/json': ['.json']
     },
-    noClick: true, // ヘッダー全体がクリック可能にならないように
+    noClick: true, // 画面全体がクリック可能にならないように
     noKeyboard: true,
   })
   
@@ -115,20 +115,39 @@ function App() {
     !hasValidNodeSize
   
   return (
-    <div className="app">
+    <div className="app" {...getRootProps()}>
+      <input {...getInputProps()} />
+      {isDragActive && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(68, 68, 68, 0.9)',
+          border: '3px dashed #fff',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: '24px',
+          fontWeight: 'bold'
+        }}>
+          ファイルをドロップしてインポート
+        </div>
+      )}
       <header 
-        {...getRootProps()}
         style={{ 
           padding: '1rem', 
-          background: isDragActive ? '#444' : '#333', 
+          background: '#333', 
           color: 'white',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: 'background 0.2s'
+          alignItems: 'center'
         }}
       >
-        <input {...getInputProps()} />
         <h1 style={{ margin: 0 }}>ER Diagram Viewer</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button 

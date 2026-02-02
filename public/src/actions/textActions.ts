@@ -231,6 +231,7 @@ export function actionUpdateTextStyle(
     fontSize?: number;
     lineHeight?: number;
     textAlign?: components['schemas']['TextAlign'];
+    textVerticalAlign?: components['schemas']['TextVerticalAlign'];
     textColor?: string;
     opacity?: number;
     wrap?: boolean;
@@ -249,6 +250,7 @@ export function actionUpdateTextStyle(
     (stylePatch.fontSize !== undefined && stylePatch.fontSize !== textBox.fontSize) ||
     (stylePatch.lineHeight !== undefined && stylePatch.lineHeight !== textBox.lineHeight) ||
     (stylePatch.textAlign !== undefined && stylePatch.textAlign !== textBox.textAlign) ||
+    (stylePatch.textVerticalAlign !== undefined && stylePatch.textVerticalAlign !== textBox.textVerticalAlign) ||
     (stylePatch.textColor !== undefined && stylePatch.textColor !== textBox.textColor) ||
     (stylePatch.opacity !== undefined && stylePatch.opacity !== textBox.opacity) ||
     (stylePatch.wrap !== undefined && stylePatch.wrap !== textBox.wrap) ||
@@ -269,6 +271,7 @@ export function actionUpdateTextStyle(
           ...(stylePatch.fontSize !== undefined && { fontSize: stylePatch.fontSize }),
           ...(stylePatch.lineHeight !== undefined && { lineHeight: stylePatch.lineHeight }),
           ...(stylePatch.textAlign !== undefined && { textAlign: stylePatch.textAlign }),
+          ...(stylePatch.textVerticalAlign !== undefined && { textVerticalAlign: stylePatch.textVerticalAlign }),
           ...(stylePatch.textColor !== undefined && { textColor: stylePatch.textColor }),
           ...(stylePatch.opacity !== undefined && { opacity: stylePatch.opacity }),
           ...(stylePatch.wrap !== undefined && { wrap: stylePatch.wrap }),
@@ -354,6 +357,9 @@ export function actionFitTextBoundsToContent(
 /**
  * ドロップシャドウのプロパティを部分更新する
  */
+/**
+ * 文字のドロップシャドウのプロパティを部分更新する
+ */
 export function actionUpdateTextShadow(
   vm: ViewModel,
   textId: string,
@@ -376,13 +382,13 @@ export function actionUpdateTextShadow(
 
   // 変更がない場合は同一参照を返す
   const hasChanges =
-    (shadowPatch.enabled !== undefined && shadowPatch.enabled !== textBox.shadow.enabled) ||
-    (shadowPatch.offsetX !== undefined && shadowPatch.offsetX !== textBox.shadow.offsetX) ||
-    (shadowPatch.offsetY !== undefined && shadowPatch.offsetY !== textBox.shadow.offsetY) ||
-    (shadowPatch.blur !== undefined && shadowPatch.blur !== textBox.shadow.blur) ||
-    (shadowPatch.spread !== undefined && shadowPatch.spread !== textBox.shadow.spread) ||
-    (shadowPatch.color !== undefined && shadowPatch.color !== textBox.shadow.color) ||
-    (shadowPatch.opacity !== undefined && shadowPatch.opacity !== textBox.shadow.opacity);
+    (shadowPatch.enabled !== undefined && shadowPatch.enabled !== textBox.textShadow.enabled) ||
+    (shadowPatch.offsetX !== undefined && shadowPatch.offsetX !== textBox.textShadow.offsetX) ||
+    (shadowPatch.offsetY !== undefined && shadowPatch.offsetY !== textBox.textShadow.offsetY) ||
+    (shadowPatch.blur !== undefined && shadowPatch.blur !== textBox.textShadow.blur) ||
+    (shadowPatch.spread !== undefined && shadowPatch.spread !== textBox.textShadow.spread) ||
+    (shadowPatch.color !== undefined && shadowPatch.color !== textBox.textShadow.color) ||
+    (shadowPatch.opacity !== undefined && shadowPatch.opacity !== textBox.textShadow.opacity);
 
   if (!hasChanges) {
     return vm;
@@ -396,8 +402,69 @@ export function actionUpdateTextShadow(
         ...vm.erDiagram.texts,
         [textId]: {
           ...textBox,
-          shadow: {
-            ...textBox.shadow,
+          textShadow: {
+            ...textBox.textShadow,
+            ...(shadowPatch.enabled !== undefined && { enabled: shadowPatch.enabled }),
+            ...(shadowPatch.offsetX !== undefined && { offsetX: shadowPatch.offsetX }),
+            ...(shadowPatch.offsetY !== undefined && { offsetY: shadowPatch.offsetY }),
+            ...(shadowPatch.blur !== undefined && { blur: shadowPatch.blur }),
+            ...(shadowPatch.spread !== undefined && { spread: shadowPatch.spread }),
+            ...(shadowPatch.color !== undefined && { color: shadowPatch.color }),
+            ...(shadowPatch.opacity !== undefined && { opacity: shadowPatch.opacity }),
+          },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * 背景のドロップシャドウのプロパティを部分更新する
+ */
+export function actionUpdateBackgroundShadow(
+  vm: ViewModel,
+  textId: string,
+  shadowPatch: {
+    enabled?: boolean;
+    offsetX?: number;
+    offsetY?: number;
+    blur?: number;
+    spread?: number;
+    color?: string;
+    opacity?: number;
+  }
+): ViewModel {
+  const textBox = vm.erDiagram.texts[textId];
+
+  // テキストが存在しない場合は同一参照を返す
+  if (!textBox) {
+    return vm;
+  }
+
+  // 変更がない場合は同一参照を返す
+  const hasChanges =
+    (shadowPatch.enabled !== undefined && shadowPatch.enabled !== textBox.backgroundShadow.enabled) ||
+    (shadowPatch.offsetX !== undefined && shadowPatch.offsetX !== textBox.backgroundShadow.offsetX) ||
+    (shadowPatch.offsetY !== undefined && shadowPatch.offsetY !== textBox.backgroundShadow.offsetY) ||
+    (shadowPatch.blur !== undefined && shadowPatch.blur !== textBox.backgroundShadow.blur) ||
+    (shadowPatch.spread !== undefined && shadowPatch.spread !== textBox.backgroundShadow.spread) ||
+    (shadowPatch.color !== undefined && shadowPatch.color !== textBox.backgroundShadow.color) ||
+    (shadowPatch.opacity !== undefined && shadowPatch.opacity !== textBox.backgroundShadow.opacity);
+
+  if (!hasChanges) {
+    return vm;
+  }
+
+  return {
+    ...vm,
+    erDiagram: {
+      ...vm.erDiagram,
+      texts: {
+        ...vm.erDiagram.texts,
+        [textId]: {
+          ...textBox,
+          backgroundShadow: {
+            ...textBox.backgroundShadow,
             ...(shadowPatch.enabled !== undefined && { enabled: shadowPatch.enabled }),
             ...(shadowPatch.offsetX !== undefined && { offsetX: shadowPatch.offsetX }),
             ...(shadowPatch.offsetY !== undefined && { offsetY: shadowPatch.offsetY }),
@@ -443,6 +510,52 @@ export function actionUpdateTextPadding(
           ...textBox,
           paddingX,
           paddingY,
+        },
+      },
+    },
+  };
+}
+
+/**
+ * 背景色のプロパティを部分更新する
+ */
+export function actionUpdateTextBackground(
+  vm: ViewModel,
+  textId: string,
+  backgroundPatch: {
+    backgroundColor?: string;
+    backgroundEnabled?: boolean;
+    backgroundOpacity?: number;
+  }
+): ViewModel {
+  const textBox = vm.erDiagram.texts[textId];
+
+  // テキストが存在しない場合は同一参照を返す
+  if (!textBox) {
+    return vm;
+  }
+
+  // 変更がない場合は同一参照を返す
+  const hasChanges =
+    (backgroundPatch.backgroundColor !== undefined && backgroundPatch.backgroundColor !== textBox.backgroundColor) ||
+    (backgroundPatch.backgroundEnabled !== undefined && backgroundPatch.backgroundEnabled !== textBox.backgroundEnabled) ||
+    (backgroundPatch.backgroundOpacity !== undefined && backgroundPatch.backgroundOpacity !== textBox.backgroundOpacity);
+
+  if (!hasChanges) {
+    return vm;
+  }
+
+  return {
+    ...vm,
+    erDiagram: {
+      ...vm.erDiagram,
+      texts: {
+        ...vm.erDiagram.texts,
+        [textId]: {
+          ...textBox,
+          ...(backgroundPatch.backgroundColor !== undefined && { backgroundColor: backgroundPatch.backgroundColor }),
+          ...(backgroundPatch.backgroundEnabled !== undefined && { backgroundEnabled: backgroundPatch.backgroundEnabled }),
+          ...(backgroundPatch.backgroundOpacity !== undefined && { backgroundOpacity: backgroundPatch.backgroundOpacity }),
         },
       },
     },

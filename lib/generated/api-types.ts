@@ -348,9 +348,14 @@ export interface components {
             /** Format: double */
             lineHeight: number;
             textAlign: components["schemas"]["TextAlign"];
+            textVerticalAlign: components["schemas"]["TextVerticalAlign"];
             textColor: string;
             /** Format: double */
             opacity: number;
+            backgroundColor: string;
+            backgroundEnabled: boolean;
+            /** Format: double */
+            backgroundOpacity: number;
             /** Format: double */
             paddingX: number;
             /** Format: double */
@@ -358,10 +363,13 @@ export interface components {
             wrap: boolean;
             overflow: components["schemas"]["TextOverflowMode"];
             autoSizeMode: components["schemas"]["TextAutoSizeMode"];
-            shadow: components["schemas"]["DropShadow"];
+            textShadow: components["schemas"]["DropShadow"];
+            backgroundShadow: components["schemas"]["DropShadow"];
         };
         /** @enum {string} */
         TextOverflowMode: "clip" | "scroll";
+        /** @enum {string} */
+        TextVerticalAlign: "top" | "middle" | "bottom";
         ViewModel: {
             format: string;
             /** Format: int32 */

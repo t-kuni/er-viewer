@@ -142,7 +142,8 @@ model TextBox {
   overflow: TextOverflowMode;    // 表示のはみ出し
 
   autoSizeMode: TextAutoSizeMode;
-  shadow: DropShadow;
+  textShadow: DropShadow;       // 文字のドロップシャドウ（spreadは使用しない）
+  backgroundShadow: DropShadow; // 背景矩形のドロップシャドウ
 }
 
 // Build info model

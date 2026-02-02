@@ -40,7 +40,7 @@
 * `TextVerticalAlign`: テキスト垂直配置（top/middle/bottom）
 * `TextAutoSizeMode`: 自動サイズ調整モード（manual/fitContent/fitWidth）
 * `TextOverflowMode`: テキストのはみ出し処理（clip/scroll）
-* `DropShadow`: ドロップシャドウ効果
+* `DropShadow`: ドロップシャドウ効果（文字用と背景用で個別に設定可能）
 
 `ERDiagramViewModel.texts`はUUIDをキーとする連想配列（Record型）で、テキストをID検索可能な形式で保持する。
 
@@ -66,13 +66,19 @@
   - wrap: true
   - overflow: clip
   - autoSizeMode: manual
-  - shadow.enabled: false
-  - shadow.offsetX: 2px
-  - shadow.offsetY: 2px
-  - shadow.blur: 4px
-  - shadow.spread: 0px
-  - shadow.color: "#000000"
-  - shadow.opacity: 0.3
+  - textShadow.enabled: false
+  - textShadow.offsetX: 2px
+  - textShadow.offsetY: 2px
+  - textShadow.blur: 4px
+  - textShadow.color: "#000000"
+  - textShadow.opacity: 0.3
+  - backgroundShadow.enabled: false
+  - backgroundShadow.offsetX: 2px
+  - backgroundShadow.offsetY: 2px
+  - backgroundShadow.blur: 4px
+  - backgroundShadow.spread: 0px
+  - backgroundShadow.color: "#000000"
+  - backgroundShadow.opacity: 0.3
 * 作成後すぐに選択状態になる
 * レイヤーはデフォルトで前面（foreground）に配置
 
@@ -129,26 +135,50 @@
 
 ### HTML要素のスタイル
 
-* `<div>`要素で描画（外側のコンテナ）
+**外側のコンテナ（`<div>`要素）**:
 * 位置：`position: absolute; left: ${x}px; top: ${y}px;`
 * サイズ：`width: ${width}px; height: ${height}px;`
 * 背景色：`backgroundColor: rgba(r, g, b, ${backgroundOpacity})`（`backgroundEnabled=true`の場合）
-* パディング：`padding: ${paddingY}px ${paddingX}px`
+* 背景のドロップシャドウ：`boxShadow`（`backgroundShadow.enabled=true`の場合、背景矩形全体に影を適用）
+  - `offsetX offsetY blur spread rgba(r, g, b, opacity)` 形式
+  - 例: `2px 2px 4px 0px rgba(0, 0, 0, 0.3)`
+  - 背景が無効（`backgroundEnabled=false`）でも影の設定は可能だが、背景が表示されない限り影も表示されない
 * z-index：レイヤー順序に基づいて計算
 * cursor: `move`（ドラッグ可能を示す）
 * pointerEvents: `auto`（クリック・ドラッグを受け付ける）
+* 垂直配置用のフレックスボックス設定：
+  - `display: flex`
+  - `flexDirection: column`
+  - `justifyContent: ${verticalAlignValue}`（垂直方向の配置）
+    - `top`: `flex-start`
+    - `middle`: `center`
+    - `bottom`: `flex-end`
 
-* 内側のテキストコンテナ：`<div>`要素で実装
+**内側のテキストコンテナ（`<div>`要素）**:
+* パディング：`padding: ${paddingY}px ${paddingX}px`
 * 改行：`white-space: pre-wrap`
 * 折り返し：`overflow-wrap: anywhere; word-break: break-word;`（`wrap=true`の場合）
 * テキスト色：`color: rgba(r, g, b, ${opacity})`
-* 影：`text-shadow`（`shadow.enabled=true`の場合）
+* 文字のドロップシャドウ：`textShadow`（`textShadow.enabled=true`の場合、文字にのみ影を適用）
+  - `offsetX offsetY blur rgba(r, g, b, opacity)` 形式（spreadは使用しない）
+  - 例: `2px 2px 4px rgba(0, 0, 0, 0.3)`
 * 水平配置：`text-align: ${textAlign}`
-* 垂直配置：`display: flex; align-items: ${verticalAlignValue}`
-  - `top`: `flex-start`
-  - `middle`: `center`
-  - `bottom`: `flex-end`
 * フォント：システムフォント固定（`system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif`）
+
+**ドロップシャドウの2種類の独立適用**:
+* 文字と背景のドロップシャドウは完全に独立して設定可能
+* **文字のシャドウ（`textShadow`）**: 
+  - `textShadow.enabled=true`の場合、内側のテキストコンテナに`text-shadow`を適用
+  - `spread`パラメータは使用しない（CSS仕様上サポートされないため）
+  - 背景の有無に関わらず適用可能
+* **背景のシャドウ（`backgroundShadow`）**: 
+  - `backgroundShadow.enabled=true`かつ`backgroundEnabled=true`の場合、外側のコンテナに`box-shadow`を適用
+  - `spread`パラメータも適用される
+  - 背景が無効の場合、影も表示されない
+* 利用シーン例：
+  - 文字のみにシャドウ: 背景透過のテキストで視認性を高める
+  - 背景のみにシャドウ: カード風のデザイン、フローティング効果
+  - 両方にシャドウ: 強調表示、異なるパラメータで立体感と浮遊感を演出
 
 ### 選択状態の表示
 
@@ -182,12 +212,22 @@
   - 有効/無効トグル（backgroundEnabled）
   - 背景色（backgroundColor）: カラーピッカー（HEX入力対応、矩形と同じ8色プリセット）
   - 背景の透明度（backgroundOpacity）: スライダー（0〜1）
-* **ドロップシャドウ**:
-  - 有効/無効トグル（shadow.enabled）
+* **文字のドロップシャドウ**:
+  - 有効/無効トグル（textShadow.enabled）
+  - 有効時、文字（テキストコンテンツ）にのみ影が適用される
+  - offsetX / offsetY: number入力（px）
+  - blur: number入力（px）
+  - color: カラーピッカー（HEX入力対応、プリセットなし）
+  - opacity: number入力（0〜1）
+  - 注意: spreadパラメータは文字シャドウでは使用しない（CSS仕様上サポートされないため、UIからも除外）
+* **背景のドロップシャドウ**:
+  - 有効/無効トグル（backgroundShadow.enabled）
+  - 有効時かつ背景色有効時、背景矩形に影が適用される
   - offsetX / offsetY: number入力（px）
   - blur / spread: number入力（px）
-  - color: カラーピッカー
+  - color: カラーピッカー（HEX入力対応、プリセットなし）
   - opacity: number入力（0〜1）
+  - 注意: 背景色が無効（backgroundEnabled=false）の場合、影も表示されない
 * **削除ボタン**: 即座に削除（確認なし）
 
 ### 追加項目
@@ -200,10 +240,15 @@
 
 ### UI実装方針
 
-* 文字色のカラーピッカーはreact-colorfulの`HexColorPicker`と`HexColorInput`を使用（プリセットなし）
-* 背景色のカラーピッカーは`ColorPickerWithPresets`コンポーネントを使用（矩形と同じ8色プリセット）
-* 透明度の入力コンポーネントは矩形プロパティパネルと同様の実装パターン（スライダー）を踏襲
-* 垂直配置ボタンは水平配置ボタンと同様のトグルボタン形式で実装
+* **文字色のカラーピッカー**: react-colorfulの`HexColorPicker`と`HexColorInput`を使用（プリセットなし）
+* **背景色のカラーピッカー**: `ColorPickerWithPresets`コンポーネントを使用
+  - 矩形と同じ8色プリセット（`#E3F2FD`, `#E0F7FA`, `#E0F2F1`, `#E8F5E9`, `#FFFDE7`, `#FFF3E0`, `#FCE4EC`, `#F5F5F5`）
+  - HEX入力対応
+  - カラーピッカー本体も表示
+* **透明度の入力**: 矩形プロパティパネルと同様の実装パターン（スライダー）を踏襲
+* **垂直配置ボタン**: 水平配置ボタンと同様のトグルボタン形式で実装
+  - 「上」「中央」「下」の3つのボタン
+  - 選択中のボタンは青色でハイライト表示
 
 ## レイヤー管理
 
@@ -248,7 +293,8 @@
 * `actionUpdateTextBackground(vm, textId, backgroundPatch)`: 背景色のプロパティ（backgroundColor/backgroundEnabled/backgroundOpacity）を部分更新
 * `actionSetTextAutoSizeMode(vm, textId, mode)`: autoSizeModeを変更
 * `actionFitTextBoundsToContent(vm, textId, width, height)`: 測定結果を受け取ってwidth/heightを更新（UI側で測定し、結果を渡す）
-* `actionUpdateTextShadow(vm, textId, shadowPatch)`: ドロップシャドウのプロパティを部分更新
+* `actionUpdateTextShadow(vm, textId, shadowPatch)`: 文字のドロップシャドウのプロパティを部分更新
+* `actionUpdateBackgroundShadow(vm, textId, shadowPatch)`: 背景のドロップシャドウのプロパティを部分更新
 * `actionUpdateTextPadding(vm, textId, paddingX, paddingY)`: パディングを更新
 
 すべてのActionは純粋関数で実装され、状態に変化がない場合は同一参照を返す。
@@ -310,25 +356,52 @@
 * ViewportPortalで描画するため、viewport座標変換（`useViewport`の`zoom`を考慮）が必要
 * F2キーのグローバルイベントリスナーは、編集モード中は無効化すること（`removeEventListener`で適切にクリーンアップ）
 * 背景色の透明度は、HEXカラーをRGBAに変換して`backgroundOpacity`と組み合わせて適用する
-* 垂直配置は外側のコンテナを`display: flex`にして、内側のテキストコンテナを中央寄せする実装を推奨
+* **垂直配置の実装**:
+  - 外側のコンテナを`display: flex; flexDirection: column`に設定
+  - `justifyContent`プロパティで垂直方向の配置を制御（**`alignItems`ではない**）
+    - `top` → `justifyContent: flex-start`
+    - `middle` → `justifyContent: center`
+    - `bottom` → `justifyContent: flex-end`
+  - 注意: `flexDirection: column`の場合、`alignItems`は水平方向、`justifyContent`は垂直方向を制御する
+* **ドロップシャドウの2種類の独立適用**:
+  - 文字と背景のドロップシャドウは完全に独立して設定・適用される
+  - **文字のシャドウ**: `textShadow.enabled=true`の場合、内側のテキストコンテナに適用
+    - `textShadow: ${offsetX}px ${offsetY}px ${blur}px rgba(...)`（spreadは使用しない）
+  - **背景のシャドウ**: `backgroundShadow.enabled=true`かつ`backgroundEnabled=true`の場合、外側のコンテナに適用
+    - `boxShadow: ${offsetX}px ${offsetY}px ${blur}px ${spread}px rgba(...)`
+  - HEXカラーをRGBAに変換するヘルパー関数（`hexToRgba`）を使用して透明度を適用する
+  - 各シャドウは個別のパラメータを持ち、異なる値を設定可能
+* **背景色のカラーピッカー**: 
+  - `ColorPickerWithPresets`コンポーネントを使用（矩形と同じ8色プリセット）
+  - `HexColorPicker`と`HexColorInput`を直接使用しない
 * 空テキストの自動削除は`useEffect`で`selectedItem`の変化を監視し、前回選択されていたテキストのcontentをチェックする
 * ダブルクリックイベントは編集開始のみに使用し、シングルクリックによる選択処理と競合しないように実装する
 
 ## 段階的実装アプローチ
 
-1. TypeSpecに`TextVerticalAlign` enumと新フィールド追加し、型を再生成
-2. `ERCanvas.tsx`に`renderTexts`関数を追加（背景色、垂直配置対応）
-3. テキストを`ViewportPortal`内で描画（背面・前面の2つのPortalで分けて描画）
-4. ツールバー「テキスト追加」ボタンと`actionAddText`を実装、デフォルト値に新フィールドを設定
-5. テキスト追加時の自動選択を実装（`actionSelectItem`をdispatch）
-6. ドラッグ移動: マウスダウン→ムーブ→アップのイベントハンドリングで`actionUpdateTextPosition`をdispatch
-7. ダブルクリックイベント実装: `onDoubleClick`で編集モード開始
-8. リサイズ: カスタムリサイズハンドルを実装し、`actionUpdateTextBounds`と`actionSetTextAutoSizeMode`をdispatch
-9. 編集UI: F2キー・ダブルクリックで編集モード開始、`<textarea>`をViewportPortal内に表示
-10. プロパティパネル実装（背景色設定、垂直配置ボタン、透明度の分離を追加）
-11. 空テキストの自動削除実装（`useEffect`で`selectedItem`を監視）
-12. autoSizeMode対応: 測定処理とボタンを実装
-13. レイヤー管理統合: 作成時に`actionAddLayerItem`、削除時に`actionRemoveLayerItem`を呼び出す
+1. TypeSpecの`TextBox`モデルで`shadow`を`textShadow`と`backgroundShadow`に分離し、型を再生成
+2. `textActions.ts`に`actionUpdateBackgroundShadow`を追加、`actionAddText`のデフォルト値を更新
+3. `ERCanvas.tsx`のレンダリング処理を更新
+   - 背景色対応（外側のコンテナに`backgroundColor`と`boxShadow`）
+   - 垂直配置対応（`display: flex; flexDirection: column; justifyContent`）
+   - 文字色の透明度対応（`color: rgba(...)`）
+   - 文字のドロップシャドウ対応（内側のテキストコンテナに`textShadow`）
+   - 2種類のシャドウを独立して適用（`textShadow.enabled`と`backgroundShadow.enabled`を個別にチェック）
+4. テキストを`ViewportPortal`内で描画（背面・前面の2つのPortalで分けて描画）
+5. ツールバー「テキスト追加」ボタンと`actionAddText`を実装、デフォルト値に新フィールドを設定
+6. テキスト追加時の自動選択を実装（`actionSelectItem`をdispatch）
+7. ドラッグ移動: マウスダウン→ムーブ→アップのイベントハンドリングで`actionUpdateTextPosition`をdispatch
+8. ダブルクリックイベント実装: `onDoubleClick`で編集モード開始
+9. リサイズ: カスタムリサイズハンドルを実装し、`actionUpdateTextBounds`と`actionSetTextAutoSizeMode`をdispatch
+10. 編集UI: F2キー・ダブルクリックで編集モード開始、`<textarea>`をViewportPortal内に表示
+11. プロパティパネル実装
+    - 垂直配置ボタン追加（「上」「中央」「下」のトグルボタン）
+    - 背景色設定追加（`ColorPickerWithPresets`コンポーネントを使用、8色プリセット対応）
+    - 透明度の分離（文字の透明度と背景の透明度）
+    - ドロップシャドウを2つのセクションに分離（「文字のドロップシャドウ」「背景のドロップシャドウ」）
+12. 空テキストの自動削除実装（`useEffect`で`selectedItem`を監視）
+13. autoSizeMode対応: 測定処理とボタンを実装
+14. レイヤー管理統合: 作成時に`actionAddLayerItem`、削除時に`actionRemoveLayerItem`を呼び出す
 
 ## 懸念事項・確認事項
 
@@ -340,12 +413,15 @@
 * ViewportPortal内でのドラッグ・リサイズ時のviewport座標変換の正確性
 * 背景色と垂直配置を追加することでレンダリングパフォーマンスへの影響（flexboxの使用）
 * 空テキスト自動削除のタイミングで、ユーザーが意図せず削除してしまう可能性（Undo機能がないため）
+* **`text-shadow`のspreadサポート**: CSSの`text-shadow`プロパティは`spread`をサポートしないため、文字のシャドウ（`textShadow`）では`spread`パラメータを使用しない（UIからも除外）。背景のシャドウ（`backgroundShadow`）の`boxShadow`のみ`spread`が適用される
+* プロパティパネルが長くなる可能性: 2つのシャドウセクションで項目数が増加（スクロールで対応）
 
 ### 解決済みの懸念
 
 * **透明度の分離**: 文字（opacity）と背景（backgroundOpacity）で別々に設定可能に変更済み
 * **ダブルクリックの実装**: React FlowのonDoubleClickイベントで実装可能
 * **プロパティパネルの長さ**: スクロールで対応可能
+* **ドロップシャドウの独立設定**: 文字（textShadow）と背景（backgroundShadow）で別々に設定可能に変更済み
 
 ### 今後の検討事項
 

@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { useViewModel, useDispatch } from '../store/hooks';
+import { ColorPickerWithPresets } from './ColorPickerWithPresets';
 import {
   actionUpdateTextContent,
   actionUpdateTextStyle,
   actionSetTextAutoSizeMode,
   actionUpdateTextShadow,
+  actionUpdateBackgroundShadow,
   actionUpdateTextPadding,
+  actionUpdateTextBackground,
   actionRemoveText,
   actionUpdateTextBounds,
 } from '../actions/textActions';
-import type { TextAlign, TextAutoSizeMode, TextOverflowMode } from '../api/client';
+import type { TextAlign, TextVerticalAlign, TextAutoSizeMode, TextOverflowMode } from '../api/client';
 
 interface TextPropertyPanelProps {
   textId: string;
@@ -21,7 +24,8 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   const text = useViewModel((vm) => vm.erDiagram.texts[textId]);
 
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [showShadowColorPicker, setShowShadowColorPicker] = useState(false);
+  const [showTextShadowColorPicker, setShowTextShadowColorPicker] = useState(false);
+  const [showBackgroundShadowColorPicker, setShowBackgroundShadowColorPicker] = useState(false);
 
   if (!text) {
     return null;
@@ -49,8 +53,25 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
     dispatch(actionUpdateTextStyle, textId, { textAlign });
   };
 
+  const handleTextVerticalAlignChange = (textVerticalAlign: TextVerticalAlign) => {
+    dispatch(actionUpdateTextStyle, textId, { textVerticalAlign });
+  };
+
   const handleTextColorChange = (textColor: string) => {
     dispatch(actionUpdateTextStyle, textId, { textColor });
+  };
+
+  const handleBackgroundEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(actionUpdateTextBackground, textId, { backgroundEnabled: e.target.checked });
+  };
+
+  const handleBackgroundColorChange = (backgroundColor: string) => {
+    dispatch(actionUpdateTextBackground, textId, { backgroundColor });
+  };
+
+  const handleBackgroundOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const backgroundOpacity = parseFloat(e.target.value);
+    dispatch(actionUpdateTextBackground, textId, { backgroundOpacity });
   };
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +79,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
     dispatch(actionUpdateTextStyle, textId, { opacity });
   };
 
+  // 文字のシャドウ用ハンドラ
   const handleShadowEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(actionUpdateTextShadow, textId, { enabled: e.target.checked });
   };
@@ -83,13 +105,6 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
     }
   };
 
-  const handleShadowSpreadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const spread = parseFloat(e.target.value);
-    if (!isNaN(spread)) {
-      dispatch(actionUpdateTextShadow, textId, { spread });
-    }
-  };
-
   const handleShadowColorChange = (color: string) => {
     dispatch(actionUpdateTextShadow, textId, { color });
   };
@@ -97,6 +112,48 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   const handleShadowOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const opacity = parseFloat(e.target.value);
     dispatch(actionUpdateTextShadow, textId, { opacity });
+  };
+
+  // 背景のシャドウ用ハンドラ
+  const handleBackgroundShadowEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(actionUpdateBackgroundShadow, textId, { enabled: e.target.checked });
+  };
+
+  const handleBackgroundShadowOffsetXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const offsetX = parseFloat(e.target.value);
+    if (!isNaN(offsetX)) {
+      dispatch(actionUpdateBackgroundShadow, textId, { offsetX });
+    }
+  };
+
+  const handleBackgroundShadowOffsetYChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const offsetY = parseFloat(e.target.value);
+    if (!isNaN(offsetY)) {
+      dispatch(actionUpdateBackgroundShadow, textId, { offsetY });
+    }
+  };
+
+  const handleBackgroundShadowBlurChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const blur = parseFloat(e.target.value);
+    if (!isNaN(blur) && blur >= 0) {
+      dispatch(actionUpdateBackgroundShadow, textId, { blur });
+    }
+  };
+
+  const handleBackgroundShadowSpreadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const spread = parseFloat(e.target.value);
+    if (!isNaN(spread)) {
+      dispatch(actionUpdateBackgroundShadow, textId, { spread });
+    }
+  };
+
+  const handleBackgroundShadowColorChange = (color: string) => {
+    dispatch(actionUpdateBackgroundShadow, textId, { color });
+  };
+
+  const handleBackgroundShadowOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const opacity = parseFloat(e.target.value);
+    dispatch(actionUpdateBackgroundShadow, textId, { opacity });
   };
 
   const handlePaddingXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,10 +294,10 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
         />
       </div>
 
-      {/* 配置 */}
+      {/* 水平配置 */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          配置
+          水平配置
         </label>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {(['left', 'center', 'right'] as TextAlign[]).map((align) => (
@@ -260,6 +317,34 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
               }}
             >
               {align === 'left' ? '左' : align === 'center' ? '中央' : '右'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 垂直配置 */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+          垂直配置
+        </label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {(['top', 'middle', 'bottom'] as TextVerticalAlign[]).map((align) => (
+            <button
+              key={align}
+              type="button"
+              onClick={() => handleTextVerticalAlignChange(align)}
+              style={{
+                flex: 1,
+                padding: '0.5rem',
+                backgroundColor: text.textVerticalAlign === align ? '#3b82f6' : '#f3f4f6',
+                color: text.textVerticalAlign === align ? '#ffffff' : '#000000',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              {align === 'top' ? '上' : align === 'middle' ? '中央' : '下'}
             </button>
           ))}
         </div>
@@ -306,10 +391,10 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
         )}
       </div>
 
-      {/* 透明度 */}
+      {/* 文字の透明度 */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          透明度: {Math.round(text.opacity * 100)}%
+          文字の透明度: {Math.round(text.opacity * 100)}%
         </label>
         <input
           type="range"
@@ -320,6 +405,44 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
           onChange={handleOpacityChange}
           style={{ width: '100%' }}
         />
+      </div>
+
+      {/* 背景色 */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={text.backgroundEnabled}
+            onChange={handleBackgroundEnabledChange}
+          />
+          <span style={{ fontWeight: 'bold' }}>背景色</span>
+        </label>
+
+        {text.backgroundEnabled && (
+          <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
+            <ColorPickerWithPresets
+              label="色"
+              value={text.backgroundColor}
+              onChange={handleBackgroundColorChange}
+            />
+            
+            {/* 背景の透明度 */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                背景の透明度: {Math.round(text.backgroundOpacity * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={text.backgroundOpacity}
+                onChange={handleBackgroundOpacityChange}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* パディング */}
@@ -410,28 +533,28 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
         </select>
       </div>
 
-      {/* ドロップシャドウ */}
+      {/* 文字のドロップシャドウ */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
             type="checkbox"
-            checked={text.shadow.enabled}
+            checked={text.textShadow.enabled}
             onChange={handleShadowEnabledChange}
           />
-          <span style={{ fontWeight: 'bold' }}>ドロップシャドウ</span>
+          <span style={{ fontWeight: 'bold' }}>文字のドロップシャドウ</span>
         </label>
 
-        {text.shadow.enabled && (
+        {text.textShadow.enabled && (
           <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
             {/* オフセットX */}
             <div style={{ marginBottom: '0.5rem' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                オフセットX: {text.shadow.offsetX}px
+                オフセットX: {text.textShadow.offsetX}px
               </label>
               <input
                 type="number"
                 step="1"
-                value={text.shadow.offsetX}
+                value={text.textShadow.offsetX}
                 onChange={handleShadowOffsetXChange}
                 style={{
                   width: '100%',
@@ -446,12 +569,12 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             {/* オフセットY */}
             <div style={{ marginBottom: '0.5rem' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                オフセットY: {text.shadow.offsetY}px
+                オフセットY: {text.textShadow.offsetY}px
               </label>
               <input
                 type="number"
                 step="1"
-                value={text.shadow.offsetY}
+                value={text.textShadow.offsetY}
                 onChange={handleShadowOffsetYChange}
                 style={{
                   width: '100%',
@@ -466,34 +589,14 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             {/* ぼかし */}
             <div style={{ marginBottom: '0.5rem' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                ぼかし: {text.shadow.blur}px
+                ぼかし: {text.textShadow.blur}px
               </label>
               <input
                 type="number"
                 min="0"
                 step="1"
-                value={text.shadow.blur}
+                value={text.textShadow.blur}
                 onChange={handleShadowBlurChange}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '14px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                }}
-              />
-            </div>
-
-            {/* 広がり */}
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                広がり: {text.shadow.spread}px
-              </label>
-              <input
-                type="number"
-                step="1"
-                value={text.shadow.spread}
-                onChange={handleShadowSpreadChange}
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -518,18 +621,18 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
                 }}
               >
                 <div
-                  onClick={() => setShowShadowColorPicker(!showShadowColorPicker)}
+                  onClick={() => setShowTextShadowColorPicker(!showTextShadowColorPicker)}
                   style={{
                     width: '40px',
                     height: '40px',
-                    backgroundColor: text.shadow.color,
+                    backgroundColor: text.textShadow.color,
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     cursor: 'pointer',
                   }}
                 />
                 <HexColorInput
-                  color={text.shadow.color}
+                  color={text.textShadow.color}
                   onChange={handleShadowColorChange}
                   style={{
                     flex: 1,
@@ -540,9 +643,9 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
                   }}
                 />
               </div>
-              {showShadowColorPicker && (
+              {showTextShadowColorPicker && (
                 <HexColorPicker
-                  color={text.shadow.color}
+                  color={text.textShadow.color}
                   onChange={handleShadowColorChange}
                 />
               )}
@@ -551,18 +654,190 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             {/* 透明度 */}
             <div style={{ marginBottom: '0.5rem' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                透明度: {Math.round(text.shadow.opacity * 100)}%
+                透明度: {Math.round(text.textShadow.opacity * 100)}%
               </label>
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.01"
-                value={text.shadow.opacity}
+                value={text.textShadow.opacity}
                 onChange={handleShadowOpacityChange}
                 style={{ width: '100%' }}
               />
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* 背景のドロップシャドウ */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={text.backgroundShadow.enabled}
+            onChange={handleBackgroundShadowEnabledChange}
+          />
+          <span style={{ fontWeight: 'bold' }}>背景のドロップシャドウ</span>
+        </label>
+
+        {text.backgroundShadow.enabled && (
+          <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
+            {/* オフセットX */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                オフセットX: {text.backgroundShadow.offsetX}px
+              </label>
+              <input
+                type="number"
+                step="1"
+                value={text.backgroundShadow.offsetX}
+                onChange={handleBackgroundShadowOffsetXChange}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  fontSize: '14px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+
+            {/* オフセットY */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                オフセットY: {text.backgroundShadow.offsetY}px
+              </label>
+              <input
+                type="number"
+                step="1"
+                value={text.backgroundShadow.offsetY}
+                onChange={handleBackgroundShadowOffsetYChange}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  fontSize: '14px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+
+            {/* ぼかし */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                ぼかし: {text.backgroundShadow.blur}px
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={text.backgroundShadow.blur}
+                onChange={handleBackgroundShadowBlurChange}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  fontSize: '14px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+
+            {/* 広がり */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                広がり: {text.backgroundShadow.spread}px
+              </label>
+              <input
+                type="number"
+                step="1"
+                value={text.backgroundShadow.spread}
+                onChange={handleBackgroundShadowSpreadChange}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  fontSize: '14px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+
+            {/* 色 */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                色
+              </label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <div
+                  onClick={() => setShowBackgroundShadowColorPicker(!showBackgroundShadowColorPicker)}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: text.backgroundShadow.color,
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                />
+                <HexColorInput
+                  color={text.backgroundShadow.color}
+                  onChange={handleBackgroundShadowColorChange}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    fontSize: '14px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                  }}
+                />
+              </div>
+              {showBackgroundShadowColorPicker && (
+                <HexColorPicker
+                  color={text.backgroundShadow.color}
+                  onChange={handleBackgroundShadowColorChange}
+                />
+              )}
+            </div>
+
+            {/* 透明度 */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
+                透明度: {Math.round(text.backgroundShadow.opacity * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={text.backgroundShadow.opacity}
+                onChange={handleBackgroundShadowOpacityChange}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* 警告メッセージ */}
+            {!text.backgroundEnabled && (
+              <div style={{ 
+                fontSize: '12px', 
+                color: '#f59e0b', 
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                backgroundColor: '#fffbeb',
+                borderRadius: '4px',
+                border: '1px solid #fcd34d'
+              }}>
+                ⚠️ 背景色が無効のため、影は表示されません
+              </div>
+            )}
           </div>
         )}
       </div>

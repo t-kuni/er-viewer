@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   Node,
@@ -27,10 +27,10 @@ import { calculateZIndex } from '../utils/zIndexCalculator'
 import { useViewModel, useDispatch } from '../store/hooks'
 import { actionUpdateNodePositions, actionUpdateNodeSizes } from '../actions/dataActions'
 import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangleBounds, actionRemoveRectangle } from '../actions/rectangleActions'
-import { actionAddText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
+import { actionAddText, actionRemoveText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
 import { actionStartEntityDrag, actionStopEntityDrag, actionClearHover } from '../actions/hoverActions'
-import type { Rectangle, TextBox, LayerItemRef } from '../api/client'
+import type { Rectangle, TextBox, LayerItemRef, TextAlign, TextVerticalAlign, TextOverflowMode, TextAutoSizeMode } from '../api/client'
 
 const nodeTypes = {
   entityNode: EntityNode,
@@ -39,6 +39,15 @@ const nodeTypes = {
 const edgeTypes = {
   relationshipEdge: RelationshipEdge,
   selfRelationshipEdge: SelfRelationshipEdge,
+}
+
+// HEXカラーをRGBAに変換するヘルパー関数
+function hexToRgba(hex: string, alpha: number): string {
+  // "#RRGGBB" 形式を想定
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 // リサイズハンドルコンポーネント
@@ -215,6 +224,24 @@ function ERCanvasInner({
   const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
   const texts = useViewModel((vm) => vm.erDiagram.texts)
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+  
+  // 空テキストの自動削除
+  const prevSelectedItem = useRef<typeof selectedItem>(null)
+  
+  useEffect(() => {
+    const prev = prevSelectedItem.current
+    
+    // 前回選択されていたアイテムがテキストで、現在は別のアイテム（またはnull）が選択されている場合
+    if (prev && prev.kind === 'text' && 
+        (!selectedItem || selectedItem.kind !== prev.kind || selectedItem.id !== prev.id)) {
+      const text = texts[prev.id]
+      if (text && text.content === '') {
+        dispatch(actionRemoveText, prev.id)
+      }
+    }
+    
+    prevSelectedItem.current = selectedItem
+  }, [selectedItem, texts, dispatch])
   
   // ESCキーで選択解除
   const escPressed = useKeyPress('Escape')
@@ -534,10 +561,34 @@ function ERCanvasInner({
       const zIndex = calculateZIndex(layerOrder as any, item as LayerItemRef)
       const isSelected = selectedItem?.kind === 'text' && selectedItem.id === item.id
       
-      // シャドウのCSS生成
-      const boxShadow = text.shadow.enabled
-        ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
-        : 'none'
+      // 文字のドロップシャドウ（textShadow、spreadなし）
+      const textShadow = text.textShadow.enabled
+        ? (() => {
+            const shadowColor = hexToRgba(text.textShadow.color, text.textShadow.opacity);
+            return `${text.textShadow.offsetX}px ${text.textShadow.offsetY}px ${text.textShadow.blur}px ${shadowColor}`;
+          })()
+        : 'none';
+      
+      // 背景矩形のドロップシャドウ（boxShadow）
+      const boxShadow = text.backgroundShadow.enabled && text.backgroundEnabled
+        ? (() => {
+            const shadowColor = hexToRgba(text.backgroundShadow.color, text.backgroundShadow.opacity);
+            return `${text.backgroundShadow.offsetX}px ${text.backgroundShadow.offsetY}px ${text.backgroundShadow.blur}px ${text.backgroundShadow.spread}px ${shadowColor}`;
+          })()
+        : 'none';
+      
+      // 文字色（透明度を含む）
+      const textColor = hexToRgba(text.textColor, text.opacity);
+      
+      // 背景色（透明度を含む）
+      const backgroundColor = text.backgroundEnabled
+        ? hexToRgba(text.backgroundColor, text.backgroundOpacity)
+        : 'transparent';
+      
+      // 垂直配置の設定
+      const justifyContent = text.textVerticalAlign === 'top' ? 'flex-start'
+        : text.textVerticalAlign === 'middle' ? 'center'
+        : 'flex-end';
       
       return (
         <div
@@ -548,32 +599,46 @@ function ERCanvasInner({
             top: text.y,
             width: text.width,
             height: text.height,
-            color: text.textColor,
-            opacity: text.opacity,
-            padding: `${text.paddingY}px ${text.paddingX}px`,
-            textAlign: text.textAlign,
-            whiteSpace: 'pre-wrap',
-            overflowWrap: text.wrap ? 'anywhere' : 'normal',
-            wordBreak: text.wrap ? 'break-word' : 'normal',
-            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
-            fontSize: `${text.fontSize}px`,
-            lineHeight: `${text.lineHeight}px`,
-            overflow: text.overflow === 'scroll' ? 'auto' : 'hidden',
+            backgroundColor,
+            boxShadow,
             cursor: 'move',
             boxSizing: 'border-box',
             outline: isSelected ? '2px solid #1976d2' : 'none',
             outlineOffset: '2px',
             pointerEvents: 'auto',
-            boxShadow,
             zIndex,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: justifyContent,
+            overflow: text.overflow === 'scroll' ? 'auto' : 'hidden',
           }}
           onMouseDown={(e) => handleTextMouseDown(e, item.id)}
           onClick={(e) => {
             e.stopPropagation()
             dispatch(actionSelectItem, item)
           }}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            setEditingTextId(item.id)
+            setDraftContent(text.content)
+          }}
         >
-          {text.content}
+          <div
+            style={{
+              color: textColor,
+              padding: `${text.paddingY}px ${text.paddingX}px`,
+              textAlign: text.textAlign,
+              whiteSpace: 'pre-wrap',
+              overflowWrap: text.wrap ? 'anywhere' : 'normal',
+              wordBreak: text.wrap ? 'break-word' : 'normal',
+              fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+              fontSize: `${text.fontSize}px`,
+              lineHeight: `${text.lineHeight}px`,
+              textShadow,
+            }}
+          >
+            {text.content}
+          </div>
           {isSelected && (
             <ResizeHandles 
               rectangleId={item.id} 
@@ -698,9 +763,24 @@ function ERCanvasInner({
           <ViewportPortal>
             {(() => {
               const text = texts[editingTextId]
-              const boxShadow = text.shadow.enabled
-                ? `${text.shadow.offsetX}px ${text.shadow.offsetY}px ${text.shadow.blur}px ${text.shadow.spread}px ${text.shadow.color}${Math.round(text.shadow.opacity * 255).toString(16).padStart(2, '0')}`
-                : 'none'
+              const textShadow = text.textShadow.enabled
+                ? (() => {
+                    const shadowColor = hexToRgba(text.textShadow.color, text.textShadow.opacity);
+                    return `${text.textShadow.offsetX}px ${text.textShadow.offsetY}px ${text.textShadow.blur}px ${shadowColor}`;
+                  })()
+                : 'none';
+              
+              const boxShadow = text.backgroundShadow.enabled && text.backgroundEnabled
+                ? (() => {
+                    const shadowColor = hexToRgba(text.backgroundShadow.color, text.backgroundShadow.opacity);
+                    return `${text.backgroundShadow.offsetX}px ${text.backgroundShadow.offsetY}px ${text.backgroundShadow.blur}px ${text.backgroundShadow.spread}px ${shadowColor}`;
+                  })()
+                : 'none';
+              
+              const textColor = hexToRgba(text.textColor, text.opacity);
+              const backgroundColor = text.backgroundEnabled
+                ? hexToRgba(text.backgroundColor, text.backgroundOpacity)
+                : 'rgba(255, 255, 255, 0.95)';
               
               return (
                 <textarea
@@ -725,17 +805,18 @@ function ERCanvasInner({
                     padding: `${text.paddingY}px ${text.paddingX}px`,
                     fontSize: `${text.fontSize}px`,
                     lineHeight: `${text.lineHeight}px`,
-                    color: text.textColor,
+                    color: textColor,
                     textAlign: text.textAlign,
                     outline: '2px solid #3b82f6',
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor,
+                    boxShadow,
                     resize: 'none',
                     overflow: 'auto',
                     boxSizing: 'border-box',
                     zIndex: 10000,
                     border: 'none',
                     fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
-                    boxShadow,
+                    textShadow,
                   }}
                 />
               )
@@ -805,18 +886,31 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
       y: 0,
       width: 200,
       height: 80,
-      content: '',
+      content: 'テキスト',
       fontSize: 16,
       lineHeight: 24,
-      textAlign: 'left',
+      textAlign: 'left' as TextAlign,
+      textVerticalAlign: 'top' as TextVerticalAlign,
       textColor: '#000000',
       opacity: 1.0,
       paddingX: 8,
       paddingY: 8,
       wrap: true,
-      overflow: 'clip',
-      autoSizeMode: 'manual',
-      shadow: {
+      overflow: 'clip' as TextOverflowMode,
+      autoSizeMode: 'manual' as TextAutoSizeMode,
+      backgroundColor: '#FFFFFF',
+      backgroundEnabled: false,
+      backgroundOpacity: 1.0,
+      textShadow: {
+        enabled: false,
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
+        spread: 0,
+        color: '#000000',
+        opacity: 0.3,
+      },
+      backgroundShadow: {
         enabled: false,
         offsetX: 2,
         offsetY: 2,
@@ -826,7 +920,8 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
         opacity: 0.3,
       },
     }
-    dispatch(actionAddText, newText)
+    const newViewModel = dispatch(actionAddText, newText)
+    dispatch(actionSelectItem, { kind: 'text', id: newText.id })
   }
   
   return (

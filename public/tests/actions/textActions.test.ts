@@ -10,7 +10,9 @@ import {
   actionSetTextAutoSizeMode,
   actionFitTextBoundsToContent,
   actionUpdateTextShadow,
+  actionUpdateBackgroundShadow,
   actionUpdateTextPadding,
+  actionUpdateTextBackground,
 } from '../../src/actions/textActions';
 import type { components } from '../../../lib/generated/api-types';
 
@@ -35,6 +37,7 @@ describe('textActions', () => {
           fontSize: 16,
           lineHeight: 24,
           textAlign: 'left',
+          textVerticalAlign: 'top',
           textColor: '#000000',
           opacity: 1.0,
           paddingX: 8,
@@ -42,7 +45,19 @@ describe('textActions', () => {
           wrap: true,
           overflow: 'clip',
           autoSizeMode: 'manual',
-          shadow: {
+          backgroundColor: '#FFFFFF',
+          backgroundEnabled: false,
+          backgroundOpacity: 1.0,
+          textShadow: {
+            enabled: false,
+            offsetX: 0,
+            offsetY: 0,
+            blur: 0,
+            spread: 0,
+            color: '#000000',
+            opacity: 0.5,
+          },
+          backgroundShadow: {
             enabled: false,
             offsetX: 0,
             offsetY: 0,
@@ -91,6 +106,7 @@ describe('textActions', () => {
         fontSize: 14,
         lineHeight: 20,
         textAlign: 'center',
+        textVerticalAlign: 'middle',
         textColor: '#FF0000',
         opacity: 0.8,
         paddingX: 4,
@@ -98,6 +114,9 @@ describe('textActions', () => {
         wrap: false,
         overflow: 'scroll',
         autoSizeMode: 'fitContent',
+        backgroundColor: '#FFFF00',
+        backgroundEnabled: true,
+        backgroundOpacity: 0.5,
         shadow: {
           enabled: true,
           offsetX: 2,
@@ -380,6 +399,7 @@ describe('textActions', () => {
         fontSize: 18,
         lineHeight: 28,
         textAlign: 'center',
+        textVerticalAlign: 'middle',
         textColor: '#0000FF',
         opacity: 0.7,
         wrap: false,
@@ -389,6 +409,7 @@ describe('textActions', () => {
       expect(result.erDiagram.texts['text-1'].fontSize).toBe(18);
       expect(result.erDiagram.texts['text-1'].lineHeight).toBe(28);
       expect(result.erDiagram.texts['text-1'].textAlign).toBe('center');
+      expect(result.erDiagram.texts['text-1'].textVerticalAlign).toBe('middle');
       expect(result.erDiagram.texts['text-1'].textColor).toBe('#0000FF');
       expect(result.erDiagram.texts['text-1'].opacity).toBe(0.7);
       expect(result.erDiagram.texts['text-1'].wrap).toBe(false);
@@ -475,7 +496,7 @@ describe('textActions', () => {
   });
 
   describe('actionUpdateTextShadow', () => {
-    it('shadowが部分更新される', () => {
+    it('textShadowが部分更新される', () => {
       const viewModel = createMockViewModel();
       
       const result = actionUpdateTextShadow(viewModel, 'text-1', {
@@ -484,15 +505,15 @@ describe('textActions', () => {
         blur: 10,
       });
 
-      expect(result.erDiagram.texts['text-1'].shadow.enabled).toBe(true);
-      expect(result.erDiagram.texts['text-1'].shadow.offsetX).toBe(5);
-      expect(result.erDiagram.texts['text-1'].shadow.blur).toBe(10);
+      expect(result.erDiagram.texts['text-1'].textShadow.enabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].textShadow.offsetX).toBe(5);
+      expect(result.erDiagram.texts['text-1'].textShadow.blur).toBe(10);
       // 未指定のプロパティは保持される
-      expect(result.erDiagram.texts['text-1'].shadow.offsetY).toBe(0);
-      expect(result.erDiagram.texts['text-1'].shadow.spread).toBe(0);
+      expect(result.erDiagram.texts['text-1'].textShadow.offsetY).toBe(0);
+      expect(result.erDiagram.texts['text-1'].textShadow.spread).toBe(0);
     });
 
-    it('全てのshadowプロパティを更新できる', () => {
+    it('全てのtextShadowプロパティを更新できる', () => {
       const viewModel = createMockViewModel();
       
       const result = actionUpdateTextShadow(viewModel, 'text-1', {
@@ -505,13 +526,13 @@ describe('textActions', () => {
         opacity: 0.8,
       });
 
-      expect(result.erDiagram.texts['text-1'].shadow.enabled).toBe(true);
-      expect(result.erDiagram.texts['text-1'].shadow.offsetX).toBe(3);
-      expect(result.erDiagram.texts['text-1'].shadow.offsetY).toBe(3);
-      expect(result.erDiagram.texts['text-1'].shadow.blur).toBe(6);
-      expect(result.erDiagram.texts['text-1'].shadow.spread).toBe(2);
-      expect(result.erDiagram.texts['text-1'].shadow.color).toBe('#FF0000');
-      expect(result.erDiagram.texts['text-1'].shadow.opacity).toBe(0.8);
+      expect(result.erDiagram.texts['text-1'].textShadow.enabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].textShadow.offsetX).toBe(3);
+      expect(result.erDiagram.texts['text-1'].textShadow.offsetY).toBe(3);
+      expect(result.erDiagram.texts['text-1'].textShadow.blur).toBe(6);
+      expect(result.erDiagram.texts['text-1'].textShadow.spread).toBe(2);
+      expect(result.erDiagram.texts['text-1'].textShadow.color).toBe('#FF0000');
+      expect(result.erDiagram.texts['text-1'].textShadow.opacity).toBe(0.8);
     });
 
     it('変化がない場合は同一参照を返す', () => {
@@ -528,6 +549,67 @@ describe('textActions', () => {
       const viewModel = createMockViewModel();
       
       const result = actionUpdateTextShadow(viewModel, 'non-existent', {
+        enabled: true,
+      });
+
+      expect(result).toBe(viewModel);
+    });
+  });
+
+  describe('actionUpdateBackgroundShadow', () => {
+    it('backgroundShadowが部分更新される', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateBackgroundShadow(viewModel, 'text-1', {
+        enabled: true,
+        offsetX: 5,
+        blur: 10,
+      });
+
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.enabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.offsetX).toBe(5);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.blur).toBe(10);
+      // 未指定のプロパティは保持される
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.offsetY).toBe(0);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.spread).toBe(0);
+    });
+
+    it('全てのbackgroundShadowプロパティを更新できる', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateBackgroundShadow(viewModel, 'text-1', {
+        enabled: true,
+        offsetX: 3,
+        offsetY: 3,
+        blur: 6,
+        spread: 2,
+        color: '#FF0000',
+        opacity: 0.8,
+      });
+
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.enabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.offsetX).toBe(3);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.offsetY).toBe(3);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.blur).toBe(6);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.spread).toBe(2);
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.color).toBe('#FF0000');
+      expect(result.erDiagram.texts['text-1'].backgroundShadow.opacity).toBe(0.8);
+    });
+
+    it('変化がない場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateBackgroundShadow(viewModel, 'text-1', {
+        enabled: false, // 同じ値
+      });
+
+      expect(result).toBe(viewModel);
+    });
+
+    it('存在しないIDの場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateBackgroundShadow(viewModel, 'non-existent', {
         enabled: true,
       });
 
@@ -559,6 +641,56 @@ describe('textActions', () => {
       const viewModel = createMockViewModel();
       
       const result = actionUpdateTextPadding(viewModel, 'non-existent', 12, 16);
+
+      expect(result).toBe(viewModel);
+    });
+  });
+
+  describe('actionUpdateTextBackground', () => {
+    it('backgroundが部分更新される', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateTextBackground(viewModel, 'text-1', {
+        backgroundEnabled: true,
+        backgroundColor: '#FFFF00',
+      });
+
+      expect(result.erDiagram.texts['text-1'].backgroundEnabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].backgroundColor).toBe('#FFFF00');
+      // 未指定のプロパティは保持される
+      expect(result.erDiagram.texts['text-1'].backgroundOpacity).toBe(1.0);
+    });
+
+    it('全てのbackgroundプロパティを更新できる', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateTextBackground(viewModel, 'text-1', {
+        backgroundEnabled: true,
+        backgroundColor: '#00FF00',
+        backgroundOpacity: 0.5,
+      });
+
+      expect(result.erDiagram.texts['text-1'].backgroundEnabled).toBe(true);
+      expect(result.erDiagram.texts['text-1'].backgroundColor).toBe('#00FF00');
+      expect(result.erDiagram.texts['text-1'].backgroundOpacity).toBe(0.5);
+    });
+
+    it('変化がない場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateTextBackground(viewModel, 'text-1', {
+        backgroundEnabled: false, // 同じ値
+      });
+
+      expect(result).toBe(viewModel);
+    });
+
+    it('存在しないIDの場合は同一参照を返す', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateTextBackground(viewModel, 'non-existent', {
+        backgroundEnabled: true,
+      });
 
       expect(result).toBe(viewModel);
     });

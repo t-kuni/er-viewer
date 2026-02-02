@@ -120,7 +120,7 @@ export function actionAddLayerItem(
     return vm;
   }
 
-  const newItems = [...items, itemRef];
+  const newItems = [itemRef, ...items];
 
   return {
     ...vm,
@@ -232,4 +232,33 @@ export function actionToggleLayerPanel(vm: ViewModel): ViewModel {
       showLayerPanel: !vm.ui.showLayerPanel,
     },
   };
+}
+
+type LayerOrder = components['schemas']['LayerOrder'];
+
+/**
+ * レイヤー順序から特定アイテムのz-indexを計算
+ */
+export function calculateZIndex(
+  layerOrder: LayerOrder,
+  itemRef: LayerItemRef
+): number {
+  // 背面レイヤーを探索
+  const bgIndex = layerOrder.backgroundItems.findIndex(
+    item => item.kind === itemRef.kind && item.id === itemRef.id
+  );
+  if (bgIndex !== -1) {
+    return -10000 + (layerOrder.backgroundItems.length - 1 - bgIndex);
+  }
+  
+  // 前面レイヤーを探索
+  const fgIndex = layerOrder.foregroundItems.findIndex(
+    item => item.kind === itemRef.kind && item.id === itemRef.id
+  );
+  if (fgIndex !== -1) {
+    return 10000 + (layerOrder.foregroundItems.length - 1 - fgIndex);
+  }
+  
+  // 見つからない場合はデフォルト（0）
+  return 0;
 }

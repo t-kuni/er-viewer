@@ -37,7 +37,7 @@
 
 ### TypeSpecコメントの修正
 
-- [ ] `scheme/main.tsp`の`LayerOrder`モデルのコメントを修正（行224-225）
+- [x] `scheme/main.tsp`の`LayerOrder`モデルのコメントを修正（行224-225）
   - **現在の実装**:
     ```typescript
     backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
@@ -53,7 +53,7 @@
 
 ### 型定義の再生成
 
-- [ ] 型定義の再生成（念のため）
+- [x] 型定義の再生成（念のため）
   ```bash
   cd /home/kuni/Documents/er-viewer
   npm run generate
@@ -67,7 +67,7 @@
 
 ### layerActionsへのcalculateZIndex関数追加
 
-- [ ] `public/src/actions/layerActions.ts`に`calculateZIndex`関数を追加（ファイル末尾に追加）
+- [x] `public/src/actions/layerActions.ts`に`calculateZIndex`関数を追加（ファイル末尾に追加）
   - **追加内容**:
     ```typescript
     /**
@@ -103,7 +103,7 @@
 
 ### ERCanvasのimport文変更
 
-- [ ] `public/src/components/ERCanvas.tsx`のimport文を修正（行26付近）
+- [x] `public/src/components/ERCanvas.tsx`のimport文を修正（行26付近）
   - **現在の実装**:
     ```typescript
     import { calculateZIndex } from '../utils/zIndexCalculator'
@@ -116,7 +116,7 @@
 
 ### 不要ファイルの削除
 
-- [ ] `public/src/utils/zIndexCalculator.ts`を削除
+- [x] `public/src/utils/zIndexCalculator.ts`を削除
   - **理由**: レイヤー管理のロジックを`layerActions.ts`に集約するため
   - **削除コマンド**:
     ```bash
@@ -127,7 +127,7 @@
 
 ### actionAddLayerItemの修正
 
-- [ ] `public/src/actions/layerActions.ts`の`actionAddLayerItem`関数を修正（行108-138）
+- [x] `public/src/actions/layerActions.ts`の`actionAddLayerItem`関数を修正（行108-138）
   - **現在の実装**: 配列の末尾に追加（`[...items, itemRef]`）
   - **修正後**: 配列の先頭に追加（`[itemRef, ...items]`）
   - **修正内容**:
@@ -161,7 +161,7 @@
 
 ### layerActionsへのcalculateZIndexテスト追加
 
-- [ ] `public/tests/actions/layerActions.test.ts`に`calculateZIndex`のテストを追加（ファイル末尾に追加）
+- [x] `public/tests/actions/layerActions.test.ts`に`calculateZIndex`のテストを追加（ファイル末尾に追加）
   - **追加位置**: `actionToggleLayerPanel`のテストの後（行372付近）
   - **テスト内容**:
     ```typescript
@@ -251,7 +251,7 @@
 
 ### layerActionsの既存テスト修正
 
-- [ ] `public/tests/actions/layerActions.test.ts`の`actionAddLayerItem`テストを修正（行146-171）
+- [x] `public/tests/actions/layerActions.test.ts`の`actionAddLayerItem`テストを修正（行146-171）
   - **現在の実装**:
     ```typescript
     it('アイテムが配列末尾に追加されること', () => {
@@ -290,7 +290,7 @@
 
 ### テスト実行
 
-- [ ] フロントエンドのテスト実行
+- [x] フロントエンドのテスト実行
   ```bash
   cd /home/kuni/Documents/er-viewer/public
   npm run test
@@ -298,7 +298,7 @@
   - すべてのテストがpassすることを確認する
   - 特に`layerActions.test.ts`の`calculateZIndex`テストが通ることを確認
 
-- [ ] バックエンドのテスト実行（念のため）
+- [x] バックエンドのテスト実行（念のため）
   ```bash
   cd /home/kuni/Documents/er-viewer
   npm run test
@@ -307,14 +307,14 @@
 
 ### ビルド確認
 
-- [ ] フロントエンドのビルド
+- [x] フロントエンドのビルド
   ```bash
   cd /home/kuni/Documents/er-viewer/public
   npm run build
   ```
   - エラーが出ないことを確認する
 
-- [ ] バックエンドのビルド確認
+- [x] バックエンドのビルド確認
   ```bash
   cd /home/kuni/Documents/er-viewer
   npm run build

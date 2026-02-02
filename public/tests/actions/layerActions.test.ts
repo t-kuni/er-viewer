@@ -6,11 +6,13 @@ import {
   actionRemoveLayerItem,
   actionSelectItem,
   actionToggleLayerPanel,
+  calculateZIndex,
 } from '../../src/actions/layerActions';
 import type { components } from '../../../lib/generated/api-types';
 
 type ViewModel = components['schemas']['ViewModel'];
 type LayerItemRef = components['schemas']['LayerItemRef'];
+type LayerOrder = components['schemas']['LayerOrder'];
 
 const createInitialViewModel = (): ViewModel => ({
   erDiagram: {
@@ -144,7 +146,7 @@ describe('actionMoveLayerItem', () => {
 });
 
 describe('actionAddLayerItem', () => {
-  it('アイテムが配列末尾に追加されること', () => {
+  it('アイテムが配列先頭に追加されること', () => {
     const vm = createInitialViewModel();
     vm.erDiagram.ui.layerOrder.backgroundItems = [
       { kind: 'rectangle', id: 'rect1' },
@@ -153,8 +155,8 @@ describe('actionAddLayerItem', () => {
     const result = actionAddLayerItem(vm, { kind: 'rectangle', id: 'rect2' }, 'background');
 
     expect(result.erDiagram.ui.layerOrder.backgroundItems).toEqual([
-      { kind: 'rectangle', id: 'rect1' },
       { kind: 'rectangle', id: 'rect2' },
+      { kind: 'rectangle', id: 'rect1' },
     ]);
   });
 
@@ -368,5 +370,74 @@ describe('actionToggleLayerPanel', () => {
     const result = actionToggleLayerPanel(vm);
 
     expect(result.ui.showLayerPanel).toBe(false);
+  });
+});
+
+describe('calculateZIndex', () => {
+  it('backgroundItemsの先頭要素が最も大きいz-indexを持つ', () => {
+    const layerOrder: LayerOrder = {
+      backgroundItems: [
+        { kind: 'rectangle', id: 'rect1' },  // z-index = -10000 + 2 = -9998（最前面）
+        { kind: 'rectangle', id: 'rect2' },  // z-index = -10000 + 1 = -9999
+        { kind: 'rectangle', id: 'rect3' },  // z-index = -10000 + 0 = -10000（最背面）
+      ],
+      foregroundItems: [],
+    };
+
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-9998);
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect2' })).toBe(-9999);
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect3' })).toBe(-10000);
+  });
+
+  it('foregroundItemsの先頭要素が最も大きいz-indexを持つ', () => {
+    const layerOrder: LayerOrder = {
+      backgroundItems: [],
+      foregroundItems: [
+        { kind: 'text', id: 'text1' },  // z-index = 10000 + 2 = 10002（最前面）
+        { kind: 'text', id: 'text2' },  // z-index = 10000 + 1 = 10001
+        { kind: 'text', id: 'text3' },  // z-index = 10000 + 0 = 10000（最背面）
+      ],
+    };
+
+    expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text1' })).toBe(10002);
+    expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text2' })).toBe(10001);
+    expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text3' })).toBe(10000);
+  });
+
+  it('アイテムが見つからない場合は0を返す', () => {
+    const layerOrder: LayerOrder = {
+      backgroundItems: [],
+      foregroundItems: [],
+    };
+
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'unknown' })).toBe(0);
+  });
+
+  it('単一要素の場合は正しいz-indexを返す', () => {
+    const layerOrder: LayerOrder = {
+      backgroundItems: [{ kind: 'rectangle', id: 'rect1' }],
+      foregroundItems: [],
+    };
+
+    // length=1, index=0 → -10000 + (1 - 1 - 0) = -10000
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-10000);
+  });
+
+  it('backgroundとforegroundの両方にアイテムがある場合', () => {
+    const layerOrder: LayerOrder = {
+      backgroundItems: [
+        { kind: 'rectangle', id: 'rect1' },
+        { kind: 'rectangle', id: 'rect2' },
+      ],
+      foregroundItems: [
+        { kind: 'text', id: 'text1' },
+        { kind: 'text', id: 'text2' },
+      ],
+    };
+
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-9999);  // -10000 + (2 - 1 - 0)
+    expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect2' })).toBe(-10000); // -10000 + (2 - 1 - 1)
+    expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text1' })).toBe(10001);       // 10000 + (2 - 1 - 0)
+    expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text2' })).toBe(10000);       // 10000 + (2 - 1 - 1)
   });
 });

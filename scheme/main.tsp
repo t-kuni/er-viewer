@@ -221,8 +221,8 @@ enum LayerPosition {
 }
 
 model LayerOrder {
-  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
-  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
+  backgroundItems: LayerItemRef[]; // 背面アイテム（配列の先頭が前面寄り、末尾が背面寄り）
+  foregroundItems: LayerItemRef[]; // 前面アイテム（配列の先頭が最前面、末尾が背面寄り）
 }
 
 // Reverse index for fast lookup

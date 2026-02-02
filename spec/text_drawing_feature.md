@@ -36,8 +36,8 @@
 テキストのデータ型は`scheme/main.tsp`で定義されている：
 
 * `TextBox`: テキストボックスのモデル（位置、サイズ、内容、スタイル等）
-  - **注意**: `stroke`と`strokeWidth`フィールドは不要のため削除すること
-* `TextAlign`: テキスト配置（left/center/right）
+* `TextAlign`: テキスト水平配置（left/center/right）
+* `TextVerticalAlign`: テキスト垂直配置（top/middle/bottom）
 * `TextAutoSizeMode`: 自動サイズ調整モード（manual/fitContent/fitWidth）
 * `TextOverflowMode`: テキストのはみ出し処理（clip/scroll）
 * `DropShadow`: ドロップシャドウ効果
@@ -51,12 +51,16 @@
 * ツールバーの「テキスト追加」ボタンをクリックすると、viewport中央にテキストボックスを追加
 * 新規作成時のデフォルト値：
   - サイズ: 幅200px × 高さ80px
-  - content: ""（空文字列）
+  - content: "テキスト"
   - fontSize: 16px
   - lineHeight: 24px
   - textAlign: left
+  - textVerticalAlign: top
   - textColor: "#000000"
   - opacity: 1.0
+  - backgroundColor: "#FFFFFF"
+  - backgroundEnabled: false
+  - backgroundOpacity: 1.0
   - paddingX: 8px
   - paddingY: 8px
   - wrap: true
@@ -69,12 +73,14 @@
   - shadow.spread: 0px
   - shadow.color: "#000000"
   - shadow.opacity: 0.3
-* 作成後すぐに編集モードに入る
+* 作成後すぐに選択状態になる
 * レイヤーはデフォルトで前面（foreground）に配置
 
 ### テキストの編集
 
-* 編集開始：選択中のテキストボックスでF2キーを押すと編集モードに入る
+* 編集開始：以下のいずれかの方法で編集モードに入る
+  - 選択中のテキストボックスでF2キーを押す
+  - テキストボックスをダブルクリックする
 * 編集UI：`<textarea>`のオーバーレイで実装
 * 編集中の操作：
   - Enter: 改行（`\n`を挿入）
@@ -105,6 +111,12 @@
 
 プロパティパネルの詳細については「プロパティパネル設計」セクションを参照。
 
+### 空テキストの自動削除
+
+* テキストが選択状態から選択解除された時、そのテキストの`content`が空文字列（`""`）の場合、自動的に削除される
+* 削除は確認ダイアログなしで即座に実行される
+* `GlobalUIState.selectedItem`の変更を監視して実装する
+
 ## レンダリング方法
 
 ### ViewportPortal描画
@@ -117,19 +129,25 @@
 
 ### HTML要素のスタイル
 
-* `<div>`要素で描画
+* `<div>`要素で描画（外側のコンテナ）
 * 位置：`position: absolute; left: ${x}px; top: ${y}px;`
 * サイズ：`width: ${width}px; height: ${height}px;`
-* 改行：`white-space: pre-wrap`
-* 折り返し：`overflow-wrap: anywhere; word-break: break-word;`（`wrap=true`の場合）
-* 透明度：`opacity: ${opacity}`
-* 影：`box-shadow`（`shadow.enabled=true`の場合）
+* 背景色：`backgroundColor: rgba(r, g, b, ${backgroundOpacity})`（`backgroundEnabled=true`の場合）
 * パディング：`padding: ${paddingY}px ${paddingX}px`
-* テキスト配置：`text-align: ${textAlign}`
-* テキスト色：`color: ${textColor}`
 * z-index：レイヤー順序に基づいて計算
 * cursor: `move`（ドラッグ可能を示す）
 * pointerEvents: `auto`（クリック・ドラッグを受け付ける）
+
+* 内側のテキストコンテナ：`<div>`要素で実装
+* 改行：`white-space: pre-wrap`
+* 折り返し：`overflow-wrap: anywhere; word-break: break-word;`（`wrap=true`の場合）
+* テキスト色：`color: rgba(r, g, b, ${opacity})`
+* 影：`text-shadow`（`shadow.enabled=true`の場合）
+* 水平配置：`text-align: ${textAlign}`
+* 垂直配置：`display: flex; align-items: ${verticalAlignValue}`
+  - `top`: `flex-start`
+  - `middle`: `center`
+  - `bottom`: `flex-end`
 * フォント：システムフォント固定（`system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif`）
 
 ### 選択状態の表示
@@ -156,9 +174,14 @@
 * **内容（content）**: `<textarea>`で複数行編集可能
 * **フォントサイズ（fontSize）**: number入力（px）
 * **行の高さ（lineHeight）**: number入力（px）
-* **配置（textAlign）**: トグルボタン（左寄せ/中央/右寄せ）
+* **水平配置（textAlign）**: トグルボタン（左寄せ/中央/右寄せ）
+* **垂直配置（textVerticalAlign）**: トグルボタン（上寄せ/中央/下寄せ）
 * **文字色（textColor）**: カラーピッカー（HEX入力対応、プリセットなし）
-* **透明度（opacity）**: number入力（0〜1）
+* **文字の透明度（opacity）**: スライダー（0〜1）
+* **背景色**:
+  - 有効/無効トグル（backgroundEnabled）
+  - 背景色（backgroundColor）: カラーピッカー（HEX入力対応、矩形と同じ8色プリセット）
+  - 背景の透明度（backgroundOpacity）: スライダー（0〜1）
 * **ドロップシャドウ**:
   - 有効/無効トグル（shadow.enabled）
   - offsetX / offsetY: number入力（px）
@@ -177,8 +200,10 @@
 
 ### UI実装方針
 
-* カラーピッカーはreact-colorfulの`HexColorPicker`と`HexColorInput`を使用（プリセット機能なし）
-* 透明度の入力コンポーネントは矩形プロパティパネルと同様の実装パターンを踏襲
+* 文字色のカラーピッカーはreact-colorfulの`HexColorPicker`と`HexColorInput`を使用（プリセットなし）
+* 背景色のカラーピッカーは`ColorPickerWithPresets`コンポーネントを使用（矩形と同じ8色プリセット）
+* 透明度の入力コンポーネントは矩形プロパティパネルと同様の実装パターン（スライダー）を踏襲
+* 垂直配置ボタンは水平配置ボタンと同様のトグルボタン形式で実装
 
 ## レイヤー管理
 
@@ -219,7 +244,8 @@
 * `actionUpdateTextSize(vm, textId, width, height)`: テキストのサイズを更新
 * `actionUpdateTextBounds(vm, textId, {x, y, width, height})`: テキストの座標とサイズを一括更新（リサイズ時に使用）
 * `actionUpdateTextContent(vm, textId, content)`: テキストの内容を更新
-* `actionUpdateTextStyle(vm, textId, stylePatch)`: テキストのスタイル（fontSize/textAlign/textColor/opacity等）を部分更新
+* `actionUpdateTextStyle(vm, textId, stylePatch)`: テキストのスタイル（fontSize/textAlign/textVerticalAlign/textColor/opacity等）を部分更新
+* `actionUpdateTextBackground(vm, textId, backgroundPatch)`: 背景色のプロパティ（backgroundColor/backgroundEnabled/backgroundOpacity）を部分更新
 * `actionSetTextAutoSizeMode(vm, textId, mode)`: autoSizeModeを変更
 * `actionFitTextBoundsToContent(vm, textId, width, height)`: 測定結果を受け取ってwidth/heightを更新（UI側で測定し、結果を渡す）
 * `actionUpdateTextShadow(vm, textId, shadowPatch)`: ドロップシャドウのプロパティを部分更新
@@ -250,15 +276,32 @@
 
 ### 編集UI
 
-* F2キーで編集モードに入る（選択中のテキストに対してグローバルキーボードイベントをリッスン）
+* 編集モード開始：以下のいずれかで開始
+  - F2キー（選択中のテキストに対してグローバルキーボードイベントをリッスン）
+  - ダブルクリック（テキスト要素の`onDoubleClick`イベント）
 * 編集モードでは`<textarea>`をオーバーレイ表示（選択中のテキストに対してのみ）
 * 編集中のローカル状態（draft）はViewportPortalを描画するコンポーネント内で管理
 * 編集確定時に`actionUpdateTextContent`をdispatch
 * `autoSizeMode`に応じてDOM測定を実行し、`actionUpdateTextBounds`で結果を反映
 
+### 空テキストの自動削除
+
+* `GlobalUIState.selectedItem`の変更を`useEffect`で監視
+* テキストの選択が解除された時（`selectedItem`が変化した時）
+* そのテキストの`content`が空文字列（`""`）の場合、`actionRemoveText`をdispatchして削除
+* 削除は即座に実行（確認なし）
+
+### テキスト追加時の自動選択
+
+* テキスト追加ボタンクリック時：
+  1. 新しいテキストボックスを作成（デフォルト値`content: "テキスト"`）
+  2. `actionAddText`で追加
+  3. `actionSelectItem`で追加したテキストを選択状態にする
+* 選択状態になることで、プロパティパネルが自動的に表示される
+
 ## 実装時の注意事項
 
-* TypeSpecの型定義（`TextBox`モデル）から`stroke`と`strokeWidth`を削除し、`npm run generate`で型を再生成する
+* TypeSpecの型定義に`TextVerticalAlign` enum、`TextBox`モデルに新フィールドを追加し、`npm run generate`で型を再生成する
 * テキストのドラッグ・リサイズ時は、イベントハンドラを`useCallback`で安定させて再レンダリングループを防ぐ
 * 編集中の状態管理はViewportPortalを描画するコンポーネント内でローカル状態として保持し、確定時にStoreに反映
 * テキスト測定はDOM依存のため、UI側で`measureText`相当の処理を実行し、結果をActionに渡す
@@ -266,20 +309,26 @@
 * リサイズ時は座標（x, y）とサイズ（width, height）を同時に更新
 * ViewportPortalで描画するため、viewport座標変換（`useViewport`の`zoom`を考慮）が必要
 * F2キーのグローバルイベントリスナーは、編集モード中は無効化すること（`removeEventListener`で適切にクリーンアップ）
+* 背景色の透明度は、HEXカラーをRGBAに変換して`backgroundOpacity`と組み合わせて適用する
+* 垂直配置は外側のコンテナを`display: flex`にして、内側のテキストコンテナを中央寄せする実装を推奨
+* 空テキストの自動削除は`useEffect`で`selectedItem`の変化を監視し、前回選択されていたテキストのcontentをチェックする
+* ダブルクリックイベントは編集開始のみに使用し、シングルクリックによる選択処理と競合しないように実装する
 
 ## 段階的実装アプローチ
 
-1. TypeSpecの`TextBox`モデルから`stroke`と`strokeWidth`を削除し、型を再生成
-2. `ERCanvas.tsx`に`renderTexts`関数を追加（`renderRectangles`と同様の構造）
+1. TypeSpecに`TextVerticalAlign` enumと新フィールド追加し、型を再生成
+2. `ERCanvas.tsx`に`renderTexts`関数を追加（背景色、垂直配置対応）
 3. テキストを`ViewportPortal`内で描画（背面・前面の2つのPortalで分けて描画）
-4. ツールバー「テキスト追加」ボタンと`actionAddText`を実装、デフォルト値にshadowのオフセット・ブラー等を設定
-5. ドラッグ移動: マウスダウン→ムーブ→アップのイベントハンドリングで`actionUpdateTextPosition`をdispatch
-6. リサイズ: カスタムリサイズハンドルを実装し、`actionUpdateTextBounds`と`actionSetTextAutoSizeMode`をdispatch
-7. 編集UI: F2キーで編集モード開始、`<textarea>`をViewportPortal内に表示、確定時に`actionUpdateTextContent`をdispatch
-8. プロパティパネル実装（テキスト専用のプロパティパネルコンポーネントを作成、枠線関連UIを削除）
-9. autoSizeMode対応: 測定処理とボタンを実装
-10. レイヤー管理統合: 作成時に`actionAddLayerItem`、削除時に`actionRemoveLayerItem`を呼び出す
-11. `TextNode.tsx`コンポーネントと`convertToReactFlowTexts`関数を削除（不要になるため）
+4. ツールバー「テキスト追加」ボタンと`actionAddText`を実装、デフォルト値に新フィールドを設定
+5. テキスト追加時の自動選択を実装（`actionSelectItem`をdispatch）
+6. ドラッグ移動: マウスダウン→ムーブ→アップのイベントハンドリングで`actionUpdateTextPosition`をdispatch
+7. ダブルクリックイベント実装: `onDoubleClick`で編集モード開始
+8. リサイズ: カスタムリサイズハンドルを実装し、`actionUpdateTextBounds`と`actionSetTextAutoSizeMode`をdispatch
+9. 編集UI: F2キー・ダブルクリックで編集モード開始、`<textarea>`をViewportPortal内に表示
+10. プロパティパネル実装（背景色設定、垂直配置ボタン、透明度の分離を追加）
+11. 空テキストの自動削除実装（`useEffect`で`selectedItem`を監視）
+12. autoSizeMode対応: 測定処理とボタンを実装
+13. レイヤー管理統合: 作成時に`actionAddLayerItem`、削除時に`actionRemoveLayerItem`を呼び出す
 
 ## 懸念事項・確認事項
 
@@ -289,6 +338,14 @@
 * テキスト測定のブラウザ間差異（フォント・レンダリングエンジンによるズレ）
 * `autoSizeMode=fitContent`時のwidth/height測定精度
 * ViewportPortal内でのドラッグ・リサイズ時のviewport座標変換の正確性
+* 背景色と垂直配置を追加することでレンダリングパフォーマンスへの影響（flexboxの使用）
+* 空テキスト自動削除のタイミングで、ユーザーが意図せず削除してしまう可能性（Undo機能がないため）
+
+### 解決済みの懸念
+
+* **透明度の分離**: 文字（opacity）と背景（backgroundOpacity）で別々に設定可能に変更済み
+* **ダブルクリックの実装**: React FlowのonDoubleClickイベントで実装可能
+* **プロパティパネルの長さ**: スクロールで対応可能
 
 ### 今後の検討事項
 
@@ -297,3 +354,4 @@
 * テキストのz-index（重なり順）はレイヤーパネルで管理するため、当面は不要
 * テキストの角丸設定（borderRadius）
 * フォント選択機能（MVPでは固定フォントで対応）
+* Undo/Redo機能（空テキスト自動削除の誤操作対策）

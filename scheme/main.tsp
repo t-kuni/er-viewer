@@ -83,6 +83,13 @@ enum TextAlign {
   right,
 }
 
+// Text vertical alignment options
+enum TextVerticalAlign {
+  top,
+  middle,
+  bottom,
+}
+
 // Text auto-size behavior
 enum TextAutoSizeMode {
   manual,      // ユーザーのwidth/heightを維持
@@ -119,9 +126,14 @@ model TextBox {
   fontSize: float64;    // px
   lineHeight: float64;  // px
   textAlign: TextAlign;
+  textVerticalAlign: TextVerticalAlign;
 
   textColor: string;    // 文字色（例: "#000000"）
-  opacity: float64;     // テキスト全体の不透明度（0..1）
+  opacity: float64;     // 文字の不透明度（0..1）
+
+  backgroundColor: string;      // 背景色（例: "#FFFFFF"）
+  backgroundEnabled: boolean;   // 背景色の有効/無効
+  backgroundOpacity: float64;   // 背景の不透明度（0..1）
 
   paddingX: float64;
   paddingY: float64;

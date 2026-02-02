@@ -106,12 +106,6 @@ npm run dev
 open http://localhost:5173
 ```
 
-### claude起動
-
-```
-claude --max-turns 1000 --dangerously-skip-permissions --mcp-config mcp-servers.json
-```
-
 ### コンテナイメージ更新
 
 ```bash
@@ -153,13 +147,4 @@ docker push tkuni83/er-viewer
 
 ```
 テストのエラーの原因を調査してください
-```
-
-## 開発者ツールで任意の要素をホバー状態にする方法
-
-Elementsタブで任意の要素を選択した状態でConsoleタブで以下のコードを実行する
-
-```javascript
-allow paste
-$0.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
 ```

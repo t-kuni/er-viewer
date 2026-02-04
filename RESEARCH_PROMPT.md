@@ -1,320 +1,217 @@
-# 自己参照リレーションの表示改善に関する技術調査
+# リサーチプロンプト
 
-## リサーチ要件
+## リサーチ内容
 
-以下の課題を解決するための技術調査を行いたい：
+Shift + ドラッグで複数のオブジェクトを選択し、更にそれをドラッグするとまとめて移動できるようにしたい。どのように実装すればよいか検討してほしい。
 
-再起しているリレーションの線（参照先と参照元が同一テーブルのリレーション）について、エンティティの上部から下部（あるいは逆）に向かって線が引かれており見にくいわかりにくい。これをもっとわかりやすい表現に修正したい。どういうUIがよいか？またそれをReact Flowで実現するにはどうすればよいか？
+### 要件
+
+* 現状はShift + ドラッグで複数のエンティティを選択はできる。（恐らくReact Flowの機能）。しかしその後、それらをドラッグするとドラッグ中は動かせるが、ドロップすると１つのエンティティだけ移動後の位置になり、他のエンティティは移動前の位置に戻ってしまう。
+* 複数選択時は、DDL表示機能やテキストのプロパティ変更機能などは不要。ドラッグで位置だけ変更できればよい。
+* 状態は可能な限りViewModelで管理する
 
 ## プロジェクト概要
 
-ER Diagram Viewerは、MySQLデータベースからER図をリバースエンジニアリングし、ブラウザ上で視覚的に表示・編集できるWebアプリケーション。
+ER Diagram Viewerは、RDBからER図をリバースエンジニアリングし、ブラウザ上で視覚的に表示・編集できるWebアプリケーションです。
 
 ### 技術スタック
 
-- **バックエンド**: Node.js + Express + TypeScript + MySQL
-- **フロントエンド**: TypeScript + Vite + React 18 + React Flow v12
-- **データベース**: MySQL 8
-- **開発環境**: Docker Compose（DB用）+ npm run dev（アプリケーション用）
-- **API定義**: TypeSpec
-- **状態管理**: 自前Store + React `useSyncExternalStore`（ライブラリ非依存）
+* フロントエンド
+  - React 19
+  - TypeScript 5
+  - @xyflow/react (React Flow) v12.10.0
+  - Vite 5
+* バックエンド
+  - Node.js
+  - TypeScript
+* 状態管理
+  - 自前Store + React useSyncExternalStore
+  - ViewModelベースの単一状態ツリー
 
-### 現状のフェーズ
+### アーキテクチャ
 
-- プロトタイピング段階でMVPを作成中
-- 実現可能性を検証したいのでパフォーマンスやセキュリティは考慮しない
-- 余計な機能も盛り込まない
-- AIが作業するため学習コストは考慮不要
+* フロントエンドは純粋関数Action（Flux風）で状態更新を実装
+* すべての状態は`ViewModel`型で一元管理
+* React Flowを使用してER図をレンダリング
+* ノード（エンティティ）はReact Flowのノード
 
-## 現在のER図レンダリングの実装状況
+## 現状の実装状況
 
-### React Flowを使用したER図表示
+### 選択機能
 
-本アプリケーションはReact Flow v12（`@xyflow/react`）を使用してER図を表示している。詳細は `spec/frontend_er_rendering.md` を参照。
+* 単一エンティティの選択は実装済み
+  - エンティティを個別に選択可能
+  - 選択状態は`GlobalUIState.selectedItem: LayerItemRef | null`で管理
+  - `LayerItemRef`は`{ kind: 'entity' | 'rectangle' | 'text', id: string }`
 
-**技術選定**:
-- **UIフレームワーク**: React
-- **図エディタ基盤**: React Flow
-- **自動レイアウト**: elkjs（任意・後付け可能）
-- **ビルドツール**: Vite
-- **言語**: TypeScript
+### React Flowの挙動
 
-### エンティティノード（Custom Node）
+* Shift + ドラッグで複数のエンティティノードを選択できる（React Flowの機能）
+* しかし、ドラッグすると以下の問題が発生：
+  - ドラッグ中は複数のノードが一緒に動く
+  - ドロップ時に`onNodeDragStop`イベントが発火
+  - 現在の実装では1つのノードの位置のみをStoreに保存
+  - その結果、1つのノードだけが移動し、他のノードは元の位置に戻る
 
-- **表示内容**
-  - テーブル名（ヘッダー）
-  - カラム一覧（スクロール可能）
-  - カラム名のみ表示（型名は非表示）
-  - PK/FKの視覚的区別（アイコンまたは色分け）
-
-- **インタラクション**
-  - ドラッグ: 位置移動
-  - クリック: 選択状態の切替
-  - ホバー: ハイライト表示
-
-### リレーションエッジ（Custom Edge）
-
-**現在の表示形式**:
-- 直角ポリライン（階段状）
-- React Flowの`smoothstep`エッジタイプを使用
-- MVPでは標準のルーティングを使用（エンティティの重複は許容）
-- 将来的に障害物回避ルーティングを追加可能
-
-**視覚表現**:
-- 矢印: toTable側に表示
-- 選択/ホバー時のハイライト
-- 制約名は表示しない（データは保持するが表示しない）
-
-**接続点**:
-- 各エンティティノードに4方向（Top/Right/Bottom/Left）のハンドルを配置
-- エンティティ間の位置関係に応じて最適なハンドルを自動選択
-- ノード移動時（ドラッグ完了時）に接続ポイントを動的に再計算
-
-### データ構造
-
-アプリケーション全体の状態は`ViewModel`で管理され、純粋関数によるAction層で更新される。型定義の詳細は `scheme/main.tsp` に記載されている。
-
-**RelationshipEdgeViewModel**:
 ```typescript
-model RelationshipEdgeViewModel {
-  id: string; // UUID (リレーションシップID)
-  sourceEntityId: string; // エンティティID (UUID)
-  sourceColumnId: string; // カラムID (UUID)
-  targetEntityId: string; // エンティティID (UUID)
-  targetColumnId: string; // カラムID (UUID)
-  constraintName: string;
+// 現在のonNodeDragStopの実装（ERCanvas.tsx より抜粋）
+const onNodeDragStop = useCallback(
+  (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
+    if (node.type === 'entityNode') {
+      // 1つのノードの位置のみ更新
+      dispatch(actionUpdateNodePositions, [{ 
+        id: node.id, 
+        x: node.position.x, 
+        y: node.position.y 
+      }])
+      
+      // ドラッグされたノードに接続されているエッジを抽出
+      const connectedEdges = edges.filter(
+        (edge) => edge.source === node.id || edge.target === node.id
+      )
+
+      if (connectedEdges.length === 0) {
+        // ドラッグ終了をdispatch
+        dispatch(actionStopEntityDrag)
+        return
+      }
+
+      // エッジハンドル再計算...
+      dispatch(actionStopEntityDrag)
+    }
+  },
+  [edges, getNodes, setEdges, dispatch]
+)
+```
+
+### エッジ再計算（単一ノード対応）
+
+* 現状は1つのノードの移動に対してのみエッジハンドル位置を再計算
+* 複数ノードを移動した場合、すべての関連エッジを再計算する必要がある
+
+## 型定義（scheme/main.tsp より抜粋）
+
+```typescript
+// Layer management
+enum LayerItemKind {
+  entity,    // エンティティ（ER図レイヤー固定、編集不可）
+  relation,  // リレーション（ER図レイヤー固定、編集不可）
+  rectangle, // 矩形（前面・背面に配置可能）
+  text,      // テキスト（前面・背面に配置可能）
+}
+
+model LayerItemRef {
+  kind: LayerItemKind;
+  id: string; // UUID
+}
+
+// Global UI state
+model GlobalUIState {
+  selectedItem: LayerItemRef | null; // 選択中のアイテム（現状は単一のみ）
+  showBuildInfoModal: boolean;
+  showLayerPanel: boolean;
+  showDatabaseConnectionModal: boolean;
+  showHistoryPanel: boolean;
+  layoutOptimization: LayoutOptimizationState;
+}
+
+// Entity node view model (used by React Flow Node)
+model EntityNodeViewModel {
+  id: string; // UUID (エンティティID)
+  name: string;
+  x: float64;
+  y: float64;
+  width: float64;
+  height: float64;
+  columns: Column[];
+  ddl: string;
 }
 ```
 
-**React Flowへの変換**:
+## React Flowの設定
+
 ```typescript
-RelationshipEdgeViewModel → Edge {
-  id: edge.id,  // UUID
-  type: 'relationshipEdge',  // Custom Edge
-  source: edge.sourceEntityId,  // Entity UUID
-  target: edge.targetEntityId,  // Entity UUID
-  data: {
-    sourceColumnId: edge.sourceColumnId,  // Column UUID
-    targetColumnId: edge.targetColumnId,  // Column UUID
-    constraintName: edge.constraintName
-  }
+// ERCanvas.tsx より抜粋
+<ReactFlow
+  nodes={nodes}
+  edges={edges}
+  onNodesChange={onNodesChange}
+  onEdgesChange={onEdgesChange}
+  onNodeDragStart={onNodeDragStart}
+  onNodeDragStop={onNodeDragStop}
+  onSelectionChange={handleSelectionChange}
+  onPaneClick={handlePaneClick}
+  onMoveStart={handleMoveStart}
+  onMoveEnd={handleMoveEnd}
+  nodeTypes={nodeTypes}
+  edgeTypes={edgeTypes}
+  elevateNodesOnSelect={false}
+  elevateEdgesOnSelect={false}
+  zIndexMode="manual"
+  panOnDrag={true}
+  nodesDraggable={!effectiveSpacePressed}
+  fitView
+>
+```
+
+## 関連Action
+
+### actionUpdateNodePositions
+
+```typescript
+// 既に配列を受け取る設計（dataActions.ts より抜粋）
+export function actionUpdateNodePositions(
+  viewModel: ViewModel,
+  updates: Array<{ id: string; x: number; y: number }>
+): ViewModel {
+  // 複数ノードの位置を一括更新
 }
 ```
 
-**自己参照リレーションの特徴**:
-- `sourceEntityId` と `targetEntityId` が同一のエンティティを指す
-- 例: `users`テーブルの`manager_id`が同じ`users`テーブルの`id`を参照するケース
+### actionStopEntityDrag
 
-### ホバーインタラクション
+```typescript
+// 現状は引数なし（hoverActions.ts より抜粋）
+export function actionStopEntityDrag(viewModel: ViewModel): ViewModel {
+  // ドラッグ終了処理
+}
+```
 
-ER図の理解を助けるため、エンティティ・リレーション・カラムへのホバー時に関連要素をハイライト表示する機能が実装されている。詳細は `spec/frontend_er_rendering.md` の「ホバーインタラクション仕様」セクションを参照。
+## 検討が必要な点
 
-**エンティティノードへのホバー**:
-- ホバー中のエンティティノード
-- そのエンティティに接続されている全てのリレーションエッジ
-- それらのリレーションエッジの反対側に接続されているエンティティノード
+1. **複数選択時の位置保存**
+   - ドロップ時に選択中の全ノードの位置を取得する方法
+   - React Flowの`getNodes()`で全選択ノードの位置を取得できるか？
+   - どのようにして選択中のノードを判別するか？
 
-**リレーションエッジへのホバー**:
-- ホバー中のリレーションエッジ
-- エッジの両端（source/target）のエンティティノード
-- エッジが参照している両端のカラム
+2. **エッジ再計算（複数ノード対応）**
+   - 複数のエンティティを移動した場合、接続されているエッジのハンドル再計算をどうすべきか？
+   - 現在は1つのノードの接続エッジのみ再計算しているが、複数ノードの場合は？
 
-**カラムへのホバー**:
-- ホバー中のカラム
-- そのカラムが関係する全てのリレーションエッジ
-- それらのリレーションエッジの反対側に接続されているエンティティノード
-- 反対側のエンティティの対応カラム
+3. **状態管理**
+   - 複数選択の状態をどう管理すべきか？
+   - `selectedItem: LayerItemRef | null`を配列に変更すべきか？（今回のスコープ外かもしれない）
 
-## 課題の詳細
+4. **パフォーマンス**
+   - ドラッグ中はReact Flow内部状態を使用し、確定時のみStoreに反映（現状の方針を維持）
 
-### 現在の自己参照リレーションの表示における問題
+## React Flowの公式ドキュメントとの整合性
 
-自己参照リレーション（sourceEntityIdとtargetEntityIdが同一）の場合、以下の問題が発生している：
+React Flow v12の公式ドキュメントを参照し、以下を検討してください：
 
-**見にくい・わかりにくい点**:
-- エンティティの上部から下部（あるいは逆）に向かって線が引かれている
-- 同一エンティティ内でのリレーションであることが視覚的に分かりづらい
-- 他のエンティティ間のリレーションと区別が付きにくい
-- エンティティの内側や外側に線が引かれる位置によって見え方が異なる
+* 複数選択されたノードをドラッグする際のベストプラクティス
+* `onSelectionDragStop`などの専用イベントの有無と使い方
+* `onNodeDragStop`で複数ノードの位置を取得する方法
+* `getNodes()`での選択ノード取得方法（`node.selected`プロパティの利用など）
 
-**React Flowの標準動作**:
-- React Flowは通常、source（始点）とtarget（終点）が異なるノードを想定している
-- 同一ノード間のエッジ（自己参照エッジ）も描画可能だが、デフォルトのルーティングは最適化されていない
-- 現在は`smoothstep`エッジタイプを使用しており、自己参照時の表示が最適化されていない
+## 期待する調査結果
 
-## 検討してほしいこと
+以下の点について、実装可能な具体的な方法を提示してください：
 
-### 1. 自己参照リレーションのUI表現パターン
+1. React Flowで複数選択されたノードをまとめてドラッグし、ドロップ時に全ノードの位置を保存する方法
+2. 選択中のノードを判別する方法（React Flowの内部状態の活用方法）
+3. 複数ノード移動時のエッジ再計算の実装方法
+4. 必要に応じて、`actionStopEntityDrag`の変更案（移動したエンティティID配列を受け取るなど）
+5. 考慮すべきエッジケースと制約事項
 
-**他のER図ツールでの表現方法**:
-- データベース設計ツール（例: MySQL Workbench, pgAdmin, dbdiagram.io, draw.ioなど）では自己参照リレーションをどのように表現しているか？
-- ER図以外のダイアグラムツール（例: UMLツール、フローチャートツール）で自己参照関係をどのように表現しているか？
-- 一般的なベストプラクティスは何か？
-
-**視覚的に分かりやすい表現の候補**:
-- ループ型（エンティティの外側を回る円弧やループ）
-- U字型（エンティティの横から出て回り込んで戻る）
-- 矩形ループ型（エンティティの周囲を矩形状に回る）
-- アイコン型（自己参照を示す特別なアイコンやシンボル）
-- その他の創造的なアプローチ
-
-**考慮すべきポイント**:
-- ユーザーが一目で自己参照リレーションだと認識できるか
-- 他のリレーションと視覚的に区別が付きやすいか
-- エンティティの配置やサイズに影響を与えないか
-- カラムへのホバーインタラクションと相性が良いか
-- 複数の自己参照リレーションが存在する場合の扱い
-
-### 2. React Flow v12での実現方法
-
-**React Flowでの自己参照エッジのカスタマイズ**:
-- React Flow v12で自己参照エッジをカスタマイズする方法は？
-- Custom Edgeコンポーネントでどのようなカスタマイズが可能か？
-- エッジのパスを独自に計算する方法は？
-- 自己参照エッジ専用のエッジタイプを作成する方法は？
-
-**パス計算とSVG描画**:
-- 円弧や曲線を描画するSVGパスの生成方法は？
-- ループ型のパスを計算するアルゴリズムは？
-- エンティティのサイズや位置に応じてパスを動的に調整する方法は？
-- React Flowのエッジがsourceとtargetが同一の場合、どのような座標情報を提供するか？
-
-**ハンドルの配置**:
-- 自己参照リレーションの場合、sourceハンドルとtargetハンドルをどの位置に配置するべきか？
-- 同一ノードの異なるハンドル（例: TopとBottom、LeftとRight）を接続する方法は？
-- ハンドルの位置を動的に計算する方法は？
-
-**矢印とラベルの配置**:
-- ループ型のエッジに矢印を適切に配置する方法は？
-- 制約名やリレーション情報をループエッジに表示する場合の配置方法は？
-- React FlowのMarkerEndやMarkerStartをループエッジで使用する方法は？
-
-### 3. ホバーインタラクションとの統合
-
-**自己参照リレーションのホバー時の挙動**:
-- 自己参照リレーションのエッジにホバーした場合、どのようにハイライトするべきか？
-- 同一エンティティのハイライト表示が重複する場合の扱いは？
-- カラムへのホバー時、自己参照リレーションの対応カラムをどのようにハイライトするべきか？
-
-**視覚的フィードバック**:
-- ループエッジのハイライト表示方法は？
-- z-index制御との整合性をどう保つか？
-- 通常のリレーションと自己参照リレーションのハイライトを区別するべきか？
-
-### 4. 複数の自己参照リレーションの扱い
-
-**同一エンティティに複数の自己参照リレーションが存在する場合**:
-- 例: `employees`テーブルに`manager_id`と`mentor_id`の両方が`employees.id`を参照するケース
-- 複数のループエッジを同時に表示する方法は？
-- ループエッジが重ならないようにオフセットを付ける方法は？
-- ループの大きさや配置を動的に調整する方法は？
-
-### 5. 実装の段階的アプローチ
-
-**フェーズ1: 基本的な自己参照エッジの実装**
-- 自己参照エッジを検出する方法（sourceEntityId === targetEntityId）
-- 単純なループ型エッジの実装
-- 基本的なパス計算アルゴリズム
-
-**フェーズ2: 視覚的な改善**
-- ループの形状やサイズの最適化
-- 矢印とラベルの配置調整
-- ホバーインタラクションとの統合
-
-**フェーズ3: 複雑なケースへの対応**
-- 複数の自己参照リレーションの同時表示
-- エンティティのサイズや位置変更への追従
-- パフォーマンス最適化
-
-このような段階的アプローチで問題ないか？より効率的な順序はあるか？
-
-### 6. 参考実装とライブラリ
-
-**React Flowのエコシステム**:
-- React Flow v12の公式ドキュメントに自己参照エッジの実装例はあるか？
-- React Flowのサンプルコードやコミュニティで自己参照エッジの実装例はあるか？
-- React Flowのプラグインやエクステンションで自己参照エッジをサポートするものはあるか？
-
-**他のダイアグラムライブラリ**:
-- React FlowではなくJointJS、Cytoscape.js、D3.jsなどの他のライブラリでは自己参照エッジをどのように扱っているか？
-- 他のライブラリのアプローチからReact Flowで応用できる知見はあるか？
-
-**SVGパス生成ライブラリ**:
-- SVGの円弧や曲線パスを簡単に生成できるライブラリはあるか？
-- React Flowと組み合わせて使用できるか？
-
-## 期待する回答
-
-以下について、具体的な見解と実装案を提示してほしい：
-
-### 1. 自己参照リレーションのUI表現の推奨案
-
-- 他のER図ツールやダイアグラムツールでの一般的な表現方法
-- 視覚的に分かりやすい表現パターンの具体例（図解があれば理想的）
-- 推奨する表現方法とその理由
-- ユーザビリティの観点からの評価
-
-### 2. React Flow v12での実装方法
-
-- 自己参照エッジを検出する方法（コード例）
-- Custom Edgeコンポーネントの実装方法（具体的なTypeScriptコード）
-- ループ型パスのSVG生成方法（パス計算アルゴリズムとコード例）
-- sourceハンドルとtargetハンドルの配置方法
-- 矢印（MarkerEnd）の配置方法
-- React Flow v12の最新APIに準拠した実装例
-
-### 3. ホバーインタラクションとの統合
-
-- 自己参照エッジのホバー時の挙動仕様
-- ハイライト表示の実装方法
-- z-index制御との整合性確保方法
-- カラムホバー時の自己参照リレーションの扱い
-
-### 4. 複数の自己参照リレーションへの対応
-
-- 複数のループエッジを同時に表示する方法
-- エッジ同士が重ならないようにするオフセット計算方法
-- ループサイズの動的調整方法
-
-### 5. 実装計画
-
-- 段階的な実装の推奨順序
-- 各フェーズで実装すべき具体的な内容
-- 実装時の注意点（React Flow、TypeScript、SVG）
-
-### 6. 参考実装とコード例
-
-- React Flow公式ドキュメントや公式サンプルでの自己参照エッジの実装例
-- コミュニティやGitHubでの実装例（ある場合）
-- 他のダイアグラムライブラリでの参考実装
-- 実際に動作するコードスニペット（可能な範囲で）
-
-## 参考情報
-
-### 関連仕様書
-
-- `spec/frontend_er_rendering.md`: フロントエンドER図レンダリング仕様（React Flow、エンティティノード、リレーションエッジ、ホバーインタラクション）
-- `spec/frontend_state_management.md`: フロントエンド状態管理仕様（状態設計、Action層、パフォーマンス最適化）
-- `spec/viewmodel_based_api.md`: ViewModelベースAPI仕様（ViewModelの構造）
-
-### TypeSpecスキーマ
-
-- `scheme/main.tsp`: アプリケーション全体の型定義（423行）
-  - `RelationshipEdgeViewModel`: リレーションエッジの型定義（176-184行）
-  - `EntityNodeViewModel`: エンティティノードの型定義（165-174行）
-  - `ERDiagramViewModel`: ER図全体の型定義（324-333行）
-
-### 使用しているライブラリ
-
-- React 18
-- React Flow v12（`@xyflow/react`）
-- TypeScript
-- Vite
-- TypeSpec（API型定義）
-
-## 補足
-
-- 本プロジェクトはMVPフェーズであり、完璧な解決策よりも実用的な解決策を優先する
-- パフォーマンスは重要だが、セキュリティや後方互換性は考慮不要
-- 実装の学習コストは問題ない（AIが実装するため）
-- ユーザーが自己参照リレーションを直感的に理解できる視覚表現を実現したい
+必要に応じて、React Flow v12のドキュメントやサンプルコードを参照してください。

@@ -297,16 +297,28 @@ function ERCanvasInner({
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
       if (node.type === 'entityNode') {
-        // Storeのノード位置を更新
-        dispatch(actionUpdateNodePositions, [{ 
-          id: node.id, 
-          x: node.position.x, 
-          y: node.position.y 
-        }])
+        // 1) 選択中のentityNodeを全取得
+        const selectedEntityNodes = getNodes().filter(
+          (n) => n.type === 'entityNode' && n.selected
+        )
         
-        // ドラッグされたノードに接続されているエッジを抽出
+        // フォールバック: 選択が取れていないケースは、ドラッグ対象ノードだけ確定
+        const movedNodes = selectedEntityNodes.length > 0 ? selectedEntityNodes : [node]
+        
+        // 2) Store(ViewModel)へ一括確定
+        dispatch(
+          actionUpdateNodePositions,
+          movedNodes.map((n) => ({
+            id: n.id,
+            x: n.position.x,
+            y: n.position.y,
+          }))
+        )
+        
+        // 3) 影響を受けるエッジを抽出
+        const movedIds = new Set(movedNodes.map((n) => n.id))
         const connectedEdges = edges.filter(
-          (edge) => edge.source === node.id || edge.target === node.id
+          (edge) => movedIds.has(edge.source) || movedIds.has(edge.target)
         )
 
         if (connectedEdges.length === 0) {
@@ -315,10 +327,10 @@ function ERCanvasInner({
           return
         }
 
-        // 全ノードの現在位置とサイズを取得
+        // 4) 全ノードの現在位置とサイズを取得
         const currentNodes = getNodes()
 
-        // 接続エッジのハンドルを再計算
+        // 5) 接続エッジのハンドルを再計算
         const updatedEdges = edges.map((edge) => {
           if (!connectedEdges.find((e) => e.id === edge.id)) {
             return edge // 変更不要

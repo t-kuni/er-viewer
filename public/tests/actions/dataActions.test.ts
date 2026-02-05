@@ -272,6 +272,144 @@ describe('dataActions', () => {
 
       expect(result).toBe(viewModel);
     });
+
+    it('一部のノードのみ更新できる', () => {
+      const viewModel: ViewModel = {
+        erDiagram: {
+          nodes: {
+            'entity-1': {
+              id: 'entity-1',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [],
+              ddl: '',
+            },
+            'entity-2': {
+              id: 'entity-2',
+              name: 'posts',
+              x: 300,
+              y: 400,
+              columns: [],
+              ddl: '',
+            },
+            'entity-3': {
+              id: 'entity-3',
+              name: 'comments',
+              x: 500,
+              y: 600,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: { backgroundItems: [], foregroundItems: [] },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+        },
+        buildInfo: {
+          data: null,
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const result = actionUpdateNodePositions(viewModel, [
+        { id: 'entity-1', x: 150, y: 250 },
+        { id: 'entity-2', x: 350, y: 450 },
+      ]);
+
+      // 指定したノードのみ更新される
+      expect(result.erDiagram.nodes['entity-1'].x).toBe(150);
+      expect(result.erDiagram.nodes['entity-1'].y).toBe(250);
+      expect(result.erDiagram.nodes['entity-2'].x).toBe(350);
+      expect(result.erDiagram.nodes['entity-2'].y).toBe(450);
+      
+      // 指定しなかったノードは変更されない
+      expect(result.erDiagram.nodes['entity-3'].x).toBe(500);
+      expect(result.erDiagram.nodes['entity-3'].y).toBe(600);
+    });
+
+    it('存在するノードと存在しないノードIDを含む場合、存在するノードのみ更新される', () => {
+      const viewModel: ViewModel = {
+        erDiagram: {
+          nodes: {
+            'entity-1': {
+              id: 'entity-1',
+              name: 'users',
+              x: 100,
+              y: 200,
+              columns: [],
+              ddl: '',
+            },
+            'entity-2': {
+              id: 'entity-2',
+              name: 'posts',
+              x: 300,
+              y: 400,
+              columns: [],
+              ddl: '',
+            },
+          },
+          edges: {},
+          rectangles: {},
+          ui: {
+            hover: null,
+            highlightedNodeIds: [],
+            highlightedEdgeIds: [],
+            highlightedColumnIds: [],
+            layerOrder: { backgroundItems: [], foregroundItems: [] },
+          },
+          loading: false,
+        },
+        ui: {
+          selectedItem: null,
+          showBuildInfoModal: false,
+          showLayerPanel: false,
+        },
+        buildInfo: {
+          data: null,
+          loading: false,
+          error: null,
+        },
+      };
+      
+      const result = actionUpdateNodePositions(viewModel, [
+        { id: 'entity-1', x: 150, y: 250 },
+        { id: 'non-existent', x: 999, y: 999 },
+      ]);
+
+      // 存在するノードのみ更新される
+      expect(result.erDiagram.nodes['entity-1'].x).toBe(150);
+      expect(result.erDiagram.nodes['entity-1'].y).toBe(250);
+      
+      // 他のノードは変更されない
+      expect(result.erDiagram.nodes['entity-2'].x).toBe(300);
+      expect(result.erDiagram.nodes['entity-2'].y).toBe(400);
+      
+      // エラーが発生しない
+      expect(result.erDiagram.nodes['non-existent']).toBeUndefined();
+    });
+
+    it('空配列を渡した場合、ViewModelが変更されない', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateNodePositions(viewModel, []);
+
+      // 同一参照が返される
+      expect(result).toBe(viewModel);
+    });
   });
 
   describe('actionSetLoading', () => {

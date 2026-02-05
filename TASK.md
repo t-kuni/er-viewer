@@ -14,7 +14,7 @@
 
 ### フロントエンド修正
 
-#### - [ ] ERCanvas.tsx の `onNodeDragStop` ハンドラーを修正
+#### - [x] ERCanvas.tsx の `onNodeDragStop` ハンドラーを修正
 
 **ファイル**: `public/src/components/ERCanvas.tsx`
 
@@ -107,7 +107,7 @@ const onNodeDragStop = useCallback(
 
 ---
 
-#### - [ ] React Flowの設定確認（念のため）
+#### - [x] React Flowの設定確認（念のため）
 
 **ファイル**: `public/src/components/ERCanvas.tsx`
 
@@ -127,7 +127,7 @@ const onNodeDragStop = useCallback(
 
 ### テストコード作成
 
-#### - [ ] 複数エンティティドラッグのテストを追加
+#### - [x] 複数エンティティドラッグのテストを追加
 
 **ファイル**: `public/tests/actions/dataActions.test.ts`
 
@@ -188,7 +188,7 @@ describe('actionUpdateNodePositions - 複数ノード更新', () => {
 
 ### ビルド確認
 
-#### - [ ] フロントエンドのビルド確認
+#### - [x] フロントエンドのビルド確認
 
 **実行コマンド**:
 
@@ -206,7 +206,7 @@ npm run build
 
 ### テスト実行
 
-#### - [ ] フロントエンドのテスト実行
+#### - [x] フロントエンドのテスト実行
 
 **実行コマンド**:
 

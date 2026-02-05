@@ -38,7 +38,7 @@
 
 ## 実装タスク
 
-### - [ ] RectanglePropertyPanel.tsx の透明度UIを変換ロジックに対応
+### - [x] RectanglePropertyPanel.tsx の透明度UIを変換ロジックに対応
 
 **ファイル**: `public/src/components/RectanglePropertyPanel.tsx`
 
@@ -80,7 +80,7 @@
    };
    ```
 
-### - [ ] TextPropertyPanel.tsx の文字の透明度UIを変換ロジックに対応
+### - [x] TextPropertyPanel.tsx の文字の透明度UIを変換ロジックに対応
 
 **ファイル**: `public/src/components/TextPropertyPanel.tsx`
 
@@ -122,7 +122,7 @@
    };
    ```
 
-### - [ ] TextPropertyPanel.tsx の背景の透明度UIを変換ロジックに対応
+### - [x] TextPropertyPanel.tsx の背景の透明度UIを変換ロジックに対応
 
 **ファイル**: `public/src/components/TextPropertyPanel.tsx`
 
@@ -164,7 +164,7 @@
    };
    ```
 
-### - [ ] ERCanvas.tsx の矩形デフォルト値を変更
+### - [x] ERCanvas.tsx の矩形デフォルト値を変更
 
 **ファイル**: `public/src/components/ERCanvas.tsx`
 
@@ -182,19 +182,19 @@ opacity: 0.5,
 opacity: 1.0,
 ```
 
-### - [ ] コード生成を実行
+### - [x] コード生成を実行
 
 **コマンド**: `npm run generate`
 
 **説明**: `scheme/main.tsp`から型定義を生成します。
 
-### - [ ] テストを実行
+### - [x] テストを実行
 
 **コマンド**: `npm run test`
 
 **説明**: 実装変更後にテストが通ることを確認します。
 
-### - [ ] ビルド確認
+### - [x] ビルド確認
 
 **コマンド**: `npm run build` または適切なビルドコマンド
 

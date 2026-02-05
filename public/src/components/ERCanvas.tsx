@@ -886,7 +886,7 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
       fill: '#E3F2FD',
       stroke: '#90CAF9',
       strokeWidth: 2,
-      opacity: 0.5,
+      opacity: 1.0,
     }
     dispatch(actionAddRectangle, newRectangle)
   }

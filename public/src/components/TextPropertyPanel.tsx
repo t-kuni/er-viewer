@@ -70,12 +70,14 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   };
 
   const handleBackgroundOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const backgroundOpacity = parseFloat(e.target.value);
+    const transparencyValue = parseFloat(e.target.value);
+    const backgroundOpacity = 1 - transparencyValue;
     dispatch(actionUpdateTextBackground, textId, { backgroundOpacity });
   };
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const opacity = parseFloat(e.target.value);
+    const transparencyValue = parseFloat(e.target.value);
+    const opacity = 1 - transparencyValue;
     dispatch(actionUpdateTextStyle, textId, { opacity });
   };
 
@@ -394,14 +396,14 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
       {/* 文字の透明度 */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          文字の透明度: {Math.round(text.opacity * 100)}%
+          文字の透明度: {Math.round((1 - text.opacity) * 100)}%
         </label>
         <input
           type="range"
           min="0"
           max="1"
           step="0.01"
-          value={text.opacity}
+          value={1 - text.opacity}
           onChange={handleOpacityChange}
           style={{ width: '100%' }}
         />
@@ -429,14 +431,14 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             {/* 背景の透明度 */}
             <div style={{ marginBottom: '0.5rem' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '0.25rem' }}>
-                背景の透明度: {Math.round(text.backgroundOpacity * 100)}%
+                背景の透明度: {Math.round((1 - text.backgroundOpacity) * 100)}%
               </label>
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.01"
-                value={text.backgroundOpacity}
+                value={1 - text.backgroundOpacity}
                 onChange={handleBackgroundOpacityChange}
                 style={{ width: '100%' }}
               />

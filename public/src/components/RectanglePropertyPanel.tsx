@@ -27,7 +27,8 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
   };
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const opacity = parseFloat(e.target.value);
+    const transparencyValue = parseFloat(e.target.value);
+    const opacity = 1 - transparencyValue;
     dispatch(actionUpdateRectangleStyle, rectangleId, { opacity });
   };
 
@@ -70,14 +71,14 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
       {/* 透明度 */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          透明度: {Math.round(rectangle.opacity * 100)}%
+          透明度: {Math.round((1 - rectangle.opacity) * 100)}%
         </label>
         <input
           type="range"
           min="0"
           max="1"
           step="0.01"
-          value={rectangle.opacity}
+          value={1 - rectangle.opacity}
           onChange={handleOpacityChange}
           style={{ width: '100%' }}
         />

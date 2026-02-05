@@ -1,376 +1,258 @@
-# タスク一覧: レイヤー配列順序の修正
+# タスク一覧
 
 ## 概要
 
-レイヤー管理機能において、`LayerOrder`の配列順序とz-index計算の対応関係を修正する。
+仕様書 `spec/frontend_er_rendering.md` に複数エンティティドラッグ機能の仕様が追加されました。
+この仕様に基づき、以下のタスクを実行します。
+
+## 参照するべき仕様書
+
+- [spec/frontend_er_rendering.md](./spec/frontend_er_rendering.md) - 複数エンティティドラッグ仕様セクション（225-295行目）
+- [research/20260204_1500_multi_entity_drag.md](./research/20260204_1500_multi_entity_drag.md) - 実装方法の詳細
+
+## 実装タスク
+
+### フロントエンド修正
+
+#### - [ ] ERCanvas.tsx の `onNodeDragStop` ハンドラーを修正
+
+**ファイル**: `public/src/components/ERCanvas.tsx`
+
+**変更箇所**: 297-363行目の `onNodeDragStop` コールバック
 
 **変更内容**:
-- **修正前**: 配列の後ろが前面寄り（`backgroundItems[length-1]`が最前面）
-- **修正後**: 配列の先頭が前面寄り（`backgroundItems[0]`が最前面、`foregroundItems[0]`が最前面）
 
-**目的**:
-- UIパネルでの表示順序と配列のインデックスを一致させる
-- ドラッグ&ドロップ時のインデックス計算を簡素化する
-- コードの直感性を向上させる
+現在の実装は、ドラッグしたノード1つ（`node`）の座標だけをStoreに反映しているため、複数選択時に他のノードが元の位置に戻ってしまいます。
 
-**参照仕様書**:
-- [spec/layer_management.md](./spec/layer_management.md) - レイヤー管理機能仕様（更新済み）
-  - 行63-66: UI表示順序の説明（配列順で表示）
-  - 行141-146: z-index計算ルール（配列を逆順に計算）
-  - 行207-212: 配列順序とUI表示の対応
+1. **選択中のentityNodeを全て取得**
+   - `getNodes()` で全ノードを取得
+   - `node.type === 'entityNode' && node.selected` でフィルタして選択中のエンティティノードを抽出
+   - フォールバック: 選択ノードが0個の場合は、ドラッグ対象ノード（`node`）だけを対象とする
 
-**変更概要**:
-- `scheme/main.tsp`の`LayerOrder`モデルのコメントを修正（仕様書との整合性のため）
-- `public/src/actions/layerActions.ts`に`calculateZIndex`関数を追加（z-index計算ロジックを統合）
-- `public/src/actions/layerActions.ts`の`actionAddLayerItem`を修正（配列の先頭に追加）
-- `public/src/components/ERCanvas.tsx`のimport文を変更
-- `public/src/utils/zIndexCalculator.ts`を削除（layerActionsに統合）
-- テストコードを修正（期待値の変更）
+2. **複数ノードの位置を一括更新**
+   - 抽出したノード群の座標配列を作成
+   - `dispatch(actionUpdateNodePositions, positions)` で一括更新
+   - 単一ノードドラッグ時も同じロジックで処理される（`selected`が1つだけの場合）
 
-**影響範囲**:
-- TypeSpec型定義（コメントのみ）
-- レイヤーアクション（z-index計算ロジックと新規追加時の挿入位置）
-- ERCanvasのimport文
-- テストコード
+3. **影響を受けるエッジのハンドルを再計算**
+   - 移動したノードのIDセット（`movedIds`）を作成
+   - `edges.filter(e => movedIds.has(e.source) || movedIds.has(e.target))` で影響を受けるエッジを抽出
+   - 抽出したエッジのハンドル（接続点）を再計算
+   - 既存の実装（322-354行目）を活用し、全エッジではなく影響を受けるエッジのみを対象とする
 
-## フェーズ1: TypeSpecコメント修正と型再生成
+4. **ドラッグ終了をdispatch**
+   - `dispatch(actionStopEntityDrag)`
 
-### TypeSpecコメントの修正
+**参考実装例**:
 
-- [x] `scheme/main.tsp`の`LayerOrder`モデルのコメントを修正（行224-225）
-  - **現在の実装**:
-    ```typescript
-    backgroundItems: LayerItemRef[]; // 背面アイテム（配列の後ろが前面寄り）
-    foregroundItems: LayerItemRef[]; // 前面アイテム（配列の後ろが前面寄り）
-    ```
-  - **修正後**:
-    ```typescript
-    backgroundItems: LayerItemRef[]; // 背面アイテム（配列の先頭が前面寄り、末尾が背面寄り）
-    foregroundItems: LayerItemRef[]; // 前面アイテム（配列の先頭が最前面、末尾が背面寄り）
-    ```
-  - **注意**: コメントのみの修正のため、生成される型に影響はない
-  - **仕様書参照**: spec/layer_management.md 行207-212
-
-### 型定義の再生成
-
-- [x] 型定義の再生成（念のため）
-  ```bash
-  cd /home/kuni/Documents/er-viewer
-  npm run generate
-  ```
-  - `lib/generated/api-types.ts`が自動生成される
-  - `public/src/api/client/`配下のファイルが自動生成される
-  - エラーが出ないことを確認する
-  - 注意: コメントのみの修正のため、型定義自体に変更はない
-
-## フェーズ2: z-index計算ロジックの統合
-
-### layerActionsへのcalculateZIndex関数追加
-
-- [x] `public/src/actions/layerActions.ts`に`calculateZIndex`関数を追加（ファイル末尾に追加）
-  - **追加内容**:
-    ```typescript
-    /**
-     * レイヤー順序から特定アイテムのz-indexを計算
-     */
-    export function calculateZIndex(
-      layerOrder: LayerOrder,
-      itemRef: LayerItemRef
-    ): number {
-      // 背面レイヤーを探索
-      const bgIndex = layerOrder.backgroundItems.findIndex(
-        item => item.kind === itemRef.kind && item.id === itemRef.id
+```typescript
+const onNodeDragStop = useCallback(
+  (_event: React.MouseEvent | MouseEvent | TouchEvent, node: Node) => {
+    if (node.type === 'entityNode') {
+      // 1) 選択中のentityNodeを全取得
+      const selectedEntityNodes = getNodes().filter(
+        (n) => n.type === 'entityNode' && n.selected
       );
-      if (bgIndex !== -1) {
-        return -10000 + (layerOrder.backgroundItems.length - 1 - bgIndex);
+      
+      // フォールバック: 選択が取れていないケースは、ドラッグ対象ノードだけ確定
+      const movedNodes = selectedEntityNodes.length > 0 ? selectedEntityNodes : [node];
+      
+      // 2) Store(ViewModel)へ一括確定
+      dispatch(
+        actionUpdateNodePositions,
+        movedNodes.map((n) => ({
+          id: n.id,
+          x: n.position.x,
+          y: n.position.y,
+        }))
+      );
+      
+      // 3) 影響を受けるエッジを抽出
+      const movedIds = new Set(movedNodes.map((n) => n.id));
+      const connectedEdges = edges.filter(
+        (edge) => movedIds.has(edge.source) || movedIds.has(edge.target)
+      );
+      
+      if (connectedEdges.length === 0) {
+        dispatch(actionStopEntityDrag);
+        return;
       }
       
-      // 前面レイヤーを探索
-      const fgIndex = layerOrder.foregroundItems.findIndex(
-        item => item.kind === itemRef.kind && item.id === itemRef.id
-      );
-      if (fgIndex !== -1) {
-        return 10000 + (layerOrder.foregroundItems.length - 1 - fgIndex);
-      }
+      // 4) 全ノードの現在位置とサイズを取得
+      const currentNodes = getNodes();
       
-      // 見つからない場合はデフォルト（0）
-      return 0;
+      // 5) 接続エッジのハンドルを再計算（既存ロジックを活用）
+      const updatedEdges = edges.map((edge) => {
+        if (!connectedEdges.find((e) => e.id === edge.id)) {
+          return edge; // 変更不要
+        }
+        
+        // ... 既存のハンドル再計算ロジック（322-354行目）をそのまま適用 ...
+      });
+      
+      setEdges(updatedEdges);
+      dispatch(actionStopEntityDrag);
     }
-    ```
-  - **変更内容**: 配列インデックスを逆順に計算する（`length - 1 - index`）
-  - **仕様書参照**: spec/layer_management.md 行143-144
-  - **注意**: `calculateAllZIndices`は使用されていないため実装しない
+  },
+  [edges, getNodes, setEdges, dispatch]
+);
+```
 
-### ERCanvasのimport文変更
+**注意事項**:
 
-- [x] `public/src/components/ERCanvas.tsx`のimport文を修正（行26付近）
-  - **現在の実装**:
-    ```typescript
-    import { calculateZIndex } from '../utils/zIndexCalculator'
-    ```
-  - **修正後**:
-    ```typescript
-    import { calculateZIndex } from '../actions/layerActions'
-    ```
-  - **変更内容**: インポート元を`layerActions`に変更
+- `node.selected` フラグはReact Flowの内部状態で管理される（ViewModelには保存しない）
+- `onNodeDragStop` は選択グループをドラッグした場合でも呼ばれる（React Flow v12の仕様）
+- エッジハンドル再計算では、移動したノードに接続されるエッジのみを対象とし、全エッジを再計算しない（パフォーマンス最適化）
+- ノードのwidth/heightは`node.width`と`node.height`プロパティから取得する（React Flowが自動的に設定）
 
-### 不要ファイルの削除
+---
 
-- [x] `public/src/utils/zIndexCalculator.ts`を削除
-  - **理由**: レイヤー管理のロジックを`layerActions.ts`に集約するため
-  - **削除コマンド**:
-    ```bash
-    rm /home/kuni/Documents/er-viewer/public/src/utils/zIndexCalculator.ts
-    ```
+#### - [ ] React Flowの設定確認（念のため）
 
-## フェーズ3: レイヤーアクションの修正
+**ファイル**: `public/src/components/ERCanvas.tsx`
 
-### actionAddLayerItemの修正
+**確認箇所**: 729-748行目の `<ReactFlow>` コンポーネント
 
-- [x] `public/src/actions/layerActions.ts`の`actionAddLayerItem`関数を修正（行108-138）
-  - **現在の実装**: 配列の末尾に追加（`[...items, itemRef]`）
-  - **修正後**: 配列の先頭に追加（`[itemRef, ...items]`）
-  - **修正内容**:
-    ```typescript
-    // 既に存在する場合は追加しない
-    const exists = items.some(item => item.kind === itemRef.kind && item.id === itemRef.id);
-    if (exists) {
-      return vm;
-    }
+**確認内容**:
 
-    const newItems = [itemRef, ...items];  // ← 先頭に追加（末尾から変更）
+複数選択機能が正しく動作するための設定を確認します。
 
-    return {
-      ...vm,
-      erDiagram: {
-        ...vm.erDiagram,
-        ui: {
-          ...vm.erDiagram.ui,
-          layerOrder: {
-            ...vm.erDiagram.ui.layerOrder,
-            [position === 'foreground' ? 'foregroundItems' : 'backgroundItems']: newItems,
-          },
-        },
-      },
-    };
-    ```
-  - **理由**: 新規追加されたアイテムは最前面に表示されるべき（UI上の自然な動作）
-  - **仕様書参照**: spec/layer_management.md 行164-167（actionAddLayerItemの説明）
+- `elevateNodesOnSelect={false}` が設定されている（742行目） ✓
+- `elevateEdgesOnSelect={false}` が設定されている（743行目） ✓
+- `panOnDrag={true}` が設定されている（745行目） ✓
 
-## フェーズ4: テストコードの修正
+※ これらの設定は既に正しく設定されているため、変更不要です。
 
-### layerActionsへのcalculateZIndexテスト追加
+---
 
-- [x] `public/tests/actions/layerActions.test.ts`に`calculateZIndex`のテストを追加（ファイル末尾に追加）
-  - **追加位置**: `actionToggleLayerPanel`のテストの後（行372付近）
-  - **テスト内容**:
-    ```typescript
-    describe('calculateZIndex', () => {
-      it('backgroundItemsの先頭要素が最も大きいz-indexを持つ', () => {
-        const layerOrder: LayerOrder = {
-          backgroundItems: [
-            { kind: 'rectangle', id: 'rect1' },  // z-index = -10000 + 2 = -9998（最前面）
-            { kind: 'rectangle', id: 'rect2' },  // z-index = -10000 + 1 = -9999
-            { kind: 'rectangle', id: 'rect3' },  // z-index = -10000 + 0 = -10000（最背面）
-          ],
-          foregroundItems: [],
-        };
+### テストコード作成
 
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-9998);
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect2' })).toBe(-9999);
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect3' })).toBe(-10000);
-      });
+#### - [ ] 複数エンティティドラッグのテストを追加
 
-      it('foregroundItemsの先頭要素が最も大きいz-indexを持つ', () => {
-        const layerOrder: LayerOrder = {
-          backgroundItems: [],
-          foregroundItems: [
-            { kind: 'text', id: 'text1' },  // z-index = 10000 + 2 = 10002（最前面）
-            { kind: 'text', id: 'text2' },  // z-index = 10000 + 1 = 10001
-            { kind: 'text', id: 'text3' },  // z-index = 10000 + 0 = 10000（最背面）
-          ],
-        };
+**ファイル**: `public/tests/actions/dataActions.test.ts`
 
-        expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text1' })).toBe(10002);
-        expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text2' })).toBe(10001);
-        expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text3' })).toBe(10000);
-      });
+**追加内容**:
 
-      it('アイテムが見つからない場合は0を返す', () => {
-        const layerOrder: LayerOrder = {
-          backgroundItems: [],
-          foregroundItems: [],
-        };
+`actionUpdateNodePositions` が複数ノードの位置を正しく更新できることを確認するテストケースを追加します。
 
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'unknown' })).toBe(0);
-      });
+**テストケース**:
 
-      it('単一要素の場合は正しいz-indexを返す', () => {
-        const layerOrder: LayerOrder = {
-          backgroundItems: [{ kind: 'rectangle', id: 'rect1' }],
-          foregroundItems: [],
-        };
+1. **複数ノードの位置を一括更新**
+   - 3つのノードを含むViewModelを作成
+   - `actionUpdateNodePositions` に3つのノード位置を渡す
+   - 全てのノード位置が正しく更新されることを確認
 
-        // length=1, index=0 → -10000 + (1 - 1 - 0) = -10000
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-10000);
-      });
+2. **一部のノードのみ更新**
+   - 3つのノードを含むViewModelを作成
+   - `actionUpdateNodePositions` に2つのノード位置を渡す
+   - 指定したノードのみが更新され、他のノードは変更されないことを確認
 
-      it('backgroundとforegroundの両方にアイテムがある場合', () => {
-        const layerOrder: LayerOrder = {
-          backgroundItems: [
-            { kind: 'rectangle', id: 'rect1' },
-            { kind: 'rectangle', id: 'rect2' },
-          ],
-          foregroundItems: [
-            { kind: 'text', id: 'text1' },
-            { kind: 'text', id: 'text2' },
-          ],
-        };
+3. **存在しないノードIDを含む場合**
+   - 既存のノードと存在しないノードIDを含む配列を渡す
+   - 存在するノードのみが更新され、エラーが発生しないことを確認
 
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect1' })).toBe(-9999);  // -10000 + (2 - 1 - 0)
-        expect(calculateZIndex(layerOrder, { kind: 'rectangle', id: 'rect2' })).toBe(-10000); // -10000 + (2 - 1 - 1)
-        expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text1' })).toBe(10001);       // 10000 + (2 - 1 - 0)
-        expect(calculateZIndex(layerOrder, { kind: 'text', id: 'text2' })).toBe(10000);       // 10000 + (2 - 1 - 1)
-      });
-    });
-    ```
-  - **注意**: `calculateZIndex`を`layerActions.ts`からimportする必要がある
-    ```typescript
-    import {
-      actionReorderLayerItems,
-      actionMoveLayerItem,
-      actionAddLayerItem,
-      actionRemoveLayerItem,
-      actionSelectItem,
-      actionToggleLayerPanel,
-      calculateZIndex,  // ← 追加
-    } from '../../src/actions/layerActions';
-    ```
-  - **目的**: z-index計算が正しく逆順になっていることを検証
-  - **注意**: 配列の先頭ほど大きいz-index値を持つことを確認
+4. **空配列を渡した場合**
+   - 空配列を渡す
+   - ViewModelが変更されない（同一参照が返される）ことを確認
 
-### layerActionsの既存テスト修正
+**参考実装例**:
 
-- [x] `public/tests/actions/layerActions.test.ts`の`actionAddLayerItem`テストを修正（行146-171）
-  - **現在の実装**:
-    ```typescript
-    it('アイテムが配列末尾に追加されること', () => {
-      const vm = createInitialViewModel();
-      vm.erDiagram.ui.layerOrder.backgroundItems = [
-        { kind: 'rectangle', id: 'rect1' },
-      ];
+```typescript
+describe('actionUpdateNodePositions - 複数ノード更新', () => {
+  it('複数ノードの位置を一括更新できる', () => {
+    const viewModel = createViewModelWithNodes([
+      { id: 'node1', x: 0, y: 0 },
+      { id: 'node2', x: 100, y: 100 },
+      { id: 'node3', x: 200, y: 200 },
+    ]);
+    
+    const updated = actionUpdateNodePositions(viewModel, [
+      { id: 'node1', x: 50, y: 60 },
+      { id: 'node2', x: 150, y: 160 },
+      { id: 'node3', x: 250, y: 260 },
+    ]);
+    
+    expect(updated.erDiagram.nodes['node1'].x).toBe(50);
+    expect(updated.erDiagram.nodes['node1'].y).toBe(60);
+    expect(updated.erDiagram.nodes['node2'].x).toBe(150);
+    expect(updated.erDiagram.nodes['node2'].y).toBe(160);
+    expect(updated.erDiagram.nodes['node3'].x).toBe(250);
+    expect(updated.erDiagram.nodes['node3'].y).toBe(260);
+  });
+  
+  // ... その他のテストケース ...
+});
+```
 
-      const result = actionAddLayerItem(vm, { kind: 'rectangle', id: 'rect2' }, 'background');
-
-      expect(result.erDiagram.ui.layerOrder.backgroundItems).toEqual([
-        { kind: 'rectangle', id: 'rect1' },
-        { kind: 'rectangle', id: 'rect2' },  // ← 末尾に追加
-      ]);
-    });
-    ```
-  - **修正後**:
-    ```typescript
-    it('アイテムが配列先頭に追加されること', () => {
-      const vm = createInitialViewModel();
-      vm.erDiagram.ui.layerOrder.backgroundItems = [
-        { kind: 'rectangle', id: 'rect1' },
-      ];
-
-      const result = actionAddLayerItem(vm, { kind: 'rectangle', id: 'rect2' }, 'background');
-
-      expect(result.erDiagram.ui.layerOrder.backgroundItems).toEqual([
-        { kind: 'rectangle', id: 'rect2' },  // ← 先頭に追加
-        { kind: 'rectangle', id: 'rect1' },
-      ]);
-    });
-    ```
-  - **変更内容**: テストケースのタイトルと期待値を修正
-
-## フェーズ5: テストとビルド確認
-
-### テスト実行
-
-- [x] フロントエンドのテスト実行
-  ```bash
-  cd /home/kuni/Documents/er-viewer/public
-  npm run test
-  ```
-  - すべてのテストがpassすることを確認する
-  - 特に`layerActions.test.ts`の`calculateZIndex`テストが通ることを確認
-
-- [x] バックエンドのテスト実行（念のため）
-  ```bash
-  cd /home/kuni/Documents/er-viewer
-  npm run test
-  ```
-  - すべてのテストがpassすることを確認する
+---
 
 ### ビルド確認
 
-- [x] フロントエンドのビルド
-  ```bash
-  cd /home/kuni/Documents/er-viewer/public
-  npm run build
-  ```
-  - エラーが出ないことを確認する
+#### - [ ] フロントエンドのビルド確認
 
-- [x] バックエンドのビルド確認
-  ```bash
-  cd /home/kuni/Documents/er-viewer
-  npm run build
-  ```
-  - エラーが出ないことを確認する
+**実行コマンド**:
 
-## 実装時の注意事項
-
-### z-index計算の逆順変換
-
-配列のインデックスを逆順に変換する計算式は以下の通り：
-
-```typescript
-// 配列: [A, B, C]  (length = 3)
-// index=0 (A) → reversedIndex = 3 - 1 - 0 = 2 (最大値)
-// index=1 (B) → reversedIndex = 3 - 1 - 1 = 1
-// index=2 (C) → reversedIndex = 3 - 1 - 2 = 0 (最小値)
+```bash
+cd /home/kuni/Documents/er-viewer/public
+npm run build
 ```
 
-これにより、配列の先頭要素が最も大きなz-index値を持つようになります。
+**確認内容**:
 
-### UI表示順序との対応
+- ビルドエラーが発生しないこと
+- 型エラーが発生しないこと
 
-修正後は以下のようになります：
+---
 
-| 配列インデックス | UI表示位置 | z-index値（背面） | z-index値（前面） |
-|---|---|---|---|
-| 0（先頭） | 最上部（最前面） | -9998 | 10002 |
-| 1 | 中間 | -9999 | 10001 |
-| 2（末尾） | 最下部（最背面） | -10000 | 10000 |
+### テスト実行
 
-※ 配列長が3の場合の例
+#### - [ ] フロントエンドのテスト実行
 
-### ドラッグ&ドロップへの影響
+**実行コマンド**:
 
-この変更により、レイヤーパネルのドラッグ&ドロップ実装が簡素化されます：
-- UI上の表示順序（上から下）と配列のインデックス（0から順）が一致
-- ドラッグ時のインデックス計算が直感的になる
-- `dnd-kit`のソート機能をそのまま利用可能
+```bash
+cd /home/kuni/Documents/er-viewer/public
+npm run test
+```
 
-### 新規アイテムの追加位置
+**確認内容**:
 
-`actionAddLayerItem`で配列の先頭に追加されることにより、新規作成されたアイテムは常に最前面に表示されます。これはユーザーの期待に沿った自然な動作です。
+- 既存のテストが全て成功すること
+- 新規追加したテストが全て成功すること
 
-### 既存データへの影響
+---
 
-現在のプロトタイプ段階では、`layerOrder`に実データが格納されているケースは少ないと想定されます。もし既存のテストデータやlocalStorageにデータがある場合、z-indexの順序が逆転する可能性があります。その場合はデータをクリアしてください。
+## 補足事項
 
-## MVP範囲外（今回は実装しない）
+### 複数選択の操作方法
 
-以下は今回の実装では対象外です：
+- **複数選択**: Shift + ドラッグで矩形選択領域を作成
+- **複数ドラッグ**: 選択されている全てのエンティティが一緒に移動する
+- **ドロップ**: 全ての選択ノードの最終位置がViewModelに反映される
 
-- 既存データの移行処理（配列の順序を反転する処理）
-- レイヤーパネルUI自体の実装（別タスクで実装予定）
-- dnd-kitによるドラッグ&ドロップ実装（別タスクで実装予定）
+### 複数選択時の制限（既存の実装で対応済み）
 
-## 事前修正提案
+以下の機能は既存のコードで無効化されているため、追加の実装は不要です：
 
-特になし。現在の実装状態で問題なく修正可能です。
+- **DDL表示機能**: 無効（`onSelectionChange`で選択解除: 365-373行目）
+- **プロパティ変更機能**: 無効（同上）
+- **許可される操作**: ドラッグによる位置変更のみ
+
+### 状態管理方針
+
+- **選択状態**: React Flowの内部状態（`node.selected`フラグ）で管理
+- **ドラッグ中の位置**: React Flowの内部状態で管理（ViewModelには反映しない）
+- **確定後の位置**: `actionUpdateNodePositions`でViewModelに反映
+
+ViewModelに複数選択状態を持たせず、React Flowの内部状態を活用することで実装を簡潔に保つ方針です。
+
+---
+
+## 作業不要な項目
+
+以下の項目は既存の実装で対応済みのため、追加の作業は不要です：
+
+- ✓ React Flowの標準機能（Shift+ドラッグによる複数選択）の有効化
+- ✓ 複数選択時のDDL表示機能の無効化
+- ✓ 複数選択時のプロパティ変更機能の無効化
+- ✓ `actionUpdateNodePositions` の複数ノード対応（既に配列を受け取る実装になっている）

@@ -1,213 +1,143 @@
-# タスク一覧
+# コピー&ペースト機能実装タスク一覧
 
-## 概要
+仕様書: [spec/copy_paste_feature.md](spec/copy_paste_feature.md)
 
-仕様書の更新により、透明度UIの表現方法が明確化されました。
-内部的には「不透明度」(opacity: 0〜1)として保存するが、UIでは「透明度」(0%〜100%)として表示・入力する仕様に変更されました。
-また、矩形のデフォルト不透明度が0.5から1.0（透明度0%、完全不透明）に変更されました。
+---
 
-## 参照するべき仕様書
+## フェーズ1: Action層とStoreの準備
 
-- [spec/rectangle_drawing_feature.md](./spec/rectangle_drawing_feature.md) - 矩形描画機能の仕様（デフォルト値変更）
-- [spec/rectangle_property_panel.md](./spec/rectangle_property_panel.md) - 矩形プロパティパネルの仕様（透明度UIの変換ロジック）
-- [spec/text_drawing_feature.md](./spec/text_drawing_feature.md) - テキスト描画機能の仕様（文字・背景の透明度UIの変換ロジック）
-- [scheme/main.tsp](./scheme/main.tsp) - 型定義（不透明度のコメント更新）
+### 型生成
 
-## 変更内容の詳細
+- [ ] `npm run generate` を実行して、`ClipboardData` と `CanvasMousePosition` 型をフロントエンド用に生成
+  - `scheme/main.tsp` の変更が既にコミットされている
+  - `public/src/api/client/` に型が生成される
+  - `GlobalUIState` に `clipboard` と `lastMousePosition` フィールドが追加される
 
-### 透明度UIの変換ロジック
+### 初期状態の更新
 
-**内部値（不透明度）とUI値（透明度）の変換**:
-- UI表示値: `透明度% = (1 - opacity) × 100`
-- UI入力値から内部値への変換: `opacity = 1 - (透明度% / 100)`
-- 意味: 0% = 完全不透明、100% = 完全透明
+- [ ] `public/src/store/erDiagramStore.ts` の初期状態を更新
+  - `ui.clipboard: null` を追加
+  - `ui.lastMousePosition: null` を追加
+  - 初期ViewModel生成時にこれらのフィールドが含まれるようにする
 
-**変換が必要な箇所**:
-- 矩形の透明度
-- テキストの文字の透明度
-- テキストの背景の透明度
+### Action実装 (`public/src/actions/`)
 
-**変換が不要な箇所**:
-- ドロップシャドウの透明度（現状維持、不透明度として扱う）
+コピー&ペースト機能用のActionファイルを新規作成します。
 
-### デフォルト値の変更
+- [ ] `public/src/actions/clipboardActions.ts` を新規作成
+  - 以下のActionを実装:
+    - `actionCopyItem(vm)`: 選択中のアイテムをクリップボードにコピー
+      - `vm.ui.selectedItem` が `null` の場合は何もしない（同一参照を返す）
+      - `selectedItem.kind` が `'entity'` または `'relation'` の場合は何もしない（同一参照を返す）
+      - `selectedItem.kind` が `'text'` の場合: `vm.erDiagram.texts[selectedItem.id]` からデータを取得
+      - `selectedItem.kind` が `'rectangle'` の場合: `vm.erDiagram.rectangles[selectedItem.id]` からデータを取得
+      - `ClipboardData` オブジェクトを作成し、`vm.ui.clipboard` に保存
+      - 純粋関数として実装（副作用なし）
+    - `actionPasteItem(vm, position: {x: number, y: number})`: クリップボードのアイテムをペースト
+      - `vm.ui.clipboard` が `null` の場合は何もしない（同一参照を返す）
+      - `crypto.randomUUID()` で新しいIDを生成
+      - `clipboard.kind` に応じて元データをコピー:
+        - `kind === 'text'`: `clipboard.textData` をコピーし、`id` と `x`, `y` を新しい値に変更
+        - `kind === 'rectangle'`: `clipboard.rectangleData` をコピーし、`id` と `x`, `y` を新しい値に変更
+      - 内部で `actionAddText` または `actionAddRectangle` を呼び出し
+      - 内部で `actionSelectItem(vm, { kind, id: newId })` を呼び出して新しいアイテムを選択
+      - 純粋関数として実装（副作用なし）
+    - `actionUpdateMousePosition(vm, position: {clientX: number, clientY: number})`: マウス位置を更新
+      - `vm.ui.lastMousePosition` を更新
+      - 値が変わっていない場合は同一参照を返す
+      - 純粋関数として実装（副作用なし）
+  - 既存のActionをインポート:
+    - `actionAddText`, `actionAddRectangle` from `./textActions`, `./rectangleActions`
+    - `actionSelectItem` from `./layerActions`
+  - 型定義をインポート:
+    - `type ViewModel` from `'../api/client'`
+    - `type ClipboardData` from `'../api/client'`
+    - `type TextBox` from `'../api/client'`
+    - `type Rectangle` from `'../api/client'`
 
-矩形作成時のデフォルト不透明度:
-- 変更前: `opacity: 0.5`（透明度50%）
-- 変更後: `opacity: 1.0`（透明度0%、完全不透明）
+### テスト実装 (`public/tests/actions/`)
 
-## 実装タスク
+- [ ] `public/tests/actions/clipboardActions.test.ts` を新規作成
+  - `actionCopyItem` のテスト:
+    - 選択なしの場合、何もしない
+    - テキスト選択時、クリップボードにテキストデータが保存される
+    - 矩形選択時、クリップボードに矩形データが保存される
+    - エンティティ選択時、何もしない
+  - `actionPasteItem` のテスト:
+    - クリップボードが空の場合、何もしない
+    - テキストをペーストすると新しいテキストが追加され、選択状態になる
+    - 矩形をペーストすると新しい矩形が追加され、選択状態になる
+    - IDが新しく生成され、元のオブジェクトとは異なる
+    - 指定された位置にペーストされる
+  - `actionUpdateMousePosition` のテスト:
+    - マウス位置が更新される
+    - 値が変わっていない場合は同一参照を返す
 
-### - [x] RectanglePropertyPanel.tsx の透明度UIを変換ロジックに対応
+---
 
-**ファイル**: `public/src/components/RectanglePropertyPanel.tsx`
+## フェーズ2: UI統合（マウス位置記録とキーボードショートカット）
 
-**変更箇所**: 29-32行目（ハンドラ）、70-84行目（UI）
+### マウス位置記録の実装
 
-**変更内容**:
+- [ ] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
+  - キャンバスのラッパー `<div>` に `onMouseMove` イベントハンドラを追加
+  - マウスムーブ時に `actionUpdateMousePosition` をdispatch
+  - `e.clientX` と `e.clientY` を渡す
+  - `useCallback` でハンドラーをメモ化してパフォーマンスを確保
+  - 注意: `onMouseLeave` では `lastMousePosition` を更新しない（最後の位置を保持）
 
-1. **透明度の表示値を変換**（73行目）:
-   ```typescript
-   // 変更前
-   透明度: {Math.round(rectangle.opacity * 100)}%
-   
-   // 変更後
-   透明度: {Math.round((1 - rectangle.opacity) * 100)}%
-   ```
+### キーボードショートカット実装
 
-2. **スライダーの値を変換**（80行目）:
-   ```typescript
-   // 変更前
-   value={rectangle.opacity}
-   
-   // 変更後
-   value={1 - rectangle.opacity}
-   ```
+- [ ] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
+  - `useKeyPress('Control+c')` と `useKeyPress('Meta+c')` でコピー操作を検知（既に `useKeyPress` がインポート済み）
+  - `useKeyPress('Control+v')` と `useKeyPress('Meta+v')` でペースト操作を検知
+  - `useEffect` でキーボードイベントを監視
+  - **テキスト編集モード中は無効化**: `editingTextId !== null` の場合、キーボードショートカットを無視
+  - コピー時:
+    - `selectedItem` が `null` または `kind === 'entity'` または `kind === 'relation'` の場合は何もしない
+    - それ以外の場合は `dispatch(actionCopyItem)` を実行
+  - ペースト時:
+    - `clipboard` が `null` の場合は何もしない
+    - ペースト位置を計算:
+      - `lastMousePosition` が `null` でない場合: `screenToFlowPosition({ x: lastMousePosition.clientX, y: lastMousePosition.clientY })` でキャンバス座標に変換
+      - `lastMousePosition` が `null` の場合: viewport中央を計算 (`x = -viewport.x + (window.innerWidth / 2) / viewport.zoom`, `y = -viewport.y + (window.innerHeight / 2) / viewport.zoom`)
+    - `dispatch(actionPasteItem, pastePosition)` を実行
+  - `useReactFlow()` から `screenToFlowPosition` を取得
+  - `useViewport()` から `viewport` を取得（フォールバック時の中央計算用）
+  - 必要な型とActionをインポート:
+    - `actionCopyItem`, `actionPasteItem`, `actionUpdateMousePosition` from `'../actions/clipboardActions'`
 
-3. **ハンドラで入力値を変換**（29-32行目）:
-   ```typescript
-   // 変更前
-   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const opacity = parseFloat(e.target.value);
-     dispatch(actionUpdateRectangleStyle, rectangleId, { opacity });
-   };
-   
-   // 変更後
-   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const transparencyValue = parseFloat(e.target.value);
-     const opacity = 1 - transparencyValue;
-     dispatch(actionUpdateRectangleStyle, rectangleId, { opacity });
-   };
-   ```
+### ビルドとテストの実行
 
-### - [x] TextPropertyPanel.tsx の文字の透明度UIを変換ロジックに対応
+- [ ] `npm run generate` を実行してビルドエラーがないことを確認
+- [ ] `npm run test` を実行してテストがパスすることを確認
 
-**ファイル**: `public/src/components/TextPropertyPanel.tsx`
+---
 
-**変更箇所**: 77-79行目（ハンドラ）、394-408行目（UI）
+## 備考
 
-**変更内容**:
+### 実装上の注意点
 
-1. **文字の透明度の表示値を変換**（397行目）:
-   ```typescript
-   // 変更前
-   文字の透明度: {Math.round(text.opacity * 100)}%
-   
-   // 変更後
-   文字の透明度: {Math.round((1 - text.opacity) * 100)}%
-   ```
+* **マウス位置の座標系**: `lastMousePosition` にはスクリーン座標（`clientX`, `clientY`）を保存し、ペースト時に `screenToFlowPosition()` でキャンバス座標に変換する
+* **キーボードショートカットの無効化条件**: テキスト編集中（`editingTextId !== null`）はブラウザのデフォルトのコピー&ペーストを優先
+* **パフォーマンス**: マウスムーブイベントは頻繁に発生するため、`useCallback` でハンドラーをメモ化する。初期実装ではthrottleは不要
+* **レイヤー配置**: ペースト時のレイヤー配置は各アイテムのデフォルトルールに従う（テキストは前面、矩形は背面）。`actionAddText` と `actionAddRectangle` が内部で `actionAddLayerItem` を呼び出すため、自動的に処理される
+* **連続ペースト**: 同じコピー元から複数回ペーストが可能。各ペースト操作は、その時点のマウスカーソル位置（またはviewport中央）に配置される
 
-2. **スライダーの値を変換**（404行目）:
-   ```typescript
-   // 変更前
-   value={text.opacity}
-   
-   // 変更後
-   value={1 - text.opacity}
-   ```
+### スコープ外の機能
 
-3. **ハンドラで入力値を変換**（77-79行目）:
-   ```typescript
-   // 変更前
-   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const opacity = parseFloat(e.target.value);
-     dispatch(actionUpdateTextStyle, textId, { opacity });
-   };
-   
-   // 変更後
-   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const transparencyValue = parseFloat(e.target.value);
-     const opacity = 1 - transparencyValue;
-     dispatch(actionUpdateTextStyle, textId, { opacity });
-   };
-   ```
+以下は今回のタスクに含まれません:
 
-### - [x] TextPropertyPanel.tsx の背景の透明度UIを変換ロジックに対応
+* 複数選択によるコピー&ペースト
+* カット操作（Ctrl+X）
+* クリップボード履歴
+* ブラウザクリップボードAPIとの連携
+* エンティティ・リレーションのコピー
 
-**ファイル**: `public/src/components/TextPropertyPanel.tsx`
+### 参照仕様書
 
-**変更箇所**: 72-75行目（ハンドラ）、429-443行目（UI）
-
-**変更内容**:
-
-1. **背景の透明度の表示値を変換**（432行目）:
-   ```typescript
-   // 変更前
-   背景の透明度: {Math.round(text.backgroundOpacity * 100)}%
-   
-   // 変更後
-   背景の透明度: {Math.round((1 - text.backgroundOpacity) * 100)}%
-   ```
-
-2. **スライダーの値を変換**（439行目）:
-   ```typescript
-   // 変更前
-   value={text.backgroundOpacity}
-   
-   // 変更後
-   value={1 - text.backgroundOpacity}
-   ```
-
-3. **ハンドラで入力値を変換**（72-75行目）:
-   ```typescript
-   // 変更前
-   const handleBackgroundOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const backgroundOpacity = parseFloat(e.target.value);
-     dispatch(actionUpdateTextBackground, textId, { backgroundOpacity });
-   };
-   
-   // 変更後
-   const handleBackgroundOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const transparencyValue = parseFloat(e.target.value);
-     const backgroundOpacity = 1 - transparencyValue;
-     dispatch(actionUpdateTextBackground, textId, { backgroundOpacity });
-   };
-   ```
-
-### - [x] ERCanvas.tsx の矩形デフォルト値を変更
-
-**ファイル**: `public/src/components/ERCanvas.tsx`
-
-**変更箇所**: 889行目
-
-**変更内容**:
-
-矩形作成時のデフォルト不透明度を変更:
-
-```typescript
-// 変更前（889行目）
-opacity: 0.5,
-
-// 変更後
-opacity: 1.0,
-```
-
-### - [x] コード生成を実行
-
-**コマンド**: `npm run generate`
-
-**説明**: `scheme/main.tsp`から型定義を生成します。
-
-### - [x] テストを実行
-
-**コマンド**: `npm run test`
-
-**説明**: 実装変更後にテストが通ることを確認します。
-
-### - [x] ビルド確認
-
-**コマンド**: `npm run build` または適切なビルドコマンド
-
-**説明**: 実装変更後にビルドエラーがないことを確認します。
-
-## 注意事項
-
-- ドロップシャドウの透明度（`textShadow.opacity`、`backgroundShadow.opacity`）は変換しないでください（現状維持、不透明度として扱う）
-- スライダーの`min`と`max`は`0`と`1`のままでOKです（内部的に0〜1の範囲を扱うため）
-- 表示値のみパーセント表記に変換します
-- 型定義（`scheme/main.tsp`）は既に更新済みなので、変更不要です
-- 仕様書は既に更新済みなので、変更不要です
-
-## 懸念事項
-
-特になし。仕様が明確に定義されており、変更範囲も限定的です。
+* [コピー&ペースト機能仕様](spec/copy_paste_feature.md)
+* [フロントエンド状態管理仕様](spec/frontend_state_management.md)
+* [テキスト描画機能仕様](spec/text_drawing_feature.md)
+* [矩形描画機能仕様](spec/rectangle_drawing_feature.md)
+* [レイヤー管理機能仕様](spec/layer_management.md)

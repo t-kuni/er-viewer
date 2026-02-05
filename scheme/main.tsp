@@ -73,7 +73,7 @@ model Rectangle {
   fill: string;   // 背景色（例: "#E3F2FD"）
   stroke: string; // 枠線色（例: "#90CAF9"）
   strokeWidth: float64; // 枠線幅（px）
-  opacity: float64;     // 透明度（0〜1）
+  opacity: float64;     // 不透明度（0=完全透明、1=完全不透明）。UIでは「透明度」として表示（値を反転）
 }
 
 // Text alignment options
@@ -129,11 +129,11 @@ model TextBox {
   textVerticalAlign: TextVerticalAlign;
 
   textColor: string;    // 文字色（例: "#000000"）
-  opacity: float64;     // 文字の不透明度（0..1）
+  opacity: float64;     // 文字の不透明度（0=完全透明、1=完全不透明）。UIでは「透明度」として表示（値を反転）
 
   backgroundColor: string;      // 背景色（例: "#FFFFFF"）
   backgroundEnabled: boolean;   // 背景色の有効/無効
-  backgroundOpacity: float64;   // 背景の不透明度（0..1）
+  backgroundOpacity: float64;   // 背景の不透明度（0=完全透明、1=完全不透明）。UIでは「透明度」として表示（値を反転）
 
   paddingX: float64;
   paddingY: float64;

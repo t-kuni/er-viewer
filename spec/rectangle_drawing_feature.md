@@ -28,7 +28,8 @@
 TypeSpec（`scheme/main.tsp`）の`Rectangle`モデルに以下のプロパティを追加：
 
 * `strokeWidth`: 枠線の幅（ピクセル、float64）
-* `opacity`: 透明度（0〜1の範囲、float64、矩形全体に適用）
+* `opacity`: 不透明度（0〜1の範囲、float64、矩形全体に適用、0=完全透明、1=完全不透明）
+  - UIでは「透明度」として表示（値を反転: 透明度% = 100 - opacity * 100）
 
 ```typescript
 model Rectangle {
@@ -40,7 +41,7 @@ model Rectangle {
   fill: string;       // 背景色（例: "#E3F2FD"）
   stroke: string;     // 枠線色（例: "#90CAF9"）
   strokeWidth: float64; // 枠線幅（px）
-  opacity: float64;     // 透明度（0〜1）
+  opacity: float64;     // 不透明度（0〜1、0=完全透明、1=完全不透明）
 }
 ```
 
@@ -63,9 +64,10 @@ model ERDiagramViewModel {
 ### 色の保存形式
 
 * `fill`および`stroke`: HEX形式（`#RRGGBB`）で保存
-* `opacity`: 0〜1の数値（float64）で保存
+* `opacity`: 0〜1の数値（float64）で保存（不透明度、CSS標準に準拠）
+  - UIでは「透明度」として表示・入力するため、値を反転して扱う（透明度 = 1 - opacity）
 
-この形式により、データベース保存は単純化され、フロントエンド表示時にも直接利用できる。
+この形式により、データベース保存は単純化され、レンダリング時にはCSS標準の `opacity` プロパティとして直接利用できる。
 
 ## 機能要件
 
@@ -77,7 +79,7 @@ model ERDiagramViewModel {
   - 背景色: 淡い青（`#E3F2FD`）
   - 枠線色: 青（`#90CAF9`）
   - 枠線幅: 2px
-  - 透明度: 0.5
+  - 不透明度: 1.0（透明度0%、完全不透明）
 
 ### 矩形の移動
 

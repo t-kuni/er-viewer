@@ -81,13 +81,18 @@ React Flowの`onSelectionChange`イベントを使用して選択状態を監視
 * プリセット色ボタン: 8色を横2列 × 縦4行でグリッド表示
 * 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { stroke: newColor })`をdispatch
 
-### 3. 透明度（opacity）
+### 3. 透明度
 
 * ラベル: 「透明度」
 * コンポーネント: `<input type="range">`スライダー + 現在値表示
-* 範囲: 0〜1、ステップ0.01
-* 表示形式: パーセント表示（例: 50%）
-* 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { opacity: newOpacity })`をdispatch
+* 範囲: 0%〜100%（内部的には `opacity`（不透明度）の 0〜1 に対応）
+* ステップ: 0.01
+* 表示形式: パーセント表示（例: `透明度: 30%`）
+* UI値と内部値の変換:
+  - 表示値: `透明度% = (1 - opacity) × 100`
+  - 入力値: `opacity = 1 - (透明度% / 100)`
+* 意味: 0% = 完全不透明、100% = 完全透明
+* 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { opacity: newOpacity })`をdispatch（変換後の不透明度を渡す）
 
 ### 4. 枠線幅（strokeWidth）
 

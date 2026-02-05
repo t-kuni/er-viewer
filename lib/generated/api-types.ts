@@ -65,6 +65,18 @@ export interface components {
             loading: boolean;
             error: string | null;
         };
+        CanvasMousePosition: {
+            /** Format: double */
+            clientX: number;
+            /** Format: double */
+            clientY: number;
+        };
+        ClipboardData: {
+            /** @enum {string} */
+            kind: "text" | "rectangle";
+            textData?: components["schemas"]["TextBox"];
+            rectangleData?: components["schemas"]["Rectangle"];
+        };
         Column: {
             id: string;
             name: string;
@@ -208,6 +220,8 @@ export interface components {
             showDatabaseConnectionModal: boolean;
             showHistoryPanel: boolean;
             layoutOptimization: components["schemas"]["LayoutOptimizationState"];
+            clipboard: components["schemas"]["ClipboardData"] | null;
+            lastMousePosition: components["schemas"]["CanvasMousePosition"] | null;
         };
         HoverTarget: {
             /** @enum {string} */

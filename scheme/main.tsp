@@ -352,6 +352,19 @@ model LayoutOptimizationState {
   currentStage: string | null; // 現在の処理段階名
 }
 
+// Clipboard data for copy & paste operations
+model ClipboardData {
+  kind: "text" | "rectangle"; // コピーされたオブジェクトの種類
+  textData?: TextBox;         // テキストデータ（kind="text"の場合のみ）
+  rectangleData?: Rectangle;  // 矩形データ（kind="rectangle"の場合のみ）
+}
+
+// Mouse position on canvas (for paste operation)
+model CanvasMousePosition {
+  clientX: float64; // スクリーン座標 X（ブラウザウィンドウ基準）
+  clientY: float64; // スクリーン座標 Y（ブラウザウィンドウ基準）
+}
+
 // Global UI state
 model GlobalUIState {
   selectedItem: LayerItemRef | null; // 選択中のアイテム（矩形、テキスト、エンティティ）
@@ -360,6 +373,8 @@ model GlobalUIState {
   showDatabaseConnectionModal: boolean; // データベース接続設定モーダル表示フラグ
   showHistoryPanel: boolean; // 履歴パネル表示フラグ
   layoutOptimization: LayoutOptimizationState; // 配置最適化の状態
+  clipboard: ClipboardData | null; // クリップボードデータ（コピー&ペースト用）
+  lastMousePosition: CanvasMousePosition | null; // キャンバス上の最後のマウス位置（ペースト位置決定用）
 }
 
 // Build info cache state

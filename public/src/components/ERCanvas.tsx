@@ -477,25 +477,43 @@ function ERCanvasInner({
   const ctrlVPressed = useKeyPress('Control+v')
   const metaVPressed = useKeyPress('Meta+v')
   
-  // コピー処理
+  // 前回のキー押下状態を保持（エッジ検知用）
+  const prevCtrlCPressed = useRef(false)
+  const prevMetaCPressed = useRef(false)
+  const prevCtrlVPressed = useRef(false)
+  const prevMetaVPressed = useRef(false)
+  
+  // コピー処理（キーが押された瞬間だけ実行）
   useEffect(() => {
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
     
-    if (ctrlCPressed || metaCPressed) {
+    // false → true の変化を検知（キーが押された瞬間）
+    const ctrlCJustPressed = !prevCtrlCPressed.current && ctrlCPressed
+    const metaCJustPressed = !prevMetaCPressed.current && metaCPressed
+    
+    if (ctrlCJustPressed || metaCJustPressed) {
       // エンティティ・リレーション以外のアイテムをコピー
       if (selectedItem && selectedItem.kind !== 'entity' && selectedItem.kind !== 'relation') {
         dispatch(actionCopyItem)
       }
     }
+    
+    // 前回の状態を更新
+    prevCtrlCPressed.current = ctrlCPressed
+    prevMetaCPressed.current = metaCPressed
   }, [ctrlCPressed, metaCPressed, editingTextId, selectedItem, dispatch])
   
-  // ペースト処理
+  // ペースト処理（キーが押された瞬間だけ実行）
   useEffect(() => {
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
     
-    if (ctrlVPressed || metaVPressed) {
+    // false → true の変化を検知（キーが押された瞬間）
+    const ctrlVJustPressed = !prevCtrlVPressed.current && ctrlVPressed
+    const metaVJustPressed = !prevMetaVPressed.current && metaVPressed
+    
+    if (ctrlVJustPressed || metaVJustPressed) {
       if (clipboard !== null) {
         let pastePosition: { x: number; y: number }
         
@@ -516,6 +534,10 @@ function ERCanvasInner({
         dispatch(actionPasteItem, pastePosition)
       }
     }
+    
+    // 前回の状態を更新
+    prevCtrlVPressed.current = ctrlVPressed
+    prevMetaVPressed.current = metaVPressed
   }, [ctrlVPressed, metaVPressed, editingTextId, clipboard, lastMousePosition, viewport, screenToFlowPosition, dispatch])
   
   // F2キーでテキスト編集モード開始

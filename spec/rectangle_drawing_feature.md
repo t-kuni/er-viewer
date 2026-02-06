@@ -30,6 +30,8 @@ TypeSpec（`scheme/main.tsp`）の`Rectangle`モデルに以下のプロパテ�
 * `strokeWidth`: 枠線の幅（ピクセル、float64）
 * `opacity`: 不透明度（0〜1の範囲、float64、矩形全体に適用、0=完全透明、1=完全不透明）
   - UIでは「透明度」として表示（値を反転: 透明度% = 100 - opacity * 100）
+* `fillEnabled`: 背景色の有効/無効（boolean）
+* `strokeEnabled`: 枠線の有効/無効（boolean）
 
 ```typescript
 model Rectangle {
@@ -38,10 +40,12 @@ model Rectangle {
   y: float64;
   width: float64;
   height: float64;
-  fill: string;       // 背景色（例: "#E3F2FD"）
-  stroke: string;     // 枠線色（例: "#90CAF9"）
-  strokeWidth: float64; // 枠線幅（px）
-  opacity: float64;     // 不透明度（0〜1、0=完全透明、1=完全不透明）
+  fill: string;          // 背景色（例: "#E3F2FD"）
+  fillEnabled: boolean;  // 背景色の有効/無効
+  stroke: string;        // 枠線色（例: "#90CAF9"）
+  strokeEnabled: boolean; // 枠線の有効/無効
+  strokeWidth: float64;  // 枠線幅（px）
+  opacity: float64;      // 不透明度（0〜1、0=完全透明、1=完全不透明）
 }
 ```
 
@@ -66,6 +70,9 @@ model ERDiagramViewModel {
 * `fill`および`stroke`: HEX形式（`#RRGGBB`）で保存
 * `opacity`: 0〜1の数値（float64）で保存（不透明度、CSS標準に準拠）
   - UIでは「透明度」として表示・入力するため、値を反転して扱う（透明度 = 1 - opacity）
+* `fillEnabled`および`strokeEnabled`: boolean値で保存
+  - `true`: 該当する要素（背景色または枠線）を表示
+  - `false`: 該当する要素を非表示（`fillEnabled: false`の場合は背景透明、`strokeEnabled: false`の場合は枠線なし）
 
 この形式により、データベース保存は単純化され、レンダリング時にはCSS標準の `opacity` プロパティとして直接利用できる。
 
@@ -77,7 +84,9 @@ model ERDiagramViewModel {
 * 新規作成時のデフォルト値：
   - サイズ: 幅200px × 高さ150px
   - 背景色: 淡い青（`#E3F2FD`）
+  - 背景色有効: `true`
   - 枠線色: 青（`#90CAF9`）
+  - 枠線有効: `true`
   - 枠線幅: 2px
   - 不透明度: 1.0（透明度0%、完全不透明）
 
@@ -113,7 +122,7 @@ model ERDiagramViewModel {
 * `actionUpdateRectanglePosition(vm, rectangleId, x, y)`: 矩形の位置を更新
 * `actionUpdateRectangleSize(vm, rectangleId, width, height)`: 矩形のサイズを更新
 * `actionUpdateRectangleBounds(vm, rectangleId, {x, y, width, height})`: 矩形の座標とサイズを一括更新（リサイズ時に使用）
-* `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイル（fill/stroke/strokeWidth/opacity）を部分更新
+* `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`: 矩形のスタイル（fill/fillEnabled/stroke/strokeEnabled/strokeWidth/opacity）を部分更新
 
 すべてのActionは純粋関数で実装され、状態に変化がない場合は同一参照を返す。
 

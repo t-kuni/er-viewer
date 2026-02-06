@@ -70,15 +70,25 @@ React Flowの`onSelectionChange`イベントを使用して選択状態を監視
 ### 1. 背景色（fill）
 
 * ラベル: 「背景色」
+* チェックボックス: 「背景色を表示」（`fillEnabled`の制御）
+  - チェックON: 背景色を表示（`fillEnabled: true`）
+  - チェックOFF: 背景色を非表示（`fillEnabled: false`、背景透明）
+  - 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { fillEnabled: newValue })`をdispatch
 * コンポーネント: カラーピッカー（HexColorPicker） + HexColorInput
 * プリセット色ボタン: 8色を横2列 × 縦4行でグリッド表示
+* カラーピッカーとプリセット色ボタンは`fillEnabled === true`の場合のみ有効化
 * 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { fill: newColor })`をdispatch
 
 ### 2. 枠線色（stroke）
 
-* ラベル: 「枠線色」
+* ラベル: 「枠線」
+* チェックボックス: 「枠線を表示」（`strokeEnabled`の制御）
+  - チェックON: 枠線を表示（`strokeEnabled: true`）
+  - チェックOFF: 枠線を非表示（`strokeEnabled: false`）
+  - 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { strokeEnabled: newValue })`をdispatch
 * コンポーネント: カラーピッカー（HexColorPicker） + HexColorInput
 * プリセット色ボタン: 8色を横2列 × 縦4行でグリッド表示
+* カラーピッカーとプリセット色ボタンは`strokeEnabled === true`の場合のみ有効化
 * 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { stroke: newColor })`をdispatch
 
 ### 3. 透明度
@@ -99,6 +109,7 @@ React Flowの`onSelectionChange`イベントを使用して選択状態を監視
 * ラベル: 「枠線幅」
 * コンポーネント: `<input type="number">` + 単位表示（px）
 * 範囲: 0以上、ステップ1
+* `strokeEnabled === true`の場合のみ有効化
 * 変更時: `actionUpdateRectangleStyle(vm, rectangleId, { strokeWidth: newWidth })`をdispatch
 
 ### 5. 削除ボタン
@@ -210,7 +221,9 @@ MVPでは実装しない。
 
 * `actionUpdateRectangleStyle(vm, rectangleId, stylePatch)`
   - 背景色変更: `{ fill: newColor }`
+  - 背景色有効/無効: `{ fillEnabled: newValue }`
   - 枠線色変更: `{ stroke: newColor }`
+  - 枠線有効/無効: `{ strokeEnabled: newValue }`
   - 透明度変更: `{ opacity: newOpacity }`
   - 枠線幅変更: `{ strokeWidth: newWidth }`
 
@@ -225,6 +238,8 @@ MVPでは実装しない。
 * HEX値のバリデーション: react-colorfulが不正なHEX値を自動的に処理するため、追加のバリデーションは不要
 * 透明度スライダーの精度: `step="0.01"`を指定して0.01刻みで調整可能にする
 * 枠線幅の最小値: `min="0"`を指定して0px以上の値のみ許可
+* 背景色・枠線の有効/無効チェックボックスによる他のコントロールの有効/無効化: `disabled`属性を使用
+* 既存データの後方互換性: `fillEnabled`/`strokeEnabled`が未定義の場合は`true`として扱う
 * サイドバーの開閉アニメーション: MVPでは実装しない
 * レスポンシブ対応: MVPでは固定幅のサイドバーとし、レスポンシブ対応は後回し
 

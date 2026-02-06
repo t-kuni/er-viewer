@@ -70,10 +70,12 @@ model Rectangle {
   y: float64;
   width: float64;
   height: float64;
-  fill: string;   // 背景色（例: "#E3F2FD"）
-  stroke: string; // 枠線色（例: "#90CAF9"）
-  strokeWidth: float64; // 枠線幅（px）
-  opacity: float64;     // 不透明度（0=完全透明、1=完全不透明）。UIでは「透明度」として表示（値を反転）
+  fill: string;          // 背景色（例: "#E3F2FD"）
+  fillEnabled: boolean;  // 背景色の有効/無効
+  stroke: string;        // 枠線色（例: "#90CAF9"）
+  strokeEnabled: boolean; // 枠線の有効/無効
+  strokeWidth: float64;  // 枠線幅（px）
+  opacity: float64;      // 不透明度（0=完全透明、1=完全不透明）。UIでは「透明度」として表示（値を反転）
 }
 
 // Text alignment options

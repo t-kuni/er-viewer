@@ -8,14 +8,14 @@
 
 ### 型生成
 
-- [ ] `npm run generate` を実行して、`ClipboardData` と `CanvasMousePosition` 型をフロントエンド用に生成
+- [x] `npm run generate` を実行して、`ClipboardData` と `CanvasMousePosition` 型をフロントエンド用に生成
   - `scheme/main.tsp` の変更が既にコミットされている
   - `public/src/api/client/` に型が生成される
   - `GlobalUIState` に `clipboard` と `lastMousePosition` フィールドが追加される
 
 ### 初期状態の更新
 
-- [ ] `public/src/store/erDiagramStore.ts` の初期状態を更新
+- [x] `public/src/store/erDiagramStore.ts` の初期状態を更新
   - `ui.clipboard: null` を追加
   - `ui.lastMousePosition: null` を追加
   - 初期ViewModel生成時にこれらのフィールドが含まれるようにする
@@ -24,7 +24,7 @@
 
 コピー&ペースト機能用のActionファイルを新規作成します。
 
-- [ ] `public/src/actions/clipboardActions.ts` を新規作成
+- [x] `public/src/actions/clipboardActions.ts` を新規作成
   - 以下のActionを実装:
     - `actionCopyItem(vm)`: 選択中のアイテムをクリップボードにコピー
       - `vm.ui.selectedItem` が `null` の場合は何もしない（同一参照を返す）
@@ -57,7 +57,7 @@
 
 ### テスト実装 (`public/tests/actions/`)
 
-- [ ] `public/tests/actions/clipboardActions.test.ts` を新規作成
+- [x] `public/tests/actions/clipboardActions.test.ts` を新規作成
   - `actionCopyItem` のテスト:
     - 選択なしの場合、何もしない
     - テキスト選択時、クリップボードにテキストデータが保存される
@@ -79,7 +79,7 @@
 
 ### マウス位置記録の実装
 
-- [ ] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
+- [x] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
   - キャンバスのラッパー `<div>` に `onMouseMove` イベントハンドラを追加
   - マウスムーブ時に `actionUpdateMousePosition` をdispatch
   - `e.clientX` と `e.clientY` を渡す
@@ -88,7 +88,7 @@
 
 ### キーボードショートカット実装
 
-- [ ] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
+- [x] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
   - `useKeyPress('Control+c')` と `useKeyPress('Meta+c')` でコピー操作を検知（既に `useKeyPress` がインポート済み）
   - `useKeyPress('Control+v')` と `useKeyPress('Meta+v')` でペースト操作を検知
   - `useEffect` でキーボードイベントを監視
@@ -109,8 +109,8 @@
 
 ### ビルドとテストの実行
 
-- [ ] `npm run generate` を実行してビルドエラーがないことを確認
-- [ ] `npm run test` を実行してテストがパスすることを確認
+- [x] `npm run generate` を実行してビルドエラーがないことを確認
+- [x] `npm run test` を実行してテストがパスすることを確認
 
 ---
 

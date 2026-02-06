@@ -30,6 +30,7 @@ import { actionAddRectangle, actionUpdateRectanglePosition, actionUpdateRectangl
 import { actionAddText, actionRemoveText, actionUpdateTextPosition, actionUpdateTextBounds, actionSetTextAutoSizeMode, actionUpdateTextContent } from '../actions/textActions'
 import { actionSelectItem } from '../actions/layerActions'
 import { actionStartEntityDrag, actionStopEntityDrag, actionClearHover } from '../actions/hoverActions'
+import { actionCopyItem, actionPasteItem, actionUpdateMousePosition } from '../actions/clipboardActions'
 import type { Rectangle, TextBox, LayerItemRef, TextAlign, TextVerticalAlign, TextOverflowMode, TextAutoSizeMode } from '../api/client'
 
 const nodeTypes = {
@@ -185,7 +186,7 @@ function ERCanvasInner({
   onSelectionChange?: (rectangleId: string | null) => void,
   onNodesInitialized?: (initialized: boolean) => void
 }) {
-  const { getNodes } = useReactFlow()
+  const { getNodes, screenToFlowPosition } = useReactFlow()
   const viewport = useViewport()
   const nodesInitialized = useNodesInitialized()
   
@@ -224,6 +225,8 @@ function ERCanvasInner({
   const rectangles = useViewModel((vm) => vm.erDiagram.rectangles)
   const texts = useViewModel((vm) => vm.erDiagram.texts)
   const selectedItem = useViewModel((vm) => vm.ui.selectedItem)
+  const clipboard = useViewModel((vm) => vm.ui.clipboard)
+  const lastMousePosition = useViewModel((vm) => vm.ui.lastMousePosition)
   
   // 空テキストの自動削除
   const prevSelectedItem = useRef<typeof selectedItem>(null)
@@ -255,6 +258,11 @@ function ERCanvasInner({
   // テキスト編集状態管理（スペースキー処理で使用するため、先に宣言）
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [draftContent, setDraftContent] = useState<string>('')
+  
+  // マウス位置記録ハンドラー
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    dispatch(actionUpdateMousePosition, { clientX: e.clientX, clientY: e.clientY })
+  }, [dispatch])
   
   // スペースキー押下状態の管理（パンスクロール機能用）
   const spacePressed = useKeyPress('Space')
@@ -462,6 +470,53 @@ function ERCanvasInner({
       window.removeEventListener('mouseup', handleMouseUp)
     }
   }, [draggingText, viewport.zoom, dispatch])
+  
+  // キーボードショートカット：コピー&ペースト
+  const ctrlCPressed = useKeyPress('Control+c')
+  const metaCPressed = useKeyPress('Meta+c')
+  const ctrlVPressed = useKeyPress('Control+v')
+  const metaVPressed = useKeyPress('Meta+v')
+  
+  // コピー処理
+  useEffect(() => {
+    // テキスト編集モード中は無効化
+    if (editingTextId !== null) return
+    
+    if (ctrlCPressed || metaCPressed) {
+      // エンティティ・リレーション以外のアイテムをコピー
+      if (selectedItem && selectedItem.kind !== 'entity' && selectedItem.kind !== 'relation') {
+        dispatch(actionCopyItem)
+      }
+    }
+  }, [ctrlCPressed, metaCPressed, editingTextId, selectedItem, dispatch])
+  
+  // ペースト処理
+  useEffect(() => {
+    // テキスト編集モード中は無効化
+    if (editingTextId !== null) return
+    
+    if (ctrlVPressed || metaVPressed) {
+      if (clipboard !== null) {
+        let pastePosition: { x: number; y: number }
+        
+        if (lastMousePosition !== null) {
+          // マウス位置が記録されている場合：スクリーン座標をキャンバス座標に変換
+          pastePosition = screenToFlowPosition({ 
+            x: lastMousePosition.clientX, 
+            y: lastMousePosition.clientY 
+          })
+        } else {
+          // マウス位置が記録されていない場合：viewport中央を計算
+          pastePosition = {
+            x: -viewport.x + (window.innerWidth / 2) / viewport.zoom,
+            y: -viewport.y + (window.innerHeight / 2) / viewport.zoom,
+          }
+        }
+        
+        dispatch(actionPasteItem, pastePosition)
+      }
+    }
+  }, [ctrlVPressed, metaVPressed, editingTextId, clipboard, lastMousePosition, viewport, screenToFlowPosition, dispatch])
   
   // F2キーでテキスト編集モード開始
   useEffect(() => {
@@ -737,7 +792,10 @@ function ERCanvasInner({
   const cursorStyle = effectiveSpacePressed ? (isPanning ? 'grabbing' : 'grab') : undefined
   
   return (
-    <div style={{ width: '100%', height: '100%', cursor: cursorStyle }}>
+    <div 
+      style={{ width: '100%', height: '100%', cursor: cursorStyle }}
+      onMouseMove={handleMouseMove}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

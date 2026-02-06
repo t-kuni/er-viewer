@@ -53,6 +53,8 @@ const initialState: ViewModel = {
       progress: 0,
       currentStage: null,
     },
+    clipboard: null,
+    lastMousePosition: null,
   },
   buildInfo: {
     data: null,

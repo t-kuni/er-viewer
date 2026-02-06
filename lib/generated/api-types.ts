@@ -257,7 +257,9 @@ export interface components {
             /** Format: double */
             height: number;
             fill: string;
+            fillEnabled: boolean;
             stroke: string;
+            strokeEnabled: boolean;
             /** Format: double */
             strokeWidth: number;
             /** Format: double */

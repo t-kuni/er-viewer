@@ -1,143 +1,186 @@
-# コピー&ペースト機能実装タスク一覧
+# タスク一覧
 
-仕様書: [spec/copy_paste_feature.md](spec/copy_paste_feature.md)
+## 概要
 
----
+仕様書の更新により、`Rectangle`モデルに`fillEnabled`と`strokeEnabled`の2つのプロパティが追加されました。
+これに伴い、以下の対応が必要です：
 
-## フェーズ1: Action層とStoreの準備
+* 矩形作成時にデフォルト値を設定
+* 矩形レンダリング時に`fillEnabled`/`strokeEnabled`を考慮
+* プロパティパネルにチェックボックスとコントロールの有効/無効化を追加
+* アクションの型定義を更新
+* テストコードを更新
+* 後方互換性の対応
 
-### 型生成
+参照仕様書:
+- [rectangle_drawing_feature.md](/spec/rectangle_drawing_feature.md)
+- [rectangle_property_panel.md](/spec/rectangle_property_panel.md)
 
-- [x] `npm run generate` を実行して、`ClipboardData` と `CanvasMousePosition` 型をフロントエンド用に生成
-  - `scheme/main.tsp` の変更が既にコミットされている
-  - `public/src/api/client/` に型が生成される
-  - `GlobalUIState` に `clipboard` と `lastMousePosition` フィールドが追加される
+## タスク
 
-### 初期状態の更新
+### フェーズ1: バックエンド型定義とアクション、レンダリング処理の更新
 
-- [x] `public/src/store/erDiagramStore.ts` の初期状態を更新
-  - `ui.clipboard: null` を追加
-  - `ui.lastMousePosition: null` を追加
-  - 初期ViewModel生成時にこれらのフィールドが含まれるようにする
+#### 型生成の確認
 
-### Action実装 (`public/src/actions/`)
+- [x] `npm run generate`を実行して`lib/generated/api-types.ts`と`public/src/api/client`に`fillEnabled`/`strokeEnabled`が追加されたことを確認
+  * 既に確認済み。型は正しく生成されている
 
-コピー&ペースト機能用のActionファイルを新規作成します。
+#### アクション層の更新
 
-- [x] `public/src/actions/clipboardActions.ts` を新規作成
-  - 以下のActionを実装:
-    - `actionCopyItem(vm)`: 選択中のアイテムをクリップボードにコピー
-      - `vm.ui.selectedItem` が `null` の場合は何もしない（同一参照を返す）
-      - `selectedItem.kind` が `'entity'` または `'relation'` の場合は何もしない（同一参照を返す）
-      - `selectedItem.kind` が `'text'` の場合: `vm.erDiagram.texts[selectedItem.id]` からデータを取得
-      - `selectedItem.kind` が `'rectangle'` の場合: `vm.erDiagram.rectangles[selectedItem.id]` からデータを取得
-      - `ClipboardData` オブジェクトを作成し、`vm.ui.clipboard` に保存
-      - 純粋関数として実装（副作用なし）
-    - `actionPasteItem(vm, position: {x: number, y: number})`: クリップボードのアイテムをペースト
-      - `vm.ui.clipboard` が `null` の場合は何もしない（同一参照を返す）
-      - `crypto.randomUUID()` で新しいIDを生成
-      - `clipboard.kind` に応じて元データをコピー:
-        - `kind === 'text'`: `clipboard.textData` をコピーし、`id` と `x`, `y` を新しい値に変更
-        - `kind === 'rectangle'`: `clipboard.rectangleData` をコピーし、`id` と `x`, `y` を新しい値に変更
-      - 内部で `actionAddText` または `actionAddRectangle` を呼び出し
-      - 内部で `actionSelectItem(vm, { kind, id: newId })` を呼び出して新しいアイテムを選択
-      - 純粋関数として実装（副作用なし）
-    - `actionUpdateMousePosition(vm, position: {clientX: number, clientY: number})`: マウス位置を更新
-      - `vm.ui.lastMousePosition` を更新
-      - 値が変わっていない場合は同一参照を返す
-      - 純粋関数として実装（副作用なし）
-  - 既存のActionをインポート:
-    - `actionAddText`, `actionAddRectangle` from `./textActions`, `./rectangleActions`
-    - `actionSelectItem` from `./layerActions`
-  - 型定義をインポート:
-    - `type ViewModel` from `'../api/client'`
-    - `type ClipboardData` from `'../api/client'`
-    - `type TextBox` from `'../api/client'`
-    - `type Rectangle` from `'../api/client'`
+- [ ] `public/src/actions/rectangleActions.ts`の`actionUpdateRectangleStyle`関数を更新
+  * 現在の`stylePatch`型定義に`fillEnabled?: boolean`と`strokeEnabled?: boolean`を追加
+  * 現在の型定義:
+    ```typescript
+    stylePatch: {
+      fill?: string;
+      stroke?: string;
+      strokeWidth?: number;
+      opacity?: number;
+    }
+    ```
+  * 更新後:
+    ```typescript
+    stylePatch: {
+      fill?: string;
+      fillEnabled?: boolean;
+      stroke?: string;
+      strokeEnabled?: boolean;
+      strokeWidth?: number;
+      opacity?: number;
+    }
+    ```
+  * `hasChanges`の判定に`fillEnabled`と`strokeEnabled`の変更チェックを追加
+  * スプレッド構文で`fillEnabled`と`strokeEnabled`を反映する処理を追加
+  * 参照: `public/src/actions/rectangleActions.ts` 191-235行
 
-### テスト実装 (`public/tests/actions/`)
+#### 矩形作成処理の更新
 
-- [x] `public/tests/actions/clipboardActions.test.ts` を新規作成
-  - `actionCopyItem` のテスト:
-    - 選択なしの場合、何もしない
-    - テキスト選択時、クリップボードにテキストデータが保存される
-    - 矩形選択時、クリップボードに矩形データが保存される
-    - エンティティ選択時、何もしない
-  - `actionPasteItem` のテスト:
-    - クリップボードが空の場合、何もしない
-    - テキストをペーストすると新しいテキストが追加され、選択状態になる
-    - 矩形をペーストすると新しい矩形が追加され、選択状態になる
-    - IDが新しく生成され、元のオブジェクトとは異なる
-    - 指定された位置にペーストされる
-  - `actionUpdateMousePosition` のテスト:
-    - マウス位置が更新される
-    - 値が変わっていない場合は同一参照を返す
+- [ ] `public/src/components/ERCanvas.tsx`の`handleAddRectangle`関数を更新
+  * 矩形作成時に`fillEnabled: true`と`strokeEnabled: true`をデフォルト値として追加
+  * 参照: `public/src/components/ERCanvas.tsx` 960-971行
 
----
+- [ ] `public/src/actions/clipboardActions.ts`の`actionPasteItem`関数を確認
+  * ペースト処理は既存の`Rectangle`オブジェクトをコピーするため、`fillEnabled`/`strokeEnabled`も自動的にコピーされる
+  * 後方互換性: 古いデータで`fillEnabled`/`strokeEnabled`が未定義の場合、レンダリング側で`true`として扱う（次のタスクで対応）
+  * 参照: `public/src/actions/clipboardActions.ts` 95-104行
 
-## フェーズ2: UI統合（マウス位置記録とキーボードショートカット）
+#### 矩形レンダリング処理の更新
 
-### マウス位置記録の実装
+- [ ] `public/src/components/ERCanvas.tsx`の`renderRectangles`関数を更新
+  * `fillEnabled`が`false`の場合は背景色を透明にする（`backgroundColor: 'transparent'`）
+  * `strokeEnabled`が`false`の場合は枠線を非表示にする（`border: 'none'`または`borderWidth: 0`）
+  * 後方互換性の対応: `rectangle.fillEnabled ?? true`、`rectangle.strokeEnabled ?? true`として未定義時は`true`として扱う
+  * 参照: `public/src/components/ERCanvas.tsx` 592-645行
+  * 現在のレンダリング処理:
+    ```typescript
+    border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
+    backgroundColor: rectangle.fill,
+    ```
+  * 更新後（例）:
+    ```typescript
+    border: (rectangle.strokeEnabled ?? true) 
+      ? `${rectangle.strokeWidth}px solid ${rectangle.stroke}` 
+      : 'none',
+    backgroundColor: (rectangle.fillEnabled ?? true) 
+      ? rectangle.fill 
+      : 'transparent',
+    ```
 
-- [x] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
-  - キャンバスのラッパー `<div>` に `onMouseMove` イベントハンドラを追加
-  - マウスムーブ時に `actionUpdateMousePosition` をdispatch
-  - `e.clientX` と `e.clientY` を渡す
-  - `useCallback` でハンドラーをメモ化してパフォーマンスを確保
-  - 注意: `onMouseLeave` では `lastMousePosition` を更新しない（最後の位置を保持）
+### フェーズ2: プロパティパネルUIの更新
 
-### キーボードショートカット実装
+#### RectanglePropertyPanelコンポーネントの更新
 
-- [x] `public/src/components/ERCanvas.tsx` の `ERCanvasInner` コンポーネントを更新
-  - `useKeyPress('Control+c')` と `useKeyPress('Meta+c')` でコピー操作を検知（既に `useKeyPress` がインポート済み）
-  - `useKeyPress('Control+v')` と `useKeyPress('Meta+v')` でペースト操作を検知
-  - `useEffect` でキーボードイベントを監視
-  - **テキスト編集モード中は無効化**: `editingTextId !== null` の場合、キーボードショートカットを無視
-  - コピー時:
-    - `selectedItem` が `null` または `kind === 'entity'` または `kind === 'relation'` の場合は何もしない
-    - それ以外の場合は `dispatch(actionCopyItem)` を実行
-  - ペースト時:
-    - `clipboard` が `null` の場合は何もしない
-    - ペースト位置を計算:
-      - `lastMousePosition` が `null` でない場合: `screenToFlowPosition({ x: lastMousePosition.clientX, y: lastMousePosition.clientY })` でキャンバス座標に変換
-      - `lastMousePosition` が `null` の場合: viewport中央を計算 (`x = -viewport.x + (window.innerWidth / 2) / viewport.zoom`, `y = -viewport.y + (window.innerHeight / 2) / viewport.zoom`)
-    - `dispatch(actionPasteItem, pastePosition)` を実行
-  - `useReactFlow()` から `screenToFlowPosition` を取得
-  - `useViewport()` から `viewport` を取得（フォールバック時の中央計算用）
-  - 必要な型とActionをインポート:
-    - `actionCopyItem`, `actionPasteItem`, `actionUpdateMousePosition` from `'../actions/clipboardActions'`
+- [ ] `public/src/components/RectanglePropertyPanel.tsx`に背景色チェックボックスを追加
+  * 「背景色」ラベルの直下にチェックボックス「背景色を表示」を追加
+  * チェックボックスの状態を`rectangle.fillEnabled ?? true`で初期化（後方互換性）
+  * チェック変更時に`dispatch(actionUpdateRectangleStyle, rectangleId, { fillEnabled: newValue })`を呼び出す
+  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 57-62行
 
-### ビルドとテストの実行
+- [ ] `public/src/components/RectanglePropertyPanel.tsx`のカラーピッカー（背景色）を条件付き有効化
+  * `fillEnabled === false`の場合は`ColorPickerWithPresets`を`disabled`状態にする
+  * `ColorPickerWithPresets`が`disabled`プロパティをサポートしていない場合は、`opacity`や`pointerEvents: 'none'`で視覚的に無効化する、またはコンポーネントを条件付きレンダリングする
+  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 57-62行
 
-- [x] `npm run generate` を実行してビルドエラーがないことを確認
-- [x] `npm run test` を実行してテストがパスすることを確認
+- [ ] `public/src/components/RectanglePropertyPanel.tsx`に枠線チェックボックスを追加
+  * 「枠線色」ラベルを「枠線」に変更（仕様書に準拠）
+  * 「枠線」ラベルの直下にチェックボックス「枠線を表示」を追加
+  * チェックボックスの状態を`rectangle.strokeEnabled ?? true`で初期化（後方互換性）
+  * チェック変更時に`dispatch(actionUpdateRectangleStyle, rectangleId, { strokeEnabled: newValue })`を呼び出す
+  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 64-69行
 
----
+- [ ] `public/src/components/RectanglePropertyPanel.tsx`のカラーピッカー（枠線）と枠線幅を条件付き有効化
+  * `strokeEnabled === false`の場合は、枠線色の`ColorPickerWithPresets`と枠線幅の`<input type="number">`を無効化
+  * カラーピッカーの無効化方法は背景色と同様
+  * 枠線幅の`<input>`には`disabled={!(rectangle.strokeEnabled ?? true)}`属性を追加
+  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 64-106行
 
-## 備考
+#### ColorPickerWithPresetsコンポーネントの更新（必要に応じて）
 
-### 実装上の注意点
+- [ ] `public/src/components/ColorPickerWithPresets.tsx`に`disabled`プロパティを追加（オプショナル）
+  * `disabled`プロパティを受け取り、無効化時にカラーピッカーとプリセットボタンを視覚的に無効化する
+  * 無効化時の実装方法:
+    * `opacity: 0.5`でグレーアウト
+    * `pointerEvents: 'none'`でクリック無効化
+    * または、`disabled`時は単に現在の色を表示するだけのシンプルなUIに切り替える
+  * このタスクは、RectanglePropertyPanelでの条件付きレンダリングで対応可能な場合はスキップしてもよい
 
-* **マウス位置の座標系**: `lastMousePosition` にはスクリーン座標（`clientX`, `clientY`）を保存し、ペースト時に `screenToFlowPosition()` でキャンバス座標に変換する
-* **キーボードショートカットの無効化条件**: テキスト編集中（`editingTextId !== null`）はブラウザのデフォルトのコピー&ペーストを優先
-* **パフォーマンス**: マウスムーブイベントは頻繁に発生するため、`useCallback` でハンドラーをメモ化する。初期実装ではthrottleは不要
-* **レイヤー配置**: ペースト時のレイヤー配置は各アイテムのデフォルトルールに従う（テキストは前面、矩形は背面）。`actionAddText` と `actionAddRectangle` が内部で `actionAddLayerItem` を呼び出すため、自動的に処理される
-* **連続ペースト**: 同じコピー元から複数回ペーストが可能。各ペースト操作は、その時点のマウスカーソル位置（またはviewport中央）に配置される
+### フェーズ3: テストコードの更新とビルド確認
 
-### スコープ外の機能
+#### テストコードの更新
 
-以下は今回のタスクに含まれません:
+- [ ] `public/tests/actions/rectangleActions.test.ts`のモックデータに`fillEnabled`と`strokeEnabled`を追加
+  * `createMockViewModel`関数内の矩形データに`fillEnabled: true`と`strokeEnabled: true`を追加
+  * 参照: `public/tests/actions/rectangleActions.test.ts` 22-32行
 
-* 複数選択によるコピー&ペースト
-* カット操作（Ctrl+X）
-* クリップボード履歴
-* ブラウザクリップボードAPIとの連携
-* エンティティ・リレーションのコピー
+- [ ] `public/tests/actions/rectangleActions.test.ts`の`actionAddRectangle`テストのモックデータを更新
+  * テスト内で作成している`newRectangle`と`duplicateRectangle`に`fillEnabled: true`と`strokeEnabled: true`を追加
+  * 参照: `public/tests/actions/rectangleActions.test.ts` 62-114行
 
-### 参照仕様書
+- [ ] `public/tests/actions/rectangleActions.test.ts`の`actionUpdateRectangleStyle`テストケースを追加
+  * `fillEnabled`と`strokeEnabled`を個別に更新するテストケースを追加
+  * 例:
+    ```typescript
+    it('fillEnabledが更新される', () => {
+      const viewModel = createMockViewModel();
+      const result = actionUpdateRectangleStyle(viewModel, 'rect-1', {
+        fillEnabled: false,
+      });
+      expect(result.erDiagram.rectangles['rect-1'].fillEnabled).toBe(false);
+    });
+    ```
+  * 同様に`strokeEnabled`のテストも追加
+  * 参照: `public/tests/actions/rectangleActions.test.ts` 262-313行
 
-* [コピー&ペースト機能仕様](spec/copy_paste_feature.md)
-* [フロントエンド状態管理仕様](spec/frontend_state_management.md)
-* [テキスト描画機能仕様](spec/text_drawing_feature.md)
-* [矩形描画機能仕様](spec/rectangle_drawing_feature.md)
-* [レイヤー管理機能仕様](spec/layer_management.md)
+- [ ] `public/tests/actions/clipboardActions.test.ts`のモックデータを更新
+  * `createMockViewModel`関数内の矩形データ（30-40行目）に`fillEnabled: true`と`strokeEnabled: true`を追加
+  * 参照: `public/tests/actions/clipboardActions.test.ts` 29-40行
+
+#### ビルドとテストの実行
+
+- [ ] ビルドの確認
+  * `npm run generate`を実行して型定義を再生成
+  * TypeScriptのコンパイルエラーがないことを確認
+
+- [ ] テストの実行
+  * `npm run test`を実行してすべてのテストがパスすることを確認
+  * 特に`rectangleActions.test.ts`と`clipboardActions.test.ts`が正常に動作することを確認
+
+## 補足事項
+
+### 後方互換性の対応
+
+* 既存のデータで`fillEnabled`/`strokeEnabled`が未定義の場合、`?? true`でデフォルト値`true`として扱う
+* レンダリング処理とプロパティパネルの両方で後方互換性を考慮する
+
+### フェーズ分けの理由
+
+* フェーズ1: データ層とレンダリング層の基本的な対応（5ファイル更新）
+* フェーズ2: UI層の対応（1〜2ファイル更新）
+* フェーズ3: テストとビルド確認（2ファイル更新 + ビルド・テスト実行）
+
+各フェーズの最後にビルドとテストを実行することで、段階的に動作確認が可能。
+
+### 不要なファイル
+
+* `public/src/utils/reactFlowConverter.ts`の`convertToReactFlowRectangles`関数は`@deprecated`のため更新不要
+* `public/src/components/RectangleNode.tsx`も`@deprecated`のため更新不要

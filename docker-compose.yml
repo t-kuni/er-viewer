@@ -8,3 +8,12 @@ services:
       - "30177:3306"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  db-postgres:
+    image: postgres:14.20
+    environment:
+      POSTGRES_PASSWORD: rootpass
+      POSTGRES_USER: postgres
+    ports:
+      - "30178:5432"
+    volumes:
+      - ./init-postgres.sql:/docker-entrypoint-initdb.d/init.sql

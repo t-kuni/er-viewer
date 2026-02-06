@@ -599,6 +599,10 @@ function ERCanvasInner({
       const zIndex = calculateZIndex(layerOrder as any, item as LayerItemRef)
       const isSelected = selectedItem?.kind === 'rectangle' && selectedItem.id === item.id
       
+      // 後方互換性: fillEnabled, strokeEnabled が未定義の場合は true として扱う
+      const fillEnabled = rectangle.fillEnabled ?? true
+      const strokeEnabled = rectangle.strokeEnabled ?? true
+      
       return (
         <div
           key={item.id}
@@ -608,8 +612,8 @@ function ERCanvasInner({
             top: rectangle.y,
             width: rectangle.width,
             height: rectangle.height,
-            border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
-            backgroundColor: rectangle.fill,
+            border: strokeEnabled ? `${rectangle.strokeWidth}px solid ${rectangle.stroke}` : 'none',
+            backgroundColor: fillEnabled ? rectangle.fill : 'transparent',
             opacity: rectangle.opacity,
             zIndex,
             cursor: 'move',
@@ -964,7 +968,9 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
       width: 200,
       height: 150,
       fill: '#E3F2FD',
+      fillEnabled: true,
       stroke: '#90CAF9',
+      strokeEnabled: true,
       strokeWidth: 2,
       opacity: 1.0,
     }

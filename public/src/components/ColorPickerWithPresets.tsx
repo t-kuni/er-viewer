@@ -5,6 +5,7 @@ interface ColorPickerWithPresetsProps {
   value: string; // HEX形式の色
   onChange: (color: string) => void;
   label: string;
+  disabled?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -22,10 +23,15 @@ export const ColorPickerWithPresets: React.FC<ColorPickerWithPresetsProps> = ({
   value,
   onChange,
   label,
+  disabled = false,
 }) => {
   return (
     <div 
-      style={{ marginBottom: '1rem' }}
+      style={{ 
+        marginBottom: '1rem',
+        opacity: disabled ? 0.5 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+      }}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

@@ -26,7 +26,9 @@ describe('rectangleActions', () => {
           width: 300,
           height: 250,
           fill: '#E3F2FD',
+          fillEnabled: true,
           stroke: '#90CAF9',
+          strokeEnabled: true,
           strokeWidth: 2,
           opacity: 0.5,
         },
@@ -66,7 +68,9 @@ describe('rectangleActions', () => {
         width: 200,
         height: 150,
         fill: '#FFF3E0',
+        fillEnabled: true,
         stroke: '#FFB74D',
+        strokeEnabled: true,
         strokeWidth: 3,
         opacity: 0.7,
       };
@@ -88,7 +92,9 @@ describe('rectangleActions', () => {
         width: 200,
         height: 150,
         fill: '#FFF3E0',
+        fillEnabled: true,
         stroke: '#FFB74D',
+        strokeEnabled: true,
         strokeWidth: 3,
         opacity: 0.7,
       };
@@ -108,7 +114,9 @@ describe('rectangleActions', () => {
         width: 200,
         height: 150,
         fill: '#FFF3E0',
+        fillEnabled: true,
         stroke: '#FFB74D',
+        strokeEnabled: true,
         strokeWidth: 3,
         opacity: 0.7,
       };
@@ -309,6 +317,32 @@ describe('rectangleActions', () => {
       });
 
       expect(result).toBe(viewModel);
+    });
+
+    it('fillEnabledが更新される', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateRectangleStyle(viewModel, 'rect-1', {
+        fillEnabled: false,
+      });
+
+      expect(result.erDiagram.rectangles['rect-1'].fillEnabled).toBe(false);
+      // 他のプロパティは保持される
+      expect(result.erDiagram.rectangles['rect-1'].fill).toBe('#E3F2FD');
+      expect(result.erDiagram.rectangles['rect-1'].strokeEnabled).toBe(true);
+    });
+
+    it('strokeEnabledが更新される', () => {
+      const viewModel = createMockViewModel();
+      
+      const result = actionUpdateRectangleStyle(viewModel, 'rect-1', {
+        strokeEnabled: false,
+      });
+
+      expect(result.erDiagram.rectangles['rect-1'].strokeEnabled).toBe(false);
+      // 他のプロパティは保持される
+      expect(result.erDiagram.rectangles['rect-1'].stroke).toBe('#90CAF9');
+      expect(result.erDiagram.rectangles['rect-1'].fillEnabled).toBe(true);
     });
   });
 });

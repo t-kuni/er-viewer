@@ -39,6 +39,16 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
     }
   };
 
+  const handleFillEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fillEnabled = e.target.checked;
+    dispatch(actionUpdateRectangleStyle, rectangleId, { fillEnabled });
+  };
+
+  const handleStrokeEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const strokeEnabled = e.target.checked;
+    dispatch(actionUpdateRectangleStyle, rectangleId, { strokeEnabled });
+  };
+
   const handleRemove = () => {
     dispatch(actionRemoveRectangle, rectangleId);
   };
@@ -55,18 +65,62 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
       <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>矩形プロパティ</h3>
 
       {/* 背景色 */}
+      <div style={{ marginBottom: '0.5rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={rectangle.fillEnabled ?? true}
+            onChange={handleFillEnabledChange}
+          />
+          <span>背景色を表示</span>
+        </label>
+      </div>
       <ColorPickerWithPresets
         label="背景色"
         value={rectangle.fill}
         onChange={handleFillChange}
+        disabled={!(rectangle.fillEnabled ?? true)}
       />
 
-      {/* 枠線色 */}
+      {/* 枠線 */}
+      <div style={{ marginBottom: '0.5rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={rectangle.strokeEnabled ?? true}
+            onChange={handleStrokeEnabledChange}
+          />
+          <span>枠線を表示</span>
+        </label>
+      </div>
       <ColorPickerWithPresets
-        label="枠線色"
+        label="枠線"
         value={rectangle.stroke}
         onChange={handleStrokeChange}
+        disabled={!(rectangle.strokeEnabled ?? true)}
       />
+
+      {/* 枠線幅 */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+          枠線幅: {rectangle.strokeWidth}px
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={rectangle.strokeWidth}
+          onChange={handleStrokeWidthChange}
+          disabled={!(rectangle.strokeEnabled ?? true)}
+          style={{
+            width: '100%',
+            padding: '0.5rem',
+            fontSize: '14px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+      </div>
 
       {/* 透明度 */}
       <div style={{ marginBottom: '1rem' }}>
@@ -81,27 +135,6 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
           value={1 - rectangle.opacity}
           onChange={handleOpacityChange}
           style={{ width: '100%' }}
-        />
-      </div>
-
-      {/* 枠線幅 */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-          枠線幅: {rectangle.strokeWidth}px
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={rectangle.strokeWidth}
-          onChange={handleStrokeWidthChange}
-          style={{
-            width: '100%',
-            padding: '0.5rem',
-            fontSize: '14px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
         />
       </div>
 

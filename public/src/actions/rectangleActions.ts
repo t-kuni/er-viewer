@@ -193,7 +193,9 @@ export function actionUpdateRectangleStyle(
   rectangleId: string,
   stylePatch: {
     fill?: string;
+    fillEnabled?: boolean;
     stroke?: string;
+    strokeEnabled?: boolean;
     strokeWidth?: number;
     opacity?: number;
   }
@@ -208,7 +210,9 @@ export function actionUpdateRectangleStyle(
   // 変更がない場合は同一参照を返す
   const hasChanges =
     (stylePatch.fill !== undefined && stylePatch.fill !== rectangle.fill) ||
+    (stylePatch.fillEnabled !== undefined && stylePatch.fillEnabled !== rectangle.fillEnabled) ||
     (stylePatch.stroke !== undefined && stylePatch.stroke !== rectangle.stroke) ||
+    (stylePatch.strokeEnabled !== undefined && stylePatch.strokeEnabled !== rectangle.strokeEnabled) ||
     (stylePatch.strokeWidth !== undefined && stylePatch.strokeWidth !== rectangle.strokeWidth) ||
     (stylePatch.opacity !== undefined && stylePatch.opacity !== rectangle.opacity);
 
@@ -225,7 +229,9 @@ export function actionUpdateRectangleStyle(
         [rectangleId]: {
           ...rectangle,
           ...(stylePatch.fill !== undefined && { fill: stylePatch.fill }),
+          ...(stylePatch.fillEnabled !== undefined && { fillEnabled: stylePatch.fillEnabled }),
           ...(stylePatch.stroke !== undefined && { stroke: stylePatch.stroke }),
+          ...(stylePatch.strokeEnabled !== undefined && { strokeEnabled: stylePatch.strokeEnabled }),
           ...(stylePatch.strokeWidth !== undefined && { strokeWidth: stylePatch.strokeWidth }),
           ...(stylePatch.opacity !== undefined && { opacity: stylePatch.opacity }),
         },

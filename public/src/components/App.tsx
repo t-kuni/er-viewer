@@ -48,6 +48,22 @@ function App() {
     exportViewModel(viewModel)
   }
   
+  // キーボードショートカット（Ctrl+S / Cmd+S）でエクスポート
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isCtrlOrCmd = event.ctrlKey || event.metaKey
+      if (isCtrlOrCmd && event.key === 's') {
+        event.preventDefault()
+        handleExport()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [viewModel])
+  
   // インポートハンドラ
   const handleImport = async (files: File[]) => {
     if (files.length === 0) return

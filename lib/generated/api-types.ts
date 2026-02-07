@@ -80,11 +80,7 @@ export interface components {
         Column: {
             id: string;
             name: string;
-            type: string;
-            nullable: boolean;
-            key: string;
-            default: string | null;
-            extra: string;
+            key: string | null;
             isForeignKey: boolean;
         };
         ColumnChanges: {
@@ -103,12 +99,13 @@ export interface components {
             columnName: string;
         };
         ColumnSnapshot: {
-            type: string;
-            nullable: boolean;
-            key: string;
-            default: string | null;
-            extra: string;
+            key: string | null;
             isForeignKey: boolean;
+        };
+        DataSourceRef: {
+            dialect: components["schemas"]["DatabaseType"];
+            database: string;
+            schema?: string;
         };
         DatabaseConnectionState: {
             type: components["schemas"]["DatabaseType"];
@@ -117,6 +114,7 @@ export interface components {
             port: number;
             user: string;
             database: string;
+            schema?: string;
         };
         /** @enum {string} */
         DatabaseType: "mysql" | "postgresql";
@@ -135,6 +133,7 @@ export interface components {
             opacity: number;
         };
         ERData: {
+            source: components["schemas"]["DataSourceRef"];
             entities: components["schemas"]["Entity"][];
             relationships: components["schemas"]["Relationship"][];
         };
@@ -179,7 +178,6 @@ export interface components {
             id: string;
             name: string;
             columns: components["schemas"]["Column"][];
-            foreignKeys: components["schemas"]["ForeignKey"][];
             ddl: string;
         };
         EntityNodeViewModel: {
@@ -300,6 +298,7 @@ export interface components {
             user: string;
             password: string;
             database: string;
+            schema?: string;
         };
         ReverseEngineerResponse: {
             erData: components["schemas"]["ERData"];

@@ -1,6 +1,6 @@
-import type DatabaseManager from '../database';
+import type DatabaseManager from '../database/DatabaseManager.js';
 import type { components } from '../generated/api-types.js';
-import type { DatabaseConfig } from '../database.js';
+import type { DatabaseConfig } from '../database/DatabaseManager.js';
 
 // TypeSpecから生成された型を使用
 export type ReverseEngineerRequest = components['schemas']['ReverseEngineerRequest'];
@@ -17,7 +17,7 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
     const dbManager = deps.createDatabaseManager();
     
     // リクエストから直接接続情報を取得
-    const { type, host, port, user, password, database } = request;
+    const { type, host, port, user, password, database, schema } = request;
     
     // 接続情報の検証
     if (!host || !port || !user || !database) {
@@ -32,11 +32,13 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
     }
     
     const connectionConfig: DatabaseConfig = {
+      type,
       host,
       port,
       user,
       password: resolvedPassword,
       database,
+      schema,
     };
     
     try {
@@ -54,6 +56,7 @@ export function createReverseEngineerUsecase(deps: ReverseEngineerDeps) {
         port,
         user,
         database,
+        schema,
       };
       
       // ReverseEngineerResponseを返却

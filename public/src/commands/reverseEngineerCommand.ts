@@ -29,6 +29,11 @@ export async function commandReverseEngineer(
       password: password || '', // パスワードが空の場合は空文字列を送信
       database: connectionInfo.database,
     };
+
+    // PostgreSQLの場合はschemaも含める
+    if (connectionInfo.schema) {
+      request.schema = connectionInfo.schema;
+    }
     
     // サーバーにリクエストを送信し、ERDataとconnectionInfoを取得
     const response = await DefaultService.apiReverseEngineer(request);

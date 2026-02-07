@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-import DatabaseManager from './lib/database';
+import DatabaseManager from './lib/database/DatabaseManager.js';
 import { createGetBuildInfoUsecase } from './lib/usecases/GetBuildInfoUsecase';
 import { createReverseEngineerUsecase } from './lib/usecases/ReverseEngineerUsecase';
 import { createGetInitialViewModelUsecase } from './lib/usecases/GetInitialViewModelUsecase';

@@ -41,12 +41,11 @@
 - 追加されたカラム（テーブル名とカラム名で識別）
 - 削除されたカラム（テーブル名とカラム名で識別）
 - 変更されたカラム（以下のフィールドを比較）
-  - `type`（データ型）
-  - `nullable`（NULL許可）
   - `key`（キー制約）
-  - `default`（デフォルト値）
-  - `extra`（その他の属性）
   - `isForeignKey`（外部キーフラグ）
+  
+※ データ構造簡素化により、Column型からtype/nullable/default/extraが削除されました。
+  詳細は [spec/multi_database_support.md](/spec/multi_database_support.md) を参照。
 
 **リレーション**
 - 第一キー: `constraintName`（取得できる場合）
@@ -166,7 +165,7 @@
 - 追加: `nextColumns - prevColumns`
 - 削除: `prevColumns - nextColumns`
 - 変更: 両方に存在し、スナップショットが異なるカラム
-  - 比較対象: `type`, `nullable`, `key`, `default`, `extra`, `isForeignKey`
+  - 比較対象: `key`, `isForeignKey`
 
 **リレーションの差分**
 - リレーションキー生成

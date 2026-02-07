@@ -27,15 +27,12 @@ model ErrorResponse {
 model Column {
   id: string; // UUID
   name: string;
-  type: string;
-  nullable: boolean;
-  key: string;
-  default: string | null;
-  extra: string;
-  isForeignKey: boolean; // 外部キーカラムかどうか
+  key: string | null; // "PRI" (primary key) or null
+  isForeignKey: boolean; // 外部キーカラムかどうか（Relationshipから導出）
 }
 
-// Foreign key model
+// Foreign key model (deprecated - use Relationship instead)
+// This model is kept for backward compatibility during migration
 model ForeignKey {
   id: string; // UUID
   columnId: string; // カラムID (UUID)
@@ -49,8 +46,7 @@ model Entity {
   id: string; // UUID
   name: string;
   columns: Column[];
-  foreignKeys: ForeignKey[];
-  ddl: string;
+  ddl: string; // DDL文字列（取得できない場合は空文字列）
 }
 
 // Relationship model
@@ -166,9 +162,17 @@ model BuildInfo {
   arch: string;
 }
 
+// Data source reference (database connection metadata)
+model DataSourceRef {
+  dialect: DatabaseType;  // Database type
+  database: string;       // Database name
+  schema?: string;        // Schema name (for PostgreSQL, Oracle, etc.)
+}
+
 // ER Data model (used by DatabaseManager.generateERData())
 // This model is used by reverse engineer API response
 model ERData {
+  source: DataSourceRef;  // Data source information
   entities: Entity[];
   relationships: Relationship[];
 }
@@ -249,12 +253,10 @@ model ERDiagramUIState {
 // Records the history of reverse engineering operations
 
 // Column snapshot for tracking changes
+// Note: This model retains full column information for change detection,
+// even though the Column model itself is simplified for UI rendering
 model ColumnSnapshot {
-  type: string;
-  nullable: boolean;
-  key: string;
-  default: string | null;
-  extra: string;
+  key: string | null;
   isForeignKey: boolean;
 }
 
@@ -401,6 +403,7 @@ model DatabaseConnectionState {
   port: int32;
   user: string;
   database: string;
+  schema?: string;  // Schema name (for PostgreSQL)
 }
 
 // Application settings
@@ -426,6 +429,7 @@ model ReverseEngineerRequest {
   user: string;
   password: string;
   database: string;
+  schema?: string;  // Schema name (for PostgreSQL, default: "public")
 }
 
 // Reverse engineer response

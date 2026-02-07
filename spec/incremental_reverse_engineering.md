@@ -56,7 +56,7 @@
 エンティティごとに、ERDataから取得したカラム情報で全件置き換え。
 
 - カラムIDはERDataのものをそのまま使用（バックエンドで生成済み）
-- type、nullable、key、default、extraはデータベースの最新情報を反映
+- カラム情報（name、key、isForeignKey）はデータベースの最新情報を反映
 
 ### リレーションシップの差分反映
 
@@ -125,9 +125,10 @@ init.sqlの`erviewer`と`erviewer-2`スキーマの差分を参考にした主�
 - `users.avatar_url`の削除
 - エンティティのカラム情報が全件置き換えられるため、自動的に反映される
 
-**カラム型変更**
-- `projects.budget`: DECIMAL(12,2) → DECIMAL(15,2)
+**カラム属性変更**
+- `projects.budget`: キー制約の追加/削除など
 - エンティティのカラム情報が全件置き換えられるため、自動的に反映される
+- ※ カラム型（type）などの詳細情報はUI表示に使用されないため、Column型から削除されている
 
 **テーブル追加**
 - `task_comments`、`subscriptions`、`audit_logs`の追加

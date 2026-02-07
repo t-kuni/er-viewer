@@ -16,14 +16,23 @@
 
 #### 入力フィールド
 
-- **Database Type**: MySQL（固定表示、MVPでは編集不可）
+- **Database Type**: ドロップダウン選択（`mysql` / `postgresql`）
 - **Host**: テキスト入力（例: `localhost`）
-- **Port**: 数値入力（例: `3306`）
-- **User**: テキスト入力（例: `root`）
+- **Port**: 数値入力（Database Type選択時に自動調整）
+  - MySQL: `3306`
+  - PostgreSQL: `5432`
+- **User**: テキスト入力（例: `root` / `postgres`）
 - **Password**: パスワード入力（マスク表示）
   - UI上の初期値は常に空（セキュリティのため、環境変数があっても表示しない）
   - 空のまま実行した場合、バックエンドで環境変数 `DB_PASSWORD` を使用
-- **Database**: テキスト入力（例: `test`）
+- **Database**: テキスト入力（例: `test` / `erviewer`）
+- **Schema**: テキスト入力（PostgreSQL選択時のみ表示、デフォルト: `public`）
+
+#### 警告メッセージ
+
+- モーダル内に警告メッセージを表示
+- 内容: 「information_schemaを参照するためルートユーザ（または十分な権限を持つユーザ）での実行を推奨します」
+- MySQLとPostgreSQLの両方で表示
 
 #### ボタン
 
@@ -44,10 +53,18 @@
 
 **placeholder表示**:
 - 入力欄が空の場合、placeholderとして一般的な値を表示
-  - Host: `localhost`
-  - Port: `3306`
-  - User: `root`
-  - Database: `test`
+- Database Typeに応じて変更
+  - MySQL:
+    - Host: `localhost`
+    - Port: `3306`
+    - User: `root`
+    - Database: `test`
+  - PostgreSQL:
+    - Host: `localhost`
+    - Port: `5432`
+    - User: `postgres`
+    - Database: `erviewer`
+    - Schema: `public`
   - Password: （placeholderなし）
 
 #### バックエンド（接続情報解決時）
@@ -67,11 +84,10 @@
 
 データモデルは [scheme/main.tsp](/scheme/main.tsp) に定義されています。
 
-追加された型：
+追加された型（詳細は [scheme/main.tsp](/scheme/main.tsp) を参照）：
 - `DatabaseType`: データベース種別（mysql, postgresql）
 - `DatabaseConnectionState`: 接続情報（passwordを除く）
 - `AppSettings`: アプリケーション設定
-  - `lastDatabaseConnection`: 前回成功した接続情報
 - `ViewModel.settings`: アプリケーション設定フィールド
 
 ### パスワードの扱い
@@ -84,15 +100,10 @@
 
 ### リバースエンジニアAPI の変更
 
-API定義は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
+API定義とデータ型の詳細は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
 
-- `ReverseEngineerRequest`: リクエストモデル
-  - `type`: データベース種別
-  - `host`: データベースホスト
-  - `port`: データベースポート
-  - `user`: データベースユーザー
-  - `password`: データベースパスワード
-  - `database`: データベース名
+- `ReverseEngineerRequest`: リクエストモデル（型定義は main.tsp を参照）
+- `DatabaseConnectionState`: 接続情報（パスワード除く、型定義は main.tsp を参照）
 - `POST /api/reverse-engineer`: リバースエンジニアリングエンドポイント
   - リクエスト: `ReverseEngineerRequest`
   - レスポンス: `ReverseEngineerResponse | ErrorResponse`
@@ -224,11 +235,13 @@ API定義は [scheme/main.tsp](/scheme/main.tsp) を参照してください。
 
 ## 将来の拡張性
 
-### PostgreSQL 対応時の変更
+### 複数データベース対応
 
-- UIでDatabase Typeをドロップダウン選択可能に
-- Type選択時にportの既定値を自動調整（MySQL: 3306, PostgreSQL: 5432）
-- バックエンドでDatabaseType別の接続処理を実装
+詳細は [spec/multi_database_support.md](/spec/multi_database_support.md) を参照。
+
+- Database Typeドロップダウンでデータベースを選択
+- Type選択時にポート番号とplaceholderが自動調整
+- PostgreSQL選択時はSchema入力欄が表示される
 
 ### 接続テスト機能（オプション）
 

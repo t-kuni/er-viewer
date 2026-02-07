@@ -31,7 +31,8 @@ import { actionAddText, actionRemoveText, actionUpdateTextPosition, actionUpdate
 import { actionSelectItem } from '../actions/layerActions'
 import { actionStartEntityDrag, actionStopEntityDrag, actionClearHover } from '../actions/hoverActions'
 import { actionCopyItem, actionPasteItem, actionUpdateMousePosition } from '../actions/clipboardActions'
-import type { Rectangle, TextBox, LayerItemRef, TextAlign, TextVerticalAlign, TextOverflowMode, TextAutoSizeMode } from '../api/client'
+import type { Rectangle, LayerItemRef } from '../api/client'
+import { TextBox } from '../api/client'
 
 const nodeTypes = {
   entityNode: EntityNode,
@@ -585,7 +586,7 @@ function ERCanvasInner({
   // リサイズハンドラー（テキスト）
   const handleTextResize = useCallback((textId: string, newBounds: { x: number; y: number; width: number; height: number }) => {
     dispatch(actionUpdateTextBounds, textId, newBounds)
-    dispatch(actionSetTextAutoSizeMode, textId, 'manual')
+    dispatch(actionSetTextAutoSizeMode, textId, TextBox.autoSizeMode.MANUAL)
   }, [dispatch])
   
   // 矩形の描画（ViewportPortal使用）
@@ -754,7 +755,7 @@ function ERCanvasInner({
       
       // autoSizeModeに応じてDOM測定を実行
       const text = texts[editingTextId]
-      if (text && (text.autoSizeMode === 'fitContent' || text.autoSizeMode === 'fitWidth')) {
+      if (text && (text.autoSizeMode === TextBox.autoSizeMode.FIT_CONTENT || text.autoSizeMode === TextBox.autoSizeMode.FIT_WIDTH)) {
         // DOM測定
         const measureDiv = document.createElement('div')
         measureDiv.style.position = 'absolute'
@@ -768,7 +769,7 @@ function ERCanvasInner({
         if (text.wrap) {
           measureDiv.style.overflowWrap = 'anywhere'
           measureDiv.style.wordBreak = 'break-word'
-          if (text.autoSizeMode === 'fitWidth') {
+          if (text.autoSizeMode === TextBox.autoSizeMode.FIT_WIDTH) {
             measureDiv.style.width = `${text.width}px`
           }
         }
@@ -781,14 +782,14 @@ function ERCanvasInner({
         
         document.body.removeChild(measureDiv)
         
-        if (text.autoSizeMode === 'fitContent') {
+        if (text.autoSizeMode === TextBox.autoSizeMode.FIT_CONTENT) {
           dispatch(actionUpdateTextBounds, editingTextId, {
             x: text.x,
             y: text.y,
             width: Math.max(40, measuredWidth),
             height: Math.max(20, measuredHeight),
           })
-        } else if (text.autoSizeMode === 'fitWidth') {
+        } else if (text.autoSizeMode === TextBox.autoSizeMode.FIT_WIDTH) {
           dispatch(actionUpdateTextBounds, editingTextId, {
             x: text.x,
             y: text.y,
@@ -987,15 +988,15 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
       content: 'テキスト',
       fontSize: 16,
       lineHeight: 24,
-      textAlign: 'left' as TextAlign,
-      textVerticalAlign: 'top' as TextVerticalAlign,
+      textAlign: TextBox.textAlign.LEFT,
+      textVerticalAlign: TextBox.textVerticalAlign.TOP,
       textColor: '#000000',
       opacity: 1.0,
       paddingX: 8,
       paddingY: 8,
       wrap: true,
-      overflow: 'clip' as TextOverflowMode,
-      autoSizeMode: 'manual' as TextAutoSizeMode,
+      overflow: TextBox.overflow.CLIP,
+      autoSizeMode: TextBox.autoSizeMode.MANUAL,
       backgroundColor: '#FFFFFF',
       backgroundEnabled: false,
       backgroundOpacity: 1.0,

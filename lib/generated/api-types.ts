@@ -103,12 +103,14 @@ export interface components {
             isForeignKey: boolean;
         };
         DataSourceRef: {
-            dialect: components["schemas"]["DatabaseType"];
+            /** @enum {string} */
+            dialect: "mysql" | "postgresql";
             database: string;
             schema?: string;
         };
         DatabaseConnectionState: {
-            type: components["schemas"]["DatabaseType"];
+            /** @enum {string} */
+            type: "mysql" | "postgresql";
             host: string;
             /** Format: int32 */
             port: number;
@@ -116,8 +118,6 @@ export interface components {
             database: string;
             schema?: string;
         };
-        /** @enum {string} */
-        DatabaseType: "mysql" | "postgresql";
         DropShadow: {
             enabled: boolean;
             /** Format: double */
@@ -226,18 +226,15 @@ export interface components {
             type: "entity" | "edge" | "column";
             id: string;
         };
-        /** @enum {string} */
-        LayerItemKind: "entity" | "relation" | "rectangle" | "text";
         LayerItemRef: {
-            kind: components["schemas"]["LayerItemKind"];
+            /** @enum {string} */
+            kind: "entity" | "relation" | "rectangle" | "text";
             id: string;
         };
         LayerOrder: {
             backgroundItems: components["schemas"]["LayerItemRef"][];
             foregroundItems: components["schemas"]["LayerItemRef"][];
         };
-        /** @enum {string} */
-        LayerPosition: "background" | "foreground";
         LayoutOptimizationState: {
             isRunning: boolean;
             /** Format: double */
@@ -291,7 +288,8 @@ export interface components {
             toColumn: string;
         };
         ReverseEngineerRequest: {
-            type: components["schemas"]["DatabaseType"];
+            /** @enum {string} */
+            type: "mysql" | "postgresql";
             host: string;
             /** Format: int32 */
             port: number;
@@ -313,7 +311,7 @@ export interface components {
             /** Format: int64 */
             timestamp: number;
             /** @enum {string} */
-            type: "initial" | "incremental";
+            entryType: "initial" | "incremental";
             summary?: components["schemas"]["ReverseEngineeringSummary"];
             changes?: components["schemas"]["ReverseEngineeringChanges"];
         };
@@ -343,10 +341,6 @@ export interface components {
             added?: string[];
             removed?: string[];
         };
-        /** @enum {string} */
-        TextAlign: "left" | "center" | "right";
-        /** @enum {string} */
-        TextAutoSizeMode: "manual" | "fitContent" | "fitWidth";
         TextBox: {
             id: string;
             /** Format: double */
@@ -362,8 +356,10 @@ export interface components {
             fontSize: number;
             /** Format: double */
             lineHeight: number;
-            textAlign: components["schemas"]["TextAlign"];
-            textVerticalAlign: components["schemas"]["TextVerticalAlign"];
+            /** @enum {string} */
+            textAlign: "left" | "center" | "right";
+            /** @enum {string} */
+            textVerticalAlign: "top" | "middle" | "bottom";
             textColor: string;
             /** Format: double */
             opacity: number;
@@ -376,15 +372,13 @@ export interface components {
             /** Format: double */
             paddingY: number;
             wrap: boolean;
-            overflow: components["schemas"]["TextOverflowMode"];
-            autoSizeMode: components["schemas"]["TextAutoSizeMode"];
+            /** @enum {string} */
+            overflow: "clip" | "scroll";
+            /** @enum {string} */
+            autoSizeMode: "manual" | "fitContent" | "fitWidth";
             textShadow: components["schemas"]["DropShadow"];
             backgroundShadow: components["schemas"]["DropShadow"];
         };
-        /** @enum {string} */
-        TextOverflowMode: "clip" | "scroll";
-        /** @enum {string} */
-        TextVerticalAlign: "top" | "middle" | "bottom";
         ViewModel: {
             format: string;
             /** Format: int32 */

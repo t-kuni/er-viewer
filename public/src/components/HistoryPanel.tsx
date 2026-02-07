@@ -53,11 +53,7 @@ function formatRelationshipRef(rel: {
  */
 function formatColumnSnapshot(snapshot: ColumnSnapshot): string {
   const parts: string[] = [];
-  parts.push(`type: ${snapshot.type}`);
-  parts.push(`nullable: ${snapshot.nullable ? 'YES' : 'NO'}`);
   if (snapshot.key) parts.push(`key: ${snapshot.key}`);
-  if (snapshot.default !== null) parts.push(`default: ${snapshot.default}`);
-  if (snapshot.extra) parts.push(`extra: ${snapshot.extra}`);
   if (snapshot.isForeignKey) parts.push(`FK`);
   return parts.join(', ');
 }
@@ -219,7 +215,7 @@ function ChangesDetail({ changes }: { changes: ReverseEngineeringChanges | undef
 function HistoryEntryItem({ entry }: { entry: ReverseEngineeringHistoryEntry }) {
   const date = new Date(entry.timestamp);
   const dateString = date.toLocaleString('ja-JP');
-  const typeLabel = entry.type === 'initial' ? '初回' : '増分';
+  const typeLabel = entry.entryType === 'initial' ? '初回' : '増分';
   const summaryText = formatSummary(entry.summary);
 
   return (
@@ -248,8 +244,8 @@ function HistoryEntryItem({ entry }: { entry: ReverseEngineeringHistoryEntry }) 
                 padding: '2px 6px',
                 borderRadius: '3px',
                 fontSize: '11px',
-                backgroundColor: entry.type === 'initial' ? '#e3f2fd' : '#fff3e0',
-                color: entry.type === 'initial' ? '#1976d2' : '#f57c00',
+                backgroundColor: entry.entryType === 'initial' ? '#e3f2fd' : '#fff3e0',
+                color: entry.entryType === 'initial' ? '#1976d2' : '#f57c00',
               }}
             >
               {typeLabel}

@@ -13,7 +13,7 @@ import {
   actionRemoveText,
   actionUpdateTextBounds,
 } from '../actions/textActions';
-import type { TextAlign, TextVerticalAlign, TextAutoSizeMode, TextOverflowMode } from '../api/client';
+import { TextBox } from '../api/client';
 
 interface TextPropertyPanelProps {
   textId: string;
@@ -49,11 +49,11 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
     }
   };
 
-  const handleTextAlignChange = (textAlign: TextAlign) => {
+  const handleTextAlignChange = (textAlign: TextBox.textAlign) => {
     dispatch(actionUpdateTextStyle, textId, { textAlign });
   };
 
-  const handleTextVerticalAlignChange = (textVerticalAlign: TextVerticalAlign) => {
+  const handleTextVerticalAlignChange = (textVerticalAlign: TextBox.textVerticalAlign) => {
     dispatch(actionUpdateTextStyle, textId, { textVerticalAlign });
   };
 
@@ -173,7 +173,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   };
 
   const handleAutoSizeModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    dispatch(actionSetTextAutoSizeMode, textId, e.target.value as TextAutoSizeMode);
+    dispatch(actionSetTextAutoSizeMode, textId, e.target.value as TextBox.autoSizeMode);
   };
 
   const handleWrapChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +181,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
   };
 
   const handleOverflowChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    dispatch(actionUpdateTextStyle, textId, { overflow: e.target.value as TextOverflowMode });
+    dispatch(actionUpdateTextStyle, textId, { overflow: e.target.value as TextBox.overflow });
   };
 
   const handleFitToContent = () => {
@@ -302,7 +302,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
           水平配置
         </label>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {(['left', 'center', 'right'] as TextAlign[]).map((align) => (
+          {([TextBox.textAlign.LEFT, TextBox.textAlign.CENTER, TextBox.textAlign.RIGHT]).map((align) => (
             <button
               key={align}
               type="button"
@@ -318,7 +318,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
                 fontSize: '14px',
               }}
             >
-              {align === 'left' ? '左' : align === 'center' ? '中央' : '右'}
+              {align === TextBox.textAlign.LEFT ? '左' : align === TextBox.textAlign.CENTER ? '中央' : '右'}
             </button>
           ))}
         </div>
@@ -330,7 +330,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
           垂直配置
         </label>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {(['top', 'middle', 'bottom'] as TextVerticalAlign[]).map((align) => (
+          {([TextBox.textVerticalAlign.TOP, TextBox.textVerticalAlign.MIDDLE, TextBox.textVerticalAlign.BOTTOM]).map((align) => (
             <button
               key={align}
               type="button"
@@ -346,7 +346,7 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
                 fontSize: '14px',
               }}
             >
-              {align === 'top' ? '上' : align === 'middle' ? '中央' : '下'}
+              {align === TextBox.textVerticalAlign.TOP ? '上' : align === TextBox.textVerticalAlign.MIDDLE ? '中央' : '下'}
             </button>
           ))}
         </div>
@@ -500,9 +500,9 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             borderRadius: '4px',
           }}
         >
-          <option value="manual">手動</option>
-          <option value="fitContent">内容に合わせる</option>
-          <option value="fitWidth">幅に合わせる</option>
+          <option value={TextBox.autoSizeMode.MANUAL}>手動</option>
+          <option value={TextBox.autoSizeMode.FIT_CONTENT}>内容に合わせる</option>
+          <option value={TextBox.autoSizeMode.FIT_WIDTH}>幅に合わせる</option>
         </select>
       </div>
 
@@ -530,8 +530,8 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
             borderRadius: '4px',
           }}
         >
-          <option value="clip">切り取り</option>
-          <option value="scroll">スクロール</option>
+          <option value={TextBox.overflow.CLIP}>切り取り</option>
+          <option value={TextBox.overflow.SCROLL}>スクロール</option>
         </select>
       </div>
 

@@ -59,7 +59,7 @@
 
 **ReverseEngineeringHistoryEntry**
 - `timestamp`: エントリのタイムスタンプ（Unix時間ミリ秒）
-- `type`: `"initial"`（初回）または`"incremental"`（増分）
+- `entryType`: `"initial"`（初回）または`"incremental"`（増分）
 - `summary`: サマリー情報（追加・削除・変更の件数）
 - `changes`: 変更詳細（増分リバースのみ）
 

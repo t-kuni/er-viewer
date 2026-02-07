@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import type { DatabaseConnectionState, DatabaseType } from '../api/client'
+import { DatabaseConnectionState } from '../api/client'
 
 interface DatabaseConnectionModalProps {
   onExecute: (connectionInfo: DatabaseConnectionState, password: string) => void;
@@ -10,7 +10,7 @@ interface DatabaseConnectionModalProps {
 
 function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMessage }: DatabaseConnectionModalProps) {
   // 入力フォームの状態
-  const [dbType, setDbType] = useState<DatabaseType>(initialValues?.type || 'mysql' as DatabaseType)
+  const [dbType, setDbType] = useState<DatabaseConnectionState.type>(initialValues?.type || DatabaseConnectionState.type.MYSQL)
   const [host, setHost] = useState(initialValues?.host || '')
   const [port, setPort] = useState(initialValues?.port?.toString() || '')
   const [user, setUser] = useState(initialValues?.user || '')
@@ -22,9 +22,9 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
   useEffect(() => {
     if (!initialValues?.port) {
       // 初期値がない場合のみ自動調整
-      if (dbType === 'mysql') {
+      if (dbType === DatabaseConnectionState.type.MYSQL) {
         setPort('3306')
-      } else if (dbType === 'postgresql') {
+      } else if (dbType === DatabaseConnectionState.type.POSTGRESQL) {
         setPort('5432')
       }
     }
@@ -44,9 +44,9 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
   // 実行ボタンのハンドラ
   const handleExecute = () => {
     // Database Typeに応じたデフォルト値を設定
-    const defaultPort = dbType === 'postgresql' ? 5432 : 3306
-    const defaultUser = dbType === 'postgresql' ? 'postgres' : 'root'
-    const defaultDatabase = dbType === 'postgresql' ? 'erviewer' : 'test'
+    const defaultPort = dbType === DatabaseConnectionState.type.POSTGRESQL ? 5432 : 3306
+    const defaultUser = dbType === DatabaseConnectionState.type.POSTGRESQL ? 'postgres' : 'root'
+    const defaultDatabase = dbType === DatabaseConnectionState.type.POSTGRESQL ? 'erviewer' : 'test'
 
     const connectionInfo: DatabaseConnectionState = {
       type: dbType,
@@ -57,7 +57,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
     }
 
     // PostgreSQLの場合のみschemaを含める
-    if (dbType === 'postgresql') {
+    if (dbType === DatabaseConnectionState.type.POSTGRESQL) {
       connectionInfo.schema = schema || 'public'
     }
 
@@ -108,7 +108,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
           </label>
           <select
             value={dbType}
-            onChange={(e) => setDbType(e.target.value as DatabaseType)}
+            onChange={(e) => setDbType(e.target.value as DatabaseConnectionState.type)}
             style={{
               width: '100%',
               padding: '0.5rem',
@@ -116,8 +116,8 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
               borderRadius: '4px'
             }}
           >
-            <option value="mysql">MySQL</option>
-            <option value="postgresql">PostgreSQL</option>
+            <option value={DatabaseConnectionState.type.MYSQL}>MySQL</option>
+            <option value={DatabaseConnectionState.type.POSTGRESQL}>PostgreSQL</option>
           </select>
         </div>
 
@@ -159,7 +159,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
             type="number" 
             value={port}
             onChange={(e) => setPort(e.target.value)}
-            placeholder={dbType === 'postgresql' ? '5432' : '3306'}
+            placeholder={dbType === DatabaseConnectionState.type.POSTGRESQL ? '5432' : '3306'}
             style={{
               width: '100%',
               padding: '0.5rem',
@@ -177,7 +177,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
             type="text" 
             value={user}
             onChange={(e) => setUser(e.target.value)}
-            placeholder={dbType === 'postgresql' ? 'postgres' : 'root'}
+            placeholder={dbType === DatabaseConnectionState.type.POSTGRESQL ? 'postgres' : 'root'}
             style={{
               width: '100%',
               padding: '0.5rem',
@@ -212,7 +212,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
             type="text" 
             value={database}
             onChange={(e) => setDatabase(e.target.value)}
-            placeholder={dbType === 'postgresql' ? 'erviewer' : 'test'}
+            placeholder={dbType === DatabaseConnectionState.type.POSTGRESQL ? 'erviewer' : 'test'}
             style={{
               width: '100%',
               padding: '0.5rem',
@@ -222,7 +222,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
           />
         </div>
 
-        {dbType === 'postgresql' && (
+        {dbType === DatabaseConnectionState.type.POSTGRESQL && (
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
               Schema
@@ -242,7 +242,7 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
           </div>
         )}
 
-        {dbType !== 'postgresql' && (
+        {dbType !== DatabaseConnectionState.type.POSTGRESQL && (
           <div style={{ marginBottom: '1.5rem' }} />
         )}
 

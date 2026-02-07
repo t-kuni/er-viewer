@@ -273,11 +273,7 @@ export function actionMergeERData(
           if (existingCol) {
             // スナップショット比較
             const hasChanges = 
-              existingCol.type !== newCol.type ||
-              existingCol.nullable !== newCol.nullable ||
               existingCol.key !== newCol.key ||
-              existingCol.default !== newCol.default ||
-              existingCol.extra !== newCol.extra ||
               existingCol.isForeignKey !== newCol.isForeignKey;
             
             if (hasChanges) {
@@ -285,19 +281,11 @@ export function actionMergeERData(
                 tableName: entity.name,
                 columnName: newCol.name,
                 before: {
-                  type: existingCol.type,
-                  nullable: existingCol.nullable,
                   key: existingCol.key,
-                  default: existingCol.default,
-                  extra: existingCol.extra,
                   isForeignKey: existingCol.isForeignKey,
                 },
                 after: {
-                  type: newCol.type,
-                  nullable: newCol.nullable,
                   key: newCol.key,
-                  default: newCol.default,
-                  extra: newCol.extra,
                   isForeignKey: newCol.isForeignKey,
                 },
               });
@@ -488,7 +476,7 @@ export function actionMergeERData(
   const timestamp = Date.now();
   const historyEntry: ReverseEngineeringHistoryEntry = {
     timestamp,
-    type: isIncrementalMode ? 'incremental' : 'initial',
+    entryType: isIncrementalMode ? 'incremental' : 'initial',
   };
   
   // サマリー情報を作成

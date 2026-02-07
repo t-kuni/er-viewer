@@ -17,7 +17,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { LayerItemRef } from '../api/client';
-import { LayerItemKind } from '../api/client';
 import { useDispatch, useViewModel } from '../store/hooks';
 import {
   actionSelectItem,
@@ -42,9 +41,9 @@ function SortableItem({ item, isSelected, onSelect }: SortableItemProps) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const displayName = item.kind === LayerItemKind.RECTANGLE 
+  const displayName = item.kind === LayerItemRef.kind.RECTANGLE 
     ? `Rectangle ${item.id.substring(0, 6)}`
-    : item.kind === LayerItemKind.TEXT
+    : item.kind === LayerItemRef.kind.TEXT
     ? `Text ${item.id.substring(0, 6)}`
     : item.id;
 
@@ -126,16 +125,16 @@ export function LayerPanel() {
       const parts = id.split('-');
       if (parts.length < 2) return null;
       const kindStr = parts[0];
-      let kind: LayerItemKind;
+      let kind: LayerItemRef.kind;
       
       if (kindStr === 'rectangle') {
-        kind = LayerItemKind.RECTANGLE;
+        kind = LayerItemRef.kind.RECTANGLE;
       } else if (kindStr === 'text') {
-        kind = LayerItemKind.TEXT;
+        kind = LayerItemRef.kind.TEXT;
       } else if (kindStr === 'entity') {
-        kind = LayerItemKind.ENTITY;
+        kind = LayerItemRef.kind.ENTITY;
       } else if (kindStr === 'relation') {
-        kind = LayerItemKind.RELATION;
+        kind = LayerItemRef.kind.RELATION;
       } else {
         return null;
       }
@@ -388,7 +387,7 @@ export function LayerPanel() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
-            {activeItem.kind === LayerItemKind.RECTANGLE 
+            {activeItem.kind === LayerItemRef.kind.RECTANGLE 
               ? `Rectangle ${activeItem.id.substring(0, 6)}`
               : `Text ${activeItem.id.substring(0, 6)}`}
           </div>

@@ -33,7 +33,7 @@ export function actionCopyItem(vm: ViewModel): ViewModel {
       clipboardData = {
         kind: 'text',
         textData: textBox,
-        rectangleData: null,
+        // rectangleData は省略（undefinedになる）
       };
     }
   }
@@ -44,7 +44,7 @@ export function actionCopyItem(vm: ViewModel): ViewModel {
     if (rectangle) {
       clipboardData = {
         kind: 'rectangle',
-        textData: null,
+        // textData は省略（undefinedになる）
         rectangleData: rectangle,
       };
     }
@@ -82,7 +82,7 @@ export function actionPasteItem(
   let nextVm = vm;
 
   // テキストをペースト
-  if (clipboard.kind === 'text' && clipboard.textData !== null) {
+  if (clipboard.kind === 'text' && clipboard.textData !== undefined) {
     const newTextBox: TextBox = {
       ...clipboard.textData,
       id: newId,
@@ -93,7 +93,7 @@ export function actionPasteItem(
   }
 
   // 矩形をペースト
-  if (clipboard.kind === 'rectangle' && clipboard.rectangleData !== null) {
+  if (clipboard.kind === 'rectangle' && clipboard.rectangleData !== undefined) {
     const newRectangle: Rectangle = {
       ...clipboard.rectangleData,
       id: newId,

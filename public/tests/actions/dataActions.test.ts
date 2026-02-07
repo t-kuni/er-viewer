@@ -814,7 +814,7 @@ describe('dataActions', () => {
         expect(result.erDiagram.history).toHaveLength(1);
         
         const historyEntry = result.erDiagram.history![0];
-        expect(historyEntry.type).toBe('initial');
+        expect(historyEntry.entryType).toBe('initial');
         expect(historyEntry.timestamp).toBeGreaterThan(0);
         
         // サマリー情報が含まれる
@@ -865,7 +865,7 @@ describe('dataActions', () => {
         expect(result.erDiagram.history).toHaveLength(1);
         
         const historyEntry = result.erDiagram.history![0];
-        expect(historyEntry.type).toBe('incremental');
+        expect(historyEntry.entryType).toBe('incremental');
         expect(historyEntry.timestamp).toBeGreaterThan(0);
         
         // サマリー情報が含まれる
@@ -968,7 +968,7 @@ describe('dataActions', () => {
         expect(result.erDiagram.history).toHaveLength(1);
         
         const historyEntry = result.erDiagram.history![0];
-        expect(historyEntry.type).toBe('incremental');
+        expect(historyEntry.entryType).toBe('incremental');
         
         // サマリーがすべて0
         expect(historyEntry.summary!.addedTables).toBe(0);

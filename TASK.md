@@ -1,356 +1,515 @@
 # タスク一覧
 
-直前のコミットで更新された仕様書に基づき、PostgreSQL対応とデータ構造簡素化を実装するタスクを洗い出しました。
+フェーズ3（フロントエンド更新）で発生した型エラーを修正するタスク一覧。
 
-## 関連仕様書
+## 作業状況
 
-- [spec/multi_database_support.md](/spec/multi_database_support.md) - PostgreSQL対応の詳細仕様
-- [spec/database_connection_settings.md](/spec/database_connection_settings.md) - データベース接続設定
-- [spec/incremental_reverse_engineering.md](/spec/incremental_reverse_engineering.md) - 増分リバースエンジニアリング
-- [scheme/main.tsp](/scheme/main.tsp) - 型定義
+**現在の状態**: 型生成の問題が発覚し、追加対応が必要
 
-## フェーズ分けの方針
+**完了したタスク**:
+1. ✓ scheme/main.tspのenum型をalias型に変更
+2. ✓ ReverseEngineeringHistoryEntry.typeフィールドをentryTypeに変更
+3. ✓ reverse_engineering_history.mdのフィールド名を更新
+4. ✓ 型生成の実行（`npm run generate`）
+5. ✓ dataActions.tsのカラム変更検出ロジックを修正
+6. ✓ dataActions.tsの履歴エントリ作成箇所を修正
+7. ✓ clipboardActions.tsのnull使用箇所を修正
+8. ✓ HistoryPanel.tsxのentry.type参照箇所を修正
+9. ✓ HistoryPanel.tsxのformatColumnSnapshot関数を修正
 
-修正対象が広範囲（新規8ファイル、更新6ファイル程度）のため、3フェーズに分けて実装します。各フェーズの最後にビルド・テストを実行し、段階的に機能を追加します。
+**発覚した問題**:
+
+openapi-typescript-codegenがTypeSpecのalias型をenum型として生成するため、文字列リテラルユニオン型として使用できない問題が発覚：
+
+- `textAlign`などのalias型が`TextBox.textAlign`というenum型として生成される
+- 文字列リテラル（例: `"left"`）をenum型のプロパティに直接割り当てられない
+- `lib/generated/api-types.ts`（openapi-typescript生成）では正しく`"left" | "center" | "right"`として生成されている
+- フロントエンドは`public/src/api/client`（openapi-typescript-codegen生成）を使用しているため、enum型になる
+
+**必要な追加対応**:
+
+以下のいずれかの対応が必要：
+
+1. **フロントエンドで`lib/generated/api-types.ts`を使用する**（推奨）
+   - `public/src/api/client`の代わりに`lib/generated/api-types.ts`から型をインポート
+   - openapi-typescript-codegenの生成を停止
+   - インポート文を全て書き換え
+
+2. **フロントエンドコードをenum型に合わせて修正**
+   - 文字列リテラル（`"left"`）をenum値（`TextBox.textAlign.LEFT`）に変更
+   - 多数の箇所で修正が必要
+
+3. **型生成プロセスにenum→文字列リテラルユニオン型変換の後処理を追加**
+   - 生成された型定義を自動的に修正するスクリプトを作成
+
+**次のステップ**:
+
+どの対応を採用するか決定が必要です。
 
 ---
 
-## フェーズ1: データ構造変更とMySQL実装のAdapter化 ✅
+## 問題の概要（オリジナル）
 
-既存のMySQL実装をDatabaseAdapterアーキテクチャに移行し、データ構造を簡素化します。このフェーズでは既存機能（MySQL）が正常に動作することを確認します。
+TASK.mdフェーズ3実施中に以下の型エラーが発生：
 
-**完了日**: 2026-02-07
+1. **dataActions.ts**: Column型の削除されたフィールド（type、nullable、default、extra）を参照（276-300行目、491行目）
+2. **clipboardActions.ts**: ClipboardDataでnullを使用（型定義ではundefined）（36, 47, 86, 97行目）
+3. **layoutOptimizeCommand.ts, App.tsx**: TextAlignなどのenum型が文字列リテラルとして扱えない（複数箇所）
+4. **dataActions.ts**: ReverseEngineeringHistoryEntry.typeフィールドの型不一致（491行目）
 
-**実装内容**:
-- scheme/main.tspの型定義は既に更新済みでした
-- DatabaseAdapterインターフェース、MySqlAdapter、ERDataBuilder、DatabaseAdapterFactory、DatabaseManagerを新規作成
-- ReverseEngineerUsecase、server.ts、テストファイルのimportパスを更新
-- 既存のlib/database.tsを削除
-- GetInitialViewModelUsecaseにGlobalUIStateの新しいフィールド（showHistoryPanel, clipboard, lastMousePosition）を追加
-- MySQLのテストが全て成功（5 tests passed）
+## 根本原因
 
-**注意事項**:
-- フロントエンド（public/src）の型エラーは残っていますが、これらはフェーズ3で対応する予定です
-- バックエンド（lib/）の型エラーは全て解消されています
+- **問題1**: フェーズ1でColumn型を簡素化したが、履歴機能の変更検出ロジックが更新されていない
+- **問題2**: TypeScriptのオプショナル型の扱い（nullではなくundefinedを使用）
+- **問題3**: TypeSpecのenum型が文字列リテラルユニオン型として生成されていない
+- **問題4**: typeフィールド名が予約語と衝突している可能性、またはTypeSpecの型生成の問題
 
-### ✅ scheme/main.tspの型定義を更新
+## 修正方針
+
+- scheme/main.tspのenum定義を文字列リテラルユニオン型（alias）に変更
+- ReverseEngineeringHistoryEntry.typeフィールドをentryTypeに変更
+- reverse_engineering_history.mdのフィールド名を更新
+- フロントエンドコードを型定義に合わせて修正
+
+---
+
+## タスク一覧
+
+### □ scheme/main.tspのenum型をalias型に変更
 
 **ファイル**: `scheme/main.tsp`
 
-**実施内容**: 既に更新済みでした。
+**変更内容**:
 
-### ✅ 型生成の実行
+以下のenum定義を文字列リテラルユニオン型（alias）に変更する：
+
+1. TextAlign (78-82行目)
+2. TextVerticalAlign (84-89行目)
+3. TextAutoSizeMode (91-96行目)
+4. TextOverflowMode (98-103行目)
+5. LayerItemKind (212-217行目)
+6. LayerPosition (224-227行目)
+7. DatabaseType (394-397行目)
+
+**変更前の例**:
+
+```typescript
+enum TextAlign {
+  left,
+  center,
+  right,
+}
+```
+
+**変更後の例**:
+
+```typescript
+alias TextAlign = "left" | "center" | "right";
+```
+
+**注意**: 
+- 全てのenum定義をalias型に変更
+- コメントは維持
+- 生成される型が文字列リテラルユニオン型になることで、フロントエンドで直接文字列を使用可能になる
+
+### □ ReverseEngineeringHistoryEntry.typeフィールドをentryTypeに変更
+
+**ファイル**: `scheme/main.tsp`
+
+**変更箇所**: 329-338行目
+
+**変更内容**:
+
+1. ReverseEngineeringType エイリアス型を追加（typeフィールドの型を明示）
+2. ReverseEngineeringHistoryEntry.typeフィールドをentryTypeに変更
+
+**変更前**:
+
+```typescript
+// Single history entry for reverse engineering
+model ReverseEngineeringHistoryEntry {
+  timestamp: int64; // Unix timestamp in milliseconds
+  type: "initial" | "incremental";
+  
+  // Summary for UI display (used for both initial and incremental)
+  summary?: ReverseEngineeringSummary;
+  
+  // Detailed changes (only for incremental, optional for initial)
+  changes?: ReverseEngineeringChanges;
+}
+```
+
+**変更後**:
+
+```typescript
+// Reverse engineering entry type
+alias ReverseEngineeringType = "initial" | "incremental";
+
+// Single history entry for reverse engineering
+model ReverseEngineeringHistoryEntry {
+  timestamp: int64; // Unix timestamp in milliseconds
+  entryType: ReverseEngineeringType;
+  
+  // Summary for UI display (used for both initial and incremental)
+  summary?: ReverseEngineeringSummary;
+  
+  // Detailed changes (only for incremental, optional for initial)
+  changes?: ReverseEngineeringChanges;
+}
+```
+
+**注意**: typeフィールド名をentryTypeに変更することで、TypeScriptの予約語との衝突を回避
+
+### □ reverse_engineering_history.mdのフィールド名を更新
+
+**ファイル**: `spec/reverse_engineering_history.md`
+
+**変更箇所**: 60-64行目
+
+**変更内容**:
+
+ReverseEngineeringHistoryEntryの説明で、`type`フィールドを`entryType`に変更
+
+**変更前**:
+
+```markdown
+**ReverseEngineeringHistoryEntry**
+- `timestamp`: エントリのタイムスタンプ（Unix時間ミリ秒）
+- `type`: `"initial"`（初回）または`"incremental"`（増分）
+- `summary`: サマリー情報（追加・削除・変更の件数）
+- `changes`: 変更詳細（増分リバースのみ）
+```
+
+**変更後**:
+
+```markdown
+**ReverseEngineeringHistoryEntry**
+- `timestamp`: エントリのタイムスタンプ（Unix時間ミリ秒）
+- `entryType`: `"initial"`（初回）または`"incremental"`（増分）
+- `summary`: サマリー情報（追加・削除・変更の件数）
+- `changes`: 変更詳細（増分リバースのみ）
+```
+
+**注意**: main.tspへの参照があるため、main.tspの変更と整合性を保つ
+
+### □ 型生成の実行
 
 **コマンド**: `npm run generate`
 
-**実施内容**: 正常に完了しました。
+**理由**: scheme/main.tspの変更を反映し、TypeScript型定義を再生成する
 
-### ✅ DatabaseAdapterインターフェースの定義
+**確認事項**: 
+- lib/generated/api-types.ts が更新されること
+- public/src/api/client/ 配下の型定義が更新されること
+- 生成された型がalias型（文字列リテラルユニオン型）になっていること
 
-**ファイル**: `lib/database/adapters/DatabaseAdapter.ts`（新規作成）
-
-**実施内容**: 作成完了しました。
-
-### ✅ MySqlAdapterの実装
-
-**ファイル**: `lib/database/adapters/mysql/MySqlAdapter.ts`（新規作成）
-
-**実施内容**: 作成完了しました。
-
-### ✅ ERDataBuilderの実装
-
-**ファイル**: `lib/database/ERDataBuilder.ts`（新規作成）
-
-**実施内容**: 作成完了しました。
-
-### ✅ DatabaseAdapterFactoryの実装
-
-**ファイル**: `lib/database/DatabaseAdapterFactory.ts`（新規作成）
-
-**実施内容**: 作成完了しました。
-
-### ✅ DatabaseManagerのFacade化
-
-**ファイル**: `lib/database/DatabaseManager.ts`（新規作成、既存のdatabase.tsを置き換え）
-
-**実施内容**: 作成完了しました。
-
-### ✅ ReverseEngineerUsecaseの更新
-
-**ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
-
-**実施内容**: schemaフィールド対応を完了しました。
-
-### ✅ 既存database.tsの削除
-
-**ファイル**: `lib/database.ts`
-
-**実施内容**: 削除完了しました。
-
-### ✅ ビルドの確認
-
-**コマンド**: `npm run typecheck`
-
-**実施内容**: バックエンド（lib/）の型エラーは解消されました。フロントエンド（public/src）の型エラーはフェーズ3で対応します。
-
-### ✅ テストの実行（MySQL）
-
-**コマンド**: `npm run test -- tests/usecases/ReverseEngineerUsecase.test.ts`
-
-**実施内容**: 5つのテストが全て成功しました。
-
----
-
-## フェーズ2: PostgreSQL対応の実装 ✅
-
-PostgreSQLのDatabaseAdapterを実装し、リバースエンジニアリング機能でPostgreSQLを利用できるようにします。
-
-**完了日**: 2026-02-07
-
-**実装内容**:
-- PgDumpExecutor、PostgresAdapter、DatabaseAdapterFactory、ERDataBuilder、ReverseEngineerUsecaseを実装・更新
-- pgパッケージと@types/pgをインストール
-- PostgreSQL用のテストケースを追加（4テスト）
-- すべてのテストが成功（MySQL 5テスト + PostgreSQL 4テスト = 計9テスト）
-- バックエンドの型エラーは全て解消
-
-**注意事項**:
-- PgDumpExecutorはテストでモック化されており、実際のpg_dumpコマンドに依存しない
-- フロントエンド（public/src）の型エラーは残っていますが、フェーズ3で対応する予定です
-
-### ✅ PgDumpExecutorの実装
-
-**ファイル**: `lib/database/adapters/postgres/PgDumpExecutor.ts`（新規作成）
-
-**内容**:
-- `pg_dump`コマンドを実行してDDLを取得するモジュール
-- `executePgDump(config: ConnectionConfig, schema: string, table: string): Promise<string>`メソッド
-  - `pg_dump --schema-only --table=<schema>.<table>`を実行
-  - 環境にpg_dumpが存在しない場合はエラーをスロー
-  - 実行結果（DDL文字列）を返す
-
-**参照**: 
-- [spec/multi_database_support.md](/spec/multi_database_support.md) の「DDL取得」セクション
-- [research/20260207_1310_postgresql_support.md](/research/20260207_1310_postgresql_support.md) の3章
-
-**注意**: テストではモック化します。
-
-**実施内容**: 作成完了しました。PgDumpExecutorはpg_dumpコマンドを実行してDDLを取得します。テストではモック化されています。
-
-### ✅ PostgresAdapterの実装
-
-**ファイル**: `lib/database/adapters/postgres/PostgresAdapter.ts`（新規作成）
-
-**内容**:
-- `DatabaseAdapter`インターフェースを実装
-- PostgreSQL固有の接続処理（pg モジュール使用）
-- スキーマ情報取得SQLを実装
-  - テーブル一覧: `information_schema.tables`
-  - カラム情報: `information_schema.columns`
-  - 主キー: `information_schema.table_constraints` + `key_column_usage`
-  - 外部キー: `information_schema.referential_constraints` + `key_column_usage`
-- `schema`パラメータのデフォルトは"public"
-- DDL取得は`PgDumpExecutor`に委譲
-
-**参照**: 
-- [spec/multi_database_support.md](/spec/multi_database_support.md) の「PostgreSQL対応の詳細」セクション
-- [research/20260207_1310_postgresql_support.md](/research/20260207_1310_postgresql_support.md) の3章
-
-**依存関係**: `pg`パッケージを使用（package.jsonに追加が必要な場合は追加）
-
-**実施内容**: 作成完了しました。PostgreSQL固有の接続処理とスキーマ情報取得SQLを実装しました。`pg`パッケージをインストールしました。
-
-### ✅ DatabaseAdapterFactoryの更新
-
-**ファイル**: `lib/database/DatabaseAdapterFactory.ts`
-
-**変更内容**:
-- typeが"postgresql"の場合は`PostgresAdapter`を返すように変更
-
-**実施内容**: 更新完了しました。PostgresAdapterをインポートし、"postgresql"の場合にPostgresAdapterを返すように変更しました。
-
-### ✅ ERDataBuilderの更新（PostgreSQL対応）
-
-**ファイル**: `lib/database/ERDataBuilder.ts`
-
-**変更内容**:
-- PostgreSQLのschema情報を`DataSourceRef`に含める
-- Adapterがschemaをサポートする場合の処理を追加
-
-**注意**: MySQLの場合はschemaフィールドは未定義のままです。
-
-**実施内容**: ERDataBuilderはすでにPostgreSQL対応のschemaをサポートしていました。変更は不要でした。
-
-### ✅ ReverseEngineerUsecaseの更新（PostgreSQL対応）
-
-**ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
-
-**変更内容**:
-- PostgreSQLの場合、schemaをDatabaseManagerに渡す処理を追加
-- ConnectionConfigにschemaを含める
-
-**実施内容**: ReverseEngineerUsecaseはすでにPostgreSQL対応のschemaをサポートしていました。変更は不要でした。
-
-### ✅ テストコードの追加（PostgreSQL）
-
-**ファイル**: `tests/usecases/ReverseEngineerUsecase.test.ts`
-
-**追加内容**:
-- PostgreSQL用のテストケースを追加
-- `beforeAll`でPostgreSQL接続確認を追加
-- MySQLと同じ構造のテーブルに対してテストを実行
-- `PgDumpExecutor`はモック化し、正常系のDDL文字列を返すようにする
-
-**参照**: 
-- [spec/backend_test_strategy.md](/spec/backend_test_strategy.md)
-- [spec/multi_database_support.md](/spec/multi_database_support.md) の「テスト方針」セクション
-
-**注意**: Docker Composeでinit-postgres.sqlを使用してPostgreSQLのテストデータを準備します。
-
-**実施内容**: 追加完了しました。PostgreSQL用のテストケースを4つ追加しました（接続情報指定、schema省略、DDL取得、外部キー変換）。PgDumpExecutorをモック化しました。
-
-### ✅ ビルドの確認
-
-**コマンド**: `npm run typecheck`
-
-**理由**: 型エラーがないことを確認します。
-
-**実施内容**: バックエンド（lib/）の型エラーは全て解消されました。フロントエンド（public/src）の型エラーはフェーズ3で対応します。
-
-### ✅ テストの実行（PostgreSQL追加）
-
-**コマンド**: `npm run test`
-
-**対象**: `tests/usecases/ReverseEngineerUsecase.test.ts`
-
-**確認内容**: MySQLとPostgreSQLの両方のテストが正常に動作することを確認します。
-
-**実施内容**: テストが全て成功しました（9 tests passed）。MySQL 5テスト + PostgreSQL 4テスト = 計9テストが正常に動作しています。
-
----
-
-## フェーズ3: フロントエンド更新
-
-データベース接続モーダルを更新し、PostgreSQL選択とschema入力に対応します。
-
-**実施日**: 2026-02-07
-
-**進捗状況**: 
-- DatabaseConnectionModal、reverseEngineerCommandの更新は完了
-- 型エラーが多数検出され、TASK.mdに記載されていない追加の修正作業が必要
-
-**検出された型エラー**:
-1. `public/src/actions/dataActions.ts`: Column型の`type`、`nullable`、`default`、`extra`フィールドが参照されているが、これらのフィールドはフェーズ1で削除済み（276-300行目）
-2. `public/src/actions/dataActions.ts`: `ReverseEngineeringHistoryEntry`の`type`フィールドの型が不一致（491行目）
-3. `public/src/actions/clipboardActions.ts`: Rectangle、TextBoxの型エラー（36, 47, 86, 97行目）
-4. `public/src/commands/layoutOptimizeCommand.ts`: TextAlignの型エラー（複数箇所）
-5. `public/src/components/App.tsx`: ViewModelの型エラー（複数箇所）
-
-**次のステップ**:
-- TASK.mdに記載されていない追加の型エラー修正が必要
-- フェーズ1の「Column型の簡素化」に伴うフロントエンドの修正が未完了
-- これらの修正を別タスクとして洗い出す必要がある
-
-### ✅ DatabaseConnectionModalの更新
-
-**ファイル**: `public/src/components/DatabaseConnectionModal.tsx`
-
-**変更内容**:
-- Database Type選択ドロップダウンを追加
-  - 固定テキスト「MySQL」を`<select>`に変更
-  - 選択肢: `mysql`, `postgresql`
-  - 選択に応じてportのデフォルト値を変更（MySQL: 3306、PostgreSQL: 5432）
-  - 選択に応じてplaceholderを変更
-- Schema入力欄を追加（PostgreSQL選択時のみ表示）
-  - デフォルト値: `public`
-  - placeholderに`public`を表示
-- 警告メッセージを追加
-  - 内容: 「information_schemaを参照するためルートユーザ（または十分な権限を持つユーザ）での実行を推奨します」
-  - MySQLとPostgreSQLの両方で表示
-- `handleExecute`メソッドを更新
-  - `connectionInfo`に`schema`フィールドを含める（PostgreSQLの場合のみ）
-
-**参照**: 
-- [spec/database_connection_settings.md](/spec/database_connection_settings.md) の「UI仕様」セクション
-- [spec/multi_database_support.md](/spec/multi_database_support.md) の「フロントエンド対応」セクション
-
-**注意**: 
-- Database Type選択時、portとplaceholderが自動調整されるようにする。
-- Schema入力欄はPostgreSQL選択時のみ表示（MySQLの場合は非表示）。
-
-**実施内容**: 完了しました。Database Type選択ドロップダウン、Schema入力欄、警告メッセージを追加しました。
-
-### ✅ reverseEngineerCommandの更新
-
-**ファイル**: `public/src/commands/reverseEngineerCommand.ts`
-
-**変更内容**:
-- `ReverseEngineerRequest`に`schema`フィールドを含める（connectionInfoから取得）
-
-**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「接続設定」セクション
-
-**実施内容**: 完了しました。PostgreSQLの場合、connectionInfo.schemaをrequestに含めるように更新しました。
-
-### ⏸️ dataActionsの更新
+### □ dataActions.tsのカラム変更検出ロジックを修正
 
 **ファイル**: `public/src/actions/dataActions.ts`
 
+**変更箇所**: 276-303行目
+
 **変更内容**:
-- `actionMergeERData`メソッドを更新
-  - `ERData.source`フィールドを受け取る
-  - 履歴エントリに`source`情報を含める（オプション）
 
-**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「データ構造の変更」セクション
+削除されたColumnフィールド（type、nullable、default、extra）への参照を削除し、ColumnSnapshot型（key、isForeignKey）のみを使用するように変更
 
-**注意**: ERData.sourceは履歴記録に使用可能ですが、必須ではありません。将来の拡張として検討します。
+**変更前**:
 
-**実施内容**: スキップしました。ERData.sourceは必須ではなく、将来の拡張として残します。
+```typescript
+const hasChanges = 
+  existingCol.type !== newCol.type ||
+  existingCol.nullable !== newCol.nullable ||
+  existingCol.key !== newCol.key ||
+  existingCol.default !== newCol.default ||
+  existingCol.extra !== newCol.extra ||
+  existingCol.isForeignKey !== newCol.isForeignKey;
 
-**型エラー検出**: Column型の`type`、`nullable`、`default`、`extra`フィールドを参照していますが、これらのフィールドはフェーズ1で削除済みです（276-300行目、491行目）。TASK.mdに記載されていない追加の修正作業が必要です。
+if (hasChanges) {
+  modifiedColumns.push({
+    tableName: entity.name,
+    columnName: newCol.name,
+    before: {
+      type: existingCol.type,
+      nullable: existingCol.nullable,
+      key: existingCol.key,
+      default: existingCol.default,
+      extra: existingCol.extra,
+      isForeignKey: existingCol.isForeignKey,
+    },
+    after: {
+      type: newCol.type,
+      nullable: newCol.nullable,
+      key: newCol.key,
+      default: newCol.default,
+      extra: newCol.extra,
+      isForeignKey: newCol.isForeignKey,
+    },
+  });
+}
+```
 
-### ⚠️ ビルドの確認
+**変更後**:
 
-**コマンド**: `npm run typecheck`（フロントエンドのビルドコマンドがある場合はそれも実行）
+```typescript
+const hasChanges = 
+  existingCol.key !== newCol.key ||
+  existingCol.isForeignKey !== newCol.isForeignKey;
 
-**理由**: 型エラーがないことを確認します。
+if (hasChanges) {
+  modifiedColumns.push({
+    tableName: entity.name,
+    columnName: newCol.name,
+    before: {
+      key: existingCol.key,
+      isForeignKey: existingCol.isForeignKey,
+    },
+    after: {
+      key: newCol.key,
+      isForeignKey: newCol.isForeignKey,
+    },
+  });
+}
+```
 
-**実施内容**: 型エラーが多数検出されました（合計30+件）。主な問題：
-1. **dataActions.ts**: Column型の削除されたフィールド（type、nullable、default、extra）を参照（276-300行目）
-2. **dataActions.ts**: ReverseEngineeringHistoryEntryのtypeフィールドの型不一致（491行目）
-3. **clipboardActions.ts**: Rectangle、TextBoxの型エラー（36, 47, 86, 97行目）
-4. **layoutOptimizeCommand.ts**: TextAlignの型エラー（複数箇所）
-5. **App.tsx**: ViewModelの型エラー（複数箇所）
+**参照**: [spec/reverse_engineering_history.md](spec/reverse_engineering_history.md) の「差分検出の対象」セクション
 
-これらの型エラーは、TASK.mdに記載されていない追加の修正作業が必要です。
+### □ dataActions.tsの履歴エントリ作成箇所を修正
+
+**ファイル**: `public/src/actions/dataActions.ts`
+
+**変更箇所**: 489-492行目
+
+**変更内容**: `type` → `entryType` に変更
+
+**変更前**:
+
+```typescript
+const historyEntry: ReverseEngineeringHistoryEntry = {
+  timestamp,
+  type: isIncrementalMode ? 'incremental' : 'initial',
+};
+```
+
+**変更後**:
+
+```typescript
+const historyEntry: ReverseEngineeringHistoryEntry = {
+  timestamp,
+  entryType: isIncrementalMode ? 'incremental' : 'initial',
+};
+```
+
+### □ clipboardActions.tsのnull使用箇所を修正
+
+**ファイル**: `public/src/actions/clipboardActions.ts`
+
+**変更箇所1**: 30-51行目（clipboardData生成部分）
+
+**変更内容**: `null` を省略する（undefinedはオプショナルフィールドなので省略可能）
+
+**変更前**:
+
+```typescript
+if (selectedItem.kind === 'text') {
+  const textBox = vm.erDiagram.texts[selectedItem.id];
+  if (textBox) {
+    clipboardData = {
+      kind: 'text',
+      textData: textBox,
+      rectangleData: null,  // エラー
+    };
+  }
+}
+
+if (selectedItem.kind === 'rectangle') {
+  const rectangle = vm.erDiagram.rectangles[selectedItem.id];
+  if (rectangle) {
+    clipboardData = {
+      kind: 'rectangle',
+      textData: null,  // エラー
+      rectangleData: rectangle,
+    };
+  }
+}
+```
+
+**変更後**:
+
+```typescript
+if (selectedItem.kind === 'text') {
+  const textBox = vm.erDiagram.texts[selectedItem.id];
+  if (textBox) {
+    clipboardData = {
+      kind: 'text',
+      textData: textBox,
+      // rectangleData は省略（undefinedになる）
+    };
+  }
+}
+
+if (selectedItem.kind === 'rectangle') {
+  const rectangle = vm.erDiagram.rectangles[selectedItem.id];
+  if (rectangle) {
+    clipboardData = {
+      kind: 'rectangle',
+      // textData は省略（undefinedになる）
+      rectangleData: rectangle,
+    };
+  }
+}
+```
+
+**変更箇所2**: 85-106行目（ペースト処理）
+
+**変更内容**: `!== null` を `!== undefined` に変更
+
+**変更前**:
+
+```typescript
+if (clipboard.kind === 'text' && clipboard.textData !== null) {
+  const newTextBox: TextBox = {
+    ...clipboard.textData,
+    id: newId,
+    x: position.x,
+    y: position.y,
+  };
+  nextVm = actionAddText(nextVm, newTextBox);
+}
+
+if (clipboard.kind === 'rectangle' && clipboard.rectangleData !== null) {
+  const newRectangle: Rectangle = {
+    ...clipboard.rectangleData,
+    id: newId,
+    x: position.x,
+    y: position.y,
+  };
+  nextVm = actionAddRectangle(nextVm, newRectangle);
+}
+```
+
+**変更後**:
+
+```typescript
+if (clipboard.kind === 'text' && clipboard.textData !== undefined) {
+  const newTextBox: TextBox = {
+    ...clipboard.textData,
+    id: newId,
+    x: position.x,
+    y: position.y,
+  };
+  nextVm = actionAddText(nextVm, newTextBox);
+}
+
+if (clipboard.kind === 'rectangle' && clipboard.rectangleData !== undefined) {
+  const newRectangle: Rectangle = {
+    ...clipboard.rectangleData,
+    id: newId,
+    x: position.x,
+    y: position.y,
+  };
+  nextVm = actionAddRectangle(nextVm, newRectangle);
+}
+```
+
+### □ 履歴パネルコンポーネントのtype参照箇所を修正
+
+**対象ファイル**: 履歴パネルコンポーネント（存在する場合）
+
+**変更内容**: `entry.type` → `entry.entryType` に変更
+
+**検索方法**: 
+1. `grep -r "entry.type" public/src/components/` で検索
+2. ReverseEngineeringHistoryEntryを使用している箇所を特定
+3. `.type` を `.entryType` に置換
+
+**注意**: 履歴パネルコンポーネントがまだ実装されていない場合、このタスクはスキップ
+
+### □ その他のtype参照箇所を修正
+
+**検索コマンド**: 
+```bash
+grep -r "\.type" public/src/ | grep -i "history\|reverse"
+```
+
+**変更内容**: ReverseEngineeringHistoryEntryのtypeフィールドを参照している箇所をすべてentryTypeに変更
+
+**想定される箇所**:
+- インポート/エクスポート処理
+- 履歴表示UI
+- 履歴のバリデーション処理
+
+**注意**: 他のオブジェクトのtypeフィールド（例: DatabaseConnectionState.type）は変更不要
+
+### □ 型チェックの実行
+
+**コマンド**: `npm run typecheck`
+
+**確認事項**: 
+- バックエンド（lib/）の型エラーがないこと
+- フロントエンド（public/src）の型エラーがないこと
+- 特に以下のファイルでエラーがないことを確認：
+  - public/src/actions/dataActions.ts
+  - public/src/actions/clipboardActions.ts
+  - public/src/commands/layoutOptimizeCommand.ts
+  - public/src/components/App.tsx
+
+### □ テストの実行
+
+**コマンド**: `npm run test`
+
+**対象**: すべてのテスト
+
+**確認事項**: 
+- MySQLのテスト（5テスト）が成功すること
+- PostgreSQLのテスト（4テスト）が成功すること
+- 合計9テストが全て成功すること
+
+**注意**: フロントエンドのテストがある場合は、そちらも実行して確認
 
 ---
 
-## 補足事項
+## 注意事項
 
-### 事前修正提案
+### データ互換性
 
-特になし。仕様書に基づいて実装を進めることができます。
+**enum → alias変更**:
+- 生成されるTypeScript型の実体（文字列リテラル）は変更なし
+- 既存の保存データとの互換性は維持される
 
-### 実装時の注意点
+**type → entryType変更**:
+- 既存の保存データ（JSON）で`type`フィールドを持つ履歴エントリは読み込めなくなる
+- MVPフェーズであり、後方互換性は考慮しない（プロジェクト方針通り）
+- インポート時にエントリの型チェックを実施し、不正なエントリは無視する（既存仕様）
 
-1. **Column型の簡素化**: type、nullable、default、extraフィールドを削除するため、既存コードでこれらのフィールドを参照している箇所がないか確認してください。現在のER図表示では使用していないため、削除しても問題ありません。
+### 修正の実施順序
 
-2. **Entity.foreignKeysの削除**: Relationshipのみで外部キー情報を管理します。既存コードでforeignKeysを参照している箇所がないか確認してください。
+以下の順序で実施すること：
 
-3. **isForeignKeyの導出**: Column.isForeignKeyはRelationshipから導出する必要があります。ERDataBuilderで、Relationship生成後に逆引きして設定してください。
+1. scheme/main.tspの修正（enum → alias、type → entryType）
+2. reverse_engineering_history.mdの更新
+3. 型生成の実行（`npm run generate`）
+4. フロントエンドコードの修正（dataActions.ts、clipboardActions.ts、履歴関連）
+5. 型チェック・テストの実行
 
-4. **DDL取得**: PostgreSQLのDDL取得にはpg_dumpが必要です。環境にpg_dumpが存在しない場合は空文字列を返すか、エラーメッセージを返してください。
+### 検索パターン
 
-5. **schema概念**: PostgreSQLはdatabase内にschemaを持ちますが、MySQLにはschema概念がありません。MySQLの場合はschemaフィールドを無視してください。
+修正漏れを防ぐため、以下のパターンで検索して全箇所を修正すること：
 
-6. **テストデータ**: PostgreSQL用のテストデータ（init-postgres.sql）が既に存在するか確認してください。存在しない場合は、MySQLのinit.sqlと同じ構造のテーブルを作成してください。
+```bash
+# 履歴エントリのtype参照箇所
+grep -rn "\.type" public/src/ | grep -i "history\|reverse"
 
-7. **依存パッケージ**: PostgreSQL接続には`pg`パッケージが必要です。package.jsonに追加されていない場合は追加してください。
+# null使用箇所（clipboardData関連）
+grep -rn "null" public/src/actions/clipboardActions.ts
 
-### 不要になったコード
+# Column型の削除されたフィールド参照
+grep -rn "existingCol\.\(type\|nullable\|default\|extra\)" public/src/
+grep -rn "newCol\.\(type\|nullable\|default\|extra\)" public/src/
+```
 
-- `lib/database.ts`（DatabaseManagerを移動するため削除）
-- `Entity.foreignKeys`フィールド（Relationshipのみ使用）
-- `Column.type`, `Column.nullable`, `Column.default`, `Column.extra`フィールド（UI表示に不要）
+## 関連仕様書
 
-以上
+- [spec/multi_database_support.md](spec/multi_database_support.md) - Column型簡素化の背景
+- [spec/reverse_engineering_history.md](spec/reverse_engineering_history.md) - 履歴機能の全体仕様
+- [spec/incremental_reverse_engineering.md](spec/incremental_reverse_engineering.md) - 増分リバースの全体仕様
+- [scheme/main.tsp](scheme/main.tsp) - 型定義

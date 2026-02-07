@@ -75,31 +75,16 @@ model Rectangle {
 }
 
 // Text alignment options
-enum TextAlign {
-  left,
-  center,
-  right,
-}
+alias TextAlign = "left" | "center" | "right";
 
 // Text vertical alignment options
-enum TextVerticalAlign {
-  top,
-  middle,
-  bottom,
-}
+alias TextVerticalAlign = "top" | "middle" | "bottom";
 
 // Text auto-size behavior
-enum TextAutoSizeMode {
-  manual,      // ユーザーのwidth/heightを維持
-  fitContent,  // 内容に合わせて width/height を両方更新
-  fitWidth,    // width固定で、高さだけ内容に合わせて更新（折り返し前提）
-}
+alias TextAutoSizeMode = "manual" | "fitContent" | "fitWidth"; // manual: ユーザーのwidth/heightを維持, fitContent: 内容に合わせて width/height を両方更新, fitWidth: width固定で、高さだけ内容に合わせて更新（折り返し前提）
 
 // Text overflow handling
-enum TextOverflowMode {
-  clip,    // はみ出しは隠す
-  scroll,  // スクロール（表示側だけ）
-}
+alias TextOverflowMode = "clip" | "scroll"; // clip: はみ出しは隠す, scroll: スクロール（表示側だけ）
 
 // Drop shadow effect
 model DropShadow {
@@ -209,22 +194,14 @@ model HoverTarget {
 }
 
 // Layer management
-enum LayerItemKind {
-  entity,    // エンティティ（ER図レイヤー固定、編集不可）
-  relation,  // リレーション（ER図レイヤー固定、編集不可）
-  rectangle, // 矩形（前面・背面に配置可能）
-  text,      // テキスト（前面・背面に配置可能）
-}
+alias LayerItemKind = "entity" | "relation" | "rectangle" | "text"; // entity: エンティティ（ER図レイヤー固定、編集不可）, relation: リレーション（ER図レイヤー固定、編集不可）, rectangle: 矩形（前面・背面に配置可能）, text: テキスト（前面・背面に配置可能）
 
 model LayerItemRef {
   kind: LayerItemKind;
   id: string; // UUID
 }
 
-enum LayerPosition {
-  background, // 背面（ER図より下）
-  foreground, // 前面（ER図より上）
-}
+alias LayerPosition = "background" | "foreground"; // background: 背面（ER図より下）, foreground: 前面（ER図より上）
 
 model LayerOrder {
   backgroundItems: LayerItemRef[]; // 背面アイテム（配列の先頭が前面寄り、末尾が背面寄り）
@@ -325,10 +302,13 @@ model ReverseEngineeringSummary {
   totalRelationships?: int32;
 }
 
+// Reverse engineering entry type
+alias ReverseEngineeringType = "initial" | "incremental";
+
 // Single history entry for reverse engineering
 model ReverseEngineeringHistoryEntry {
   timestamp: int64; // Unix timestamp in milliseconds
-  type: "initial" | "incremental";
+  entryType: ReverseEngineeringType;
   
   // Summary for UI display (used for both initial and incremental)
   summary?: ReverseEngineeringSummary;
@@ -391,10 +371,7 @@ model BuildInfoState {
 // Database connection settings
 
 // Database type enum
-enum DatabaseType {
-  mysql,
-  postgresql, // 将来対応用
-}
+alias DatabaseType = "mysql" | "postgresql"; // mysql, postgresql: 将来対応用
 
 // Database connection state (password不含)
 model DatabaseConnectionState {

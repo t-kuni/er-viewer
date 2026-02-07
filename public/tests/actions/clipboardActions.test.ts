@@ -141,7 +141,7 @@ describe('clipboardActions', () => {
       expect(result.ui.clipboard).not.toBeNull();
       expect(result.ui.clipboard?.kind).toBe('text');
       expect(result.ui.clipboard?.textData).toEqual(viewModel.erDiagram.texts['text-1']);
-      expect(result.ui.clipboard?.rectangleData).toBeNull();
+      expect(result.ui.clipboard?.rectangleData).toBeUndefined();
     });
 
     it('矩形選択時、クリップボードに矩形データが保存される', () => {
@@ -153,7 +153,7 @@ describe('clipboardActions', () => {
       expect(result.ui.clipboard).not.toBeNull();
       expect(result.ui.clipboard?.kind).toBe('rectangle');
       expect(result.ui.clipboard?.rectangleData).toEqual(viewModel.erDiagram.rectangles['rect-1']);
-      expect(result.ui.clipboard?.textData).toBeNull();
+      expect(result.ui.clipboard?.textData).toBeUndefined();
     });
 
     it('エンティティ選択時、何もしない', () => {

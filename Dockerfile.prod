@@ -46,6 +46,9 @@ COPY package*.json ./
 # Install only production dependencies (skip scripts like husky)
 RUN npm ci --omit=dev --ignore-scripts
 
+# Add PostgreSQL client (includes pg_dump)
+RUN apk add --no-cache postgresql-client
+
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public/dist ./public/dist

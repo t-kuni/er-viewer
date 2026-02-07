@@ -3,9 +3,8 @@ import { actionMergeERData } from '../../src/actions/dataActions';
 import type { 
   ViewModel, 
   ERData,
-  DatabaseConnectionState,
 } from '../../src/api/client';
-import { LayerItemKind, DatabaseType, TextAlign, TextAutoSizeMode, TextOverflowMode } from '../../src/api/client';
+import { DatabaseConnectionState, LayerItemRef, TextBox } from '../../src/api/client';
 
 describe('actionMergeERData', () => {
   const createEmptyViewModel = (): ViewModel => ({
@@ -120,7 +119,7 @@ describe('actionMergeERData', () => {
   });
 
   const createConnectionInfo = (): DatabaseConnectionState => ({
-    type: DatabaseType.MYSQL,
+    type: DatabaseConnectionState.type.MYSQL,
     host: 'localhost',
     port: 3306,
     user: 'root',
@@ -250,12 +249,12 @@ describe('actionMergeERData', () => {
             ...createEmptyViewModel().erDiagram.ui,
             layerOrder: {
               backgroundItems: [
-                { kind: LayerItemKind.RECTANGLE, id: 'rect-1' },
+                { kind: LayerItemRef.kind.RECTANGLE, id: 'rect-1' },
               ],
               foregroundItems: [
-                { kind: LayerItemKind.ENTITY, id: 'entity-users' },
-                { kind: LayerItemKind.ENTITY, id: 'entity-deleted' },
-                { kind: LayerItemKind.TEXT, id: 'text-1' },
+                { kind: LayerItemRef.kind.ENTITY, id: 'entity-users' },
+                { kind: LayerItemRef.kind.ENTITY, id: 'entity-deleted' },
+                { kind: LayerItemRef.kind.TEXT, id: 'text-1' },
               ],
             },
           },
@@ -355,14 +354,14 @@ describe('actionMergeERData', () => {
               content: 'Test text',
               fontSize: 14,
               lineHeight: 1.5,
-              textAlign: TextAlign.LEFT,
+              textAlign: TextBox.textAlign.LEFT,
               textColor: '#000000',
               opacity: 1,
               paddingX: 10,
               paddingY: 5,
               wrap: true,
-              overflow: TextOverflowMode.ELLIPSIS,
-              autoSizeMode: TextAutoSizeMode.NONE,
+              overflow: TextBox.overflow.CLIP,
+              autoSizeMode: TextBox.autoSizeMode.MANUAL,
               shadow: {
                 enabled: false,
                 offsetX: 0,

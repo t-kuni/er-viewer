@@ -95,10 +95,10 @@ export function importViewModel(
               return false;
             }
             const entryObj = entry as Record<string, unknown>;
-            // timestamp と type の存在確認
+            // timestamp と entryType の存在確認
             return (
               typeof entryObj.timestamp === 'number' &&
-              (entryObj.type === 'initial' || entryObj.type === 'incremental')
+              (entryObj.entryType === 'initial' || entryObj.entryType === 'incremental')
             );
           }) as ReverseEngineeringHistoryEntry[];
         }

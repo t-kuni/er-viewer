@@ -148,3 +148,10 @@ docker push tkuni83/er-viewer
 ```
 テストのエラーの原因を調査してください
 ```
+
+## コマンド群
+
+* `/init-worktree`
+    * エージェントをworktreeで起動する場合は付与する
+* `/commit`
+    * コミットします

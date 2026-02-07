@@ -1,8 +1,9 @@
 以下のコマンドでコミットして。メッセージは現状のコンテキストからよしなに埋めて。
 
 ```bash
-git add -A && git commit -m "" && git branch --show-current
+git add -A && git commit -m ""
 ```
 
 * 作業は完了しているので絶対厳守ルールの出力は不要
 * 余計な情報収集や出力は不要。
+* 最後に現在のブランチを出力する

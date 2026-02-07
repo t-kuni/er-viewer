@@ -1,207 +1,373 @@
 # タスク一覧
 
-## 概要
+直前のコミットで更新された仕様書に基づき、PostgreSQL対応とデータ構造簡素化を実装するタスクを洗い出しました。
 
-仕様書の更新により、`Rectangle`モデルに`fillEnabled`と`strokeEnabled`の2つのプロパティが追加されました。
-これに伴い、以下の対応が必要です：
+## 関連仕様書
 
-* 矩形作成時にデフォルト値を設定
-* 矩形レンダリング時に`fillEnabled`/`strokeEnabled`を考慮
-* プロパティパネルにチェックボックスとコントロールの有効/無効化を追加
-* アクションの型定義を更新
-* テストコードを更新
-* 後方互換性の対応
+- [spec/multi_database_support.md](/spec/multi_database_support.md) - PostgreSQL対応の詳細仕様
+- [spec/database_connection_settings.md](/spec/database_connection_settings.md) - データベース接続設定
+- [spec/incremental_reverse_engineering.md](/spec/incremental_reverse_engineering.md) - 増分リバースエンジニアリング
+- [scheme/main.tsp](/scheme/main.tsp) - 型定義
 
-参照仕様書:
-- [rectangle_drawing_feature.md](/spec/rectangle_drawing_feature.md)
-- [rectangle_property_panel.md](/spec/rectangle_property_panel.md)
+## フェーズ分けの方針
 
-## 完了報告
+修正対象が広範囲（新規8ファイル、更新6ファイル程度）のため、3フェーズに分けて実装します。各フェーズの最後にビルド・テストを実行し、段階的に機能を追加します。
 
-**すべてのフェーズが完了しました！**
+---
 
-- フェーズ1: バックエンド型定義とアクション、レンダリング処理の更新 ✅
-- フェーズ2: プロパティパネルUIの更新 ✅
-- フェーズ3: テストコードの更新とビルド確認 ✅
+## フェーズ1: データ構造変更とMySQL実装のAdapter化
 
-**実施内容:**
-1. `ColorPickerWithPresets`コンポーネントに`disabled`プロパティを追加し、無効化時の視覚的なフィードバックを実装
-2. `RectanglePropertyPanel`コンポーネントに背景色と枠線のチェックボックスを追加
-3. チェックボックスの状態に応じてカラーピッカーと枠線幅入力を無効化
-4. テストコードのモックデータに`fillEnabled`/`strokeEnabled`を追加
-5. `actionUpdateRectangleStyle`のテストケースを追加
-6. 全テスト（254個）がパス
+既存のMySQL実装をDatabaseAdapterアーキテクチャに移行し、データ構造を簡素化します。このフェーズでは既存機能（MySQL）が正常に動作することを確認します。
 
-**後方互換性:**
-- 既存のデータで`fillEnabled`/`strokeEnabled`が未定義の場合、`?? true`でデフォルト値として扱われる
+### □ scheme/main.tspの型定義を更新
 
-## タスク
+**ファイル**: `scheme/main.tsp`
 
-### フェーズ1: バックエンド型定義とアクション、レンダリング処理の更新
+**変更内容**:
+- `Column`型の簡素化
+  - 削除: `type`, `nullable`, `default`, `extra`
+  - 保持: `id`, `name`, `key`, `isForeignKey`
+  - `key`を`string | null`に変更（"PRI"またはnull）
+- `ColumnSnapshot`型の簡素化
+  - 削除: `type`, `nullable`, `default`, `extra`
+  - 保持: `key`, `isForeignKey`
+- `ForeignKey`型をdeprecated化（コメント追加のみ、削除はしない）
+- `Entity`型から`foreignKeys`フィールドを削除
+- `Entity.ddl`にコメント追加（取得できない場合は空文字列）
+- `DataSourceRef`型の追加（dialect、database、schema）
+- `ERData`型に`source: DataSourceRef`フィールドを追加
 
-#### 型生成の確認
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「データ構造の変更」セクション
 
-- [x] `npm run generate`を実行して`lib/generated/api-types.ts`と`public/src/api/client`に`fillEnabled`/`strokeEnabled`が追加されたことを確認
-  * 既に確認済み。型は正しく生成されている
+**注意**: この変更により、既存コードとの型不整合が発生しますが、後続タスクで修正します。
 
-#### アクション層の更新
+### □ 型生成の実行
 
-- [x] `public/src/actions/rectangleActions.ts`の`actionUpdateRectangleStyle`関数を更新
-  * 現在の`stylePatch`型定義に`fillEnabled?: boolean`と`strokeEnabled?: boolean`を追加
-  * 現在の型定義:
-    ```typescript
-    stylePatch: {
-      fill?: string;
-      stroke?: string;
-      strokeWidth?: number;
-      opacity?: number;
-    }
-    ```
-  * 更新後:
-    ```typescript
-    stylePatch: {
-      fill?: string;
-      fillEnabled?: boolean;
-      stroke?: string;
-      strokeEnabled?: boolean;
-      strokeWidth?: number;
-      opacity?: number;
-    }
-    ```
-  * `hasChanges`の判定に`fillEnabled`と`strokeEnabled`の変更チェックを追加
-  * スプレッド構文で`fillEnabled`と`strokeEnabled`を反映する処理を追加
-  * 参照: `public/src/actions/rectangleActions.ts` 191-235行
+**コマンド**: `npm run generate`
 
-#### 矩形作成処理の更新
+**理由**: main.tspから最新の型定義を生成します。
 
-- [x] `public/src/components/ERCanvas.tsx`の`handleAddRectangle`関数を更新
-  * 矩形作成時に`fillEnabled: true`と`strokeEnabled: true`をデフォルト値として追加
-  * 参照: `public/src/components/ERCanvas.tsx` 960-971行
+### □ DatabaseAdapterインターフェースの定義
 
-- [x] `public/src/actions/clipboardActions.ts`の`actionPasteItem`関数を確認
-  * ペースト処理は既存の`Rectangle`オブジェクトをコピーするため、`fillEnabled`/`strokeEnabled`も自動的にコピーされる
-  * 後方互換性: 古いデータで`fillEnabled`/`strokeEnabled`が未定義の場合、レンダリング側で`true`として扱う（次のタスクで対応）
-  * 参照: `public/src/actions/clipboardActions.ts` 95-104行
-  * 確認完了: 変更不要
+**ファイル**: `lib/database/adapters/DatabaseAdapter.ts`（新規作成）
 
-#### 矩形レンダリング処理の更新
+**内容**:
+- `DatabaseAdapter`インターフェースを定義
+  - `readonly type: "mysql" | "postgresql"`
+  - `connect(config: ConnectionConfig): Promise<void>`
+  - `disconnect(): Promise<void>`
+  - `getTables(params?: { schema?: string }): Promise<Array<{ name: string; schema?: string }>>`
+  - `getTableColumns(table: TableRef): Promise<Column[]>`
+  - `getForeignKeys(table: TableRef): Promise<ForeignKey[]>`（deprecated、Relationshipから導出するため使用しない）
+  - `getTableDDL(table: TableRef): Promise<string>`
+- `ConnectionConfig`型を定義（host、port、user、password、database、schema?）
+- `TableRef`型を定義（name、schema?）
 
-- [x] `public/src/components/ERCanvas.tsx`の`renderRectangles`関数を更新
-  * `fillEnabled`が`false`の場合は背景色を透明にする（`backgroundColor: 'transparent'`）
-  * `strokeEnabled`が`false`の場合は枠線を非表示にする（`border: 'none'`または`borderWidth: 0`）
-  * 後方互換性の対応: `rectangle.fillEnabled ?? true`、`rectangle.strokeEnabled ?? true`として未定義時は`true`として扱う
-  * 参照: `public/src/components/ERCanvas.tsx` 592-645行
-  * 現在のレンダリング処理:
-    ```typescript
-    border: `${rectangle.strokeWidth}px solid ${rectangle.stroke}`,
-    backgroundColor: rectangle.fill,
-    ```
-  * 更新後（例）:
-    ```typescript
-    border: (rectangle.strokeEnabled ?? true) 
-      ? `${rectangle.strokeWidth}px solid ${rectangle.stroke}` 
-      : 'none',
-    backgroundColor: (rectangle.fillEnabled ?? true) 
-      ? rectangle.fill 
-      : 'transparent',
-    ```
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「DatabaseAdapter インターフェース」セクション
 
-### フェーズ2: プロパティパネルUIの更新
+**注意**: ForeignKey関連メソッドはdeprecatedですが、後方互換性のため定義します。
 
-#### RectanglePropertyPanelコンポーネントの更新
+### □ MySqlAdapterの実装
 
-- [x] `public/src/components/RectanglePropertyPanel.tsx`に背景色チェックボックスを追加
-  * 「背景色」ラベルの直下にチェックボックス「背景色を表示」を追加
-  * チェックボックスの状態を`rectangle.fillEnabled ?? true`で初期化（後方互換性）
-  * チェック変更時に`dispatch(actionUpdateRectangleStyle, rectangleId, { fillEnabled: newValue })`を呼び出す
-  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 57-62行
+**ファイル**: `lib/database/adapters/mysql/MySqlAdapter.ts`（新規作成）
 
-- [x] `public/src/components/RectanglePropertyPanel.tsx`のカラーピッカー（背景色）を条件付き有効化
-  * `fillEnabled === false`の場合は`ColorPickerWithPresets`を`disabled`状態にする
-  * `ColorPickerWithPresets`が`disabled`プロパティをサポートしていない場合は、`opacity`や`pointerEvents: 'none'`で視覚的に無効化する、またはコンポーネントを条件付きレンダリングする
-  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 57-62行
+**内容**:
+- 既存の`lib/database.ts`の`DatabaseManager`クラスの実装を移植
+- `DatabaseAdapter`インターフェースを実装
+- MySQL固有の接続処理とスキーマ取得SQLを実装
+- `getTableColumns`メソッドを更新
+  - Column型の簡素化に対応（type、nullable、default、extraを削除）
+  - `key`は"PRI"またはnullを返す
+  - `isForeignKey`はRelationshipから導出するため、一旦falseを設定（後で修正）
+- `getForeignKeys`メソッドは既存実装をそのまま移植（deprecated）
+- DDL取得は既存の`SHOW CREATE TABLE`を使用
 
-- [x] `public/src/components/RectanglePropertyPanel.tsx`に枠線チェックボックスを追加
-  * 「枠線色」ラベルを「枠線」に変更（仕様書に準拠）
-  * 「枠線」ラベルの直下にチェックボックス「枠線を表示」を追加
-  * チェックボックスの状態を`rectangle.strokeEnabled ?? true`で初期化（後方互換性）
-  * チェック変更時に`dispatch(actionUpdateRectangleStyle, rectangleId, { strokeEnabled: newValue })`を呼び出す
-  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 64-69行
+**参照**: 
+- 既存の`lib/database.ts`
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「PostgreSQL対応の詳細」セクション（MySQLとの対比）
 
-- [x] `public/src/components/RectanglePropertyPanel.tsx`のカラーピッカー（枠線）と枠線幅を条件付き有効化
-  * `strokeEnabled === false`の場合は、枠線色の`ColorPickerWithPresets`と枠線幅の`<input type="number">`を無効化
-  * カラーピッカーの無効化方法は背景色と同様
-  * 枠線幅の`<input>`には`disabled={!(rectangle.strokeEnabled ?? true)}`属性を追加
-  * 参照: `public/src/components/RectanglePropertyPanel.tsx` 64-106行
+**注意**: 
+- `isForeignKey`フラグの導出ロジックは後続のERDataBuilder実装時に対応します。
+- 既存の`generateERData`メソッドのロジックは後続の`ERDataBuilder`に移動します。
 
-#### ColorPickerWithPresetsコンポーネントの更新（必要に応じて）
+### □ ERDataBuilderの実装
 
-- [x] `public/src/components/ColorPickerWithPresets.tsx`に`disabled`プロパティを追加（オプショナル）
-  * `disabled`プロパティを受け取り、無効化時にカラーピッカーとプリセットボタンを視覚的に無効化する
-  * 無効化時の実装方法:
-    * `opacity: 0.5`でグレーアウト
-    * `pointerEvents: 'none'`でクリック無効化
-    * または、`disabled`時は単に現在の色を表示するだけのシンプルなUIに切り替える
-  * このタスクは、RectanglePropertyPanelでの条件付きレンダリングで対応可能な場合はスキップしてもよい
+**ファイル**: `lib/database/ERDataBuilder.ts`（新規作成）
 
-### フェーズ3: テストコードの更新とビルド確認
+**内容**:
+- DB非依存の共通ERData生成ロジックを実装
+- `buildERData(adapter: DatabaseAdapter, source: DataSourceRef): Promise<ERData>`メソッド
+  - テーブル一覧を取得
+  - 各テーブルのカラム情報を取得
+  - Relationship情報を外部キー制約から生成
+  - Column.isForeignKeyをRelationshipから導出
+  - DDL文字列を取得（取得できない場合は空文字列）
+  - `ERData`に`source`フィールドを含める
 
-#### テストコードの更新
+**参照**: 
+- 既存の`lib/database.ts`の`generateERData`メソッド
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「アーキテクチャ設計」セクション
 
-- [x] `public/tests/actions/rectangleActions.test.ts`のモックデータに`fillEnabled`と`strokeEnabled`を追加
-  * `createMockViewModel`関数内の矩形データに`fillEnabled: true`と`strokeEnabled: true`を追加
-  * 参照: `public/tests/actions/rectangleActions.test.ts` 22-32行
+**注意**: 
+- Entity.foreignKeysは削除されているため、Relationshipのみを生成します。
+- Column.isForeignKeyはRelationshipを生成した後、逆引きして設定します。
 
-- [x] `public/tests/actions/rectangleActions.test.ts`の`actionAddRectangle`テストのモックデータを更新
-  * テスト内で作成している`newRectangle`と`duplicateRectangle`に`fillEnabled: true`と`strokeEnabled: true`を追加
-  * 参照: `public/tests/actions/rectangleActions.test.ts` 62-114行
+### □ DatabaseAdapterFactoryの実装
 
-- [x] `public/tests/actions/rectangleActions.test.ts`の`actionUpdateRectangleStyle`テストケースを追加
-  * `fillEnabled`と`strokeEnabled`を個別に更新するテストケースを追加
-  * 例:
-    ```typescript
-    it('fillEnabledが更新される', () => {
-      const viewModel = createMockViewModel();
-      const result = actionUpdateRectangleStyle(viewModel, 'rect-1', {
-        fillEnabled: false,
-      });
-      expect(result.erDiagram.rectangles['rect-1'].fillEnabled).toBe(false);
-    });
-    ```
-  * 同様に`strokeEnabled`のテストも追加
-  * 参照: `public/tests/actions/rectangleActions.test.ts` 262-313行
+**ファイル**: `lib/database/DatabaseAdapterFactory.ts`（新規作成）
 
-- [x] `public/tests/actions/clipboardActions.test.ts`のモックデータを更新
-  * `createMockViewModel`関数内の矩形データ（30-40行目）に`fillEnabled: true`と`strokeEnabled: true`を追加
-  * 参照: `public/tests/actions/clipboardActions.test.ts` 29-40行
+**内容**:
+- `createAdapter(type: DatabaseType): DatabaseAdapter`メソッド
+  - typeが"mysql"の場合は`MySqlAdapter`を返す
+  - typeが"postgresql"の場合はエラーをスロー（フェーズ2で実装）
+  - 未サポートのtypeの場合はエラーをスロー
 
-#### ビルドとテストの実行
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「アーキテクチャ設計」セクション
 
-- [x] ビルドの確認
-  * `npm run generate`を実行して型定義を再生成
-  * TypeScriptのコンパイルエラーがないことを確認
+### □ DatabaseManagerのFacade化
 
-- [x] テストの実行
-  * `npm run test`を実行してすべてのテストがパスすることを確認
-  * 特に`rectangleActions.test.ts`と`clipboardActions.test.ts`が正常に動作することを確認
-  * 結果: 254個のテストがすべてパス
+**ファイル**: `lib/database/DatabaseManager.ts`（新規作成、既存のdatabase.tsを置き換え）
+
+**内容**:
+- 既存の`lib/database.ts`を`lib/database/DatabaseManager.ts`に移動し、Facadeに変更
+- `DatabaseAdapter`を内部で保持
+- `connect(config: ConnectionConfig)`メソッド
+  - `createAdapter(config.type)`でAdapterを生成
+  - Adapterの`connect()`を呼び出し
+- `generateERData(): Promise<ERData>`メソッド
+  - `ERDataBuilder`に委譲
+  - `DataSourceRef`を構築してBuilderに渡す
+- `disconnect()`メソッド
+  - Adapterの`disconnect()`を呼び出し
+
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「移行手順」セクション
+
+**注意**: 
+- 既存の`lib/database.ts`を削除
+- export default を維持（既存コードとの互換性）
+
+### □ ReverseEngineerUsecaseの更新
+
+**ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
+
+**変更内容**:
+- `ReverseEngineerRequest`からschemaフィールドを受け取る
+- `DatabaseConnectionState`にschemaフィールドを追加
+- `connectionConfig`にschemaを含める（PostgreSQL用に準備）
+- MySQLの場合はschemaを無視（後方互換性）
+
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「接続設定」セクション
+
+### □ 既存database.tsの削除
+
+**ファイル**: `lib/database.ts`
+
+**理由**: DatabaseManagerを`lib/database/DatabaseManager.ts`に移動したため、古いファイルを削除します。
+
+### □ ビルドの確認
+
+**コマンド**: `npm run typecheck`
+
+**理由**: 型エラーがないことを確認します。
+
+### □ テストの実行（MySQL）
+
+**コマンド**: `npm run test`
+
+**対象**: `tests/usecases/ReverseEngineerUsecase.test.ts`
+
+**確認内容**: 既存のMySQL向けテストが正常に動作することを確認します。
+
+**注意**: フェーズ1の段階ではPostgreSQLテストは未実装です。
+
+---
+
+## フェーズ2: PostgreSQL対応の実装
+
+PostgreSQLのDatabaseAdapterを実装し、リバースエンジニアリング機能でPostgreSQLを利用できるようにします。
+
+### □ PgDumpExecutorの実装
+
+**ファイル**: `lib/database/adapters/postgres/PgDumpExecutor.ts`（新規作成）
+
+**内容**:
+- `pg_dump`コマンドを実行してDDLを取得するモジュール
+- `executePgDump(config: ConnectionConfig, schema: string, table: string): Promise<string>`メソッド
+  - `pg_dump --schema-only --table=<schema>.<table>`を実行
+  - 環境にpg_dumpが存在しない場合はエラーをスロー
+  - 実行結果（DDL文字列）を返す
+
+**参照**: 
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「DDL取得」セクション
+- [research/20260207_1310_postgresql_support.md](/research/20260207_1310_postgresql_support.md) の3章
+
+**注意**: テストではモック化します。
+
+### □ PostgresAdapterの実装
+
+**ファイル**: `lib/database/adapters/postgres/PostgresAdapter.ts`（新規作成）
+
+**内容**:
+- `DatabaseAdapter`インターフェースを実装
+- PostgreSQL固有の接続処理（pg モジュール使用）
+- スキーマ情報取得SQLを実装
+  - テーブル一覧: `information_schema.tables`
+  - カラム情報: `information_schema.columns`
+  - 主キー: `information_schema.table_constraints` + `key_column_usage`
+  - 外部キー: `information_schema.referential_constraints` + `key_column_usage`
+- `schema`パラメータのデフォルトは"public"
+- DDL取得は`PgDumpExecutor`に委譲
+
+**参照**: 
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「PostgreSQL対応の詳細」セクション
+- [research/20260207_1310_postgresql_support.md](/research/20260207_1310_postgresql_support.md) の3章
+
+**依存関係**: `pg`パッケージを使用（package.jsonに追加が必要な場合は追加）
+
+### □ DatabaseAdapterFactoryの更新
+
+**ファイル**: `lib/database/DatabaseAdapterFactory.ts`
+
+**変更内容**:
+- typeが"postgresql"の場合は`PostgresAdapter`を返すように変更
+
+### □ ERDataBuilderの更新（PostgreSQL対応）
+
+**ファイル**: `lib/database/ERDataBuilder.ts`
+
+**変更内容**:
+- PostgreSQLのschema情報を`DataSourceRef`に含める
+- Adapterがschemaをサポートする場合の処理を追加
+
+**注意**: MySQLの場合はschemaフィールドは未定義のままです。
+
+### □ ReverseEngineerUsecaseの更新（PostgreSQL対応）
+
+**ファイル**: `lib/usecases/ReverseEngineerUsecase.ts`
+
+**変更内容**:
+- PostgreSQLの場合、schemaをDatabaseManagerに渡す処理を追加
+- ConnectionConfigにschemaを含める
+
+### □ テストコードの追加（PostgreSQL）
+
+**ファイル**: `tests/usecases/ReverseEngineerUsecase.test.ts`
+
+**追加内容**:
+- PostgreSQL用のテストケースを追加
+- `beforeAll`でPostgreSQL接続確認を追加
+- MySQLと同じ構造のテーブルに対してテストを実行
+- `PgDumpExecutor`はモック化し、正常系のDDL文字列を返すようにする
+
+**参照**: 
+- [spec/backend_test_strategy.md](/spec/backend_test_strategy.md)
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「テスト方針」セクション
+
+**注意**: Docker Composeでinit-postgres.sqlを使用してPostgreSQLのテストデータを準備します。
+
+### □ ビルドの確認
+
+**コマンド**: `npm run typecheck`
+
+**理由**: 型エラーがないことを確認します。
+
+### □ テストの実行（PostgreSQL追加）
+
+**コマンド**: `npm run test`
+
+**対象**: `tests/usecases/ReverseEngineerUsecase.test.ts`
+
+**確認内容**: MySQLとPostgreSQLの両方のテストが正常に動作することを確認します。
+
+---
+
+## フェーズ3: フロントエンド更新
+
+データベース接続モーダルを更新し、PostgreSQL選択とschema入力に対応します。
+
+### □ DatabaseConnectionModalの更新
+
+**ファイル**: `public/src/components/DatabaseConnectionModal.tsx`
+
+**変更内容**:
+- Database Type選択ドロップダウンを追加
+  - 固定テキスト「MySQL」を`<select>`に変更
+  - 選択肢: `mysql`, `postgresql`
+  - 選択に応じてportのデフォルト値を変更（MySQL: 3306、PostgreSQL: 5432）
+  - 選択に応じてplaceholderを変更
+- Schema入力欄を追加（PostgreSQL選択時のみ表示）
+  - デフォルト値: `public`
+  - placeholderに`public`を表示
+- 警告メッセージを追加
+  - 内容: 「information_schemaを参照するためルートユーザ（または十分な権限を持つユーザ）での実行を推奨します」
+  - MySQLとPostgreSQLの両方で表示
+- `handleExecute`メソッドを更新
+  - `connectionInfo`に`schema`フィールドを含める（PostgreSQLの場合のみ）
+
+**参照**: 
+- [spec/database_connection_settings.md](/spec/database_connection_settings.md) の「UI仕様」セクション
+- [spec/multi_database_support.md](/spec/multi_database_support.md) の「フロントエンド対応」セクション
+
+**注意**: 
+- Database Type選択時、portとplaceholderが自動調整されるようにする。
+- Schema入力欄はPostgreSQL選択時のみ表示（MySQLの場合は非表示）。
+
+### □ reverseEngineerCommandの更新
+
+**ファイル**: `public/src/commands/reverseEngineerCommand.ts`
+
+**変更内容**:
+- `ReverseEngineerRequest`に`schema`フィールドを含める（connectionInfoから取得）
+
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「接続設定」セクション
+
+### □ dataActionsの更新
+
+**ファイル**: `public/src/actions/dataActions.ts`
+
+**変更内容**:
+- `actionMergeERData`メソッドを更新
+  - `ERData.source`フィールドを受け取る
+  - 履歴エントリに`source`情報を含める（オプション）
+
+**参照**: [spec/multi_database_support.md](/spec/multi_database_support.md) の「データ構造の変更」セクション
+
+**注意**: ERData.sourceは履歴記録に使用可能ですが、必須ではありません。将来の拡張として検討します。
+
+### □ ビルドの確認
+
+**コマンド**: `npm run typecheck`（フロントエンドのビルドコマンドがある場合はそれも実行）
+
+**理由**: 型エラーがないことを確認します。
+
+---
 
 ## 補足事項
 
-### 後方互換性の対応
+### 事前修正提案
 
-* 既存のデータで`fillEnabled`/`strokeEnabled`が未定義の場合、`?? true`でデフォルト値`true`として扱う
-* レンダリング処理とプロパティパネルの両方で後方互換性を考慮する
+特になし。仕様書に基づいて実装を進めることができます。
 
-### フェーズ分けの理由
+### 実装時の注意点
 
-* フェーズ1: データ層とレンダリング層の基本的な対応（5ファイル更新）
-* フェーズ2: UI層の対応（1〜2ファイル更新）
-* フェーズ3: テストとビルド確認（2ファイル更新 + ビルド・テスト実行）
+1. **Column型の簡素化**: type、nullable、default、extraフィールドを削除するため、既存コードでこれらのフィールドを参照している箇所がないか確認してください。現在のER図表示では使用していないため、削除しても問題ありません。
 
-各フェーズの最後にビルドとテストを実行することで、段階的に動作確認が可能。
+2. **Entity.foreignKeysの削除**: Relationshipのみで外部キー情報を管理します。既存コードでforeignKeysを参照している箇所がないか確認してください。
 
-### 不要なファイル
+3. **isForeignKeyの導出**: Column.isForeignKeyはRelationshipから導出する必要があります。ERDataBuilderで、Relationship生成後に逆引きして設定してください。
 
-* `public/src/utils/reactFlowConverter.ts`の`convertToReactFlowRectangles`関数は`@deprecated`のため更新不要
-* `public/src/components/RectangleNode.tsx`も`@deprecated`のため更新不要
+4. **DDL取得**: PostgreSQLのDDL取得にはpg_dumpが必要です。環境にpg_dumpが存在しない場合は空文字列を返すか、エラーメッセージを返してください。
+
+5. **schema概念**: PostgreSQLはdatabase内にschemaを持ちますが、MySQLにはschema概念がありません。MySQLの場合はschemaフィールドを無視してください。
+
+6. **テストデータ**: PostgreSQL用のテストデータ（init-postgres.sql）が既に存在するか確認してください。存在しない場合は、MySQLのinit.sqlと同じ構造のテーブルを作成してください。
+
+7. **依存パッケージ**: PostgreSQL接続には`pg`パッケージが必要です。package.jsonに追加されていない場合は追加してください。
+
+### 不要になったコード
+
+- `lib/database.ts`（DatabaseManagerを移動するため削除）
+- `Entity.foreignKeys`フィールド（Relationshipのみ使用）
+- `Column.type`, `Column.nullable`, `Column.default`, `Column.extra`フィールド（UI表示に不要）
+
+以上

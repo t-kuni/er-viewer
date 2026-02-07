@@ -11,6 +11,10 @@ case "$GIT_DIR" in
       npm install >/dev/null 2>&1 || exit 1
     fi
 
+    if [ ! -d public/node_modules ]; then
+      (cd public && npm install) >/dev/null 2>&1 || exit 1
+    fi
+
     npm run generate >/dev/null 2>&1 || exit 1
 
     echo "worktreeを初期セットアップが完了しました"

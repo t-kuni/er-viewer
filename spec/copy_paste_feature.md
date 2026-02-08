@@ -121,9 +121,12 @@
 
 以下の場合、コピー＆ペースト操作は無効：
 
-* **テキスト編集モード中**: テキスト編集用の`<textarea>`にフォーカスがある場合、キーボードショートカットを無効化
+* **テキスト編集モード中**: キャンバス上でテキスト編集中（`editingTextId !== null`）の場合、キーボードショートカットを無効化
   - 編集中はブラウザのデフォルトのコピー＆ペースト（テキスト編集）を優先
-  - 実装方法: `editingTextId !== null`の場合はキーボードショートカットを無視
+* **HTML入力要素にフォーカスがある場合**: `<input>`, `<textarea>`, `contenteditable`要素にフォーカスがある場合、キーボードショートカットを無効化
+  - プロパティパネルのtextareaやinput要素でのテキスト編集時は、ブラウザのデフォルトのクリップボード操作を優先
+  - 実装方法: `document.activeElement`をチェックし、HTMLInputElement、HTMLTextAreaElement、またはcontenteditable要素の場合はキーボードショートカットを無視
+  - これにより、プロパティパネルでのCtrl+C/Ctrl+Vが正常に動作する
 * **選択なし（コピー時）**: `selectedItem === null`の場合、Ctrl+Cは何もしない
 * **クリップボード空（ペースト時）**: `clipboardData === null`の場合、Ctrl+Vは何もしない
 
@@ -232,10 +235,67 @@
 * `npm run generate`でmain.tspから型を再生成後、実装を開始
 * `crypto.randomUUID()`で新しいIDを生成（既存のID生成方式と統一）
 * テキスト編集中の判定: `editingTextId !== null`でチェック
+* HTML入力要素へのフォーカスの判定: `document.activeElement`をチェックし、`instanceof HTMLInputElement`, `instanceof HTMLTextAreaElement`, または`isContentEditable`で判定
 * `useKeyPress`はReact Flowが提供するフック（`@xyflow/react`からインポート）
 * キーボードショートカットは`useEffect`で監視し、条件が満たされた場合のみ処理を実行
 * `actionAddText`と`actionAddRectangle`は内部で`actionAddLayerItem`を呼び出すため、レイヤー管理は自動的に行われる
 * ペースト後の選択状態の変更により、プロパティパネルが自動的に表示される
+* HTML入力要素でブラウザのデフォルトのクリップボード動作を確実に機能させるため、以下の対応を実施:
+  - テキスト編集用の`textarea`要素（ERCanvas内）: `onKeyDown`イベントハンドラーでクリップボード操作のキー（Ctrl+C/V/X、Cmd+C/V/X）を検知し、`e.stopPropagation()`を呼び出す。また、`onCopy`, `onCut`, `onPaste`イベントハンドラーでも`e.stopPropagation()`を呼び出す
+  - プロパティパネル（TextPropertyPanel、RectanglePropertyPanel）: ルート要素に`onKeyDown`イベントハンドラーを実装し、クリップボード操作のキーの場合に`e.stopPropagation()`を呼び出す。また、`onCopy`, `onCut`, `onPaste`イベントハンドラーでも`e.stopPropagation()`を呼び出す
+  - モーダル（DatabaseConnectionModal）: ルート要素に`onKeyDown`イベントハンドラーを実装し、クリップボード操作のキーの場合に`e.stopPropagation()`を呼び出す。また、`onCopy`, `onCut`, `onPaste`イベントハンドラーでも`e.stopPropagation()`を呼び出す
+  - カラーピッカー（ColorPickerWithPresets）: ルート要素に`onKeyDown`イベントハンドラーを実装し、クリップボード操作のキーの場合に`e.stopPropagation()`を呼び出す。また、`onCopy`, `onCut`, `onPaste`イベントハンドラーでも`e.stopPropagation()`を呼び出す
+  - `onKeyDown`での`stopPropagation()`が重要: `useKeyPress`はwindowレベルで`keydown`イベントをリッスンしているため、`onKeyDown`でイベント伝播を止めないと、入力要素でのキー入力も`useKeyPress`が検知してしまう
+  - これにより、`useKeyPress`がグローバルにキーイベントをキャプチャしても、入力要素内でのクリップボード操作はブラウザのデフォルト動作が優先される
+
+### キーボードショートカットの状態管理
+
+* `useKeyPress`で取得したキーの押下状態を`useRef`で追跡し、エッジ検知（false → true）で実行する
+* **重要**: キーの前回状態の更新は、早期リターン（`return`）の**前**に実行する必要がある
+  - テキスト編集モード中（`editingTextId !== null`）で早期リターンする場合でも、キーの状態は更新する
+  - これにより、テキスト編集終了後もキーボードショートカットが正常に動作する
+* 実装パターン:
+  ```typescript
+  useEffect(() => {
+    // 前回の状態を保存（早期リターンより前に実行）
+    const prevCtrlC = prevCtrlCPressed.current
+    // 前回の状態を更新（早期リターンより前に実行）
+    prevCtrlCPressed.current = ctrlCPressed
+    
+    // テキスト編集モード中は無効化（早期リターン）
+    if (editingTextId !== null) return
+    
+    // HTML入力要素にフォーカスがある場合は無効化（早期リターン）
+    const activeElement = document.activeElement
+    const isInputElement = 
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      (activeElement instanceof HTMLElement && activeElement.isContentEditable)
+    if (isInputElement) return
+    
+    // エッジ検知（キーが押された瞬間）
+    const ctrlCJustPressed = !prevCtrlC && ctrlCPressed
+    if (ctrlCJustPressed) {
+      // 処理を実行
+    }
+  }, [ctrlCPressed, editingTextId, ...])
+  ```
+* 誤った実装例（バグ）:
+  ```typescript
+  // ❌ BAD: 早期リターン後に状態を更新
+  useEffect(() => {
+    if (editingTextId !== null) return // ここで早期リターン
+    
+    const ctrlCJustPressed = !prevCtrlCPressed.current && ctrlCPressed
+    if (ctrlCJustPressed) {
+      // 処理
+    }
+    
+    prevCtrlCPressed.current = ctrlCPressed // ← 早期リターン時に実行されない
+  }, [ctrlCPressed, editingTextId, ...])
+  ```
+  - この実装では、テキスト編集中にキーが押されたとき、前回状態が更新されない
+  - テキスト編集終了後、キーの状態が不整合になりショートカットが正常動作しない
 
 ### マウス位置の記録
 
@@ -328,8 +388,9 @@
   - 対策: viewport中央にフォールバック
 * **マウスがキャンバス外にある場合**: ユーザーがキャンバス外でCtrl+Vを押した場合
   - 対策: 最後にキャンバス内にあったマウス位置を使用、未記録ならviewport中央にフォールバック
-* **テキスト編集モード中の判定精度**: `editingTextId`がnullでない場合に確実に無効化できるか
-  - 実装時に`editingTextId`の状態管理を確認
+* **テキスト編集モード中の判定精度**: `editingTextId`とHTML入力要素のフォーカス状態を確実にチェックする
+  - キャンバス上のテキスト編集（`editingTextId !== null`）とプロパティパネルの入力要素（`document.activeElement`）の両方をチェック
+  - これにより、すべての入力シナリオでブラウザのデフォルト動作を優先できる
 * **キャンバス外へのペースト**: 極端に大きな座標値での動作確認が必要
 * **`screenToFlowPosition`の正確性**: React Flow v12で正しく動作するか実装時に確認が必要
 

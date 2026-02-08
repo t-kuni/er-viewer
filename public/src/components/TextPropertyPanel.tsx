@@ -230,6 +230,18 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onChange={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // クリップボード操作のキーイベントの伝播を止めて、ブラウザのデフォルト動作を優先
+        const isClipboardOperation = (e.ctrlKey || e.metaKey) && 
+          (e.key === 'c' || e.key === 'v' || e.key === 'x' || 
+           e.key === 'C' || e.key === 'V' || e.key === 'X')
+        if (isClipboardOperation) {
+          e.stopPropagation()
+        }
+      }}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
     >
       <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>テキストプロパティ</h3>
 

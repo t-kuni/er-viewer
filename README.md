@@ -39,19 +39,6 @@ RelavueER（レラビューアー）は、データベースからER図をリバ
 
 ## 使用方法
 
-### Linux の場合
-
-```bash
-docker run --rm --network host tkuni83/relavue-er
-```
-
-[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
-
-**ホストOS上のMySQLに接続する場合**:
-- Host: `localhost`
-- Port: `3306`（MySQLの待ち受けポート）
-- User/Password/Database: 接続先DBの情報を入力
-
 ### macOS / Windows（Docker Desktop）の場合
 
 ```bash
@@ -65,7 +52,20 @@ docker run --rm -p 30033:30033 tkuni83/relavue-er
 - Port: `3306`（MySQLの待ち受けポート）
 - User/Password/Database: 接続先DBの情報を入力
 
-> **注意**: macOS/Windows では `--network host` は使用できません（Docker DesktopがVM上で動作するため）
+> **注意**: dockerコンテナから接続するためHostが`localhost`ではなく`host.docker.internal`となります。
+
+### Linux の場合
+
+```bash
+docker run --rm --network host tkuni83/relavue-er
+```
+
+[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
+
+**ホストOS上のMySQLに接続する場合**:
+- Host: `localhost`
+- Port: `3306`（MySQLの待ち受けポート）
+- User/Password/Database: 接続先DBの情報を入力
 
 # 開発者向け情報
 

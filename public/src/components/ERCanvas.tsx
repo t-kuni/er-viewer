@@ -1029,8 +1029,15 @@ function ERCanvasInner({
                     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                       handleEditConfirm()
                     }
-                    // Ctrl+C/Ctrl+Vなどのクリップボード操作はブラウザのデフォルト動作に任せる
-                    // stopPropagation を呼ばないことで、親要素のハンドラーに伝播させない
+                    
+                    // Ctrl+C/Ctrl+V/Ctrl+Xなどのクリップボード操作の場合、
+                    // イベント伝播を止めてブラウザのデフォルト動作を優先
+                    const isClipboardOperation = (e.ctrlKey || e.metaKey) && 
+                      (e.key === 'c' || e.key === 'v' || e.key === 'x' || 
+                       e.key === 'C' || e.key === 'V' || e.key === 'X')
+                    if (isClipboardOperation) {
+                      e.stopPropagation()
+                    }
                   }}
                   onCopy={(e) => {
                     // ブラウザのデフォルトのコピー動作を許可

@@ -1,7 +1,7 @@
 {
-  "name": "er-viewer",
+  "name": "relavue-er",
   "version": "1.0.0",
-  "description": "ER Diagram Viewer for MySQL databases",
+  "description": "RelavueER - Database ER diagram reverse engineering and visualization tool",
   "main": "server.ts",
   "type": "module",
   "scripts": {

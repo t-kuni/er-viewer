@@ -410,6 +410,6 @@ describe('exportViewModel', () => {
     
     // リンク要素の download 属性を確認
     const mockLink = createElementSpy.mock.results[0].value;
-    expect(mockLink.download).toMatch(/^er-viewer-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(mockLink.download).toMatch(/^relavue-er-\d{4}-\d{2}-\d{2}\.json$/);
   });
 });

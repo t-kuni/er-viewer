@@ -1,2 +1,2 @@
-// ER Viewer API Client
+// RelavueER API Client
 export * from './client';

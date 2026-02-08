@@ -7,7 +7,7 @@ describe('GetInitialViewModelUsecase', () => {
     // モックのビルド情報
     const mockBuildInfo: BuildInfo = {
       version: '1.0.0',
-      name: 'er-viewer',
+      name: 'relavue-er',
       buildTime: '2026-01-25T12:00:00Z',
       buildTimestamp: 1737806400000,
       buildDate: '2026-01-25',
@@ -31,7 +31,7 @@ describe('GetInitialViewModelUsecase', () => {
     const viewModel = usecase();
 
     // formatとversionの検証
-    expect(viewModel.format).toBe("er-viewer");
+    expect(viewModel.format).toBe("relavue-er");
     expect(viewModel.version).toBe(1);
 
     // erDiagramの検証
@@ -89,7 +89,7 @@ describe('GetInitialViewModelUsecase', () => {
 
     const viewModel = usecase();
 
-    expect(viewModel.format).toBe("er-viewer");
+    expect(viewModel.format).toBe("relavue-er");
     expect(viewModel.version).toBe(1);
     expect(viewModel.buildInfo.data).toEqual(mockBuildInfo);
     expect(viewModel.buildInfo.data?.version).toBe('2.0.0');
@@ -106,7 +106,7 @@ describe('GetInitialViewModelUsecase', () => {
 
     const mockBuildInfo: BuildInfo = {
       version: '1.0.0',
-      name: 'er-viewer',
+      name: 'relavue-er',
       buildTime: '2026-01-25T12:00:00Z',
       buildTimestamp: 1737806400000,
       buildDate: '2026-01-25',
@@ -150,7 +150,7 @@ describe('GetInitialViewModelUsecase', () => {
 
     const mockBuildInfo: BuildInfo = {
       version: '1.0.0',
-      name: 'er-viewer',
+      name: 'relavue-er',
       buildTime: '2026-01-25T12:00:00Z',
       buildTimestamp: 1737806400000,
       buildDate: '2026-01-25',

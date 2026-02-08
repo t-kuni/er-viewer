@@ -22,7 +22,7 @@ import { LayerItemKind, DatabaseType, TextAlign, TextAutoSizeMode, TextOverflowM
 describe('dataActions', () => {
   // テスト用のViewModelを作成
   const createMockViewModel = (): ViewModel => ({
-    format: 'er-viewer',
+    format: 'relavue-er',
     version: 1,
     erDiagram: {
       nodes: {
@@ -110,7 +110,7 @@ describe('dataActions', () => {
         },
         buildInfo: {
           data: {
-            name: 'er-viewer',
+            name: 'relavue-er',
             version: '1.0.0',
             buildTime: '2026-01-25T00:00:00Z',
             git: {

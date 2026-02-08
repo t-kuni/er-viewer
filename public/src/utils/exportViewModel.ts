@@ -64,12 +64,12 @@ export function exportViewModel(viewModel: ViewModel): void {
     // JSON文字列にシリアライズ（インデント: 2スペース）
     const jsonString = JSON.stringify(exportData, null, 2);
 
-    // ファイル名を生成（フォーマット: er-viewer-{YYYY-MM-DD}.json）
+    // ファイル名を生成（フォーマット: relavue-er-{YYYY-MM-DD}.json）
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const fileName = `er-viewer-${year}-${month}-${day}.json`;
+    const fileName = `relavue-er-${year}-${month}-${day}.json`;
 
     // Blobを作成してダウンロード
     const blob = new Blob([jsonString], { type: "application/json" });

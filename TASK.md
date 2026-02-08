@@ -17,44 +17,44 @@
 
 ### パッケージ名の変更
 
-- [ ] **package.json（ルート）の変更**
+- [x] **package.json（ルート）の変更**
   - ファイル: `package.json`
   - 変更内容:
     - `name` フィールドを `"er-viewer"` から `"relavue-er"` に変更
     - `description` フィールドを `"ER Diagram Viewer for MySQL databases"` から `"RelavueER - Database ER diagram reverse engineering and visualization tool"` に変更
 
-- [ ] **public/package.json の変更**
+- [x] **public/package.json の変更**
   - ファイル: `public/package.json`
   - 変更内容:
     - `name` フィールドを `"er-viewer-frontend"` から `"relavue-er-frontend"` に変更
 
 ### UIでの表示変更
 
-- [ ] **public/index.html のタイトル変更**
+- [x] **public/index.html のタイトル変更**
   - ファイル: `public/index.html`
   - 変更内容:
     - `<title>` タグの内容を `"ER Diagram Viewer"` から `"RelavueER"` に変更
 
-- [ ] **App.tsx のヘッダー表示変更**
+- [x] **App.tsx のヘッダー表示変更**
   - ファイル: `public/src/components/App.tsx`
   - 変更内容:
     - 170行目付近の `<h1>` タグの内容を `"ER Diagram Viewer"` から `"RelavueER"` に変更
 
 ### エクスポート/インポート機能のフォーマット名変更
 
-- [ ] **erDiagramStore.ts のフォーマット名変更**
+- [x] **erDiagramStore.ts のフォーマット名変更**
   - ファイル: `public/src/store/erDiagramStore.ts`
   - 変更内容:
     - 24行目付近の `format` フィールドの値を `'er-viewer'` から `'relavue-er'` に変更
 
-- [ ] **exportViewModel.ts のファイル名プレフィックス変更**
+- [x] **exportViewModel.ts のファイル名プレフィックス変更**
   - ファイル: `public/src/utils/exportViewModel.ts`
   - 変更内容:
     - 67行目付近のコメントを `// ファイル名を生成（フォーマット: er-viewer-{YYYY-MM-DD}.json）` から `// ファイル名を生成（フォーマット: relavue-er-{YYYY-MM-DD}.json）` に変更
     - 72行目付近のファイル名プレフィックスを `er-viewer` から `relavue-er` に変更
       - 修正例: `` const fileName = `relavue-er-${year}-${month}-${day}.json`; ``
 
-- [ ] **importViewModel.ts のフォーマット検証変更**
+- [x] **importViewModel.ts のフォーマット検証変更**
   - ファイル: `public/src/utils/importViewModel.ts`
   - 変更内容:
     - 10行目付近のコメントを `* - format フィールドが "er-viewer" であること` から `* - format フィールドが "relavue-er" であること` に変更
@@ -64,14 +64,14 @@
 
 ### コメントの変更
 
-- [ ] **public/src/api/index.ts のコメント変更**
+- [x] **public/src/api/index.ts のコメント変更**
   - ファイル: `public/src/api/index.ts`
   - 変更内容:
     - 1行目のコメントを `// ER Viewer API Client` から `// RelavueER API Client` に変更
 
 ### ドキュメントの変更
 
-- [ ] **README.md の変更**
+- [x] **README.md の変更**
   - ファイル: `README.md`
   - 変更内容:
     - 1行目のタイトルを `# ER Diagram Viewer` から `# RelavueER` に変更
@@ -80,20 +80,31 @@
 
 ### ビルド確認
 
-- [ ] **バックエンドのビルド確認**
+- [x] **バックエンドのビルド確認**
   - 実行コマンド: `npm run build`
   - 確認内容: エラーなくビルドが完了すること
+  - 結果: ✅ 成功
 
-- [ ] **TypeSpecコード生成の確認**
+- [x] **TypeSpecコード生成の確認**
   - 実行コマンド: `npm run generate`
   - 確認内容: エラーなく型生成が完了すること
+  - 結果: ✅ 成功
 
 ### テスト実行
 
-- [ ] **テストの実行**
+- [x] **テストの実行**
   - 実行コマンド: `npm run test`
   - 確認内容: すべてのテストがパスすること
   - 注意: エクスポート/インポートのフォーマット名変更により、既存のテストファイルが `'er-viewer'` を期待している場合は、テストコードも `'relavue-er'` に修正する必要がある
+  - 結果: ✅ すべてのテストがパス（264 passed）
+  - 追加修正が必要だったファイル:
+    - `lib/usecases/GetInitialViewModelUsecase.ts` - formatフィールドを'relavue-er'に変更
+    - `tests/usecases/GetInitialViewModelUsecase.test.ts` - テストの期待値を'relavue-er'に変更
+    - `public/tests/utils/exportViewModel.test.ts` - ファイル名パターンの正規表現を更新
+    - `public/tests/actions/dataActions.test.ts` - モックデータのformatを'relavue-er'に変更
+    - `public/tests/actions/mergeERData.test.ts` - モックデータのformatを'relavue-er'に変更
+    - `public/tests/actions/layoutActions.test.ts` - モックデータのformatを'relavue-er'に変更
+    - `public/tests/actions/clipboardActions.test.ts` - モックデータのformatを'relavue-er'に変更
 
 ## 注意事項
 

@@ -167,7 +167,7 @@ function App() {
           alignItems: 'center'
         }}
       >
-        <h1 style={{ margin: 0 }}>ER Diagram Viewer</h1>
+        <h1 style={{ margin: 0 }}>RelavueER</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button 
             onClick={() => dispatch(actionShowDatabaseConnectionModal)}

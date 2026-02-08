@@ -8,7 +8,7 @@ import { DatabaseConnectionState, LayerItemRef, TextBox } from '../../src/api/cl
 
 describe('actionMergeERData', () => {
   const createEmptyViewModel = (): ViewModel => ({
-    format: 'er-viewer',
+    format: 'relavue-er',
     version: 1,
     erDiagram: {
       nodes: {},

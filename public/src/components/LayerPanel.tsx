@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { LayerItemRef } from '../api/client';
+import { LayerItemRef } from '../api/client';
 import { useDispatch, useViewModel } from '../store/hooks';
 import {
   actionSelectItem,

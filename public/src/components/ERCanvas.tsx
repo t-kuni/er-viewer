@@ -501,6 +501,14 @@ function ERCanvasInner({
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
     
+    // HTML入力要素にフォーカスがある場合は無効化（ブラウザのデフォルト動作を優先）
+    const activeElement = document.activeElement
+    const isInputElement = 
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      (activeElement instanceof HTMLElement && activeElement.isContentEditable)
+    if (isInputElement) return
+    
     // false → true の変化を検知（キーが押された瞬間）
     const ctrlCJustPressed = !prevCtrlC && ctrlCPressed
     const metaCJustPressed = !prevMetaC && metaCPressed
@@ -525,6 +533,14 @@ function ERCanvasInner({
     
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
+    
+    // HTML入力要素にフォーカスがある場合は無効化（ブラウザのデフォルト動作を優先）
+    const activeElement = document.activeElement
+    const isInputElement = 
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      (activeElement instanceof HTMLElement && activeElement.isContentEditable)
+    if (isInputElement) return
     
     // false → true の変化を検知（キーが押された瞬間）
     const ctrlVJustPressed = !prevCtrlV && ctrlVPressed

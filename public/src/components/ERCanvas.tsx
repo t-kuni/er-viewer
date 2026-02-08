@@ -1029,6 +1029,21 @@ function ERCanvasInner({
                     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                       handleEditConfirm()
                     }
+                    // Ctrl+C/Ctrl+Vなどのクリップボード操作はブラウザのデフォルト動作に任せる
+                    // stopPropagation を呼ばないことで、親要素のハンドラーに伝播させない
+                  }}
+                  onCopy={(e) => {
+                    // ブラウザのデフォルトのコピー動作を許可
+                    // stopPropagation を呼んで、親要素の useKeyPress による処理を防ぐ
+                    e.stopPropagation()
+                  }}
+                  onCut={(e) => {
+                    // ブラウザのデフォルトのカット動作を許可
+                    e.stopPropagation()
+                  }}
+                  onPaste={(e) => {
+                    // ブラウザのデフォルトのペースト動作を許可
+                    e.stopPropagation()
                   }}
                   style={{
                     position: 'absolute',

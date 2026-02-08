@@ -36,6 +36,9 @@ export const ColorPickerWithPresets: React.FC<ColorPickerWithPresetsProps> = ({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
     >
       <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
         {label}

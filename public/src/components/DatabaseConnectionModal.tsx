@@ -86,6 +86,9 @@ function DatabaseConnectionModal({ onExecute, onCancel, initialValues, errorMess
           width: '90%'
         }}
         onClick={(e) => e.stopPropagation()}
+        onCopy={(e) => e.stopPropagation()}
+        onCut={(e) => e.stopPropagation()}
+        onPaste={(e) => e.stopPropagation()}
       >
         <h3 style={{ marginTop: 0 }}>データベース接続設定</h3>
         

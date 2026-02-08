@@ -230,6 +230,9 @@ export const TextPropertyPanel: React.FC<TextPropertyPanelProps> = ({ textId }) 
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onChange={(e) => e.stopPropagation()}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
     >
       <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>テキストプロパティ</h3>
 

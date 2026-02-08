@@ -61,6 +61,9 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onChange={(e) => e.stopPropagation()}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
     >
       <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>矩形プロパティ</h3>
 

@@ -240,6 +240,12 @@
 * キーボードショートカットは`useEffect`で監視し、条件が満たされた場合のみ処理を実行
 * `actionAddText`と`actionAddRectangle`は内部で`actionAddLayerItem`を呼び出すため、レイヤー管理は自動的に行われる
 * ペースト後の選択状態の変更により、プロパティパネルが自動的に表示される
+* HTML入力要素でブラウザのデフォルトのクリップボード動作を確実に機能させるため、以下の対応を実施:
+  - テキスト編集用の`textarea`要素（ERCanvas内）: `onCopy`, `onCut`, `onPaste`イベントハンドラーを実装し、各ハンドラー内で`e.stopPropagation()`を呼び出す
+  - プロパティパネル（TextPropertyPanel、RectanglePropertyPanel）: ルート要素に`onCopy`, `onCut`, `onPaste`イベントハンドラーを実装し、`e.stopPropagation()`を呼び出す
+  - モーダル（DatabaseConnectionModal）: ルート要素に`onCopy`, `onCut`, `onPaste`イベントハンドラーを実装し、`e.stopPropagation()`を呼び出す
+  - カラーピッカー（ColorPickerWithPresets）: ルート要素に`onCopy`, `onCut`, `onPaste`イベントハンドラーを実装し、`e.stopPropagation()`を呼び出す
+  - これにより、`useKeyPress`がグローバルにキーイベントをキャプチャしても、入力要素内でのクリップボード操作はブラウザのデフォルト動作が優先される
 
 ### キーボードショートカットの状態管理
 

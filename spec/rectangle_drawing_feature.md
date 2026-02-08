@@ -80,7 +80,10 @@ model ERDiagramViewModel {
 
 ### 矩形の作成
 
-* ツールバーの「矩形追加」ボタンをクリックすると、viewport中央に固定サイズの矩形を追加
+* ツールバーの「矩形追加」ボタンをクリックすると、固定サイズの矩形を追加
+* 配置位置の決定ロジックは[copy_paste_feature.md](./copy_paste_feature.md)の「ペースト位置の決定」と同じ
+  - 優先: マウスカーソル位置（`GlobalUIState.lastMousePosition`を`screenToFlowPosition()`でキャンバス座標に変換）
+  - フォールバック: viewport中央（マウス位置が未記録の場合）
 * 新規作成時のデフォルト値：
   - サイズ: 幅200px × 高さ150px
   - 背景色: 淡い青（`#E3F2FD`）

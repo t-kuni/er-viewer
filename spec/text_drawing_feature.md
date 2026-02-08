@@ -48,7 +48,10 @@
 
 ### テキストの作成
 
-* ツールバーの「テキスト追加」ボタンをクリックすると、viewport中央にテキストボックスを追加
+* ツールバーの「テキスト追加」ボタンをクリックすると、テキストボックスを追加
+* 配置位置の決定ロジックは[copy_paste_feature.md](./copy_paste_feature.md)の「ペースト位置の決定」と同じ
+  - 優先: マウスカーソル位置（`GlobalUIState.lastMousePosition`を`screenToFlowPosition()`でキャンバス座標に変換）
+  - フォールバック: viewport中央（マウス位置が未記録の場合）
 * 新規作成時のデフォルト値：
   - サイズ: 幅200px × 高さ80px
   - content: "テキスト"

@@ -490,12 +490,20 @@ function ERCanvasInner({
   
   // コピー処理（キーが押された瞬間だけ実行）
   useEffect(() => {
+    // 前回の状態を保存（早期リターンより前に実行）
+    const prevCtrlC = prevCtrlCPressed.current
+    const prevMetaC = prevMetaCPressed.current
+    
+    // 前回の状態を更新
+    prevCtrlCPressed.current = ctrlCPressed
+    prevMetaCPressed.current = metaCPressed
+    
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
     
     // false → true の変化を検知（キーが押された瞬間）
-    const ctrlCJustPressed = !prevCtrlCPressed.current && ctrlCPressed
-    const metaCJustPressed = !prevMetaCPressed.current && metaCPressed
+    const ctrlCJustPressed = !prevCtrlC && ctrlCPressed
+    const metaCJustPressed = !prevMetaC && metaCPressed
     
     if (ctrlCJustPressed || metaCJustPressed) {
       // エンティティ・リレーション以外のアイテムをコピー
@@ -503,20 +511,24 @@ function ERCanvasInner({
         dispatch(actionCopyItem)
       }
     }
-    
-    // 前回の状態を更新
-    prevCtrlCPressed.current = ctrlCPressed
-    prevMetaCPressed.current = metaCPressed
   }, [ctrlCPressed, metaCPressed, editingTextId, selectedItem, dispatch])
   
   // ペースト処理（キーが押された瞬間だけ実行）
   useEffect(() => {
+    // 前回の状態を保存（早期リターンより前に実行）
+    const prevCtrlV = prevCtrlVPressed.current
+    const prevMetaV = prevMetaVPressed.current
+    
+    // 前回の状態を更新
+    prevCtrlVPressed.current = ctrlVPressed
+    prevMetaVPressed.current = metaVPressed
+    
     // テキスト編集モード中は無効化
     if (editingTextId !== null) return
     
     // false → true の変化を検知（キーが押された瞬間）
-    const ctrlVJustPressed = !prevCtrlVPressed.current && ctrlVPressed
-    const metaVJustPressed = !prevMetaVPressed.current && metaVPressed
+    const ctrlVJustPressed = !prevCtrlV && ctrlVPressed
+    const metaVJustPressed = !prevMetaV && metaVPressed
     
     if (ctrlVJustPressed || metaVJustPressed) {
       if (clipboard !== null) {
@@ -539,10 +551,6 @@ function ERCanvasInner({
         dispatch(actionPasteItem, pastePosition)
       }
     }
-    
-    // 前回の状態を更新
-    prevCtrlVPressed.current = ctrlVPressed
-    prevMetaVPressed.current = metaVPressed
   }, [ctrlVPressed, metaVPressed, editingTextId, clipboard, lastMousePosition, viewport, screenToFlowPosition, dispatch])
   
   // F2キーでテキスト編集モード開始

@@ -237,6 +237,47 @@
 * `actionAddText`と`actionAddRectangle`は内部で`actionAddLayerItem`を呼び出すため、レイヤー管理は自動的に行われる
 * ペースト後の選択状態の変更により、プロパティパネルが自動的に表示される
 
+### キーボードショートカットの状態管理
+
+* `useKeyPress`で取得したキーの押下状態を`useRef`で追跡し、エッジ検知（false → true）で実行する
+* **重要**: キーの前回状態の更新は、早期リターン（`return`）の**前**に実行する必要がある
+  - テキスト編集モード中（`editingTextId !== null`）で早期リターンする場合でも、キーの状態は更新する
+  - これにより、テキスト編集終了後もキーボードショートカットが正常に動作する
+* 実装パターン:
+  ```typescript
+  useEffect(() => {
+    // 前回の状態を保存（早期リターンより前に実行）
+    const prevCtrlC = prevCtrlCPressed.current
+    // 前回の状態を更新（早期リターンより前に実行）
+    prevCtrlCPressed.current = ctrlCPressed
+    
+    // テキスト編集モード中は無効化（早期リターン）
+    if (editingTextId !== null) return
+    
+    // エッジ検知（キーが押された瞬間）
+    const ctrlCJustPressed = !prevCtrlC && ctrlCPressed
+    if (ctrlCJustPressed) {
+      // 処理を実行
+    }
+  }, [ctrlCPressed, editingTextId, ...])
+  ```
+* 誤った実装例（バグ）:
+  ```typescript
+  // ❌ BAD: 早期リターン後に状態を更新
+  useEffect(() => {
+    if (editingTextId !== null) return // ここで早期リターン
+    
+    const ctrlCJustPressed = !prevCtrlCPressed.current && ctrlCPressed
+    if (ctrlCJustPressed) {
+      // 処理
+    }
+    
+    prevCtrlCPressed.current = ctrlCPressed // ← 早期リターン時に実行されない
+  }, [ctrlCPressed, editingTextId, ...])
+  ```
+  - この実装では、テキスト編集中にキーが押されたとき、前回状態が更新されない
+  - テキスト編集終了後、キーの状態が不整合になりショートカットが正常動作しない
+
 ### マウス位置の記録
 
 * キャンバス要素（ReactFlowのラッパー`<div>`）に`onMouseMove`イベントハンドラを設定

@@ -1,6 +1,6 @@
-# ER Diagram Viewer
+# RelavueER
 
-MySQL データベースからER図をリバースエンジニアリングし、ブラウザ上で可視化・編集できるツールです。
+RelavueER（レラビューアー）は、データベースからER図をリバースエンジニアリングし、ブラウザ上で可視化・編集できるツールです。
 
 ![image](https://github.com/user-attachments/assets/fb8a0e8d-7b02-421f-be28-f93abeb39e32)
 
@@ -42,7 +42,7 @@ MySQL データベースからER図をリバースエンジニアリングし、
 ### Linux の場合
 
 ```bash
-docker run --rm --network host tkuni83/er-viewer
+docker run --rm --network host tkuni83/relavue-er
 ```
 
 [http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
@@ -55,7 +55,7 @@ docker run --rm --network host tkuni83/er-viewer
 ### macOS / Windows（Docker Desktop）の場合
 
 ```bash
-docker run --rm -p 30033:30033 tkuni83/er-viewer
+docker run --rm -p 30033:30033 tkuni83/relavue-er
 ```
 
 [http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
@@ -109,8 +109,8 @@ open http://localhost:5173
 ### コンテナイメージ更新
 
 ```bash
-docker build -f Dockerfile.prod -t tkuni83/er-viewer .
-docker push tkuni83/er-viewer
+docker build -f Dockerfile.prod -t tkuni83/relavue-er .
+docker push tkuni83/relavue-er
 ```
 
 ## 外部のLLMに投げる時の要件整理プロンプト

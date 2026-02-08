@@ -94,7 +94,7 @@ export function createGetInitialViewModelUsecase(deps: GetInitialViewModelDeps) 
 
     // ViewModelを組み立てて返却
     const viewModel: ViewModel = {
-      format: "er-viewer",
+      format: "relavue-er",
       version: 1,
       erDiagram,
       ui,

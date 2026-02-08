@@ -12,7 +12,7 @@ type ViewModel = components['schemas']['ViewModel'];
 describe('layoutActions', () => {
   // テスト用のViewModelを作成
   const createMockViewModel = (): ViewModel => ({
-    format: 'er-viewer',
+    format: 'relavue-er',
     version: 1,
     erDiagram: {
       nodes: {},

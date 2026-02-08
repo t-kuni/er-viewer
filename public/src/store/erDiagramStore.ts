@@ -21,7 +21,7 @@ export interface Store {
  * 初期状態
  */
 const initialState: ViewModel = {
-  format: 'er-viewer',
+  format: 'relavue-er',
   version: 1,
   erDiagram: {
     nodes: {},

@@ -7,7 +7,7 @@ import { buildERDiagramIndex } from "./buildERDiagramIndex";
  * 
  * バリデーション:
  * - JSON構文チェック
- * - format フィールドが "er-viewer" であること
+ * - format フィールドが "relavue-er" であること
  * - version フィールドが >= 1 であること
  * 
  * インポート時に以下のフィールドを初期化/補完:
@@ -58,10 +58,10 @@ export function importViewModel(
 
         // format フィールドのバリデーション
         if (!("format" in parsedData)) {
-          throw new Error("Invalid format: expected 'er-viewer'");
+          throw new Error("Invalid format: expected 'relavue-er'");
         }
-        if (parsedData.format !== "er-viewer") {
-          throw new Error("Invalid format: expected 'er-viewer'");
+        if (parsedData.format !== "relavue-er") {
+          throw new Error("Invalid format: expected 'relavue-er'");
         }
 
         // version フィールドのバリデーション

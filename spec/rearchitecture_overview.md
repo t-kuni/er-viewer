@@ -1,9 +1,24 @@
-# ER Viewer リアーキテクチャ仕様
+# RelavueER リアーキテクチャ仕様
 
 ## 概要
 
-本アプリケーションの全体構成と実行環境を作り直す（リアーキテクチャ）仕様書。
+本アプリケーション「RelavueER」（レラビューアー）の全体構成と実行環境を作り直す（リアーキテクチャ）仕様書。
 バックエンド（TypeScript + Express + MySQL）とフロントエンド（TypeScript）の分離、TypeSpecによるAPI定義、Docker Composeによる開発環境、本番運用のコンテナ化を定義する。
+
+## アプリケーション名称
+
+* **正式名称**: RelavueER（レラビューアー）
+* **由来**: *relation*（関係）＋ *vue*（眺める）＋ *ER* = 「関係を眺めるERツール」
+* **詳細**: [research/20260208_1415_app_name_candidates.md](../research/20260208_1415_app_name_candidates.md) を参照
+
+### 名称の使用箇所
+
+* UIでの表示：「RelavueER」
+* ドキュメント：「RelavueER」
+* パッケージ名：`relavue-er`（ハイフン区切り）
+* Dockerイメージ名：`tkuni83/relavue-er`
+* リポジトリ名：`er-viewer`（互換性のため維持）
+* コード内の識別子：`erDiagram`, `ERCanvas` など（技術用語として「ER」を使用）
 
 ## システム構成
 
@@ -162,12 +177,12 @@ npm run dev
 
 1. 統合アプリケーションコンテナのビルド
    ```bash
-   docker build -f Dockerfile.prod -t yourrepo/er-viewer:tag .
+   docker build -f Dockerfile.prod -t tkuni83/relavue-er:tag .
    ```
 
 2. Docker Hubへの登録
    ```bash
-   docker push yourrepo/er-viewer:tag
+   docker push tkuni83/relavue-er:tag
    ```
 
 ### エンドユーザーでの実行
@@ -177,25 +192,25 @@ npm run dev
 ホストOSと同じネットワークで動作させる場合（推奨）：
 
 ```bash
-docker run -d --name er-viewer \
+docker run -d --name relavue-er \
   --network host \
-  tkuni83/er-viewer:latest
+  tkuni83/relavue-er:latest
 ```
 
 ポート公開する場合：
 
 ```bash
-docker run -d --name er-viewer \
+docker run -d --name relavue-er \
   -p 30033:30033 \
-  tkuni83/er-viewer:latest
+  tkuni83/relavue-er:latest
 ```
 
 #### macOS / Windows（Docker Desktop）の場合
 
 ```bash
-docker run -d --name er-viewer \
+docker run -d --name relavue-er \
   -p 30033:30033 \
-  tkuni83/er-viewer:latest
+  tkuni83/relavue-er:latest
 ```
 
 ブラウザで http://localhost:30033 にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力します。

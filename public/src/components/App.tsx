@@ -130,6 +130,9 @@ function App() {
     !nodesInitialized ||
     !hasValidNodeSize
   
+  // リバースエンジニアボタンのラベルを動的に決定
+  const reverseButtonLabel = (erDiagram.history?.length ?? 0) >= 2 ? 'DBから増分リバース' : 'DBからリバース'
+  
   return (
     <div className="app" {...getRootProps()}>
       <input {...getInputProps()} />
@@ -177,7 +180,20 @@ function App() {
               cursor: 'pointer'
             }}
           >
-            リバースエンジニア
+            {reverseButtonLabel}
+          </button>
+          <button 
+            onClick={() => dispatch(actionToggleHistoryPanel)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: showHistoryPanel ? '#777' : '#555',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            リバース履歴
           </button>
           <button 
             onClick={handleLayoutOptimize}
@@ -232,19 +248,6 @@ function App() {
             }}
           >
             インポート
-          </button>
-          <button 
-            onClick={() => dispatch(actionToggleHistoryPanel)}
-            style={{
-              padding: '0.5rem 1rem',
-              background: showHistoryPanel ? '#777' : '#555',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            履歴
           </button>
           <button 
             onClick={() => dispatch(actionShowBuildInfoModal)}

@@ -278,7 +278,7 @@ export function HistoryPanel() {
   return (
     <div style={{ padding: '16px' }}>
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 'bold' }}>
-        リバースエンジニアリング履歴
+        リバース履歴
       </h3>
 
       {sortedHistory.length === 0 ? (

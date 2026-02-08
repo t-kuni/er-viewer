@@ -177,7 +177,9 @@ function ERCanvasInner({
   setEdges,
   dispatch,
   onSelectionChange,
-  onNodesInitialized
+  onNodesInitialized,
+  addRectangleRef,
+  addTextRef
 }: { 
   nodes: Node[], 
   edges: Edge[], 
@@ -185,7 +187,9 @@ function ERCanvasInner({
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
   dispatch: ReturnType<typeof useDispatch>,
   onSelectionChange?: (rectangleId: string | null) => void,
-  onNodesInitialized?: (initialized: boolean) => void
+  onNodesInitialized?: (initialized: boolean) => void,
+  addRectangleRef?: React.MutableRefObject<(() => void) | null>,
+  addTextRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const { getNodes, screenToFlowPosition } = useReactFlow()
   const viewport = useViewport()
@@ -804,6 +808,115 @@ function ERCanvasInner({
     }
   }, [editingTextId, draftContent, texts, dispatch])
   
+  // 矩形追加ハンドラー（位置決定ロジック付き）
+  const handleAddRectangleInner = useCallback(() => {
+    let position: { x: number; y: number }
+    
+    if (lastMousePosition !== null) {
+      // マウス位置が記録されている場合：スクリーン座標をキャンバス座標に変換
+      position = screenToFlowPosition({ 
+        x: lastMousePosition.clientX, 
+        y: lastMousePosition.clientY 
+      })
+    } else {
+      // マウス位置が記録されていない場合：viewport中央を計算
+      position = {
+        x: -viewport.x + (window.innerWidth / 2) / viewport.zoom,
+        y: -viewport.y + (window.innerHeight / 2) / viewport.zoom,
+      }
+    }
+    
+    const newRectangle: Rectangle = {
+      id: crypto.randomUUID(),
+      x: position.x,
+      y: position.y,
+      width: 200,
+      height: 150,
+      fill: '#E3F2FD',
+      fillEnabled: true,
+      stroke: '#90CAF9',
+      strokeEnabled: true,
+      strokeWidth: 2,
+      opacity: 1.0,
+    }
+    dispatch(actionAddRectangle, newRectangle)
+  }, [lastMousePosition, viewport, screenToFlowPosition, dispatch])
+  
+  // テキスト追加ハンドラー（位置決定ロジック付き）
+  const handleAddTextInner = useCallback(() => {
+    let position: { x: number; y: number }
+    
+    if (lastMousePosition !== null) {
+      // マウス位置が記録されている場合：スクリーン座標をキャンバス座標に変換
+      position = screenToFlowPosition({ 
+        x: lastMousePosition.clientX, 
+        y: lastMousePosition.clientY 
+      })
+    } else {
+      // マウス位置が記録されていない場合：viewport中央を計算
+      position = {
+        x: -viewport.x + (window.innerWidth / 2) / viewport.zoom,
+        y: -viewport.y + (window.innerHeight / 2) / viewport.zoom,
+      }
+    }
+    
+    const newText: TextBox = {
+      id: crypto.randomUUID(),
+      x: position.x,
+      y: position.y,
+      width: 200,
+      height: 80,
+      content: 'テキスト',
+      fontSize: 16,
+      lineHeight: 24,
+      textAlign: TextBox.textAlign.LEFT,
+      textVerticalAlign: TextBox.textVerticalAlign.TOP,
+      textColor: '#000000',
+      opacity: 1.0,
+      paddingX: 8,
+      paddingY: 8,
+      wrap: true,
+      overflow: TextBox.overflow.CLIP,
+      autoSizeMode: TextBox.autoSizeMode.MANUAL,
+      backgroundColor: '#FFFFFF',
+      backgroundEnabled: false,
+      backgroundOpacity: 1.0,
+      textShadow: {
+        enabled: false,
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
+        spread: 0,
+        color: '#000000',
+        opacity: 0.3,
+      },
+      backgroundShadow: {
+        enabled: false,
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
+        spread: 0,
+        color: '#000000',
+        opacity: 0.3,
+      },
+    }
+    dispatch(actionAddText, newText)
+    dispatch(actionSelectItem, { kind: 'text', id: newText.id })
+  }, [lastMousePosition, viewport, screenToFlowPosition, dispatch])
+  
+  // 親コンポーネントにハンドラーを登録
+  useEffect(() => {
+    if (addRectangleRef) {
+      addRectangleRef.current = handleAddRectangleInner
+    }
+  }, [handleAddRectangleInner, addRectangleRef])
+  
+  useEffect(() => {
+    if (addTextRef) {
+      addTextRef.current = handleAddTextInner
+    }
+  }, [handleAddTextInner, addTextRef])
+  
   // パン開始・終了イベントハンドラー（カーソル制御用）
   const handleMoveStart = useCallback(() => {
     if (effectiveSpacePressed) {
@@ -949,6 +1062,10 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
     (a, b) => a === b
   )
   
+  // ERCanvasInner内のハンドラーへの参照
+  const addRectangleRef = useRef<(() => void) | null>(null)
+  const addTextRef = useRef<(() => void) | null>(null)
+  
   // エンティティノードを更新
   useEffect(() => {
     const entityNodes = convertToReactFlowNodes(viewModelNodes)
@@ -962,65 +1079,15 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
   }, [viewModelEdges, viewModelNodes, highlightedEdgeIds])
   
   const handleAddRectangle = () => {
-    const newRectangle: Rectangle = {
-      id: crypto.randomUUID(),
-      x: 0, // viewport中央に配置する実装は後回し、まずは固定座標
-      y: 0,
-      width: 200,
-      height: 150,
-      fill: '#E3F2FD',
-      fillEnabled: true,
-      stroke: '#90CAF9',
-      strokeEnabled: true,
-      strokeWidth: 2,
-      opacity: 1.0,
+    if (addRectangleRef.current) {
+      addRectangleRef.current()
     }
-    dispatch(actionAddRectangle, newRectangle)
   }
   
   const handleAddText = () => {
-    const newText: TextBox = {
-      id: crypto.randomUUID(),
-      x: 0, // viewport中央に配置する実装は後回し、まずは固定座標
-      y: 0,
-      width: 200,
-      height: 80,
-      content: 'テキスト',
-      fontSize: 16,
-      lineHeight: 24,
-      textAlign: TextBox.textAlign.LEFT,
-      textVerticalAlign: TextBox.textVerticalAlign.TOP,
-      textColor: '#000000',
-      opacity: 1.0,
-      paddingX: 8,
-      paddingY: 8,
-      wrap: true,
-      overflow: TextBox.overflow.CLIP,
-      autoSizeMode: TextBox.autoSizeMode.MANUAL,
-      backgroundColor: '#FFFFFF',
-      backgroundEnabled: false,
-      backgroundOpacity: 1.0,
-      textShadow: {
-        enabled: false,
-        offsetX: 2,
-        offsetY: 2,
-        blur: 4,
-        spread: 0,
-        color: '#000000',
-        opacity: 0.3,
-      },
-      backgroundShadow: {
-        enabled: false,
-        offsetX: 2,
-        offsetY: 2,
-        blur: 4,
-        spread: 0,
-        color: '#000000',
-        opacity: 0.3,
-      },
+    if (addTextRef.current) {
+      addTextRef.current()
     }
-    const newViewModel = dispatch(actionAddText, newText)
-    dispatch(actionSelectItem, { kind: 'text', id: newText.id })
   }
   
   return (
@@ -1062,6 +1129,8 @@ function ERCanvas({ onSelectionChange, onNodesInitialized }: ERCanvasProps = {})
           dispatch={dispatch}
           onSelectionChange={onSelectionChange}
           onNodesInitialized={onNodesInitialized}
+          addRectangleRef={addRectangleRef}
+          addTextRef={addTextRef}
         />
       </ReactFlowProvider>
     </div>

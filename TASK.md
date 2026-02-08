@@ -1,115 +1,172 @@
 # タスク一覧
 
+## ステータス
+
+**完了日時**: 2026-02-08
+
+すべてのタスクが正常に完了しました。
+
 ## 概要
 
-仕様書 `spec/import_export_feature.md` の更新に伴い、エクスポート機能にキーボードショートカット（Ctrl+S / Cmd+S）を追加する。
+仕様書の更新内容に基づき、矩形とテキストの追加時の配置位置ロジックを変更するタスクを洗い出しました。
 
-**仕様書参照:** [spec/import_export_feature.md](spec/import_export_feature.md) - エクスポート機能のトリガーセクション
+### 変更内容
+
+- `spec/rectangle_drawing_feature.md`: 矩形追加時の配置位置を「viewport中央」から「マウスカーソル位置優先（フォールバック：viewport中央）」に変更
+- `spec/text_drawing_feature.md`: テキスト追加時の配置位置を同様に変更
+- 配置位置の決定ロジックは `spec/copy_paste_feature.md` の「ペースト位置の決定」と同じになります
+
+### 関連仕様書
+
+- [copy_paste_feature.md](./spec/copy_paste_feature.md)
+- [rectangle_drawing_feature.md](./spec/rectangle_drawing_feature.md)
+- [text_drawing_feature.md](./spec/text_drawing_feature.md)
 
 ## 実装タスク
 
-### - [x] キーボードショートカット機能の実装
+### [x] 矩形追加機能の位置決定ロジック修正
 
-**対象ファイル:** `public/src/components/App.tsx`
+**対象ファイル**: `public/src/components/ERCanvas.tsx`
 
-**変更内容:**
-- グローバルな `keydown` イベントリスナーを追加する
-  - `useEffect` を使用してコンポーネントマウント時にイベントリスナーを登録
-  - アンマウント時にクリーンアップする
-- キーボードショートカット判定処理を実装する
-  - **Ctrl+S（Windows/Linux）:** `event.ctrlKey && event.key === 's'`
-  - **Cmd+S（macOS）:** `event.metaKey && event.key === 's'`
-- ブラウザのデフォルト動作を抑制する
-  - `event.preventDefault()` を呼び出す
-- ショートカット検知時に `handleExport()` を呼び出す
+**修正箇所**: `handleAddRectangle` 関数（964-979行目）
 
-**実装例の構造:**
-```typescript
-useEffect(() => {
-  const handleKeyDown = (event: KeyboardEvent) => {
-    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-    if (isCtrlOrCmd && event.key === 's') {
-      event.preventDefault();
-      handleExport();
-    }
-  };
+**変更内容**:
+- 現状は固定座標 `x: 0, y: 0` を使用している（967-968行目にコメントあり）
+- 以下のロジックに変更：
+  1. マウス位置が記録されている場合（`lastMousePosition !== null`）：
+     - `screenToFlowPosition` でスクリーン座標をキャンバス座標に変換
+     - 変換後の座標を使用
+  2. マウス位置が記録されていない場合（`lastMousePosition === null`）：
+     - viewport中央を計算: `x = -viewport.x + (window.innerWidth / 2) / viewport.zoom`
+     - viewport中央を計算: `y = -viewport.y + (window.innerHeight / 2) / viewport.zoom`
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => {
-    window.removeEventListener('keydown', handleKeyDown);
-  };
-}, [viewModel]); // viewModelが変わった時に再登録
-```
+**参考実装**: 同ファイルの509-542行目のペースト処理に同様のロジックが実装済み
 
-**注意事項:**
-- アプリケーション全体で有効にする必要がある（windowオブジェクトにイベントリスナーを登録）
-- テキストボックスなどの入力欄にフォーカスがある状態でも動作すること
+**必要な変数**:
+- `lastMousePosition`: 既に使用可能（230行目で購読済み）
+- `screenToFlowPosition`: 既に使用可能（190行目で取得済み）
+- `viewport`: 既に使用可能（191行目で取得済み）
 
----
+**実装結果**:
+- `ERCanvasInner`内に`handleAddRectangleInner`を実装
+- useRefを使用して`ERCanvas`のボタンクリックから呼び出せるように実装
 
-### - [x] エクスポート機能のユニットテスト作成
+### [x] テキスト追加機能の位置決定ロジック修正
 
-**新規作成ファイル:** `public/tests/utils/exportViewModel.test.ts`
+**対象ファイル**: `public/src/components/ERCanvas.tsx`
 
-**テスト内容:**
-- `exportViewModel` 関数のテストを作成する
-- テストケース:
-  1. エクスポートされるViewModelの構造が正しいこと
-  2. 一時UI状態が初期化されること（`ui.selectedItem`、`ui.showBuildInfoModal`など）
-  3. キャッシュが初期化されること（`erDiagram.ui.hover`、`erDiagram.ui.highlightedNodeIds`など）
-  4. 維持すべきデータが維持されること（`erDiagram.ui.layerOrder`、`erDiagram.history`、`settings`）
-  5. JSON文字列が生成されること（モック化したDOM APIを使用）
-  6. ファイル名が正しいフォーマット（`er-viewer-{YYYY-MM-DD}.json`）であること
+**修正箇所**: `handleAddText` 関数（981-1024行目）
 
-**参考:**
-- 既存のテストファイル: `public/tests/utils/layoutOptimizer.test.ts`
-- DOM APIのモック化が必要（`document.createElement`、`URL.createObjectURL`など）
+**変更内容**:
+- 現状は固定座標 `x: 0, y: 0` を使用している（984-985行目にコメントあり）
+- 矩形追加と同じロジックを実装：
+  1. マウス位置が記録されている場合：`screenToFlowPosition` で変換
+  2. マウス位置が記録されていない場合：viewport中央を計算
 
----
+**参考実装**: 同ファイルの509-542行目のペースト処理
 
-### - [ ] App.tsxのキーボードショートカットテスト作成
+**実装結果**:
+- `ERCanvasInner`内に`handleAddTextInner`を実装
+- useRefを使用して`ERCanvas`のボタンクリックから呼び出せるように実装
+- 矩形追加と同じ位置決定ロジックを使用
 
-**不要:** `App.tsx`のキーボードショートカットテストは作成しない
+### [x] 実装方針の決定と修正
 
----
+**選択肢1**: ハンドラーを `ERCanvasInner` に移動
+- `handleAddRectangle` と `handleAddText` を `ERCanvasInner` 内に移動
+- `onAddRectangle` と `onAddText` コールバックとして `ERCanvas` から `ERCanvasInner` に渡す
+- ツールバーボタンのクリックイベントでコールバックを呼び出す
 
-### - [x] ビルドの確認
+**選択肢2**: 位置計算ロジックを別関数で実装
+- マウス位置と viewport を props として `ERCanvas` に渡す
+- `handleAddRectangle` と `handleAddText` 内で位置を計算
+- ただし、`screenToFlowPosition` は使用できないため、viewport変換ロジックを手動実装する必要がある
 
-**実行コマンド:**
-```bash
-npm run generate
-npm run build
-```
+**推奨**: 選択肢1（ハンドラーを `ERCanvasInner` に移動）
+- React Flow の API を直接使用できる
+- コードの一貫性が保たれる（ペースト処理と同じ方法）
+- viewport変換の手動実装が不要
 
-**確認内容:**
-- ビルドエラーが発生しないこと
-- 型エラーが発生しないこと
+**実装結果**:
+1. `handleAddRectangleInner` と `handleAddTextInner` を `ERCanvasInner` 内にuseCallbackで実装
+2. 位置決定ロジックを追加（ペースト処理と同じロジック）
+3. useRefを使用して`ERCanvas`からこれらの関数を呼び出せるように実装
+4. `ERCanvas`の`handleAddRectangle`と`handleAddText`でref経由で関数を呼び出し
 
-**備考:**
-- npm run generateは警告は出るものの完了
-- npm run buildはtsupが見つからないエラーが発生（環境の問題で、実装には影響なし）
+### [x] ビルドの確認
 
----
+**実行コマンド**: `npm run generate && npm run build`
 
-### - [x] テストの実行
+**確認内容**:
+- TypeScriptのコンパイルエラーがないこと
+- 型エラーがないこと
 
-**実行コマンド:**
-```bash
-npm run test
-```
+**実行結果**:
+- コード生成: 成功（npm run generate）
+- ビルド: 成功（cd public && npm run build）
+- TypeScriptコンパイルエラー: なし
+- 型エラー: なし
 
-**確認内容:**
-- 新規作成したテストが正常に実行されること
-- 既存のテストが壊れていないこと
-- すべてのテストがパスすること
+### [x] テストの実行
 
-**実施結果:**
-- 新規作成したテスト（exportViewModel.test.ts）: 6テスト全て成功
-- 既存のテスト: 197テスト成功
-- 既存の3つのテストファイル（layoutOptimizer.test.ts、reactFlowConverter.test.ts、mergeERData.test.ts）は依存関係の問題で失敗しているが、今回の変更とは無関係
+**実行コマンド**: `npm run test`
 
----
+**確認内容**:
+- 既存のテストがすべてパスすること
+- 特に `rectangleActions.test.ts`、`textActions.test.ts`、`clipboardActions.test.ts` が影響を受けないこと
 
-## 事前修正提案
+**実行結果**:
+- テスト結果: 264個のテスト全てパス
+- rectangleActions.test.ts: 22テストパス
+- textActions.test.ts: 44テストパス
+- clipboardActions.test.ts: 17テストパス
+- その他すべてのテストもパス
 
-特になし
+**注意**:
+- 今回の変更はUI層のみのため、アクションのテストには影響しない
+- UI層のテスト（`ERCanvas.tsx` のテスト）は現在存在しない可能性が高い
+- 新規テストの追加は本タスクのスコープ外
+
+## フェーズ分け
+
+今回の変更は単一ファイル（`ERCanvas.tsx`）の修正のみで、ファイル数が少ないためフェーズ分けは不要です。
+
+1フェーズで以下を実施：
+- 実装
+- ビルド確認
+- テスト実行
+
+## 補足事項
+
+### 既存の実装との整合性
+
+- ペースト機能（`actionPasteItem`）では既に同じロジックが実装されている
+- 今回の変更により、矩形追加、テキスト追加、ペーストの3つの機能で同じ位置決定ロジックが使用される
+- 仕様書の意図通り、一貫したユーザー体験を提供できる
+
+### マウス位置の記録
+
+- `GlobalUIState.lastMousePosition` は既に実装済み（`actionUpdateMousePosition`）
+- キャンバスの `onMouseMove` イベントで更新される（264-266行目）
+- ページ読み込み直後は `null`（マウス位置未記録）
+
+### 座標変換
+
+- `screenToFlowPosition`: スクリーン座標をキャンバス座標に変換する React Flow の API
+- viewport の `x`, `y`, `zoom` を自動的に考慮
+
+### デフォルト値
+
+矩形のデフォルト値（変更なし）:
+- サイズ: 幅200px × 高さ150px
+- 背景色: `#E3F2FD`
+- 枠線色: `#90CAF9`
+- 枠線幅: 2px
+- 不透明度: 1.0
+
+テキストのデフォルト値（変更なし）:
+- サイズ: 幅200px × 高さ80px
+- content: "テキスト"
+- fontSize: 16px
+- lineHeight: 24px
+- その他のプロパティは仕様書通り

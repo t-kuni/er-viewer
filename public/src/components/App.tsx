@@ -131,7 +131,7 @@ function App() {
     !hasValidNodeSize
   
   // リバースエンジニアボタンのラベルを動的に決定
-  const reverseButtonLabel = (erDiagram.history?.length ?? 0) >= 2 ? 'DBから増分リバース' : 'DBからリバース'
+  const reverseButtonLabel = (erDiagram.history?.length ?? 0) >= 1 ? 'DBから増分リバース' : 'DBからリバース'
   
   return (
     <div className="app" {...getRootProps()}>

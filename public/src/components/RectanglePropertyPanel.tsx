@@ -61,6 +61,15 @@ export const RectanglePropertyPanel: React.FC<RectanglePropertyPanelProps> = ({
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onChange={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // クリップボード操作のキーイベントの伝播を止めて、ブラウザのデフォルト動作を優先
+        const isClipboardOperation = (e.ctrlKey || e.metaKey) && 
+          (e.key === 'c' || e.key === 'v' || e.key === 'x' || 
+           e.key === 'C' || e.key === 'V' || e.key === 'X')
+        if (isClipboardOperation) {
+          e.stopPropagation()
+        }
+      }}
       onCopy={(e) => e.stopPropagation()}
       onCut={(e) => e.stopPropagation()}
       onPaste={(e) => e.stopPropagation()}

@@ -37,35 +37,41 @@ RelavueER（レラビューアー）は、データベースからER図をリバ
 - ER図データとレイアウト情報の保存
 - Dockerボリュームによる柔軟な保存場所設定
 
-## 使用方法
+## 🟦 使用方法
 
-### macOS / Windows（Docker Desktop）の場合
+### 🟠 macOS / Windows（Docker Desktop）の場合
+
+1. コンテナを起動する
 
 ```bash
 docker run --rm -p 30033:30033 tkuni83/relavue-er
 ```
 
-[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
+2. [http://localhost:30033](http://localhost:30033) にアクセスする
 
-**ホストOS上のMySQLに接続する場合**:
-- Host: `host.docker.internal`
-- Port: `3306`（MySQLの待ち受けポート）
-- User/Password/Database: 接続先DBの情報を入力
+3.「DBからリバース」ボタンからDB接続情報を入力し実行する
 
-> **注意**: dockerコンテナから接続するためHostが`localhost`ではなく`host.docker.internal`となります。
+![](docs/1.png)
 
-### Linux の場合
+![](docs/2.png)
+
+**注意**: dockerコンテナから接続するためHostは`localhost`ではなく`host.docker.internal`となります。
+
+### 🟠 Linux の場合
+
+1. コンテナを起動する
 
 ```bash
 docker run --rm --network host tkuni83/relavue-er
 ```
 
-[http://localhost:30033](http://localhost:30033) にアクセスし、「リバースエンジニア」ボタンからDB接続情報を入力してください。
+2. [http://localhost:30033](http://localhost:30033) にアクセスする
 
-**ホストOS上のMySQLに接続する場合**:
-- Host: `localhost`
-- Port: `3306`（MySQLの待ち受けポート）
-- User/Password/Database: 接続先DBの情報を入力
+3.「DBからリバース」ボタンからDB接続情報を入力し実行する
+
+![](docs/1.png)
+
+![](docs/2.png)
 
 # 開発者向け情報
 
